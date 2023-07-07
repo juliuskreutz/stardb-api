@@ -1,0 +1,159 @@
+use actix_web::{get, put, web, HttpRequest, HttpResponse, Responder};
+use jsonwebtoken::{DecodingKey, Validation};
+use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
+use utoipa::ToSchema;
+
+use super::{Region, ScoresParams};
+use crate::{
+    api::users::Claims,
+    database::{self, DbScoreShield},
+    Result,
+};
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ScoresShield {
+    count: i64,
+    scores: Vec<ScoreShield>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ScoreShield {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    shield: i32,
+    region: Region,
+    name: String,
+    level: i32,
+    avatar_icon: String,
+    signature: String,
+    character_count: i32,
+    character_name: String,
+    character_icon: String,
+    path_icon: String,
+    element_color: String,
+    element_icon: String,
+}
+
+impl<T: AsRef<DbScoreShield>> From<T> for ScoreShield {
+    fn from(value: T) -> Self {
+        let db_score = value.as_ref();
+
+        ScoreShield {
+            global_rank: db_score.global_rank.unwrap(),
+            regional_rank: db_score.regional_rank.unwrap(),
+            uid: db_score.uid,
+            shield: db_score.shield,
+            region: db_score.region.parse().unwrap(),
+            name: db_score.name.clone(),
+            level: db_score.level,
+            avatar_icon: db_score.avatar_icon.clone(),
+            signature: db_score.signature.clone(),
+            character_count: db_score.character_count,
+            character_name: db_score.character_name.clone(),
+            character_icon: db_score.character_icon.clone(),
+            path_icon: db_score.path_icon.clone(),
+            element_color: db_score.element_color.clone(),
+            element_icon: db_score.element_icon.clone(),
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/scores/shield",
+    params(
+        ScoresParams
+    ),
+    responses(
+        (status = 200, description = "ScoresShield", body = ScoresShield),
+    )
+)]
+#[get("/api/scores/shield")]
+async fn get_scores_shield(
+    scores_params: web::Query<ScoresParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let count = database::count_scores_shield(&pool).await?;
+
+    let db_scores = database::get_scores_shield(
+        scores_params.region.as_ref().map(|r| r.to_string()),
+        scores_params.query.clone(),
+        scores_params.limit,
+        scores_params.offset,
+        &pool,
+    )
+    .await?;
+
+    let scores = db_scores.iter().map(ScoreShield::from).collect();
+
+    let scores = ScoresShield { count, scores };
+
+    Ok(HttpResponse::Ok().json(scores))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/scores/shield/{uid}",
+    responses(
+        (status = 200, description = "ScoreShield", body = ScoreShield),
+    )
+)]
+#[get("/api/scores/shield/{uid}")]
+async fn get_score_shield(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let scores: ScoreShield = database::get_score_shield_by_uid(*uid, &pool).await?.into();
+
+    Ok(HttpResponse::Ok().json(scores))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ShieldUpdate {
+    shield: i32,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/scores/shield/{uid}",
+    request_body = ShieldUpdate,
+    responses(
+        (status = 200, description = "ScoreShield updated", body = ScoreShield),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[put("/api/scores/shield/{uid}")]
+async fn put_score_shield(
+    request: HttpRequest,
+    uid: web::Path<i64>,
+    shield_update: web::Json<ShieldUpdate>,
+    jwt_secret: web::Data<[u8; 32]>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Some(cookie) = request.cookie("token") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let claims: Claims = jsonwebtoken::decode(
+        cookie.value(),
+        &DecodingKey::from_secret(jwt_secret.as_ref()),
+        &Validation::default(),
+    )
+    .map(|t| t.claims)?;
+
+    if !claims.admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let uid = *uid;
+    let shield = shield_update.shield;
+
+    let db_score = DbScoreShield {
+        uid,
+        shield,
+        ..Default::default()
+    };
+
+    database::set_score_shield(&db_score, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}

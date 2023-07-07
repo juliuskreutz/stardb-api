@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,\n                    *\n                FROM\n                    scores\n            ) ranked\n        WHERE\n            uid = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "global_rank",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "regional_rank",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "uid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "region",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "avatar_icon",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "signature",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "character_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "achievement_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "character_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "character_icon",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "path_icon",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "element_color",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "element_icon",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "timestamp",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "721a583b91c9eda5c82479a294598fab035c0ccb03f89f7aada3cd4ac3f2308e"
+}

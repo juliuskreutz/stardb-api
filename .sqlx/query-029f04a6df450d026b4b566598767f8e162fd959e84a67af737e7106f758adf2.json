@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievements(id, series, title, description, comment, reference, difficulty)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            series = EXCLUDED.series,\n            title = EXCLUDED.title,\n            description = EXCLUDED.description,\n            comment = COALESCE(EXCLUDED.comment, achievements.comment),\n            reference = COALESCE(EXCLUDED.reference, achievements.reference),\n            difficulty = COALESCE(EXCLUDED.difficulty, achievements.difficulty)\n        RETURNING\n            *\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "series",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "comment",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "reference",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "difficulty",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "029f04a6df450d026b4b566598767f8e162fd959e84a67af737e7106f758adf2"
+}

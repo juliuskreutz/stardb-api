@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO completed(username, achievement) VALUES($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a4575c5d70361b1776e76d4b54738af28ebf3c2988af6c2f4c2edd27a8eb1c25"
+}

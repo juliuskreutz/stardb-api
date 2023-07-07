@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            scores_shield(uid, shield)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (uid)\n        DO UPDATE SET\n            shield = EXCLUDED.shield\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3e7ac7d9c530fd6e4058aa538c1f341efdd4ee57b4791ebd290fdb649162e1b"
+}
