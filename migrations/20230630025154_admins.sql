@@ -1,3 +1,0 @@
-CREATE TABLE IF NOT EXISTS admins (
-    username TEXT PRIMARY KEY NOT NULL
-);

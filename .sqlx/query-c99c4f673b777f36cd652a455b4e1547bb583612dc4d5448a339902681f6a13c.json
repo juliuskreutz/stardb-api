@@ -30,62 +30,17 @@
       },
       {
         "ordinal": 5,
-        "name": "name",
-        "type_info": "Text"
+        "name": "timestamp",
+        "type_info": "Timestamp"
       },
       {
         "ordinal": 6,
-        "name": "level",
-        "type_info": "Int4"
+        "name": "info",
+        "type_info": "Json"
       },
       {
         "ordinal": 7,
-        "name": "avatar_icon",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 8,
-        "name": "signature",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 9,
-        "name": "character_count",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 10,
-        "name": "achievement_count",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 11,
-        "name": "character_name",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 12,
-        "name": "character_icon",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 13,
-        "name": "path_icon",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 14,
-        "name": "element_color",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 15,
-        "name": "element_icon",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 16,
-        "name": "timestamp",
+        "name": "updated_at",
         "type_info": "Timestamp"
       }
     ],
@@ -97,15 +52,6 @@
     "nullable": [
       null,
       null,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
       false,
       false,
       false,

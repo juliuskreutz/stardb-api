@@ -1,6 +1,8 @@
 use actix_web::{get, put, web, HttpRequest, HttpResponse, Responder};
+use chrono::NaiveDateTime;
 use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, ToSchema};
@@ -15,11 +17,11 @@ use crate::{
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct ScoresDamage {
     count: i64,
-    scores: Vec<ScoreDamage>,
+    scores: Vec<ScoreDamagePartial>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoreDamage {
+pub struct ScoreDamagePartial {
     global_rank: i64,
     regional_rank: i64,
     uid: i64,
@@ -28,22 +30,34 @@ pub struct ScoreDamage {
     damage: i32,
     region: Region,
     name: String,
-    level: i32,
-    avatar_icon: String,
+    level: u64,
     signature: String,
-    character_count: i32,
-    character_name: String,
-    character_icon: String,
-    path_icon: String,
-    element_color: String,
-    element_icon: String,
+    avatar_icon: String,
+    updated_at: NaiveDateTime,
 }
 
-impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
+impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamagePartial {
     fn from(value: T) -> Self {
         let db_score = value.as_ref();
 
-        ScoreDamage {
+        let name = db_score.info["player"]["nickname"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let level = db_score.info["player"]["level"].as_u64().unwrap();
+
+        let signature = db_score.info["player"]["signature"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let avatar_icon = db_score.info["player"]["avatar"]["icon"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        ScoreDamagePartial {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
@@ -51,16 +65,36 @@ impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
             support: db_score.support,
             damage: db_score.damage,
             region: db_score.region.parse().unwrap(),
-            name: db_score.name.clone(),
-            level: db_score.level,
-            avatar_icon: db_score.avatar_icon.clone(),
-            signature: db_score.signature.clone(),
-            character_count: db_score.character_count,
-            character_name: db_score.character_name.clone(),
-            character_icon: db_score.character_icon.clone(),
-            path_icon: db_score.path_icon.clone(),
-            element_color: db_score.element_color.clone(),
-            element_icon: db_score.element_icon.clone(),
+            name,
+            level,
+            signature,
+            avatar_icon,
+            updated_at: db_score.updated_at,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ScoreDamage {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    region: Region,
+    info: Value,
+    updated_at: NaiveDateTime,
+}
+
+impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
+    fn from(value: T) -> Self {
+        let db_score = value.as_ref();
+
+        Self {
+            global_rank: db_score.global_rank.unwrap(),
+            regional_rank: db_score.regional_rank.unwrap(),
+            uid: db_score.uid,
+            region: db_score.region.parse().unwrap(),
+            info: db_score.info.clone(),
+            updated_at: db_score.updated_at,
         }
     }
 }
@@ -111,7 +145,10 @@ async fn get_scores_damage(
     )
     .await?;
 
-    let scores = db_scores_damage.iter().map(ScoreDamage::from).collect();
+    let scores = db_scores_damage
+        .iter()
+        .map(ScoreDamagePartial::from)
+        .collect();
 
     let scores_damage = ScoresDamage { count, scores };
 
@@ -148,7 +185,7 @@ pub struct DamageUpdate {
     path = "/api/scores/damage/{uid}",
     request_body = DamageUpdate,
     responses(
-        (status = 200, description = "ScoreDamage updated", body = ScoreDamage),
+        (status = 200, description = "ScoreDamage updated"),
         (status = 403, description = "Not an admin"),
     )
 )]

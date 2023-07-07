@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n            ) ranked\n        WHERE\n            uid = $1\n        ",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n                WHERE\n                    ($1::TEXT IS NULL OR character = $1)\n                AND\n                    ($2::BOOLEAN IS NULL OR support = $2)\n            ) ranked\n        WHERE\n            ($3::TEXT IS NULL OR region = $3)\n        AND\n            ($4::TEXT IS NULL OR LOWER(info -> 'player' ->> 'nickname') LIKE '%' || LOWER($4) || '%')\n        ORDER BY\n            (CASE WHEN $4 IS NOT NULL THEN LEVENSHTEIN(info -> 'player' ->> 'nickname', $4) ELSE global_rank END)\n        LIMIT\n            $5\n        OFFSET\n            $6\n        ",
   "describe": {
     "columns": [
       {
@@ -56,6 +56,11 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Int8",
         "Int8"
       ]
     },
@@ -72,5 +77,5 @@
       false
     ]
   },
-  "hash": "63e0da6ba3ec2fd8c408ae9cd9cb930c551cb61507a91ba4794a13bb18fecae2"
+  "hash": "91268966afa5ec0f0a99d6473244c8ac0e7478dbd35a5400e24c9bf5bbd0b269"
 }

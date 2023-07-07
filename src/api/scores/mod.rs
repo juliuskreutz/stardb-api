@@ -1,7 +1,7 @@
 use actix_web::{get, put, web, HttpResponse, Responder};
 use chrono::{Duration, NaiveDateTime, Utc};
-use regex::{Captures, Regex};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, ToSchema};
@@ -34,7 +34,61 @@ struct ScoresParams {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct ScoresAchievement {
     count: i64,
-    scores: Vec<ScoreAchievement>,
+    scores: Vec<ScoreAchievementPartial>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct ScoreAchievementPartial {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    region: Region,
+    name: String,
+    level: u64,
+    signature: String,
+    avatar_icon: String,
+    achievement_count: u64,
+    updated_at: NaiveDateTime,
+}
+
+impl<T: AsRef<DbScore>> From<T> for ScoreAchievementPartial {
+    fn from(value: T) -> Self {
+        let db_score = value.as_ref();
+
+        let name = db_score.info["player"]["nickname"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let level = db_score.info["player"]["level"].as_u64().unwrap();
+
+        let signature = db_score.info["player"]["signature"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let avatar_icon = db_score.info["player"]["avatar"]["icon"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let achievement_count = db_score.info["player"]["space_info"]["achievement_count"]
+            .as_u64()
+            .unwrap();
+
+        ScoreAchievementPartial {
+            global_rank: db_score.global_rank.unwrap(),
+            regional_rank: db_score.regional_rank.unwrap(),
+            uid: db_score.uid,
+            region: db_score.region.parse().unwrap(),
+            name,
+            level,
+            signature,
+            avatar_icon,
+            achievement_count,
+            updated_at: db_score.updated_at,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -43,41 +97,21 @@ pub struct ScoreAchievement {
     regional_rank: i64,
     uid: i64,
     region: Region,
-    name: String,
-    level: i32,
-    avatar_icon: String,
-    signature: String,
-    character_count: i32,
-    achievement_count: i32,
-    character_name: String,
-    character_icon: String,
-    path_icon: String,
-    element_color: String,
-    element_icon: String,
-    timestamp: NaiveDateTime,
+    info: Value,
+    updated_at: NaiveDateTime,
 }
 
 impl<T: AsRef<DbScore>> From<T> for ScoreAchievement {
     fn from(value: T) -> Self {
         let db_score = value.as_ref();
 
-        ScoreAchievement {
+        Self {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
             region: db_score.region.parse().unwrap(),
-            name: db_score.name.clone(),
-            level: db_score.level,
-            avatar_icon: db_score.avatar_icon.clone(),
-            signature: db_score.signature.clone(),
-            character_count: db_score.character_count,
-            achievement_count: db_score.achievement_count,
-            character_name: db_score.character_name.clone(),
-            character_icon: db_score.character_icon.clone(),
-            path_icon: db_score.path_icon.clone(),
-            element_color: db_score.element_color.clone(),
-            element_icon: db_score.element_icon.clone(),
-            timestamp: db_score.timestamp,
+            info: db_score.info.clone(),
+            updated_at: db_score.updated_at,
         }
     }
 }
@@ -108,7 +142,10 @@ async fn get_scores_achievement(
     )
     .await?;
 
-    let scores = db_scores.iter().map(ScoreAchievement::from).collect();
+    let scores = db_scores
+        .iter()
+        .map(ScoreAchievementPartial::from)
+        .collect();
 
     let scores_achievement = ScoresAchievement { count, scores };
 
@@ -148,13 +185,8 @@ async fn put_score_achievement(
 
     let uid = *uid;
 
-    let api_data = mihomo::get(uid).await?;
+    let info = mihomo::get(uid).await?;
 
-    let re = Regex::new(r"<[^>]*>")?;
-
-    let name = re
-        .replace_all(&api_data.player.nickname, |_: &Captures| "")
-        .to_string();
     let region = match uid.to_string().chars().next() {
         Some('6') => "na",
         Some('7') => "eu",
@@ -162,23 +194,14 @@ async fn put_score_achievement(
         _ => "cn",
     }
     .to_string();
-    let level = api_data.player.level;
-    let avatar_icon = api_data.player.avatar.icon.clone();
-    let signature = re
-        .replace_all(&api_data.player.signature, |_: &Captures| "")
-        .to_string();
-    let character_count = api_data.player.space_info.avatar_count;
-    let achievement_count = api_data.player.space_info.achievement_count;
-    let character_name = api_data.characters[0].name.clone();
-    let character_icon = api_data.characters[0].icon.clone();
-    let path_icon = api_data.characters[0].path.icon.clone();
-    let element_color = api_data.characters[0].element.color.clone();
-    let element_icon = api_data.characters[0].element.icon.clone();
+
     let timestamp = database::get_score_by_uid(uid, &pool)
         .await
         .ok()
         .and_then(|sd| {
-            if sd.achievement_count == achievement_count {
+            if sd.info["player"]["space_info"]["achievement_count"]
+                == info["player"]["space_info"]["achievement_count"]
+            {
                 Some(sd.timestamp)
             } else {
                 None
@@ -195,17 +218,7 @@ async fn put_score_achievement(
     let db_score = DbScore {
         uid,
         region,
-        name,
-        level,
-        avatar_icon,
-        signature,
-        character_count,
-        achievement_count,
-        character_name,
-        character_icon,
-        path_icon,
-        element_color,
-        element_icon,
+        info,
         timestamp,
         ..Default::default()
     };

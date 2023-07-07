@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::Result;
@@ -12,18 +13,9 @@ pub struct DbScoreDamage {
     pub support: bool,
     pub damage: i32,
     pub region: String,
-    pub name: String,
-    pub level: i32,
-    pub avatar_icon: String,
-    pub signature: String,
-    pub character_count: i32,
-    pub achievement_count: i32,
-    pub character_name: String,
-    pub character_icon: String,
-    pub path_icon: String,
-    pub element_color: String,
-    pub element_icon: String,
     pub timestamp: NaiveDateTime,
+    pub info: Value,
+    pub updated_at: NaiveDateTime,
 }
 
 impl AsRef<DbScoreDamage> for DbScoreDamage {
@@ -87,9 +79,9 @@ pub async fn get_scores_damage(
         WHERE
             ($3::TEXT IS NULL OR region = $3)
         AND
-            ($4::TEXT IS NULL OR uid::TEXT = $4 OR LOWER(name) LIKE '%' || LOWER($4) || '%')
+            ($4::TEXT IS NULL OR LOWER(info -> 'player' ->> 'nickname') LIKE '%' || LOWER($4) || '%')
         ORDER BY
-            (CASE WHEN $4 IS NOT NULL THEN LEVENSHTEIN(name, $4) ELSE global_rank END)
+            (CASE WHEN $4 IS NOT NULL THEN LEVENSHTEIN(info -> 'player' ->> 'nickname', $4) ELSE global_rank END)
         LIMIT
             $5
         OFFSET

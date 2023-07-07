@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::Result;
 
@@ -47,8 +48,8 @@ pub struct Element {
     pub icon: String,
 }
 
-pub async fn get(uid: i64) -> Result<MihomoData> {
+pub async fn get(uid: i64) -> Result<Value> {
     let url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang=en&version=v2");
 
-    Ok(reqwest::get(&url).await?.json::<MihomoData>().await?)
+    Ok(reqwest::get(&url).await?.json().await?)
 }

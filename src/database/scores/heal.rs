@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::Result;
@@ -10,18 +11,9 @@ pub struct DbScoreHeal {
     pub uid: i64,
     pub heal: i32,
     pub region: String,
-    pub name: String,
-    pub level: i32,
-    pub avatar_icon: String,
-    pub signature: String,
-    pub character_count: i32,
-    pub achievement_count: i32,
-    pub character_name: String,
-    pub character_icon: String,
-    pub path_icon: String,
-    pub element_color: String,
-    pub element_icon: String,
     pub timestamp: NaiveDateTime,
+    pub info: Value,
+    pub updated_at: NaiveDateTime,
 }
 
 impl AsRef<DbScoreHeal> for DbScoreHeal {
@@ -77,9 +69,9 @@ pub async fn get_scores_heal(
         WHERE
             ($1::TEXT IS NULL OR region = $1)
         AND
-            ($2::TEXT IS NULL OR uid::TEXT = $2 OR LOWER(name) LIKE '%' || LOWER($2) || '%')
+            ($2::TEXT IS NULL OR LOWER(info -> 'player' ->> 'nickname') LIKE '%' || LOWER($2) || '%')
         ORDER BY
-            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)
+            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(info -> 'player' ->> 'nickname', $2) ELSE global_rank END)
         LIMIT
             $3
         OFFSET

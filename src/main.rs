@@ -46,17 +46,21 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
     ),
     components(schemas(
         scores::Region,
-        scores::ScoresAchievement,
         scores::ScoreAchievement,
+        scores::ScoreAchievementPartial,
+        scores::ScoresAchievement,
         scores::damage::Character,
-        scores::damage::ScoresDamage,
         scores::damage::ScoreDamage,
+        scores::damage::ScoreDamagePartial,
+        scores::damage::ScoresDamage,
         scores::damage::DamageUpdate,
-        scores::heal::ScoresHeal,
         scores::heal::ScoreHeal,
+        scores::heal::ScoreHealPartial,
+        scores::heal::ScoresHeal,
         scores::heal::HealUpdate,
-        scores::shield::ScoresShield,
         scores::shield::ScoreShield,
+        scores::shield::ScoreShieldPartial,
+        scores::shield::ScoresShield,
         scores::shield::ShieldUpdate,
         users::User,
         users::UserLogin,
@@ -84,11 +88,15 @@ async fn main() -> Result<()> {
     update::achievements(pool.clone()).await;
     update::scores().await;
 
+    let password_resets = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
+    let jwt_secret = Data::new(rand::thread_rng().gen::<[u8; 32]>());
+    let pool = Data::new(pool);
+
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(Mutex::new(HashMap::<Uuid, String>::new())))
-            .app_data(Data::new(rand::thread_rng().gen::<[u8; 32]>()))
-            .app_data(Data::new(pool.clone()))
+            .app_data(password_resets.clone())
+            .app_data(jwt_secret.clone())
+            .app_data(pool.clone())
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}")
                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
@@ -118,6 +126,7 @@ async fn main() -> Result<()> {
             .service(achievements::get_achievements)
             .service(achievements::get_achievement)
             .service(achievements::put_achievement)
+        // .service(profile::get_profile)
     })
     .bind(("localhost", 8000))?
     .run()
