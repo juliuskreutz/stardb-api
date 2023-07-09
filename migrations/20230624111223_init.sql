@@ -3,9 +3,13 @@ CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
 CREATE TABLE IF NOT EXISTS scores (
     uid INT8 PRIMARY KEY NOT NULL,
     region TEXT NOT NULL,
+    name TEXT NOt NULL,
+    level INT4 NOT NULL,
+    signature TEXT NOT NULL,
+    avatar_icon TEXT NOT NULL,
+    achievement_count INT4 NOT NULL,
     timestamp TIMESTAMP NOT NULL,
-    info JSON NOT NULL,
-    updated_at TIMESTAMP DEFAULT now()
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS scores_damage (
@@ -29,7 +33,8 @@ CREATE TABLE IF NOT EXISTS scores_shield (
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY NOT NULL,
     password TEXT NOT NULL,
-    email TEXT
+    email TEXT,
+    admin BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS admins (

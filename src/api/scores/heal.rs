@@ -2,7 +2,6 @@ use actix_web::{get, put, web, HttpRequest, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use jsonwebtoken::{DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sqlx::PgPool;
 use utoipa::ToSchema;
 
@@ -16,57 +15,7 @@ use crate::{
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct ScoresHeal {
     count: i64,
-    scores: Vec<ScoreHealPartial>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoreHealPartial {
-    global_rank: i64,
-    regional_rank: i64,
-    uid: i64,
-    heal: i32,
-    region: Region,
-    name: String,
-    level: u64,
-    signature: String,
-    avatar_icon: String,
-    updated_at: NaiveDateTime,
-}
-
-impl<T: AsRef<DbScoreHeal>> From<T> for ScoreHealPartial {
-    fn from(value: T) -> Self {
-        let db_score = value.as_ref();
-
-        let name = db_score.info["player"]["nickname"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let level = db_score.info["player"]["level"].as_u64().unwrap();
-
-        let signature = db_score.info["player"]["signature"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let avatar_icon = db_score.info["player"]["avatar"]["icon"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        ScoreHealPartial {
-            global_rank: db_score.global_rank.unwrap(),
-            regional_rank: db_score.regional_rank.unwrap(),
-            uid: db_score.uid,
-            heal: db_score.heal,
-            region: db_score.region.parse().unwrap(),
-            name,
-            level,
-            signature,
-            avatar_icon,
-            updated_at: db_score.updated_at,
-        }
-    }
+    scores: Vec<ScoreHeal>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -74,8 +23,12 @@ pub struct ScoreHeal {
     global_rank: i64,
     regional_rank: i64,
     uid: i64,
+    heal: i32,
     region: Region,
-    info: Value,
+    name: String,
+    level: i32,
+    signature: String,
+    avatar_icon: String,
     updated_at: NaiveDateTime,
 }
 
@@ -83,12 +36,16 @@ impl<T: AsRef<DbScoreHeal>> From<T> for ScoreHeal {
     fn from(value: T) -> Self {
         let db_score = value.as_ref();
 
-        Self {
+        ScoreHeal {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
+            heal: db_score.heal,
             region: db_score.region.parse().unwrap(),
-            info: db_score.info.clone(),
+            name: db_score.name.clone(),
+            level: db_score.level,
+            signature: db_score.name.clone(),
+            avatar_icon: db_score.avatar_icon.clone(),
             updated_at: db_score.updated_at,
         }
     }
@@ -120,7 +77,7 @@ async fn get_scores_heal(
     )
     .await?;
 
-    let scores = db_scores.iter().map(ScoreHealPartial::from).collect();
+    let scores = db_scores.iter().map(ScoreHeal::from).collect();
 
     let scores = ScoresHeal { count, scores };
 

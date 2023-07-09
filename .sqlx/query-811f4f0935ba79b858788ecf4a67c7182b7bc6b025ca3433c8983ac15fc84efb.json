@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            scores(uid, region, name, level, signature, avatar_icon, achievement_count, timestamp)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7, $8)\n        ON CONFLICT\n            (uid)\n        DO UPDATE SET\n            name = EXCLUDED.name,\n            level = EXCLUDED.level,\n            signature = EXCLUDED.signature,\n            avatar_icon = EXCLUDED.avatar_icon,\n            achievement_count = EXCLUDED.achievement_count,\n            timestamp = EXCLUDED.timestamp,\n            updated_at = now()\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "811f4f0935ba79b858788ecf4a67c7182b7bc6b025ca3433c8983ac15fc84efb"
+}

@@ -7,7 +7,6 @@ pub use heal::*;
 pub use shield::*;
 
 use chrono::NaiveDateTime;
-use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::Result;
@@ -18,8 +17,12 @@ pub struct DbScore {
     pub regional_rank: Option<i64>,
     pub uid: i64,
     pub region: String,
+    pub name: String,
+    pub level: i32,
+    pub signature: String,
+    pub avatar_icon: String,
+    pub achievement_count: i32,
     pub timestamp: NaiveDateTime,
-    pub info: Value,
     pub updated_at: NaiveDateTime,
 }
 
@@ -34,20 +37,28 @@ pub async fn set_score(score: &DbScore, pool: &PgPool) -> Result<DbScore> {
         Score,
         "
         INSERT INTO
-            scores(uid, region, timestamp, info)
+            scores(uid, region, name, level, signature, avatar_icon, achievement_count, timestamp)
         VALUES
-            ($1, $2, $3, $4)
+            ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT
             (uid)
         DO UPDATE SET
+            name = EXCLUDED.name,
+            level = EXCLUDED.level,
+            signature = EXCLUDED.signature,
+            avatar_icon = EXCLUDED.avatar_icon,
+            achievement_count = EXCLUDED.achievement_count,
             timestamp = EXCLUDED.timestamp,
-            info = EXCLUDED.info,
             updated_at = now()
         ",
         score.uid,
         score.region,
+        score.name,
+        score.level,
+        score.signature,
+        score.avatar_icon,
+        score.achievement_count,
         score.timestamp,
-        score.info
     )
     .execute(pool)
     .await?;
@@ -70,8 +81,8 @@ pub async fn get_scores(
         FROM
             (
                 SELECT
-                    RANK() OVER (ORDER BY info -> 'player' -> 'space_info' ->> 'achievement_count' DESC, timestamp) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY info -> 'player' -> 'space_info' ->> 'achievement_count' DESC, timestamp) regional_rank,
+                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
+                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
                     *
                 FROM
                     scores
@@ -79,9 +90,9 @@ pub async fn get_scores(
         WHERE
             ($1::TEXT IS NULL OR region = $1)
         AND
-            ($2::TEXT IS NULL OR LOWER(info -> 'player' ->> 'nickname') LIKE '%' || LOWER($2) || '%')
+            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')
         ORDER BY
-            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(info -> 'player' ->> 'nickname', $2) ELSE global_rank END)
+            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)
         LIMIT
             $3
         OFFSET
@@ -113,8 +124,8 @@ pub async fn get_score_by_uid(uid: i64, pool: &PgPool) -> Result<DbScore> {
         FROM
             (
                 SELECT
-                    RANK() OVER (ORDER BY info -> 'player' -> 'space_info' ->> 'achievement_count' DESC, timestamp) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY info -> 'player' -> 'space_info' ->> 'achievement_count' DESC, timestamp) regional_rank,
+                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
+                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
                     *
                 FROM
                     scores

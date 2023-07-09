@@ -52,9 +52,11 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
 }
 
 pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
-    Ok(sqlx::query_as!(DbAchievement, "SELECT * FROM achievements")
-        .fetch_all(pool)
-        .await?)
+    Ok(
+        sqlx::query_as!(DbAchievement, "SELECT * FROM achievements ORDER BY id")
+            .fetch_all(pool)
+            .await?,
+    )
 }
 
 pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchievement> {

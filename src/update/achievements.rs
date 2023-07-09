@@ -75,7 +75,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             .await?;
 
     for achievement_data in achievement_data.values() {
-        let hrml_re = Regex::new(r"<[^>]*>")?;
+        let html_re = Regex::new(r"<[^>]*>")?;
 
         let id = achievement_data.id;
 
@@ -85,7 +85,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             .to_string()]
             .clone();
 
-        let title = hrml_re
+        let title = html_re
             .replace_all(
                 &text_map[&achievement_data.title.hash.to_string()],
                 |_: &Captures| "",
@@ -104,7 +104,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 },
             )
             .to_string();
-        let description = hrml_re
+        let description = html_re
             .replace_all(&description, |_: &Captures| "")
             .replace("\\n", "");
 

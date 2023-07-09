@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::Result;
@@ -12,7 +11,11 @@ pub struct DbScoreShield {
     pub shield: i32,
     pub region: String,
     pub timestamp: NaiveDateTime,
-    pub info: Value,
+    pub name: String,
+    pub level: i32,
+    pub signature: String,
+    pub avatar_icon: String,
+    pub achievement_count: i32,
     pub updated_at: NaiveDateTime,
 }
 
@@ -69,9 +72,9 @@ pub async fn get_scores_shield(
         WHERE
             ($1::TEXT IS NULL OR region = $1)
         AND
-            ($2::TEXT IS NULL OR LOWER(info -> 'player' ->> 'nickname') LIKE '%' || LOWER($2) || '%')
+            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')
         ORDER BY
-            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(info -> 'player' ->> 'nickname', $2) ELSE global_rank END)
+            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)
         LIMIT
             $3
         OFFSET

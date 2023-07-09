@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use actix_web::{
     cookie::{self, Cookie},
-    post, put,
+    get, post, put,
     rt::{self, time},
     web, HttpRequest, HttpResponse, Responder,
 };
@@ -16,7 +16,7 @@ use sqlx::PgPool;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::database;
+use crate::database::{self, DbUser};
 use crate::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -24,13 +24,6 @@ pub struct Claims {
     pub username: String,
     pub admin: bool,
     pub exp: usize,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct User {
-    pub username: String,
-    pub password: String,
-    pub email: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -86,7 +79,9 @@ async fn login(
         }
     };
 
-    let admin = database::is_admin(&username, &pool).await;
+    let user = database::get_user_by_username(&username, &pool).await?;
+
+    let admin = user.admin;
     let exp = (Utc::now() + Duration::hours(1)).timestamp() as usize;
 
     let claims = Claims {
@@ -164,20 +159,20 @@ async fn register(
 
     {
         let username = username.clone();
-        let user = User {
+        let user = DbUser {
             username,
             password,
             email,
+            admin: false,
         };
         database::set_user(&user, &pool).await?;
     }
 
-    let admin = database::is_admin(&username, &pool).await;
     let exp = (Utc::now() + Duration::hours(1)).timestamp() as usize;
 
     let claims = Claims {
         username,
-        admin,
+        admin: false,
         exp,
     };
 
@@ -214,6 +209,126 @@ async fn logout(request: HttpRequest) -> impl Responder {
     cookie.make_removal();
 
     HttpResponse::Ok().cookie(cookie).finish()
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct RequestToken {
+    username: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/users/request-token",
+    request_body = RequestToken,
+    responses(
+        (status = 200, description = "Send mail with emergency login."),
+        (status = 400, description = "No email connected."),
+    )
+)]
+#[post("/api/users/request-token")]
+async fn request_token(
+    password_reset: web::Json<RequestToken>,
+    password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(user) = database::get_user_by_username(&password_reset.username, &pool).await else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let Some(email) = user.email else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let token = Uuid::new_v4();
+    password_resets
+        .lock()
+        .map_err(|_| "lock broken")?
+        .insert(token, user.username.clone());
+
+    let to = format!("<{email}>").parse()?;
+
+    let email = Message::builder()
+        .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
+        .to(to)
+        .subject("Stardb Password Reset")
+        .body(format!("https://stardb.gg/login?token={token}"))?;
+
+    let credentials =
+        Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
+
+    let mailer = SmtpTransport::relay("mail.hosting.de")?
+        .credentials(credentials)
+        .build();
+
+    mailer.send(&email)?;
+
+    rt::spawn(async move {
+        let mut interval = time::interval(std::time::Duration::from_secs(5 * 60));
+
+        interval.tick().await;
+        interval.tick().await;
+
+        password_resets
+            .lock()
+            .map_err(|_| "lock broken")?
+            .remove(&token);
+
+        Result::<()>::Ok(())
+    });
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct User {
+    username: String,
+    password: String,
+    email: Option<String>,
+    admin: bool,
+    uids: Vec<i64>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/users/me",
+    responses(
+        (status = 200, description = "User", body = User),
+        (status = 400, description = "Not logged in."),
+    )
+)]
+#[get("/api/users/me")]
+async fn get_me(
+    request: HttpRequest,
+    jwt_secret: web::Data<[u8; 32]>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Some(cookie) = request.cookie("token") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let claims: Claims = jsonwebtoken::decode(
+        cookie.value(),
+        &DecodingKey::from_secret(jwt_secret.as_ref()),
+        &Validation::default(),
+    )
+    .map(|t| t.claims)?;
+
+    let user = database::get_user_by_username(&claims.username, &pool).await?;
+
+    let username = user.username.clone();
+    let password = user.password.clone();
+    let email = user.email.clone();
+    let admin = user.admin;
+
+    let user = User {
+        username,
+        password,
+        email,
+        admin,
+        uids: Vec::new(),
+    };
+
+    Ok(HttpResponse::Ok().json(user))
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -293,74 +408,6 @@ async fn put_password(
     )?;
 
     database::update_password(&claims.username, &password, &pool).await?;
-
-    Ok(HttpResponse::Ok().finish())
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct RequestToken {
-    username: String,
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/users/request-token",
-    request_body = RequestToken,
-    responses(
-        (status = 200, description = "Send mail with emergency login."),
-        (status = 400, description = "No email connected."),
-    )
-)]
-#[post("/api/users/request-token")]
-async fn request_token(
-    password_reset: web::Json<RequestToken>,
-    password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(user) = database::get_user_by_username(&password_reset.username, &pool).await else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let Some(email) = user.email else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let token = Uuid::new_v4();
-    password_resets
-        .lock()
-        .map_err(|_| "lock broken")?
-        .insert(token, user.username.clone());
-
-    let to = format!("<{email}>").parse()?;
-
-    let email = Message::builder()
-        .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
-        .to(to)
-        .subject("Stardb Password Reset")
-        .body(format!("https://stardb.gg/login?token={token}"))?;
-
-    let credentials =
-        Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
-
-    let mailer = SmtpTransport::relay("mail.hosting.de")?
-        .credentials(credentials)
-        .build();
-
-    mailer.send(&email)?;
-
-    rt::spawn(async move {
-        let mut interval = time::interval(std::time::Duration::from_secs(5 * 60));
-
-        interval.tick().await;
-        interval.tick().await;
-
-        password_resets
-            .lock()
-            .map_err(|_| "lock broken")?
-            .remove(&token);
-
-        Result::<()>::Ok(())
-    });
 
     Ok(HttpResponse::Ok().finish())
 }

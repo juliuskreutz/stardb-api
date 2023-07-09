@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM achievements",
+  "query": "SELECT * FROM achievements ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -52,5 +52,5 @@
       true
     ]
   },
-  "hash": "d9b7a0326518c0137b1eb6b3d4ae3dc4345545e22bb5aacce419662b896d5354"
+  "hash": "17219fe8640e32cf016afcf053ddf8c21cadf6ec28b2367267f5d9846482c514"
 }
