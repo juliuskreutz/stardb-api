@@ -49,7 +49,7 @@ impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
             region: db_score.region.parse().unwrap(),
             name: db_score.name.clone(),
             level: db_score.level,
-            signature: db_score.name.clone(),
+            signature: db_score.signature.clone(),
             avatar_icon: db_score.avatar_icon.clone(),
             updated_at: db_score.updated_at,
         }

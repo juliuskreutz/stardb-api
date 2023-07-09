@@ -62,7 +62,7 @@ impl<T: AsRef<DbScore>> From<T> for ScoreAchievement {
             region: db_score.region.parse().unwrap(),
             name: db_score.name.clone(),
             level: db_score.level,
-            signature: db_score.name.clone(),
+            signature: db_score.signature.clone(),
             avatar_icon: db_score.avatar_icon.clone(),
             achievement_count: db_score.achievement_count,
             updated_at: db_score.updated_at,
