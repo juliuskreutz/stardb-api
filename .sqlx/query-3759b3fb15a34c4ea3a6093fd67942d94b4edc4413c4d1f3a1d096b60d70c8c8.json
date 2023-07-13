@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) as count FROM scores",
+  "query": "SELECT COUNT(*) as count FROM scores WHERE region = $1",
   "describe": {
     "columns": [
       {
@@ -10,11 +10,13 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Text"
+      ]
     },
     "nullable": [
       null
     ]
   },
-  "hash": "0b9a0dee93fc211eba838430cba195bdf0e276ef78152f382b1304559d5e8c3e"
+  "hash": "3759b3fb15a34c4ea3a6093fd67942d94b4edc4413c4d1f3a1d096b60d70c8c8"
 }

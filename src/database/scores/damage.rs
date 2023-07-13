@@ -11,6 +11,7 @@ pub struct DbScoreDamage {
     pub character: String,
     pub support: bool,
     pub damage: i32,
+    pub video: String,
     pub region: String,
     pub timestamp: NaiveDateTime,
     pub name: String,
@@ -101,15 +102,23 @@ pub async fn get_scores_damage(
     .await?)
 }
 
-pub async fn count_scores_damage(pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query!("SELECT COUNT(*) as count FROM scores_damage")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
+pub async fn count_scores_damage(region: &str, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM scores_damage NATURAL JOIN scores WHERE region = $1",
+        region,
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }
 
-pub async fn get_scores_damage_by_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbScoreDamage>> {
+pub async fn get_score_damage_by_uid(
+    uid: i64,
+    character: Option<String>,
+    support: Option<bool>,
+    pool: &PgPool,
+) -> Result<DbScoreDamage> {
     Ok(sqlx::query_as!(
         DbScoreDamage,
         "
@@ -125,12 +134,22 @@ pub async fn get_scores_damage_by_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbS
                     scores_damage
                 NATURAL JOIN
                     scores
+                WHERE
+                    ($2::TEXT IS NULL OR character = $2)
+                AND
+                    ($3::BOOLEAN IS NULL OR support = $3)
             ) ranked
         WHERE
             uid = $1
+        ORDER BY
+            global_rank
+        LIMIT
+            1
         ",
         uid,
+        character,
+        support,
     )
-    .fetch_all(pool)
+    .fetch_one(pool)
     .await?)
 }

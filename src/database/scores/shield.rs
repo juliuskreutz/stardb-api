@@ -9,6 +9,7 @@ pub struct DbScoreShield {
     pub regional_rank: Option<i64>,
     pub uid: i64,
     pub shield: i32,
+    pub video: String,
     pub region: String,
     pub timestamp: NaiveDateTime,
     pub name: String,
@@ -89,12 +90,15 @@ pub async fn get_scores_shield(
     .await?)
 }
 
-pub async fn count_scores_shield(pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query!("SELECT COUNT(*) as count FROM scores_shield")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
+pub async fn count_scores_shield(region: &str, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN scores WHERE region = $1",
+        region,
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }
 
 pub async fn get_score_shield_by_uid(uid: i64, pool: &PgPool) -> Result<DbScoreShield> {

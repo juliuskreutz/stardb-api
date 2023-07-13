@@ -1,55 +1,17 @@
 use actix_web::{get, put, web, HttpResponse, Responder};
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{Duration, Utc};
 use regex::{Captures, Regex};
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::{Display, EnumString};
-use utoipa::{IntoParams, ToSchema};
 
-use crate::database::{self, DbScore};
-use crate::{mihomo, Result};
+use crate::{
+    api::{params::*, schemas::*},
+    database::{self, DbScore},
+    mihomo, Result,
+};
 
 pub mod damage;
 pub mod heal;
 pub mod shield;
-
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
-pub enum Region {
-    NA,
-    EU,
-    Asia,
-    CN,
-}
-
-#[derive(Deserialize, IntoParams)]
-struct ScoresParams {
-    region: Option<Region>,
-    query: Option<String>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoresAchievement {
-    count: i64,
-    scores: Vec<ScoreAchievement>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoreAchievement {
-    global_rank: i64,
-    regional_rank: i64,
-    uid: i64,
-    region: Region,
-    name: String,
-    level: i32,
-    signature: String,
-    avatar_icon: String,
-    achievement_count: i32,
-    updated_at: NaiveDateTime,
-}
 
 impl<T: AsRef<DbScore>> From<T> for ScoreAchievement {
     fn from(value: T) -> Self {
@@ -85,7 +47,12 @@ async fn get_scores_achievement(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let count = database::count_scores(&pool).await?;
+    let count_na = database::count_scores(&Region::NA.to_string(), &pool).await?;
+    let count_eu = database::count_scores(&Region::EU.to_string(), &pool).await?;
+    let count_asia = database::count_scores(&Region::Asia.to_string(), &pool).await?;
+    let count_cn = database::count_scores(&Region::CN.to_string(), &pool).await?;
+
+    let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores = database::get_scores(
         scores_params.region.as_ref().map(|r| r.to_string()),
@@ -98,7 +65,14 @@ async fn get_scores_achievement(
 
     let scores = db_scores.iter().map(ScoreAchievement::from).collect();
 
-    let scores_achievement = ScoresAchievement { count, scores };
+    let scores_achievement = Scores {
+        count,
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        scores,
+    };
 
     Ok(HttpResponse::Ok().json(scores_achievement))
 }

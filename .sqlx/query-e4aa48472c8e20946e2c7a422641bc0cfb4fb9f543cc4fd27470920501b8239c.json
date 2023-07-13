@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM achievements ORDER BY id",
+  "query": "\n        SELECT\n            *\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        ORDER BY\n            id\n        ",
   "describe": {
     "columns": [
       {
@@ -25,18 +25,33 @@
       },
       {
         "ordinal": 4,
+        "name": "jades",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "hidden",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
         "name": "comment",
         "type_info": "Text"
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "reference",
         "type_info": "Text"
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "difficulty",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "percent",
+        "type_info": "Float8"
       }
     ],
     "parameters": {
@@ -47,10 +62,13 @@
       false,
       false,
       false,
+      false,
+      false,
       true,
       true,
-      true
+      true,
+      null
     ]
   },
-  "hash": "17219fe8640e32cf016afcf053ddf8c21cadf6ec28b2367267f5d9846482c514"
+  "hash": "e4aa48472c8e20946e2c7a422641bc0cfb4fb9f543cc4fd27470920501b8239c"
 }

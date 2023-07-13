@@ -107,12 +107,15 @@ pub async fn get_scores(
     .await?)
 }
 
-pub async fn count_scores(pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query!("SELECT COUNT(*) as count FROM scores")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
+pub async fn count_scores(region: &str, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM scores WHERE region = $1",
+        region
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }
 
 pub async fn get_score_by_uid(uid: i64, pool: &PgPool) -> Result<DbScore> {

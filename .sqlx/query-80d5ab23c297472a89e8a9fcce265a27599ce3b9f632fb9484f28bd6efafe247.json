@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) as count FROM scores_damage",
+  "query": "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN scores WHERE region = $1",
   "describe": {
     "columns": [
       {
@@ -10,11 +10,13 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Text"
+      ]
     },
     "nullable": [
       null
     ]
   },
-  "hash": "b0bb9998136945ab943872744d97ee50ef0876e5c00b74e7ff60bf2e980fe46c"
+  "hash": "80d5ab23c297472a89e8a9fcce265a27599ce3b9f632fb9484f28bd6efafe247"
 }

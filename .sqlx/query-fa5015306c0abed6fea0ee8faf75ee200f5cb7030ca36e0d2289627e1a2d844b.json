@@ -35,41 +35,46 @@
       },
       {
         "ordinal": 6,
-        "name": "region",
+        "name": "video",
         "type_info": "Text"
       },
       {
         "ordinal": 7,
-        "name": "name",
+        "name": "region",
         "type_info": "Text"
       },
       {
         "ordinal": 8,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
         "name": "level",
         "type_info": "Int4"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "signature",
         "type_info": "Text"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "avatar_icon",
         "type_info": "Text"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "achievement_count",
         "type_info": "Int4"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "timestamp",
         "type_info": "Timestamp"
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
@@ -87,6 +92,7 @@
     "nullable": [
       null,
       null,
+      false,
       false,
       false,
       false,

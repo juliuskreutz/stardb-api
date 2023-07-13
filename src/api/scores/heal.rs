@@ -1,36 +1,12 @@
-use actix_web::{get, put, web, HttpRequest, HttpResponse, Responder};
-use chrono::NaiveDateTime;
-use jsonwebtoken::{DecodingKey, Validation};
-use serde::{Deserialize, Serialize};
+use actix_session::Session;
+use actix_web::{get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
-use utoipa::ToSchema;
 
-use super::{Region, ScoresParams};
 use crate::{
-    api::users::Claims,
+    api::{params::*, schemas::*},
     database::{self, DbScoreHeal},
     Result,
 };
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoresHeal {
-    count: i64,
-    scores: Vec<ScoreHeal>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoreHeal {
-    global_rank: i64,
-    regional_rank: i64,
-    uid: i64,
-    heal: i32,
-    region: Region,
-    name: String,
-    level: i32,
-    signature: String,
-    avatar_icon: String,
-    updated_at: NaiveDateTime,
-}
 
 impl<T: AsRef<DbScoreHeal>> From<T> for ScoreHeal {
     fn from(value: T) -> Self {
@@ -41,6 +17,7 @@ impl<T: AsRef<DbScoreHeal>> From<T> for ScoreHeal {
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
             heal: db_score.heal,
+            video: db_score.video.clone(),
             region: db_score.region.parse().unwrap(),
             name: db_score.name.clone(),
             level: db_score.level,
@@ -66,7 +43,12 @@ async fn get_scores_heal(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let count = database::count_scores_heal(&pool).await?;
+    let count_na = database::count_scores_heal(&Region::NA.to_string(), &pool).await?;
+    let count_eu = database::count_scores_heal(&Region::EU.to_string(), &pool).await?;
+    let count_asia = database::count_scores_heal(&Region::Asia.to_string(), &pool).await?;
+    let count_cn = database::count_scores_heal(&Region::CN.to_string(), &pool).await?;
+
+    let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores = database::get_scores_heal(
         scores_params.region.as_ref().map(|r| r.to_string()),
@@ -79,7 +61,14 @@ async fn get_scores_heal(
 
     let scores = db_scores.iter().map(ScoreHeal::from).collect();
 
-    let scores = ScoresHeal { count, scores };
+    let scores = Scores {
+        count,
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        scores,
+    };
 
     Ok(HttpResponse::Ok().json(scores))
 }
@@ -88,19 +77,14 @@ async fn get_scores_heal(
     get,
     path = "/api/scores/heal/{uid}",
     responses(
-        (status = 200, description = "ScoreHeal", body = ScoreHeal),
+        (status = 200, description = "[ScoreHeal]", body = ScoreHeal),
     )
 )]
 #[get("/api/scores/heal/{uid}")]
 async fn get_score_heal(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let scores: ScoreHeal = database::get_score_heal_by_uid(*uid, &pool).await?.into();
+    let score: ScoreHeal = database::get_score_heal_by_uid(*uid, &pool).await?.into();
 
-    Ok(HttpResponse::Ok().json(scores))
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct HealUpdate {
-    heal: i32,
+    Ok(HttpResponse::Ok().json(score))
 }
 
 #[utoipa::path(
@@ -114,33 +98,27 @@ pub struct HealUpdate {
 )]
 #[put("/api/scores/heal/{uid}")]
 async fn put_score_heal(
-    request: HttpRequest,
+    session: Session,
     uid: web::Path<i64>,
     heal_update: web::Json<HealUpdate>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
-
-    if !claims.admin {
+    if !admin {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
     let uid = *uid;
     let heal = heal_update.heal;
+    let video = heal_update.video.clone();
 
     let db_score = DbScoreHeal {
         uid,
         heal,
+        video,
         ..Default::default()
     };
 

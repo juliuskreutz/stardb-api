@@ -1,18 +1,17 @@
-use actix_web::{delete, get, put, web, HttpRequest, HttpResponse, Responder};
-use jsonwebtoken::{DecodingKey, Validation};
+use actix_session::Session;
+use actix_web::{delete, get, put, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
-use crate::api::users::Claims;
 use crate::database::{self, DbAchievement, DbComplete};
 use crate::Result;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
-pub enum Diffuculty {
+pub enum Difficulty {
     Easy,
     Medium,
     Hard,
@@ -24,9 +23,12 @@ pub struct Achievement {
     series: String,
     title: String,
     description: String,
+    jades: i32,
+    hidden: bool,
     comment: Option<String>,
     reference: Option<String>,
-    difficulty: Option<Diffuculty>,
+    difficulty: Option<Difficulty>,
+    percent: f64,
 }
 
 impl<T: AsRef<DbAchievement>> From<T> for Achievement {
@@ -38,12 +40,15 @@ impl<T: AsRef<DbAchievement>> From<T> for Achievement {
             series: db_achievement.series.clone(),
             title: db_achievement.title.clone(),
             description: db_achievement.description.clone(),
+            jades: db_achievement.jades,
+            hidden: db_achievement.hidden,
             comment: db_achievement.comment.clone(),
             reference: db_achievement.reference.clone(),
             difficulty: db_achievement
                 .difficulty
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
+            percent: db_achievement.percent.unwrap_or_default(),
         }
     }
 }
@@ -79,60 +84,187 @@ async fn get_achievement(id: web::Path<i64>, pool: web::Data<PgPool>) -> Result<
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct AchievementUpdate {
-    comment: Option<String>,
-    reference: Option<String>,
-    difficulty: Option<Diffuculty>,
+pub struct CommentUpdate {
+    comment: String,
 }
 
 #[utoipa::path(
     put,
-    path = "/api/achievements/{id}",
-    request_body = AchievementUpdate,
+    path = "/api/achievements/{id}/comment",
+    request_body = CommentUpdate,
     responses(
-        (status = 200, description = "Achievement", body = Achievement),
+        (status = 200, description = "Updated comment"),
         (status = 403, description = "Not an admin"),
     )
 )]
-#[put("/api/achievements/{id}")]
-async fn put_achievement(
-    request: HttpRequest,
+#[put("/api/achievements/{id}/comment")]
+async fn put_achievement_comment(
+    session: Session,
     id: web::Path<i64>,
-    achievement_update: web::Json<AchievementUpdate>,
-    jwt_secret: web::Data<[u8; 32]>,
+    comment_update: web::Json<CommentUpdate>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
-
-    if !claims.admin {
+    if !admin {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let db_achievement = DbAchievement {
-        id: *id,
-        comment: achievement_update.comment.clone(),
-        reference: achievement_update.reference.clone(),
-        difficulty: achievement_update
-            .difficulty
-            .as_ref()
-            .map(|d| d.to_string()),
-        ..Default::default()
+    database::update_achievement_comment(*id, &comment_update.comment, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ReferenceUpdate {
+    reference: String,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/achievements/{id}/reference",
+    request_body = ReferenceUpdate,
+    responses(
+        (status = 200, description = "Updated reference"),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[put("/api/achievements/{id}/reference")]
+async fn put_achievement_reference(
+    session: Session,
+    id: web::Path<i64>,
+    reference_update: web::Json<ReferenceUpdate>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let achievement: Achievement = database::set_achievement(&db_achievement, &pool)
-        .await?
-        .into();
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
 
-    Ok(HttpResponse::Ok().json(achievement))
+    database::update_achievement_reference(*id, &reference_update.reference, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct DifficultyUpdate {
+    difficulty: Difficulty,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/achievements/{id}/difficulty",
+    request_body = DifficultyUpdate,
+    responses(
+        (status = 200, description = "Updated difficulty"),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[put("/api/achievements/{id}/difficulty")]
+async fn put_achievement_difficulty(
+    session: Session,
+    id: web::Path<i64>,
+    difficulty_update: web::Json<DifficultyUpdate>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    database::update_achievement_difficulty(*id, &difficulty_update.difficulty.to_string(), &pool)
+        .await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/achievements/{id}/comment",
+    responses(
+        (status = 200, description = "Deleted comment"),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[delete("/api/achievements/{id}/comment")]
+async fn delete_achievement_comment(
+    session: Session,
+    id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    database::delete_achievement_comment(*id, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/achievements/{id}/reference",
+    responses(
+        (status = 200, description = "Deleted reference"),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[delete("/api/achievements/{id}/reference")]
+async fn delete_achievement_reference(
+    session: Session,
+    id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    database::delete_achievement_reference(*id, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/achievements/{id}/difficulty",
+    responses(
+        (status = 200, description = "Deleted difficulty"),
+        (status = 403, description = "Not an admin"),
+    )
+)]
+#[delete("/api/achievements/{id}/difficulty")]
+async fn delete_achievement_difficulty(
+    session: Session,
+    id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    database::delete_achievement_difficulty(*id, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
@@ -144,26 +276,15 @@ async fn put_achievement(
     )
 )]
 #[get("/api/achievements/completed")]
-async fn get_completed(
-    request: HttpRequest,
-    jwt_secret: web::Data<[u8; 32]>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+async fn get_completed(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
-
-    let completed: Vec<_> = database::get_completed_by_username(&claims.username, &pool)
+    let completed: Vec<_> = database::get_completed_by_username(&username, &pool)
         .await?
         .iter()
-        .map(|c| c.achievement)
+        .map(|c| c.id)
         .collect();
 
     Ok(HttpResponse::Ok().json(completed))
@@ -179,29 +300,17 @@ async fn get_completed(
 )]
 #[put("/api/achievements/completed/{id}")]
 async fn put_complete(
-    request: HttpRequest,
+    session: Session,
     id: web::Path<i64>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
+    let id = *id;
 
-    let achievement = *id;
-    let username = claims.username.clone();
-
-    let db_complete = DbComplete {
-        username,
-        achievement,
-    };
+    let db_complete = DbComplete { username, id };
 
     database::add_complete(&db_complete, &pool).await?;
 
@@ -218,29 +327,17 @@ async fn put_complete(
 )]
 #[delete("/api/achievements/completed/{id}")]
 async fn delete_complete(
-    request: HttpRequest,
+    session: Session,
     id: web::Path<i64>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
+    let id = *id;
 
-    let achievement = *id;
-    let username = claims.username.clone();
-
-    let db_complete = DbComplete {
-        username,
-        achievement,
-    };
+    let db_complete = DbComplete { username, id };
 
     database::delete_complete(&db_complete, &pool).await?;
 

@@ -4,14 +4,14 @@ use crate::Result;
 
 pub struct DbComplete {
     pub username: String,
-    pub achievement: i64,
+    pub id: i64,
 }
 
 pub async fn add_complete(complete: &DbComplete, pool: &PgPool) -> Result<()> {
     sqlx::query!(
-        "INSERT INTO completed(username, achievement) VALUES($1, $2)",
+        "INSERT INTO completed(username, id) VALUES($1, $2)",
         complete.username,
-        complete.achievement,
+        complete.id,
     )
     .execute(pool)
     .await?;
@@ -21,9 +21,9 @@ pub async fn add_complete(complete: &DbComplete, pool: &PgPool) -> Result<()> {
 
 pub async fn delete_complete(complete: &DbComplete, pool: &PgPool) -> Result<()> {
     sqlx::query!(
-        "DELETE FROM completed WHERE username = $1 AND achievement = $2",
+        "DELETE FROM completed WHERE username = $1 AND id = $2",
         complete.username,
-        complete.achievement,
+        complete.id,
     )
     .execute(pool)
     .await?;

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM submissions_shield WHERE uuid = $1 ORDER BY created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "uid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "shield",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "video",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0ec4e9d8dd6b608e1e238ef2c63630f3a41e903b319819df4357a38a388139f7"
+}

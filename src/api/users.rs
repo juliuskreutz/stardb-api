@@ -1,14 +1,12 @@
 use std::{collections::HashMap, sync::Mutex};
 
+use actix_session::Session;
 use actix_web::{
-    cookie::{self, Cookie},
-    get, post, put,
+    delete, get, post, put,
     rt::{self, time},
-    web, HttpRequest, HttpResponse, Responder,
+    web, HttpResponse, Responder,
 };
 use argon2::Config;
-use chrono::{Duration, Utc};
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -18,13 +16,6 @@ use uuid::Uuid;
 
 use crate::database::{self, DbUser};
 use crate::Result;
-
-#[derive(Serialize, Deserialize)]
-pub struct Claims {
-    pub username: String,
-    pub admin: bool,
-    pub exp: usize,
-}
 
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
@@ -43,15 +34,15 @@ pub enum UserLogin {
         )
     ),
     responses(
-        (status = 200, description = "Successfull login. The session token is returned in a cookie named `token`. You need to include this cookie in subsequent requests."),
+        (status = 200, description = "Successfull login. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests."),
         (status = 400, description = "Don't have an account.")
     )
 )]
 #[post("/api/users/login")]
 async fn login(
+    session: Session,
     user_login: web::Json<UserLogin>,
     password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let username = match &*user_login {
@@ -81,30 +72,10 @@ async fn login(
 
     let user = database::get_user_by_username(&username, &pool).await?;
 
-    let admin = user.admin;
-    let exp = (Utc::now() + Duration::hours(1)).timestamp() as usize;
+    session.insert("username", user.username)?;
+    session.insert("admin", user.admin)?;
 
-    let claims = Claims {
-        username,
-        admin,
-        exp,
-    };
-
-    let token = jsonwebtoken::encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(jwt_secret.as_ref()),
-    )
-    .unwrap();
-
-    let cookie = Cookie::build("token", token.to_owned())
-        .path("/")
-        .max_age(cookie::time::Duration::new(60 * 60, 0))
-        .http_only(true)
-        .secure(true)
-        .finish();
-
-    Ok(HttpResponse::Ok().cookie(cookie).finish())
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -124,20 +95,20 @@ pub struct UserRegister {
         )
     ),
     responses(
-        (status = 200, description = "Successfull register. The session token is returned in a cookie named `token`. You need to include this cookie in subsequent requests."),
+        (status = 200, description = "Successfull register. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests."),
         (status = 400, description = "Credentials too long."),
         (status = 409, description = "Account already exists.")
     )
 )]
 #[post("/api/users/register")]
 async fn register(
-    user: web::Json<UserRegister>,
-    jwt_secret: web::Data<[u8; 32]>,
+    session: Session,
+    user_register: web::Json<UserRegister>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let username = user.username.clone();
-    let password = user.password.clone();
-    let email = user.email.clone();
+    let username = user_register.username.clone();
+    let password = user_register.password.clone();
+    let email = user_register.email.clone();
 
     if username.len() > 32
         || password.len() > 64
@@ -168,47 +139,24 @@ async fn register(
         database::set_user(&user, &pool).await?;
     }
 
-    let exp = (Utc::now() + Duration::hours(1)).timestamp() as usize;
+    session.insert("username", username)?;
+    session.insert("admin", false)?;
 
-    let claims = Claims {
-        username,
-        admin: false,
-        exp,
-    };
-
-    let token = jsonwebtoken::encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(jwt_secret.as_ref()),
-    )
-    .unwrap();
-
-    let cookie = Cookie::build("token", token.to_owned())
-        .path("/")
-        .max_age(cookie::time::Duration::new(60 * 60, 0))
-        .http_only(true)
-        .secure(true)
-        .finish();
-
-    Ok(HttpResponse::Ok().cookie(cookie).finish())
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
     post,
     path = "/api/users/logout",
     responses(
-        (status = 200, description = "Successfull logout. The session token is deleted."),
+        (status = 200, description = "Successfull logout. The session id is deleted."),
     )
 )]
 #[post("/api/users/logout")]
-async fn logout(request: HttpRequest) -> impl Responder {
-    let Some(mut cookie) = request.cookie("token") else {
-        return HttpResponse::Ok().finish();
-    };
+async fn logout(session: Session) -> impl Responder {
+    session.purge();
 
-    cookie.make_removal();
-
-    HttpResponse::Ok().cookie(cookie).finish()
+    HttpResponse::Ok().finish()
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -239,22 +187,19 @@ async fn request_token(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let token = Uuid::new_v4();
-    password_resets
-        .lock()
-        .map_err(|_| "lock broken")?
-        .insert(token, user.username.clone());
-
     let to = format!("<{email}>").parse()?;
 
+    let token = Uuid::new_v4();
     let email = Message::builder()
         .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
         .to(to)
         .subject("Stardb Password Reset")
         .body(format!("https://stardb.gg/login?token={token}"))?;
 
-    let credentials =
-        Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
+    let credentials = Credentials::new(
+        dotenv_codegen::dotenv!("SMTP_USERNAME").to_string(),
+        dotenv_codegen::dotenv!("SMTP_PASSWORD").to_string(),
+    );
 
     let mailer = SmtpTransport::relay("mail.hosting.de")?
         .credentials(credentials)
@@ -262,11 +207,13 @@ async fn request_token(
 
     mailer.send(&email)?;
 
-    rt::spawn(async move {
-        let mut interval = time::interval(std::time::Duration::from_secs(5 * 60));
+    password_resets
+        .lock()
+        .map_err(|_| "lock broken")?
+        .insert(token, user.username.clone());
 
-        interval.tick().await;
-        interval.tick().await;
+    rt::spawn(async move {
+        time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
         password_resets
             .lock()
@@ -279,10 +226,9 @@ async fn request_token(
     Ok(HttpResponse::Ok().finish())
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, ToSchema)]
 pub struct User {
     username: String,
-    password: String,
     email: Option<String>,
     admin: bool,
     uids: Vec<i64>,
@@ -297,35 +243,28 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
-async fn get_me(
-    request: HttpRequest,
-    jwt_secret: web::Data<[u8; 32]>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+async fn get_me(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
-
-    let user = database::get_user_by_username(&claims.username, &pool).await?;
+    let user = database::get_user_by_username(&username, &pool).await?;
 
     let username = user.username.clone();
-    let password = user.password.clone();
     let email = user.email.clone();
     let admin = user.admin;
 
+    let uids = database::get_connections_by_username(&username, &pool)
+        .await?
+        .iter()
+        .map(|c| c.uid)
+        .collect();
+
     let user = User {
         username,
-        password,
         email,
         admin,
-        uids: Vec::new(),
+        uids,
     };
 
     Ok(HttpResponse::Ok().json(user))
@@ -347,23 +286,34 @@ pub struct EmailUpdate {
 )]
 #[put("/api/users/email")]
 async fn put_email(
-    request: HttpRequest,
+    session: Session,
     email_update: web::Json<EmailUpdate>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
+    database::update_user_email(&username, &email_update.email, &pool).await?;
 
-    database::update_password(&claims.username, &email_update.email, &pool).await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/users/email",
+    responses(
+        (status = 200, description = "Deleted email."),
+        (status = 400, description = "Not logged in."),
+    )
+)]
+#[delete("/api/users/email")]
+async fn delete_email(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    database::delete_user_email(&username, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -383,21 +333,13 @@ pub struct PasswordUpdate {
 )]
 #[put("/api/users/password")]
 async fn put_password(
-    request: HttpRequest,
+    session: Session,
     password_update: web::Json<PasswordUpdate>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
-
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
 
     let salt = rand::thread_rng().gen::<[u8; 32]>();
 
@@ -407,7 +349,7 @@ async fn put_password(
         &Config::default(),
     )?;
 
-    database::update_password(&claims.username, &password, &pool).await?;
+    database::update_user_password(&username, &password, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -9,6 +9,7 @@ pub struct DbScoreHeal {
     pub regional_rank: Option<i64>,
     pub uid: i64,
     pub heal: i32,
+    pub video: String,
     pub region: String,
     pub timestamp: NaiveDateTime,
     pub name: String,
@@ -89,12 +90,15 @@ pub async fn get_scores_heal(
     .await?)
 }
 
-pub async fn count_scores_heal(pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query!("SELECT COUNT(*) as count FROM scores_heal")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
+pub async fn count_scores_heal(region: &str, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM scores_heal NATURAL JOIN scores WHERE region = $1",
+        region,
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }
 
 pub async fn get_score_heal_by_uid(uid: i64, pool: &PgPool) -> Result<DbScoreHeal> {

@@ -22,6 +22,8 @@ struct AchievementData {
     description: TextHash,
     #[serde(rename = "ParamList")]
     param_list: Vec<Param>,
+    #[serde(rename = "ShowType")]
+    show_type: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -37,6 +39,18 @@ struct AchievementSeries {
 }
 
 #[derive(Deserialize)]
+struct QuestData {
+    #[serde(rename = "RewardID")]
+    reward_id: i64,
+}
+
+#[derive(Deserialize)]
+struct RewardData {
+    #[serde(rename = "Hcoin")]
+    jades: Option<i32>,
+}
+
+#[derive(Deserialize)]
 struct TextHash {
     #[serde(rename = "Hash")]
     hash: i64,
@@ -49,7 +63,9 @@ pub async fn achievements(pool: PgPool) {
         loop {
             interval.tick().await;
 
-            let _ = update(&pool).await;
+            if let Err(e) = update(&pool).await {
+                println!("{e}");
+            }
         }
     });
 }
@@ -70,6 +86,18 @@ async fn update(pool: &PgPool) -> Result<()> {
 
     let achievement_series: HashMap<String, AchievementSeries> =
         reqwest::get(&format!("{url}ExcelOutput/AchievementSeries.json"))
+            .await?
+            .json()
+            .await?;
+
+    let quest_data: HashMap<String, QuestData> =
+        reqwest::get(&format!("{url}ExcelOutput/QuestData.json"))
+            .await?
+            .json()
+            .await?;
+
+    let reward_data: HashMap<String, RewardData> =
+        reqwest::get(&format!("{url}ExcelOutput/RewardData.json"))
             .await?
             .json()
             .await?;
@@ -108,11 +136,19 @@ async fn update(pool: &PgPool) -> Result<()> {
             .replace_all(&description, |_: &Captures| "")
             .replace("\\n", "");
 
+        let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
+            .jades
+            .unwrap_or_default();
+
+        let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
+
         let db_achievement = DbAchievement {
             id,
             series,
             title,
             description,
+            jades,
+            hidden,
             ..Default::default()
         };
 

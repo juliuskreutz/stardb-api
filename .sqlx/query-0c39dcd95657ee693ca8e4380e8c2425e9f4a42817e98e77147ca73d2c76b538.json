@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM submissions_damage WHERE $1::int8 IS NULL OR $1 = uid ORDER BY created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "uid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "character",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "support",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "damage",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "video",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0c39dcd95657ee693ca8e4380e8c2425e9f4a42817e98e77147ca73d2c76b538"
+}

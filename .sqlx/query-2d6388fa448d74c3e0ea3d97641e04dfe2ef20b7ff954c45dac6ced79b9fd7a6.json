@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n            ) ranked\n        WHERE\n            uid = $1\n        ",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n                WHERE\n                    ($2::TEXT IS NULL OR character = $2)\n                AND\n                    ($3::BOOLEAN IS NULL OR support = $3)\n            ) ranked\n        WHERE\n            uid = $1\n        ORDER BY\n            global_rank\n        LIMIT\n            1\n        ",
   "describe": {
     "columns": [
       {
@@ -35,48 +35,55 @@
       },
       {
         "ordinal": 6,
-        "name": "region",
+        "name": "video",
         "type_info": "Text"
       },
       {
         "ordinal": 7,
-        "name": "name",
+        "name": "region",
         "type_info": "Text"
       },
       {
         "ordinal": 8,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
         "name": "level",
         "type_info": "Int4"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "signature",
         "type_info": "Text"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "avatar_icon",
         "type_info": "Text"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "achievement_count",
         "type_info": "Int4"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "timestamp",
         "type_info": "Timestamp"
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Int8",
+        "Text",
+        "Bool"
       ]
     },
     "nullable": [
@@ -93,8 +100,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "63e0da6ba3ec2fd8c408ae9cd9cb930c551cb61507a91ba4794a13bb18fecae2"
+  "hash": "2d6388fa448d74c3e0ea3d97641e04dfe2ef20b7ff954c45dac6ced79b9fd7a6"
 }

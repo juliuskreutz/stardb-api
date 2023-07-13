@@ -1,36 +1,12 @@
-use actix_web::{get, put, web, HttpRequest, HttpResponse, Responder};
-use chrono::NaiveDateTime;
-use jsonwebtoken::{DecodingKey, Validation};
-use serde::{Deserialize, Serialize};
+use actix_session::Session;
+use actix_web::{get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
-use utoipa::ToSchema;
 
-use super::{Region, ScoresParams};
 use crate::{
-    api::users::Claims,
+    api::{params::*, schemas::*},
     database::{self, DbScoreShield},
     Result,
 };
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoresShield {
-    count: i64,
-    scores: Vec<ScoreShield>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-pub struct ScoreShield {
-    global_rank: i64,
-    regional_rank: i64,
-    uid: i64,
-    shield: i32,
-    region: Region,
-    name: String,
-    level: i32,
-    signature: String,
-    avatar_icon: String,
-    updated_at: NaiveDateTime,
-}
 
 impl<T: AsRef<DbScoreShield>> From<T> for ScoreShield {
     fn from(value: T) -> Self {
@@ -41,6 +17,7 @@ impl<T: AsRef<DbScoreShield>> From<T> for ScoreShield {
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
             shield: db_score.shield,
+            video: db_score.video.clone(),
             region: db_score.region.parse().unwrap(),
             name: db_score.name.clone(),
             level: db_score.level,
@@ -66,7 +43,12 @@ async fn get_scores_shield(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let count = database::count_scores_shield(&pool).await?;
+    let count_na = database::count_scores_shield(&Region::NA.to_string(), &pool).await?;
+    let count_eu = database::count_scores_shield(&Region::EU.to_string(), &pool).await?;
+    let count_asia = database::count_scores_shield(&Region::Asia.to_string(), &pool).await?;
+    let count_cn = database::count_scores_shield(&Region::CN.to_string(), &pool).await?;
+
+    let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores = database::get_scores_shield(
         scores_params.region.as_ref().map(|r| r.to_string()),
@@ -79,7 +61,14 @@ async fn get_scores_shield(
 
     let scores = db_scores.iter().map(ScoreShield::from).collect();
 
-    let scores = ScoresShield { count, scores };
+    let scores = Scores {
+        count,
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        scores,
+    };
 
     Ok(HttpResponse::Ok().json(scores))
 }
@@ -93,14 +82,9 @@ async fn get_scores_shield(
 )]
 #[get("/api/scores/shield/{uid}")]
 async fn get_score_shield(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let scores: ScoreShield = database::get_score_shield_by_uid(*uid, &pool).await?.into();
+    let score: ScoreShield = database::get_score_shield_by_uid(*uid, &pool).await?.into();
 
-    Ok(HttpResponse::Ok().json(scores))
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct ShieldUpdate {
-    shield: i32,
+    Ok(HttpResponse::Ok().json(score))
 }
 
 #[utoipa::path(
@@ -114,33 +98,27 @@ pub struct ShieldUpdate {
 )]
 #[put("/api/scores/shield/{uid}")]
 async fn put_score_shield(
-    request: HttpRequest,
+    session: Session,
     uid: web::Path<i64>,
     shield_update: web::Json<ShieldUpdate>,
-    jwt_secret: web::Data<[u8; 32]>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let Some(cookie) = request.cookie("token") else {
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let claims: Claims = jsonwebtoken::decode(
-        cookie.value(),
-        &DecodingKey::from_secret(jwt_secret.as_ref()),
-        &Validation::default(),
-    )
-    .map(|t| t.claims)?;
-
-    if !claims.admin {
+    if !admin {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
     let uid = *uid;
     let shield = shield_update.shield;
+    let video = shield_update.video.clone();
 
     let db_score = DbScoreShield {
         uid,
         shield,
+        video,
         ..Default::default()
     };
 
