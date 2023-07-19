@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS achievements (
     hidden BOOLEAN NOT NULL,
     comment TEXT,
     reference TEXT,
-    difficulty TEXT
+    difficulty TEXT,
+    grouping INT4
 );
 
 CREATE TABLE IF NOT EXISTS completed (

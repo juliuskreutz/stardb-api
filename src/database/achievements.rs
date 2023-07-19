@@ -14,6 +14,7 @@ pub struct DbAchievement {
     pub reference: Option<String>,
     pub difficulty: Option<String>,
     pub percent: Option<f64>,
+    pub grouping: Option<i32>,
 }
 
 impl AsRef<DbAchievement> for DbAchievement {

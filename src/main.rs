@@ -40,6 +40,8 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::put_email,
         api::users::put_password,
         api::users::delete_email,
+        api::users::get_verifications,
+        api::users::put_verification,
         api::achievements::get_achievements,
         api::achievements::get_achievement,
         api::achievements::put_achievement_comment,
@@ -90,6 +92,8 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::EmailUpdate,
         api::users::PasswordUpdate,
         api::users::RequestToken,
+        api::users::Verification,
+        api::users::Otp,
         api::achievements::Difficulty,
         api::achievements::Achievement,
         api::achievements::CommentUpdate,
@@ -154,6 +158,8 @@ async fn main() -> Result<()> {
             .service(api::users::put_email)
             .service(api::users::put_password)
             .service(api::users::delete_email)
+            .service(api::users::get_verifications)
+            .service(api::users::put_verification)
             .service(api::achievements::get_completed)
             .service(api::achievements::put_complete)
             .service(api::achievements::delete_complete)

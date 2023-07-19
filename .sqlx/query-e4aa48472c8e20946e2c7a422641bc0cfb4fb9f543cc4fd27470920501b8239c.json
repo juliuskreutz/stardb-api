@@ -50,6 +50,11 @@
       },
       {
         "ordinal": 9,
+        "name": "grouping",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
         "name": "percent",
         "type_info": "Float8"
       }
@@ -64,6 +69,7 @@
       false,
       false,
       false,
+      true,
       true,
       true,
       true,

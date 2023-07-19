@@ -8,9 +8,25 @@ pub struct DbVerification {
     pub otp: String,
 }
 
+impl AsRef<DbVerification> for DbVerification {
+    fn as_ref(&self) -> &DbVerification {
+        self
+    }
+}
+
 pub async fn set_verification(verification: &DbVerification, pool: &PgPool) -> Result<()> {
     sqlx::query!(
-        "INSERT INTO verifications(uid, username, otp) VALUES($1, $2, $3)",
+        "
+        INSERT INTO
+            verifications(uid, username, otp)
+        VALUES
+            ($1, $2, $3)
+        ON CONFLICT
+            (uid)
+        DO UPDATE SET
+            username = EXCLUDED.username,
+            otp = EXCLUDED.otp
+        ",
         verification.uid,
         verification.username,
         verification.otp,

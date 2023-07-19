@@ -57,14 +57,32 @@ impl<T: AsRef<DbAchievement>> From<T> for Achievement {
     get,
     path = "/api/achievements",
     responses(
-        (status = 200, description = "Achievements", body = Vec<Achievement>),
+        (status = 200, description = "Achievements", body = Vec<Vec<Achievement>>),
     )
 )]
 #[get("/api/achievements")]
 async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
     let db_achievements = database::get_achievements(&pool).await?;
 
-    let achievements: Vec<Achievement> = db_achievements.iter().map(Achievement::from).collect();
+    let mut last_grouping = None;
+    let mut achievements: Vec<Vec<Achievement>> = Vec::new();
+
+    for db_achievement in db_achievements {
+        if let Some(grouping) = db_achievement.grouping {
+            let achievement = db_achievement.into();
+
+            if last_grouping == Some(grouping) {
+                let i = achievements.len() - 1;
+                achievements[i].push(achievement)
+            } else {
+                last_grouping = Some(grouping);
+                achievements.push(vec![achievement]);
+            }
+        } else {
+            last_grouping = None;
+            achievements.push(vec![db_achievement.into()]);
+        }
+    }
 
     Ok(HttpResponse::Ok().json(achievements))
 }

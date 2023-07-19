@@ -8,13 +8,13 @@ use actix_web::{
 };
 use argon2::Config;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
-use rand::Rng;
+use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::database::{self, DbUser};
+use crate::database::{self, DbUser, DbVerification};
 use crate::Result;
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -268,6 +268,88 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> Result<impl Respon
     };
 
     Ok(HttpResponse::Ok().json(user))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct Verification {
+    uid: i64,
+    otp: String,
+}
+
+impl<T: AsRef<DbVerification>> From<T> for Verification {
+    fn from(value: T) -> Self {
+        let db_verification = value.as_ref();
+
+        Verification {
+            uid: db_verification.uid,
+            otp: db_verification.otp.clone(),
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/users/verifications",
+    responses(
+        (status = 200, description = "Verifications", body = Vec<Verification>),
+        (status = 400, description = "Not logged in."),
+    )
+)]
+#[get("/api/users/verifications")]
+async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let db_verifications = database::get_verifications_by_username(&username, &pool).await?;
+
+    let verifications: Vec<_> = db_verifications.iter().map(Verification::from).collect();
+
+    Ok(HttpResponse::Ok().json(verifications))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct Otp {
+    otp: String,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/users/verifications/{uid}",
+    responses(
+        (status = 200, description = "Added verification", body = Otp),
+        (status = 400, description = "Not logged in."),
+    )
+)]
+#[put("/api/users/verifications/{uid}")]
+async fn put_verification(
+    session: Session,
+    uid: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let otp: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(6)
+        .map(char::from)
+        .collect();
+
+    let db_verification = DbVerification {
+        uid: *uid,
+        username,
+        otp,
+    };
+
+    database::set_verification(&db_verification, &pool).await?;
+
+    let otp = Otp {
+        otp: db_verification.otp.clone(),
+    };
+
+    Ok(HttpResponse::Ok().json(otp))
 }
 
 #[derive(Deserialize, ToSchema)]
