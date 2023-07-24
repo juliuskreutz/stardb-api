@@ -8,14 +8,14 @@ use crate::{database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(put_achievement_comment, delete_achievement_comment),
-    components(schemas(CommentUpdate))
+    paths(put_achievement_version, delete_achievement_version),
+    components(schemas(VersionUpdate))
 )]
 struct ApiDoc;
 
 #[derive(Deserialize, ToSchema)]
-struct CommentUpdate {
-    comment: String,
+struct VersionUpdate {
+    version: String,
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -23,26 +23,26 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(put_achievement_comment)
-        .service(delete_achievement_comment);
+    cfg.service(put_achievement_version)
+        .service(delete_achievement_version);
 }
 
 #[utoipa::path(
     tag = "achievements",
     put,
-    path = "/api/achievements/{id}/comment",
-    request_body = CommentUpdate,
+    path = "/api/achievements/{id}/version",
+    request_body = VersionUpdate,
     responses(
-        (status = 200, description = "Updated comment"),
+        (status = 200, description = "Updated version"),
         (status = 403, description = "Not an admin"),
     ),
     security(("admin" = []))
 )]
-#[put("/api/achievements/{id}/comment")]
-async fn put_achievement_comment(
+#[put("/api/achievements/{id}/version")]
+async fn put_achievement_version(
     session: Session,
     id: web::Path<i64>,
-    comment_update: web::Json<CommentUpdate>,
+    version_update: web::Json<VersionUpdate>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let Ok(Some(admin)) = session.get::<bool>("admin") else {
@@ -53,7 +53,7 @@ async fn put_achievement_comment(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_comment(*id, &comment_update.comment, &pool).await?;
+    database::update_achievement_version(*id, &version_update.version, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -61,15 +61,15 @@ async fn put_achievement_comment(
 #[utoipa::path(
     tag = "achievements",
     delete,
-    path = "/api/achievements/{id}/comment",
+    path = "/api/achievements/{id}/version",
     responses(
-        (status = 200, description = "Deleted comment"),
+        (status = 200, description = "Deleted version"),
         (status = 403, description = "Not an admin"),
     ),
     security(("admin" = []))
 )]
-#[delete("/api/achievements/{id}/comment")]
-async fn delete_achievement_comment(
+#[delete("/api/achievements/{id}/version")]
+async fn delete_achievement_version(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
@@ -82,7 +82,7 @@ async fn delete_achievement_comment(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_comment(*id, &pool).await?;
+    database::delete_achievement_version(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

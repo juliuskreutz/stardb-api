@@ -1,18 +1,29 @@
-use actix_session::Session;
-use actix_web::{delete, put, web, HttpResponse, Responder};
+use std::collections::HashMap;
+
+use actix_web::{get, web, HttpResponse, Responder};
+use linked_hash_map::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{OpenApi, ToSchema};
 
-mod get;
 mod id;
 
-use crate::database::{self, DbAchievement};
-use crate::Result;
+use crate::{
+    database::{self, DbAchievement},
+    Result,
+};
 
 #[derive(OpenApi)]
-#[openapi(components(schemas(Difficulty, Achievement)), tags((name = "Achievements", description = "All the important achievements methods")))]
+#[openapi(
+    tags((name = "achievements")),
+    paths(get_achievements),
+    components(
+        schemas(
+            Difficulty,
+            Achievement
+        )))
+]
 struct ApiDoc;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
@@ -22,6 +33,12 @@ enum Difficulty {
     Easy,
     Medium,
     Hard,
+}
+
+#[derive(Serialize, ToSchema)]
+struct Series {
+    name: String,
+    achievements: Vec<Vec<Achievement>>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -62,134 +79,53 @@ impl<T: AsRef<DbAchievement>> From<T> for Achievement {
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
-    openapi.merge(get::openapi());
     openapi.merge(id::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(get::configure).configure(id::configure);
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct ReferenceUpdate {
-    reference: String,
+    cfg.configure(id::configure).service(get_achievements);
 }
 
 #[utoipa::path(
-    put,
-    path = "/api/achievements/{id}/reference",
-    request_body = ReferenceUpdate,
+    tag = "achievements",
+    get,
+    path = "/api/achievements",
     responses(
-        (status = 200, description = "Updated reference"),
-        (status = 403, description = "Not an admin"),
+        (status = 200, description = "[Series]", body = Vec<Series>),
     )
 )]
-#[put("/api/achievements/{id}/reference")]
-async fn put_achievement_reference(
-    session: Session,
-    id: web::Path<i64>,
-    reference_update: web::Json<ReferenceUpdate>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
+#[get("/api/achievements")]
+async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let db_achievements = database::get_achievements(&pool).await?;
 
-    if !admin {
-        return Ok(HttpResponse::Forbidden().finish());
+    let mut series: LinkedHashMap<String, Vec<Vec<Achievement>>> = LinkedHashMap::new();
+    let mut groupings: HashMap<i32, usize> = HashMap::new();
+
+    for db_achievement in db_achievements {
+        let achievements = series
+            .entry(db_achievement.series_name.clone())
+            .or_default();
+
+        let grouping = db_achievement.grouping;
+        let achievement = db_achievement.into();
+
+        if let Some(grouping) = grouping {
+            if let Some(&i) = groupings.get(&grouping) {
+                achievements[i].push(achievement);
+                continue;
+            }
+
+            groupings.insert(grouping, achievements.len());
+        }
+
+        achievements.push(vec![achievement]);
     }
 
-    database::update_achievement_reference(*id, &reference_update.reference, &pool).await?;
+    let series = series
+        .into_iter()
+        .map(|(name, achievements)| Series { name, achievements })
+        .collect::<Vec<_>>();
 
-    Ok(HttpResponse::Ok().finish())
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct DifficultyUpdate {
-    difficulty: Difficulty,
-}
-
-#[utoipa::path(
-    put,
-    path = "/api/achievements/{id}/difficulty",
-    request_body = DifficultyUpdate,
-    responses(
-        (status = 200, description = "Updated difficulty"),
-        (status = 403, description = "Not an admin"),
-    )
-)]
-#[put("/api/achievements/{id}/difficulty")]
-async fn put_achievement_difficulty(
-    session: Session,
-    id: web::Path<i64>,
-    difficulty_update: web::Json<DifficultyUpdate>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    if !admin {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
-    database::update_achievement_difficulty(*id, &difficulty_update.difficulty.to_string(), &pool)
-        .await?;
-
-    Ok(HttpResponse::Ok().finish())
-}
-
-#[utoipa::path(
-    delete,
-    path = "/api/achievements/{id}/reference",
-    responses(
-        (status = 200, description = "Deleted reference"),
-        (status = 403, description = "Not an admin"),
-    )
-)]
-#[delete("/api/achievements/{id}/reference")]
-async fn delete_achievement_reference(
-    session: Session,
-    id: web::Path<i64>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    if !admin {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
-    database::delete_achievement_reference(*id, &pool).await?;
-
-    Ok(HttpResponse::Ok().finish())
-}
-
-#[utoipa::path(
-    delete,
-    path = "/api/achievements/{id}/difficulty",
-    responses(
-        (status = 200, description = "Deleted difficulty"),
-        (status = 403, description = "Not an admin"),
-    )
-)]
-#[delete("/api/achievements/{id}/difficulty")]
-async fn delete_achievement_difficulty(
-    session: Session,
-    id: web::Path<i64>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    if !admin {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
-    database::delete_achievement_difficulty(*id, &pool).await?;
-
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(series))
 }

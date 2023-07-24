@@ -45,10 +45,6 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::get_user_achievements,
         api::users::put_user_achievement,
         api::users::delete_user_achievement,
-        api::achievements::put_achievement_reference,
-        api::achievements::put_achievement_difficulty,
-        api::achievements::delete_achievement_reference,
-        api::achievements::delete_achievement_difficulty,
         api::submissions::damage::get_submissions_damage,
         api::submissions::damage::get_submission_damage,
         api::submissions::damage::post_submission_damage,
@@ -91,8 +87,6 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::RequestToken,
         api::users::Verification,
         api::users::Otp,
-        api::achievements::ReferenceUpdate,
-        api::achievements::DifficultyUpdate,
         api::import::File
     ))
 )]
@@ -161,10 +155,6 @@ async fn main() -> Result<()> {
             .service(api::users::get_user_achievements)
             .service(api::users::put_user_achievement)
             .service(api::users::delete_user_achievement)
-            .service(api::achievements::put_achievement_reference)
-            .service(api::achievements::put_achievement_difficulty)
-            .service(api::achievements::delete_achievement_reference)
-            .service(api::achievements::delete_achievement_difficulty)
             .service(api::submissions::damage::get_submissions_damage)
             .service(api::submissions::damage::get_submission_damage)
             .service(api::submissions::damage::post_submission_damage)

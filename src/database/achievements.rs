@@ -10,6 +10,7 @@ pub struct DbAchievement {
     pub description: String,
     pub hidden: bool,
     pub jades: i32,
+    pub version: Option<String>,
     pub comment: Option<String>,
     pub reference: Option<String>,
     pub difficulty: Option<String>,
@@ -104,6 +105,18 @@ pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchieveme
     .await?)
 }
 
+pub async fn update_achievement_version(id: i64, version: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "UPDATE achievements SET version = $2 WHERE id = $1",
+        id,
+        version,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn update_achievement_comment(id: i64, comment: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "UPDATE achievements SET comment = $2 WHERE id = $1",
@@ -136,6 +149,14 @@ pub async fn update_achievement_difficulty(id: i64, difficulty: &str, pool: &PgP
     )
     .execute(pool)
     .await?;
+
+    Ok(())
+}
+
+pub async fn delete_achievement_version(id: i64, pool: &PgPool) -> Result<()> {
+    sqlx::query!("UPDATE achievements SET version = NULL WHERE id = $1", id,)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
