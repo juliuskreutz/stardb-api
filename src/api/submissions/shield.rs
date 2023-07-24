@@ -79,9 +79,21 @@ async fn get_submission_shield(
 )]
 #[post("/api/submissions/shield")]
 async fn post_submission_shield(
+    session: Session,
     shield_submission_update: web::Json<SubmissionShieldUpdate>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let uid = shield_submission_update.uid;
+    let uids = database::get_connections_by_username(&username, &pool).await?;
+
+    if !uids.iter().any(|c| c.uid == uid) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let db_submission_shield = DbSubmissionShield {
         uid: shield_submission_update.uid,
         shield: shield_submission_update.shield,

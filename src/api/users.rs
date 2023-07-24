@@ -14,7 +14,7 @@ use sqlx::PgPool;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::database::{self, DbUser, DbVerification};
+use crate::database::{self, DbComplete, DbUser, DbVerification};
 use crate::Result;
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -34,8 +34,8 @@ pub enum UserLogin {
         )
     ),
     responses(
-        (status = 200, description = "Successfull login. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests."),
-        (status = 400, description = "Don't have an account.")
+        (status = 200, description = "Successfull login. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests"),
+        (status = 400, description = "Don't have an account")
     )
 )]
 #[post("/api/users/login")]
@@ -95,9 +95,9 @@ pub struct UserRegister {
         )
     ),
     responses(
-        (status = 200, description = "Successfull register. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests."),
-        (status = 400, description = "Credentials too long."),
-        (status = 409, description = "Account already exists.")
+        (status = 200, description = "Successfull register. The session id is returned in a cookie named `id`. You need to include this cookie in subsequent requests"),
+        (status = 400, description = "Credentials too long"),
+        (status = 409, description = "Account already exists")
     )
 )]
 #[post("/api/users/register")]
@@ -149,7 +149,7 @@ async fn register(
     post,
     path = "/api/users/logout",
     responses(
-        (status = 200, description = "Successfull logout. The session id is deleted."),
+        (status = 200, description = "Successfull logout. The session id is deleted"),
     )
 )]
 #[post("/api/users/logout")]
@@ -169,8 +169,8 @@ pub struct RequestToken {
     path = "/api/users/request-token",
     request_body = RequestToken,
     responses(
-        (status = 200, description = "Send mail with emergency login."),
-        (status = 400, description = "No email connected."),
+        (status = 200, description = "Send mail with emergency login"),
+        (status = 400, description = "No email connected"),
     )
 )]
 #[post("/api/users/request-token")]
@@ -239,7 +239,7 @@ pub struct User {
     path = "/api/users/me",
     responses(
         (status = 200, description = "User", body = User),
-        (status = 400, description = "Not logged in."),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[get("/api/users/me")]
@@ -292,7 +292,7 @@ impl<T: AsRef<DbVerification>> From<T> for Verification {
     path = "/api/users/verifications",
     responses(
         (status = 200, description = "Verifications", body = Vec<Verification>),
-        (status = 400, description = "Not logged in."),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[get("/api/users/verifications")]
@@ -318,7 +318,7 @@ pub struct Otp {
     path = "/api/users/verifications/{uid}",
     responses(
         (status = 200, description = "Added verification", body = Otp),
-        (status = 400, description = "Not logged in."),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[put("/api/users/verifications/{uid}")]
@@ -362,8 +362,8 @@ pub struct EmailUpdate {
     path = "/api/users/email",
     request_body = EmailUpdate,
     responses(
-        (status = 200, description = "Updated email."),
-        (status = 400, description = "Not logged in."),
+        (status = 200, description = "Updated email"),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[put("/api/users/email")]
@@ -385,8 +385,8 @@ async fn put_email(
     delete,
     path = "/api/users/email",
     responses(
-        (status = 200, description = "Deleted email."),
-        (status = 400, description = "Not logged in."),
+        (status = 200, description = "Deleted email"),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[delete("/api/users/email")]
@@ -410,7 +410,7 @@ pub struct PasswordUpdate {
     path = "/api/users/password",
     request_body = PasswordUpdate,
     responses(
-        (status = 200, description = "Updated password."),
+        (status = 200, description = "Updated password"),
     )
 )]
 #[put("/api/users/password")]
@@ -432,6 +432,86 @@ async fn put_password(
     )?;
 
     database::update_user_password(&username, &password, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/users/achievements",
+    responses(
+        (status = 200, description = "Achievement ids", body = Vec<i64>),
+        (status = 400, description = "Not logged in"),
+    )
+)]
+#[get("/api/users/achievements")]
+async fn get_user_achievements(
+    session: Session,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let completed: Vec<_> = database::get_completed_by_username(&username, &pool)
+        .await?
+        .iter()
+        .map(|c| c.id)
+        .collect();
+
+    Ok(HttpResponse::Ok().json(completed))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/users/achievements/{id}",
+    responses(
+        (status = 200, description = "Successful add of the achievement"),
+        (status = 400, description = "Not logged in"),
+    )
+)]
+#[put("/api/users/achievements/{id}")]
+async fn put_user_achievement(
+    session: Session,
+    id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let id = *id;
+
+    let db_complete = DbComplete { username, id };
+
+    database::add_complete(&db_complete, &pool).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/users/achievements/{id}",
+    responses(
+        (status = 200, description = "Successful delete of the achievement"),
+        (status = 400, description = "Not logged in"),
+    )
+)]
+#[delete("/api/users/achievements/{id}")]
+async fn delete_user_achievement(
+    session: Session,
+    id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let id = *id;
+
+    let db_complete = DbComplete { username, id };
+
+    database::delete_complete(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

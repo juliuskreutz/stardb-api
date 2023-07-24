@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{
-    database::{self, DbAchievement},
+    database::{self, DbAchievement, DbSeries},
     Result,
 };
 
@@ -15,7 +15,7 @@ struct AchievementData {
     #[serde(rename = "AchievementID")]
     id: i64,
     #[serde(rename = "SeriesID")]
-    series: usize,
+    series: i32,
     #[serde(rename = "AchievementTitle")]
     title: TextHash,
     #[serde(rename = "AchievementDesc")]
@@ -34,8 +34,12 @@ struct Param {
 
 #[derive(Deserialize)]
 struct AchievementSeries {
+    #[serde(rename = "SeriesID")]
+    id: i32,
     #[serde(rename = "SeriesTitle")]
     title: TextHash,
+    #[serde(rename = "Priority")]
+    priority: i32,
 }
 
 #[derive(Deserialize)]
@@ -102,16 +106,21 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
+    for series in achievement_series.values() {
+        let id = series.id;
+        let name = text_map[&series.title.hash.to_string()].clone();
+        let priority = series.priority;
+
+        let db_series = DbSeries { id, name, priority };
+        database::set_series(&db_series, pool).await?;
+    }
+
     for achievement_data in achievement_data.values() {
         let html_re = Regex::new(r"<[^>]*>")?;
 
         let id = achievement_data.id;
 
-        let series = text_map[&achievement_series[&achievement_data.series.to_string()]
-            .title
-            .hash
-            .to_string()]
-            .clone();
+        let series_id = achievement_data.series;
 
         let title = html_re
             .replace_all(
@@ -120,7 +129,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             )
             .to_string();
 
-        let re = Regex::new(r"#(\d+)\[i\]")?;
+        let re = Regex::new(r"#(\d+)\[i\](%?)")?;
         let description = re
             .replace_all(
                 &text_map[&achievement_data.description.hash.to_string()],
@@ -128,7 +137,12 @@ async fn update(pool: &PgPool) -> Result<()> {
                     let m = c.get(1).unwrap();
                     let i: usize = m.as_str().parse().unwrap();
 
-                    achievement_data.param_list[i - 1].value.to_string()
+                    if c.get(2).map_or(false, |m| !m.is_empty()) {
+                        ((achievement_data.param_list[i - 1].value * 100.0) as i32).to_string()
+                            + "%"
+                    } else {
+                        achievement_data.param_list[i - 1].value.to_string()
+                    }
                 },
             )
             .to_string();
@@ -144,7 +158,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let db_achievement = DbAchievement {
             id,
-            series,
+            series_id,
             title,
             description,
             jades,

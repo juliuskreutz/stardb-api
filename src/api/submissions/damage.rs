@@ -33,6 +33,7 @@ impl<T: AsRef<DbSubmissionDamage>> From<T> for SubmissionDamage {
     ),
     responses(
         (status = 200, description = "[SubmissionDamage]", body = Vec<SubmissionDamage>),
+        (status = 400, description = "Not logged in"),
     )
 )]
 #[get("/api/submissions/damage")]
@@ -77,15 +78,29 @@ async fn get_submission_damage(
     request_body = SubmissionDamageUpdate,
     responses(
         (status = 200, description = "Added submission"),
+        (status = 400, description = "Not logged in"),
+        (status = 403, description = "Uid not connected to account"),
     )
 )]
 #[post("/api/submissions/damage")]
 async fn post_submission_damage(
+    session: Session,
     damage_submission_update: web::Json<SubmissionDamageUpdate>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let uid = damage_submission_update.uid;
+    let uids = database::get_connections_by_username(&username, &pool).await?;
+
+    if !uids.iter().any(|c| c.uid == uid) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let db_submission_damage = DbSubmissionDamage {
-        uid: damage_submission_update.uid,
+        uid,
         character: damage_submission_update.character.to_string(),
         support: damage_submission_update.support,
         damage: damage_submission_update.damage,

@@ -1,4 +1,5 @@
 pub mod achievements;
+pub mod import;
 pub mod mihomo;
 pub mod params;
 pub mod schemas;

@@ -75,13 +75,27 @@ async fn get_submission_heal(
     request_body = SubmissionHealUpdate,
     responses(
         (status = 200, description = "Added submission"),
+        (status = 400, description = "Not logged in"),
+        (status = 200, description = "Uid not connected to account"),
     )
 )]
 #[post("/api/submissions/heal")]
 async fn post_submission_heal(
+    session: Session,
     heal_submission_update: web::Json<SubmissionHealUpdate>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let uid = heal_submission_update.uid;
+    let uids = database::get_connections_by_username(&username, &pool).await?;
+
+    if !uids.iter().any(|c| c.uid == uid) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let db_submission_heal = DbSubmissionHeal {
         uid: heal_submission_update.uid,
         heal: heal_submission_update.heal,

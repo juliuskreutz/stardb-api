@@ -5,7 +5,7 @@ use crate::Result;
 #[derive(Default)]
 pub struct DbAchievement {
     pub id: i64,
-    pub series: String,
+    pub series_id: i32,
     pub title: String,
     pub description: String,
     pub hidden: bool,
@@ -13,8 +13,10 @@ pub struct DbAchievement {
     pub comment: Option<String>,
     pub reference: Option<String>,
     pub difficulty: Option<String>,
-    pub percent: Option<f64>,
     pub grouping: Option<i32>,
+    pub percent: Option<f64>,
+    pub series_name: String,
+    pub series_priority: i32,
 }
 
 impl AsRef<DbAchievement> for DbAchievement {
@@ -27,20 +29,20 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, title, description, jades, hidden)
+            achievements(id, series_id, title, description, jades, hidden)
         VALUES
             ($1, $2, $3, $4, $5, $6)
         ON CONFLICT
             (id)
         DO UPDATE SET
-            series = EXCLUDED.series,
+            series_id = EXCLUDED.series_id,
             title = EXCLUDED.title,
             description = EXCLUDED.description,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden
         ",
         achievement.id,
-        achievement.series,
+        achievement.series_id,
         achievement.title,
         achievement.description,
         achievement.jades,
@@ -57,13 +59,20 @@ pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
         DbAchievement,
         "
         SELECT
-            *
+            achievements.*,
+            percent,
+            series.name series_name,
+            series.priority series_priority
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
+        INNER JOIN
+            series
+        ON
+            series_id = series.id
         ORDER BY
-            id
+            series_priority DESC, id
         "
     )
     .fetch_all(pool)
@@ -74,13 +83,20 @@ pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchieveme
     Ok(sqlx::query_as!(
         DbAchievement,
         "SELECT
-            *
+            achievements.*,
+            percent,
+            series.name series_name,
+            series.priority series_priority
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
+        INNER JOIN
+            series
+        ON
+            series_id = series.id
         WHERE
-            id = $1
+            achievements.id = $1
         ",
         id
     )

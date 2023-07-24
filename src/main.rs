@@ -42,17 +42,13 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::delete_email,
         api::users::get_verifications,
         api::users::put_verification,
-        api::achievements::get_achievements,
-        api::achievements::get_achievement,
-        api::achievements::put_achievement_comment,
+        api::users::get_user_achievements,
+        api::users::put_user_achievement,
+        api::users::delete_user_achievement,
         api::achievements::put_achievement_reference,
         api::achievements::put_achievement_difficulty,
-        api::achievements::delete_achievement_comment,
         api::achievements::delete_achievement_reference,
         api::achievements::delete_achievement_difficulty,
-        api::achievements::get_completed,
-        api::achievements::put_complete,
-        api::achievements::delete_complete,
         api::submissions::damage::get_submissions_damage,
         api::submissions::damage::get_submission_damage,
         api::submissions::damage::post_submission_damage,
@@ -65,6 +61,7 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::submissions::shield::get_submission_shield,
         api::submissions::shield::post_submission_shield,
         api::submissions::shield::delete_submission_shield,
+        api::import::import,
     ),
     components(schemas(
         api::schemas::Region,
@@ -94,11 +91,9 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
         api::users::RequestToken,
         api::users::Verification,
         api::users::Otp,
-        api::achievements::Difficulty,
-        api::achievements::Achievement,
-        api::achievements::CommentUpdate,
         api::achievements::ReferenceUpdate,
-        api::achievements::DifficultyUpdate
+        api::achievements::DifficultyUpdate,
+        api::import::File
     ))
 )]
 struct ApiDoc;
@@ -122,6 +117,9 @@ async fn main() -> Result<()> {
 
     let key = Key::generate();
 
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(api::achievements::openapi());
+
     HttpServer::new(move || {
         App::new()
             .app_data(password_resets.clone())
@@ -133,9 +131,9 @@ async fn main() -> Result<()> {
             ))
             .service(Files::new("/static", "static").show_files_listing())
             .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-doc/openapi.json", ApiDoc::openapi()),
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
+            .configure(api::achievements::configure)
             .service(api::mihomo::get_mihomo)
             .service(api::scores::damage::get_scores_damage)
             .service(api::scores::damage::get_score_damage)
@@ -160,15 +158,11 @@ async fn main() -> Result<()> {
             .service(api::users::delete_email)
             .service(api::users::get_verifications)
             .service(api::users::put_verification)
-            .service(api::achievements::get_completed)
-            .service(api::achievements::put_complete)
-            .service(api::achievements::delete_complete)
-            .service(api::achievements::get_achievements)
-            .service(api::achievements::get_achievement)
-            .service(api::achievements::put_achievement_comment)
+            .service(api::users::get_user_achievements)
+            .service(api::users::put_user_achievement)
+            .service(api::users::delete_user_achievement)
             .service(api::achievements::put_achievement_reference)
             .service(api::achievements::put_achievement_difficulty)
-            .service(api::achievements::delete_achievement_comment)
             .service(api::achievements::delete_achievement_reference)
             .service(api::achievements::delete_achievement_difficulty)
             .service(api::submissions::damage::get_submissions_damage)
@@ -183,6 +177,7 @@ async fn main() -> Result<()> {
             .service(api::submissions::shield::get_submission_shield)
             .service(api::submissions::shield::post_submission_shield)
             .service(api::submissions::shield::delete_submission_shield)
+            .service(api::import::import)
     })
     .bind(("localhost", 8000))?
     .run()

@@ -69,9 +69,15 @@ CREATE TABLE IF NOT EXISTS users (
     admin BOOLEAN NOT NULL DEFAULT false
 );
 
+CREATE TABLE IF NOT EXISTS series (
+    id INT4 PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    priority INT4 NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS achievements (
     id INT8 PRIMARY KEY NOT NULL,
-    series TEXT NOT NULL,
+    series_id INT4 NOT NULL REFERENCES series ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     jades INT4 NOT NULL,
