@@ -1,7 +1,7 @@
-mod achievements;
+mod dimbreath;
 mod scores;
 mod verifications;
 
-pub use achievements::*;
+pub use dimbreath::*;
 pub use scores::*;
 pub use verifications::*;

@@ -18,14 +18,9 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "pinned")),
     paths(
         api::mihomo::get_mihomo,
-        api::scores::get_scores_achievement,
-        api::scores::get_score_achievement,
-        api::scores::put_score_achievement,
-        api::scores::damage::get_scores_damage,
-        api::scores::damage::get_score_damage,
-        api::scores::damage::put_score_damage,
         api::scores::heal::get_scores_heal,
         api::scores::heal::get_score_heal,
         api::scores::heal::put_score_heal,
@@ -61,7 +56,6 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
     ),
     components(schemas(
         api::schemas::Region,
-        api::schemas::CharacterDamage,
         api::schemas::ScoreAchievement,
         api::schemas::ScoresAchievement,
         api::schemas::ScoreDamage,
@@ -112,7 +106,7 @@ async fn main() -> Result<()> {
     let key = Key::generate();
 
     let mut openapi = ApiDoc::openapi();
-    openapi.merge(api::achievements::openapi());
+    openapi.merge(api::openapi());
 
     HttpServer::new(move || {
         App::new()
@@ -127,20 +121,14 @@ async fn main() -> Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(api::achievements::configure)
+            .configure(api::configure)
             .service(api::mihomo::get_mihomo)
-            .service(api::scores::damage::get_scores_damage)
-            .service(api::scores::damage::get_score_damage)
-            .service(api::scores::damage::put_score_damage)
             .service(api::scores::heal::get_scores_heal)
             .service(api::scores::heal::get_score_heal)
             .service(api::scores::heal::put_score_heal)
             .service(api::scores::shield::get_scores_shield)
             .service(api::scores::shield::get_score_shield)
             .service(api::scores::shield::put_score_shield)
-            .service(api::scores::get_scores_achievement)
-            .service(api::scores::get_score_achievement)
-            .service(api::scores::put_score_achievement)
             .service(api::mihomo::get_mihomo)
             .service(api::users::register)
             .service(api::users::login)

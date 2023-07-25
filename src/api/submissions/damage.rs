@@ -101,7 +101,7 @@ async fn post_submission_damage(
 
     let db_submission_damage = DbSubmissionDamage {
         uid,
-        character: damage_submission_update.character.to_string(),
+        character: damage_submission_update.character.clone(),
         support: damage_submission_update.support,
         damage: damage_submission_update.damage,
         video: damage_submission_update.video.clone(),

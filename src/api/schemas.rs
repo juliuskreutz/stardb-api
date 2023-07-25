@@ -44,22 +44,12 @@ pub struct ScoreAchievement {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
-pub enum CharacterDamage {
-    Seele,
-    Yanqing,
-    JingYuan,
-    QingQue,
-}
-
 #[derive(Serialize, ToSchema)]
 pub struct ScoreDamage {
     pub global_rank: i64,
     pub regional_rank: i64,
     pub uid: i64,
-    pub character: CharacterDamage,
+    pub character: String,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -136,7 +126,7 @@ pub struct SubmissionShield {
 #[derive(Deserialize, ToSchema)]
 pub struct SubmissionDamageUpdate {
     pub uid: i64,
-    pub character: CharacterDamage,
+    pub character: String,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -158,7 +148,7 @@ pub struct SubmissionShieldUpdate {
 
 #[derive(Deserialize, ToSchema)]
 pub struct DamageUpdate {
-    pub character: CharacterDamage,
+    pub character: String,
     pub support: bool,
     pub damage: i32,
     pub video: String,

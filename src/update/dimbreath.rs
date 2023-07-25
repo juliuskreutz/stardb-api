@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{
-    database::{self, DbAchievement, DbSeries},
+    database::{self, DbAchievement, DbCharacter, DbSeries},
     Result,
 };
 
@@ -52,6 +52,14 @@ struct QuestData {
 struct RewardData {
     #[serde(rename = "Hcoin")]
     jades: Option<i32>,
+}
+
+#[derive(Deserialize)]
+struct AvatarConfig {
+    #[serde(rename = "AvatarName")]
+    name: TextHash,
+    #[serde(rename = "AvatarVOTag")]
+    tag: String,
 }
 
 #[derive(Deserialize)]
@@ -168,6 +176,39 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         database::set_achievement(&db_achievement, pool).await?;
     }
+
+    let avatar_config: HashMap<String, AvatarConfig> =
+        reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
+            .await?
+            .json()
+            .await?;
+
+    for avatar_config in avatar_config.values() {
+        let name = text_map[&avatar_config.name.hash.to_string()].clone();
+
+        if name == "{NICKNAME}" {
+            continue;
+        }
+
+        let tag = avatar_config.tag.clone();
+
+        let db_character = DbCharacter { tag, name };
+
+        database::set_character(&db_character, pool).await?;
+    }
+
+    let trailblazer_phys = DbCharacter {
+        tag: "trailblazerphys".to_string(),
+        name: "Trailblazer\u{00A0}•\u{00A0}Physical".to_string(),
+    };
+
+    let trailblazer_fire = DbCharacter {
+        tag: "trailblazerfire".to_string(),
+        name: "Trailblazer\u{00A0}•\u{00A0}Fire".to_string(),
+    };
+
+    database::set_character(&trailblazer_phys, pool).await?;
+    database::set_character(&trailblazer_fire, pool).await?;
 
     Ok(())
 }

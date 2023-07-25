@@ -1,4 +1,5 @@
 mod achievements;
+mod characters;
 mod completed;
 mod connections;
 mod scores;
@@ -8,6 +9,7 @@ mod users;
 mod verifications;
 
 pub use achievements::*;
+pub use characters::*;
 pub use completed::*;
 pub use connections::*;
 pub use scores::*;

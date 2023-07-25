@@ -28,7 +28,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "achievements/{id}",
     put,
     path = "/api/achievements/{id}/difficulty",
     request_body = DifficultyUpdate,
@@ -60,7 +60,7 @@ async fn put_achievement_difficulty(
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "achievements/{id}",
     delete,
     path = "/api/achievements/{id}/difficulty",
     responses(

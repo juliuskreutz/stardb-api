@@ -30,16 +30,18 @@ pub async fn set_score_shield(score: &DbScoreShield, pool: &PgPool) -> Result<Db
     sqlx::query!(
         "
         INSERT INTO
-            scores_shield(uid, shield)
+            scores_shield(uid, shield, video)
         VALUES
-            ($1, $2)
+            ($1, $2, $3)
         ON CONFLICT
             (uid)
         DO UPDATE SET
-            shield = EXCLUDED.shield
+            shield = EXCLUDED.shield,
+            video = EXCLUDED.video
         ",
         score.uid,
         score.shield,
+        score.video,
     )
     .execute(pool)
     .await?;

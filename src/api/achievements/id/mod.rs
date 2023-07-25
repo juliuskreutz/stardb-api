@@ -10,7 +10,7 @@ use utoipa::OpenApi;
 use crate::{api::achievements::Achievement, database, Result};
 
 #[derive(OpenApi)]
-#[openapi(paths(get_achievement))]
+#[openapi(tags((name = "achievements/{id}")), paths(get_achievement))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -31,7 +31,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "achievements/{id}",
     get,
     path = "/api/achievements/{id}",
     responses(

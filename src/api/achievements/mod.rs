@@ -18,12 +18,12 @@ use crate::{
 #[openapi(
     tags((name = "achievements")),
     paths(get_achievements),
-    components(
-        schemas(
-            Difficulty,
-            Achievement
-        )))
-]
+    components(schemas(
+        Difficulty,
+        Series,
+        Achievement
+    ))
+)]
 struct ApiDoc;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
@@ -86,7 +86,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(id::configure).service(get_achievements);
+    cfg.service(get_achievements).configure(id::configure);
 }
 
 #[utoipa::path(

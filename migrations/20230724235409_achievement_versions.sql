@@ -1,1 +1,0 @@
-ALTER TABLE achievements ADD version TEXT;

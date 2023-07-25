@@ -30,16 +30,18 @@ pub async fn set_score_heal(score: &DbScoreHeal, pool: &PgPool) -> Result<DbScor
     sqlx::query!(
         "
         INSERT INTO
-            scores_heal(uid, heal)
+            scores_heal(uid, heal, video)
         VALUES
-            ($1, $2)
+            ($1, $2, $3)
         ON CONFLICT
             (uid)
         DO UPDATE SET
-            heal = EXCLUDED.heal
+            heal = EXCLUDED.heal,
+            video = EXCLUDED.video
         ",
         score.uid,
         score.heal,
+        score.video,
     )
     .execute(pool)
     .await?;

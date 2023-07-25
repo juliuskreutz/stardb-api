@@ -12,9 +12,14 @@ CREATE TABLE IF NOT EXISTS scores (
     updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS characters (
+    tag TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS scores_damage (
     uid INT8 NOT NULL REFERENCES scores ON DELETE CASCADE,
-    character TEXT NOT NULL,
+    character TEXT NOT NULL REFERENCES characters ON DELETE CASCADE,
     support BOOLEAN NOT NULL,
     damage INT4 NOT NULL,
     video TEXT NOT NULL,
@@ -36,7 +41,7 @@ CREATE TABLE IF NOT EXISTS scores_shield (
 CREATE TABLE IF NOT EXISTS submissions_damage (
     uuid UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
     uid INT8 NOT NULL REFERENCES scores ON DELETE CASCADE,
-    character TEXT NOT NULL,
+    character TEXT NOT NULL REFERENCES characters ON DELETE CASCADE,
     support BOOLEAN NOT NULL,
     damage INT4 NOT NULL,
     video TEXT NOT NULL,
@@ -82,6 +87,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     description TEXT NOT NULL,
     jades INT4 NOT NULL,
     hidden BOOLEAN NOT NULL,
+    version TEXT,
     comment TEXT,
     reference TEXT,
     difficulty TEXT,

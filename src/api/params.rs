@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::IntoParams;
 
-use super::schemas::{CharacterDamage, Region};
+use super::schemas::Region;
 
 #[derive(Deserialize, IntoParams)]
 pub struct ScoresParams {
@@ -13,7 +13,7 @@ pub struct ScoresParams {
 
 #[derive(Deserialize, IntoParams)]
 pub struct DamageParams {
-    pub character: Option<CharacterDamage>,
+    pub character: Option<String>,
     pub support: Option<bool>,
 }
 

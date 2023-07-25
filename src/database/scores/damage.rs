@@ -32,18 +32,20 @@ pub async fn set_score_damage(score: &DbScoreDamage, pool: &PgPool) -> Result<()
     sqlx::query!(
         "
         INSERT INTO
-            scores_damage(uid, character, support, damage)
+            scores_damage(uid, character, support, damage, video)
         VALUES
-            ($1, $2, $3, $4)
+            ($1, $2, $3, $4, $5)
         ON CONFLICT
             (uid, character, support)
         DO UPDATE SET
-            damage = EXCLUDED.damage
+            damage = EXCLUDED.damage,
+            video = EXCLUDED.video
         ",
         score.uid,
         score.character,
         score.support,
         score.damage,
+        score.video,
     )
     .execute(pool)
     .await?;

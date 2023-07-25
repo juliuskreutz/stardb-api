@@ -1,12 +1,36 @@
+mod uid;
+
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
+use serde::Deserialize;
 use sqlx::PgPool;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::{params::*, schemas::*},
     database::{self, DbScoreDamage},
     Result,
 };
+
+#[derive(OpenApi)]
+#[openapi(
+    tags((name = "scores/damage")),
+    paths(get_scores_damage, put_score_damage_temporary),
+    components(schemas(
+        ScoreDamage,
+        DamageUpdateTemporary
+    ))
+)]
+struct ApiDoc;
+
+#[derive(Deserialize, ToSchema)]
+struct DamageUpdateTemporary {
+    pub uid: i64,
+    pub character: String,
+    pub support: bool,
+    pub damage: i32,
+    pub video: String,
+}
 
 impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
     fn from(value: T) -> Self {
@@ -16,7 +40,7 @@ impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
-            character: db_score.character.parse().unwrap(),
+            character: db_score.character.clone(),
             support: db_score.support,
             damage: db_score.damage,
             video: db_score.video.clone(),
@@ -30,7 +54,20 @@ impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
     }
 }
 
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(uid::openapi());
+    openapi
+}
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(put_score_damage_temporary)
+        .service(get_scores_damage)
+        .configure(uid::configure);
+}
+
 #[utoipa::path(
+    tag = "scores/damage",
     get,
     path = "/api/scores/damage",
     params(
@@ -55,7 +92,7 @@ async fn get_scores_damage(
     let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores_damage = database::get_scores_damage(
-        damage_params.character.as_ref().map(|c| c.to_string()),
+        damage_params.character.clone(),
         damage_params.support,
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
@@ -80,47 +117,20 @@ async fn get_scores_damage(
 }
 
 #[utoipa::path(
-    get,
-    path = "/api/scores/damage/{uid}",
-    params (
-        DamageParams
-    ),
-    responses(
-        (status = 200, description = "[ScoreDamage]", body = Vec<ScoreDamage>),
-    )
-)]
-#[get("/api/scores/damage/{uid}")]
-async fn get_score_damage(
-    uid: web::Path<i64>,
-    damage_params: web::Query<DamageParams>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let score: ScoreDamage = database::get_score_damage_by_uid(
-        *uid,
-        damage_params.character.as_ref().map(|c| c.to_string()),
-        damage_params.support,
-        &pool,
-    )
-    .await?
-    .into();
-
-    Ok(HttpResponse::Ok().json(score))
-}
-
-#[utoipa::path(
+    tag = "pinned",
     put,
-    path = "/api/scores/damage/{uid}",
-    request_body = DamageUpdate,
+    path = "/api/scores/damage",
+    request_body = DamageUpdateTemporary,
     responses(
         (status = 200, description = "ScoreDamage updated"),
         (status = 403, description = "Not an admin"),
-    )
+    ),
+    security(("admin" = []))
 )]
-#[put("/api/scores/damage/{uid}")]
-async fn put_score_damage(
+#[put("/api/scores/damage")]
+async fn put_score_damage_temporary(
     session: Session,
-    uid: web::Path<i64>,
-    damage_update: web::Json<DamageUpdate>,
+    damage_update_temporary: web::Json<DamageUpdateTemporary>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let Ok(Some(admin)) = session.get::<bool>("admin") else {
@@ -131,11 +141,11 @@ async fn put_score_damage(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let uid = *uid;
-    let character = damage_update.character.to_string();
-    let support = damage_update.support;
-    let damage = damage_update.damage;
-    let video = damage_update.video.clone();
+    let uid = damage_update_temporary.uid;
+    let character = damage_update_temporary.character.clone();
+    let support = damage_update_temporary.support;
+    let damage = damage_update_temporary.damage;
+    let video = damage_update_temporary.video.clone();
 
     let db_set_score_damage = DbScoreDamage {
         uid,

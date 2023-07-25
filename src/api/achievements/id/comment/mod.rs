@@ -28,7 +28,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "achievements/{id}",
     put,
     path = "/api/achievements/{id}/comment",
     request_body = CommentUpdate,
@@ -59,7 +59,7 @@ async fn put_achievement_comment(
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "achievements/{id}",
     delete,
     path = "/api/achievements/{id}/comment",
     responses(
