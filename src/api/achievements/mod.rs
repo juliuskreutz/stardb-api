@@ -49,6 +49,7 @@ struct Achievement {
     description: String,
     jades: i32,
     hidden: bool,
+    version: Option<String>,
     comment: Option<String>,
     reference: Option<String>,
     difficulty: Option<Difficulty>,
@@ -66,6 +67,7 @@ impl<T: AsRef<DbAchievement>> From<T> for Achievement {
             description: db_achievement.description.clone(),
             jades: db_achievement.jades,
             hidden: db_achievement.hidden,
+            version: db_achievement.version.clone(),
             comment: db_achievement.comment.clone(),
             reference: db_achievement.reference.clone(),
             difficulty: db_achievement

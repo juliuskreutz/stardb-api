@@ -55,16 +55,21 @@
       },
       {
         "ordinal": 10,
+        "name": "version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "series_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "series_priority",
         "type_info": "Int4"
       }
@@ -81,6 +86,7 @@
       false,
       false,
       false,
+      true,
       true,
       true,
       true,
