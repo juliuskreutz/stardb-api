@@ -1,13 +1,11 @@
-use std::collections::HashMap;
+mod grouped;
+mod id;
 
 use actix_web::{get, web, HttpResponse, Responder};
-use linked_hash_map::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{OpenApi, ToSchema};
-
-mod id;
 
 use crate::{
     database::{self, DbAchievement},
@@ -17,11 +15,10 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "achievements")),
-    paths(get_achievements, get_achievements_grouped),
+    paths(get_achievements),
     components(schemas(
         Difficulty,
-        Achievement,
-        Group
+        Achievement
     ))
 )]
 struct ApiDoc;
@@ -58,12 +55,6 @@ struct Achievement {
     percent: f64,
 }
 
-#[derive(Serialize, ToSchema)]
-struct Group {
-    series: String,
-    achievements: Vec<Vec<Achievement>>,
-}
-
 impl From<DbAchievement> for Achievement {
     fn from(db_achievement: DbAchievement) -> Self {
         Achievement {
@@ -89,13 +80,14 @@ impl From<DbAchievement> for Achievement {
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
+    openapi.merge(grouped::openapi());
     openapi.merge(id::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_achievements)
-        .service(get_achievements_grouped)
+        .configure(grouped::configure)
         .configure(id::configure);
 }
 
@@ -124,49 +116,4 @@ async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
     }
 
     Ok(HttpResponse::Ok().json(achievements))
-}
-
-#[utoipa::path(
-    tag = "achievements",
-    get,
-    path = "/api/achievements/grouped",
-    responses(
-        (status = 200, description = "[Group]", body = Vec<Group>),
-    )
-)]
-#[get("/api/achievements/grouped")]
-async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let db_achievements = database::get_achievements(&pool).await?;
-
-    let mut series: LinkedHashMap<String, Vec<Vec<Achievement>>> = LinkedHashMap::new();
-    let mut groupings: HashMap<i32, usize> = HashMap::new();
-
-    for db_achievement in db_achievements {
-        let achievements = series.entry(db_achievement.series.clone()).or_default();
-
-        let mut achievement = Achievement::from(db_achievement);
-
-        if let Some(set) = achievement.set {
-            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
-
-            if let Some(&i) = groupings.get(&set) {
-                achievements[i].push(achievement);
-                continue;
-            }
-
-            groupings.insert(set, achievements.len());
-        }
-
-        achievements.push(vec![achievement]);
-    }
-
-    let series = series
-        .into_iter()
-        .map(|(series, achievements)| Group {
-            series,
-            achievements,
-        })
-        .collect::<Vec<_>>();
-
-    Ok(HttpResponse::Ok().json(series))
 }
