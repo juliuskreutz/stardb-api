@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     comment TEXT,
     reference TEXT,
     difficulty TEXT,
-    grouping INT4
+    set INT4
 );
 
 CREATE TABLE IF NOT EXISTS completed (

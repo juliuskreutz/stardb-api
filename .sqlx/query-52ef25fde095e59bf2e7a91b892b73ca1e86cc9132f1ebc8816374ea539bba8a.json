@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            achievements.*,\n            percent,\n            series.name series_name,\n            series.priority series_priority\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series_id = series.id\n        WHERE\n            achievements.id = $1\n        ",
+  "query": "\n        SELECT\n            achievements.*,\n            percent,\n            series.name series,\n            series.priority priority\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series_id = series.id\n        ORDER BY\n            priority DESC, id\n        ",
   "describe": {
     "columns": [
       {
@@ -50,7 +50,7 @@
       },
       {
         "ordinal": 9,
-        "name": "grouping",
+        "name": "set",
         "type_info": "Int4"
       },
       {
@@ -65,19 +65,17 @@
       },
       {
         "ordinal": 12,
-        "name": "series_name",
+        "name": "series",
         "type_info": "Text"
       },
       {
         "ordinal": 13,
-        "name": "series_priority",
+        "name": "priority",
         "type_info": "Int4"
       }
     ],
     "parameters": {
-      "Left": [
-        "Int8"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -96,5 +94,5 @@
       false
     ]
   },
-  "hash": "b2aea05507e2726aa30d1b3a8922cf8acf86a747ab90d11493da8ed8a099b318"
+  "hash": "52ef25fde095e59bf2e7a91b892b73ca1e86cc9132f1ebc8816374ea539bba8a"
 }

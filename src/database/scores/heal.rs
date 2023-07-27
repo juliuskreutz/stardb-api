@@ -20,12 +20,6 @@ pub struct DbScoreHeal {
     pub updated_at: NaiveDateTime,
 }
 
-impl AsRef<DbScoreHeal> for DbScoreHeal {
-    fn as_ref(&self) -> &DbScoreHeal {
-        self
-    }
-}
-
 pub async fn set_score_heal(score: &DbScoreHeal, pool: &PgPool) -> Result<DbScoreHeal> {
     sqlx::query!(
         "

@@ -31,3 +31,36 @@ pub async fn set_series(series: &DbSeries, pool: &PgPool) -> Result<()> {
 
     Ok(())
 }
+
+pub async fn get_series(pool: &PgPool) -> Result<Vec<DbSeries>> {
+    Ok(sqlx::query_as!(
+        DbSeries,
+        "
+        SELECT
+            *
+        FROM
+            series
+        ORDER BY
+            priority DESC
+        "
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn get_series_by_id(id: i32, pool: &PgPool) -> Result<DbSeries> {
+    Ok(sqlx::query_as!(
+        DbSeries,
+        "
+        SELECT
+            *
+        FROM
+            series
+        WHERE
+            id = $1
+        ",
+        id,
+    )
+    .fetch_one(pool)
+    .await?)
+}

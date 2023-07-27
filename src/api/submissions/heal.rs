@@ -9,15 +9,13 @@ use crate::{
     Result,
 };
 
-impl<T: AsRef<DbSubmissionHeal>> From<T> for SubmissionHeal {
-    fn from(value: T) -> Self {
-        let db_submission = value.as_ref();
-
+impl From<DbSubmissionHeal> for SubmissionHeal {
+    fn from(db_submission: DbSubmissionHeal) -> Self {
         Self {
             uuid: db_submission.uuid,
             uid: db_submission.uid,
             heal: db_submission.heal,
-            video: db_submission.video.clone(),
+            video: db_submission.video,
             created_at: db_submission.created_at,
         }
     }
@@ -40,7 +38,7 @@ async fn get_submissions_heal(
 ) -> Result<impl Responder> {
     let submissions: Vec<_> = database::get_submissions_heal(submission_update.uid, &pool)
         .await?
-        .iter()
+        .into_iter()
         .map(SubmissionHeal::from)
         .collect();
 

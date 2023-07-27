@@ -9,15 +9,13 @@ use crate::{
     Result,
 };
 
-impl<T: AsRef<DbSubmissionShield>> From<T> for SubmissionShield {
-    fn from(value: T) -> Self {
-        let db_submission = value.as_ref();
-
+impl From<DbSubmissionShield> for SubmissionShield {
+    fn from(db_submission: DbSubmissionShield) -> Self {
         Self {
             uuid: db_submission.uuid,
             uid: db_submission.uid,
             shield: db_submission.shield,
-            video: db_submission.video.clone(),
+            video: db_submission.video,
             created_at: db_submission.created_at,
         }
     }
@@ -40,7 +38,7 @@ async fn get_submissions_shield(
 ) -> Result<impl Responder> {
     let submissions: Vec<_> = database::get_submissions_shield(submission_update.uid, &pool)
         .await?
-        .iter()
+        .into_iter()
         .map(SubmissionShield::from)
         .collect();
 

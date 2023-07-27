@@ -4,10 +4,10 @@ use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
 use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
-    api::{params::*, schemas::*},
+    api::{schemas::*, scores::ScoresParams},
     database::{self, DbScoreDamage},
     Result,
 };
@@ -32,23 +32,27 @@ struct DamageUpdateTemporary {
     pub video: String,
 }
 
-impl<T: AsRef<DbScoreDamage>> From<T> for ScoreDamage {
-    fn from(value: T) -> Self {
-        let db_score = value.as_ref();
+#[derive(Deserialize, IntoParams)]
+pub struct DamageParams {
+    pub character: Option<String>,
+    pub support: Option<bool>,
+}
 
+impl From<DbScoreDamage> for ScoreDamage {
+    fn from(db_score: DbScoreDamage) -> Self {
         ScoreDamage {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
-            character: db_score.character.clone(),
+            character: db_score.character,
             support: db_score.support,
             damage: db_score.damage,
-            video: db_score.video.clone(),
+            video: db_score.video,
             region: db_score.region.parse().unwrap(),
-            name: db_score.name.clone(),
+            name: db_score.name,
             level: db_score.level,
-            signature: db_score.signature.clone(),
-            avatar_icon: db_score.avatar_icon.clone(),
+            signature: db_score.signature,
+            avatar_icon: db_score.avatar_icon,
             updated_at: db_score.updated_at,
         }
     }
@@ -102,7 +106,10 @@ async fn get_scores_damage(
     )
     .await?;
 
-    let scores = db_scores_damage.iter().map(ScoreDamage::from).collect();
+    let scores = db_scores_damage
+        .into_iter()
+        .map(ScoreDamage::from)
+        .collect();
 
     let scores_damage = Scores {
         count,

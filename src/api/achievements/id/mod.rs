@@ -40,7 +40,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/achievements/{id}")]
 async fn get_achievement(id: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let achievement: Achievement = database::get_achievement_by_id(*id, &pool).await?.into();
+    let db_achievement = database::get_achievement_by_id(*id, &pool).await?;
+    let set = db_achievement.set;
+
+    let mut achievement = Achievement::from(db_achievement);
+
+    if let Some(set) = set {
+        achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
+    };
 
     Ok(HttpResponse::Ok().json(achievement))
 }

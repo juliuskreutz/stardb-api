@@ -15,12 +15,6 @@ pub struct DbSubmissionDamage {
     pub created_at: NaiveDateTime,
 }
 
-impl AsRef<DbSubmissionDamage> for DbSubmissionDamage {
-    fn as_ref(&self) -> &DbSubmissionDamage {
-        self
-    }
-}
-
 pub async fn set_submission_damage(submission: &DbSubmissionDamage, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "

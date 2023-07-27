@@ -3,11 +3,11 @@ mod database;
 mod mihomo;
 mod update;
 
-use actix_files::Files;
-use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use std::{collections::HashMap, fs, sync::Mutex};
 
 use actix_cors::Cors;
+use actix_files::Files;
+use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, web::Data, App, HttpServer};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -21,12 +21,6 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
     tags((name = "pinned")),
     paths(
         api::mihomo::get_mihomo,
-        api::scores::heal::get_scores_heal,
-        api::scores::heal::get_score_heal,
-        api::scores::heal::put_score_heal,
-        api::scores::shield::get_scores_shield,
-        api::scores::shield::get_score_shield,
-        api::scores::shield::put_score_shield,
         api::users::login,
         api::users::register,
         api::users::logout,
@@ -122,13 +116,6 @@ async fn main() -> Result<()> {
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
             .configure(api::configure)
-            .service(api::mihomo::get_mihomo)
-            .service(api::scores::heal::get_scores_heal)
-            .service(api::scores::heal::get_score_heal)
-            .service(api::scores::heal::put_score_heal)
-            .service(api::scores::shield::get_scores_shield)
-            .service(api::scores::shield::get_score_shield)
-            .service(api::scores::shield::put_score_shield)
             .service(api::mihomo::get_mihomo)
             .service(api::users::register)
             .service(api::users::login)

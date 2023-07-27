@@ -13,12 +13,6 @@ pub struct DbSubmissionShield {
     pub created_at: NaiveDateTime,
 }
 
-impl AsRef<DbSubmissionShield> for DbSubmissionShield {
-    fn as_ref(&self) -> &DbSubmissionShield {
-        self
-    }
-}
-
 pub async fn set_submission_shield(submission: &DbSubmissionShield, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "

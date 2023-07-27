@@ -14,7 +14,7 @@ csv = "1.2.2"
 dotenv_codegen = "0.15.0"
 env_logger = "0.10.0"
 lettre = { version = "0.10.4", features = ["tokio1-native-tls"] }
-linked-hash-map = { version = "0.5.6", features = ["serde_impl"] }
+linked-hash-map = "0.5.6"
 log = "0.4.19"
 rand = "0.8.5"
 regex = "1.9.1"

@@ -24,13 +24,11 @@ struct Character {
     name: String,
 }
 
-impl<T: AsRef<DbCharacter>> From<T> for Character {
-    fn from(value: T) -> Self {
-        let db_character = value.as_ref();
-
+impl From<DbCharacter> for Character {
+    fn from(db_character: DbCharacter) -> Self {
         Character {
-            tag: db_character.tag.clone(),
-            name: db_character.name.clone(),
+            tag: db_character.tag,
+            name: db_character.name,
         }
     }
 }
@@ -55,7 +53,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_characters(pool: web::Data<PgPool>) -> Result<impl Responder> {
     let db_characters = database::get_characters(&pool).await?;
 
-    let characters: Vec<_> = db_characters.iter().map(Character::from).collect();
+    let characters: Vec<_> = db_characters.into_iter().map(Character::from).collect();
 
     Ok(HttpResponse::Ok().json(characters))
 }

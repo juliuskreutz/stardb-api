@@ -16,6 +16,22 @@ pub async fn add_complete(complete: &DbComplete, pool: &PgPool) -> Result<()> {
     .execute(pool)
     .await?;
 
+    if let Some(set) = sqlx::query!("SELECT set FROM achievements WHERE id = $1", complete.id,)
+        .fetch_one(pool)
+        .await?
+        .set
+    {
+        for related in super::get_related(complete.id, set, pool).await? {
+            sqlx::query!(
+                "DELETE FROM completed WHERE username = $1 AND id = $2",
+                complete.username,
+                related,
+            )
+            .execute(pool)
+            .await?;
+        }
+    }
+
     Ok(())
 }
 

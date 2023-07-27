@@ -13,12 +13,6 @@ pub struct DbSubmissionHeal {
     pub created_at: NaiveDateTime,
 }
 
-impl AsRef<DbSubmissionHeal> for DbSubmissionHeal {
-    fn as_ref(&self) -> &DbSubmissionHeal {
-        self
-    }
-}
-
 pub async fn set_submission_heal(submission: &DbSubmissionHeal, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "

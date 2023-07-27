@@ -20,12 +20,6 @@ pub struct DbScoreShield {
     pub updated_at: NaiveDateTime,
 }
 
-impl AsRef<DbScoreShield> for DbScoreShield {
-    fn as_ref(&self) -> &DbScoreShield {
-        self
-    }
-}
-
 pub async fn set_score_shield(score: &DbScoreShield, pool: &PgPool) -> Result<DbScoreShield> {
     sqlx::query!(
         "

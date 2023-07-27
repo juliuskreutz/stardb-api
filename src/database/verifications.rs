@@ -8,12 +8,6 @@ pub struct DbVerification {
     pub otp: String,
 }
 
-impl AsRef<DbVerification> for DbVerification {
-    fn as_ref(&self) -> &DbVerification {
-        self
-    }
-}
-
 pub async fn set_verification(verification: &DbVerification, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "

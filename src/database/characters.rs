@@ -8,12 +8,6 @@ pub struct DbCharacter {
     pub name: String,
 }
 
-impl AsRef<DbCharacter> for DbCharacter {
-    fn as_ref(&self) -> &DbCharacter {
-        self
-    }
-}
-
 pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "

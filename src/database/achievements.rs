@@ -14,16 +14,10 @@ pub struct DbAchievement {
     pub comment: Option<String>,
     pub reference: Option<String>,
     pub difficulty: Option<String>,
-    pub grouping: Option<i32>,
+    pub set: Option<i32>,
     pub percent: Option<f64>,
-    pub series_name: String,
-    pub series_priority: i32,
-}
-
-impl AsRef<DbAchievement> for DbAchievement {
-    fn as_ref(&self) -> &DbAchievement {
-        self
-    }
+    pub series: String,
+    pub priority: i32,
 }
 
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
@@ -62,8 +56,8 @@ pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
         SELECT
             achievements.*,
             percent,
-            series.name series_name,
-            series.priority series_priority
+            series.name series,
+            series.priority priority
         FROM
             achievements
         NATURAL LEFT JOIN
@@ -73,11 +67,33 @@ pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
         ON
             series_id = series.id
         ORDER BY
-            series_priority DESC, id
+            priority DESC, id
         "
     )
     .fetch_all(pool)
     .await?)
+}
+
+pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
+    Ok(sqlx::query!(
+        "
+        SELECT
+            id
+        FROM
+            achievements
+        WHERE
+            id != $1
+        AND
+            set = $2
+        ",
+        id,
+        set,
+    )
+    .fetch_all(pool)
+    .await?
+    .iter_mut()
+    .map(|id| id.id)
+    .collect())
 }
 
 pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchievement> {
@@ -86,8 +102,8 @@ pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchieveme
         "SELECT
             achievements.*,
             percent,
-            series.name series_name,
-            series.priority series_priority
+            series.name series,
+            series.priority priority
         FROM
             achievements
         NATURAL LEFT JOIN

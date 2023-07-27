@@ -1,18 +1,18 @@
+mod damage;
+mod heal;
+mod shield;
 mod uid;
 
 use actix_web::{get, web, HttpResponse, Responder};
+use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{IntoParams, OpenApi};
 
 use crate::{
-    api::{params::*, schemas::*},
+    api::schemas::*,
     database::{self, DbScore},
     Result,
 };
-
-pub mod damage;
-pub mod heal;
-pub mod shield;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -24,19 +24,25 @@ pub mod shield;
 )]
 struct ApiDoc;
 
-impl<T: AsRef<DbScore>> From<T> for ScoreAchievement {
-    fn from(value: T) -> Self {
-        let db_score = value.as_ref();
+#[derive(Deserialize, IntoParams)]
+pub struct ScoresParams {
+    pub region: Option<Region>,
+    pub query: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
 
+impl From<DbScore> for ScoreAchievement {
+    fn from(db_score: DbScore) -> Self {
         ScoreAchievement {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
             uid: db_score.uid,
             region: db_score.region.parse().unwrap(),
-            name: db_score.name.clone(),
+            name: db_score.name,
             level: db_score.level,
-            signature: db_score.signature.clone(),
-            avatar_icon: db_score.avatar_icon.clone(),
+            signature: db_score.signature,
+            avatar_icon: db_score.avatar_icon,
             achievement_count: db_score.achievement_count,
             updated_at: db_score.updated_at,
         }
@@ -47,12 +53,16 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
     openapi.merge(damage::openapi());
+    openapi.merge(heal::openapi());
+    openapi.merge(shield::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_scores_achievement)
         .configure(damage::configure)
+        .configure(heal::configure)
+        .configure(shield::configure)
         .configure(uid::configure);
 }
 
@@ -88,7 +98,7 @@ async fn get_scores_achievement(
     )
     .await?;
 
-    let scores = db_scores.iter().map(ScoreAchievement::from).collect();
+    let scores = db_scores.into_iter().map(ScoreAchievement::from).collect();
 
     let scores_achievement = Scores {
         count,

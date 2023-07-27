@@ -277,13 +277,11 @@ pub struct Verification {
     otp: String,
 }
 
-impl<T: AsRef<DbVerification>> From<T> for Verification {
-    fn from(value: T) -> Self {
-        let db_verification = value.as_ref();
-
+impl From<DbVerification> for Verification {
+    fn from(db_verification: DbVerification) -> Self {
         Verification {
             uid: db_verification.uid,
-            otp: db_verification.otp.clone(),
+            otp: db_verification.otp,
         }
     }
 }
@@ -304,7 +302,10 @@ async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<
 
     let db_verifications = database::get_verifications_by_username(&username, &pool).await?;
 
-    let verifications: Vec<_> = db_verifications.iter().map(Verification::from).collect();
+    let verifications: Vec<_> = db_verifications
+        .into_iter()
+        .map(Verification::from)
+        .collect();
 
     Ok(HttpResponse::Ok().json(verifications))
 }

@@ -17,11 +17,11 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "achievements")),
-    paths(get_achievements),
+    paths(get_achievements, get_achievements_grouped),
     components(schemas(
         Difficulty,
-        Series,
-        Achievement
+        Achievement,
+        Group
     ))
 )]
 struct ApiDoc;
@@ -36,44 +36,52 @@ enum Difficulty {
 }
 
 #[derive(Serialize, ToSchema)]
-struct Series {
-    name: String,
-    achievements: Vec<Vec<Achievement>>,
-}
-
-#[derive(Serialize, ToSchema)]
 struct Achievement {
     id: i64,
-    series_name: String,
+    series: String,
     title: String,
     description: String,
     jades: i32,
     hidden: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     difficulty: Option<Difficulty>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    set: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    related: Option<Vec<i64>>,
     percent: f64,
 }
 
-impl<T: AsRef<DbAchievement>> From<T> for Achievement {
-    fn from(value: T) -> Self {
-        let db_achievement = value.as_ref();
+#[derive(Serialize, ToSchema)]
+struct Group {
+    series: String,
+    achievements: Vec<Vec<Achievement>>,
+}
 
+impl From<DbAchievement> for Achievement {
+    fn from(db_achievement: DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
-            series_name: db_achievement.series_name.clone(),
-            title: db_achievement.title.clone(),
-            description: db_achievement.description.clone(),
+            series: db_achievement.series,
+            title: db_achievement.title,
+            description: db_achievement.description,
             jades: db_achievement.jades,
             hidden: db_achievement.hidden,
-            version: db_achievement.version.clone(),
-            comment: db_achievement.comment.clone(),
-            reference: db_achievement.reference.clone(),
+            version: db_achievement.version,
+            comment: db_achievement.comment,
+            reference: db_achievement.reference,
             difficulty: db_achievement
                 .difficulty
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
+            set: db_achievement.set,
+            related: None,
             percent: db_achievement.percent.unwrap_or_default(),
         }
     }
@@ -86,7 +94,9 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_achievements).configure(id::configure);
+    cfg.service(get_achievements)
+        .service(get_achievements_grouped)
+        .configure(id::configure);
 }
 
 #[utoipa::path(
@@ -94,31 +104,57 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     get,
     path = "/api/achievements",
     responses(
-        (status = 200, description = "[Series]", body = Vec<Series>),
+        (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
 )]
 #[get("/api/achievements")]
 async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
     let db_achievements = database::get_achievements(&pool).await?;
 
+    let mut achievements = Vec::new();
+
+    for db_achievement in db_achievements {
+        let mut achievement = Achievement::from(db_achievement);
+
+        if let Some(set) = achievement.set {
+            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
+        };
+
+        achievements.push(achievement);
+    }
+
+    Ok(HttpResponse::Ok().json(achievements))
+}
+
+#[utoipa::path(
+    tag = "achievements",
+    get,
+    path = "/api/achievements/grouped",
+    responses(
+        (status = 200, description = "[Group]", body = Vec<Group>),
+    )
+)]
+#[get("/api/achievements/grouped")]
+async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let db_achievements = database::get_achievements(&pool).await?;
+
     let mut series: LinkedHashMap<String, Vec<Vec<Achievement>>> = LinkedHashMap::new();
     let mut groupings: HashMap<i32, usize> = HashMap::new();
 
     for db_achievement in db_achievements {
-        let achievements = series
-            .entry(db_achievement.series_name.clone())
-            .or_default();
+        let achievements = series.entry(db_achievement.series.clone()).or_default();
 
-        let grouping = db_achievement.grouping;
-        let achievement = db_achievement.into();
+        let mut achievement = Achievement::from(db_achievement);
 
-        if let Some(grouping) = grouping {
-            if let Some(&i) = groupings.get(&grouping) {
+        if let Some(set) = achievement.set {
+            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
+
+            if let Some(&i) = groupings.get(&set) {
                 achievements[i].push(achievement);
                 continue;
             }
 
-            groupings.insert(grouping, achievements.len());
+            groupings.insert(set, achievements.len());
         }
 
         achievements.push(vec![achievement]);
@@ -126,7 +162,10 @@ async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
 
     let series = series
         .into_iter()
-        .map(|(name, achievements)| Series { name, achievements })
+        .map(|(series, achievements)| Group {
+            series,
+            achievements,
+        })
         .collect::<Vec<_>>();
 
     Ok(HttpResponse::Ok().json(series))

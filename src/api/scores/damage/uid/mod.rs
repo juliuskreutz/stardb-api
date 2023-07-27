@@ -5,8 +5,8 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{
-        params::DamageParams,
         schemas::{DamageUpdate, ScoreDamage},
+        scores::damage::DamageParams,
     },
     database::{self, DbScoreDamage},
     Result,

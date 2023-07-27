@@ -22,12 +22,6 @@ pub struct DbScoreDamage {
     pub updated_at: NaiveDateTime,
 }
 
-impl AsRef<DbScoreDamage> for DbScoreDamage {
-    fn as_ref(&self) -> &DbScoreDamage {
-        self
-    }
-}
-
 pub async fn set_score_damage(score: &DbScoreDamage, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
