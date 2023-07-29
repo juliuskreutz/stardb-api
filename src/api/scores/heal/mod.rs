@@ -1,14 +1,18 @@
 mod uid;
 
 use actix_web::{get, web, HttpResponse, Responder};
+use chrono::NaiveDateTime;
+use serde::Serialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{schemas::*, scores::ScoresParams},
+    api::scores::{Scores, ScoresParams},
     database::{self, DbScoreHeal},
     Result,
 };
+
+use super::Region;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -19,6 +23,21 @@ use crate::{
     ))
 )]
 struct ApiDoc;
+
+#[derive(Serialize, ToSchema)]
+pub struct ScoreHeal {
+    pub global_rank: i64,
+    pub regional_rank: i64,
+    pub uid: i64,
+    pub heal: i32,
+    pub video: String,
+    pub region: Region,
+    pub name: String,
+    pub level: i32,
+    pub signature: String,
+    pub avatar_icon: String,
+    pub updated_at: NaiveDateTime,
+}
 
 impl From<DbScoreHeal> for ScoreHeal {
     fn from(db_score: DbScoreHeal) -> Self {

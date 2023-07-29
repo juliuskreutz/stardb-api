@@ -1,17 +1,30 @@
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
+use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::schemas::{HealUpdate, ScoreHeal},
+    api::scores::heal::ScoreHeal,
     database::{self, DbScoreHeal},
     Result,
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "scores/heal/{uid}")), paths(get_score_heal, put_score_heal))]
+#[openapi(
+    tags((name = "scores/heal/{uid}")),
+    paths(get_score_heal, put_score_heal),
+    components(schemas(
+        HealUpdate
+    ))
+)]
 struct ApiDoc;
+
+#[derive(Deserialize, ToSchema)]
+pub struct HealUpdate {
+    pub heal: i32,
+    pub video: String,
+}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()

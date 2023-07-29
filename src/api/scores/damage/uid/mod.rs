@@ -1,20 +1,32 @@
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
+use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{
-        schemas::{DamageUpdate, ScoreDamage},
-        scores::damage::DamageParams,
-    },
+    api::scores::damage::{DamageParams, ScoreDamage},
     database::{self, DbScoreDamage},
     Result,
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "scores/damage/{uid}")), paths(get_score_damage, put_score_damage))]
+#[openapi(
+    tags((name = "scores/damage/{uid}")),
+    paths(get_score_damage, put_score_damage),
+    components(schemas(
+        DamageUpdate
+    ))
+)]
 struct ApiDoc;
+
+#[derive(Deserialize, ToSchema)]
+pub struct DamageUpdate {
+    pub character: String,
+    pub support: bool,
+    pub damage: i32,
+    pub video: String,
+}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()

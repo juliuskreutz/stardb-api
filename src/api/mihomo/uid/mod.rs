@@ -2,10 +2,24 @@ use std::{fs::File, path::PathBuf};
 
 use actix_web::{get, web, HttpResponse, Responder};
 use serde_json::Value;
+use utoipa::OpenApi;
 
 use crate::Result;
 
+#[derive(OpenApi)]
+#[openapi(tags((name = "mihomo/{uid}")), paths(get_mihomo))]
+struct ApiDoc;
+
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    ApiDoc::openapi()
+}
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(get_mihomo);
+}
+
 #[utoipa::path(
+    tag = "mihomo/{uid}",
     get,
     path = "/api/mihomo/{uid}",
     responses(

@@ -1,17 +1,30 @@
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
+use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::schemas::{ScoreShield, ShieldUpdate},
+    api::scores::shield::ScoreShield,
     database::{self, DbScoreShield},
     Result,
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "scores/shield/{uid}")), paths(get_score_shield, put_score_shield))]
+#[openapi(
+    tags((name = "scores/shield/{uid}")),
+    paths(get_score_shield, put_score_shield),
+    components(schemas(
+        ShieldUpdate
+    ))
+)]
 struct ApiDoc;
+
+#[derive(Deserialize, ToSchema)]
+pub struct ShieldUpdate {
+    pub shield: i32,
+    pub video: String,
+}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()

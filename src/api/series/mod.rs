@@ -13,7 +13,7 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "series")),
-    paths(get_series),
+    paths(get_seriess),
     components(schemas(
         Series
     ))
@@ -42,7 +42,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_series).configure(id::configure);
+    cfg.service(get_seriess).configure(id::configure);
 }
 
 #[utoipa::path(
@@ -54,7 +54,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/series")]
-async fn get_series(pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_seriess(pool: web::Data<PgPool>) -> Result<impl Responder> {
     let series: Vec<_> = database::get_series(&pool)
         .await?
         .into_iter()

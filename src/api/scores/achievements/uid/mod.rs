@@ -5,13 +5,13 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::schemas::ScoreAchievement,
+    api::scores::achievements::ScoreAchievement,
     database::{self, DbScore},
     mihomo, Result,
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "scores/{uid}")), paths(get_score_achievement, put_score_achievement))]
+#[openapi(tags((name = "scores/achievements/{uid}")), paths(get_score_achievement, put_score_achievement))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -24,14 +24,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "scores/{uid}",
+    tag = "scores/achievements/{uid}",
     get,
-    path = "/api/scores/{uid}",
+    path = "/api/scores/achievements/{uid}",
     responses(
         (status = 200, description = "ScoreAchievement", body = ScoreAchievement),
     )
 )]
-#[get("/api/scores/{uid}")]
+#[get("/api/scores/achievements/{uid}")]
 async fn get_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
@@ -42,14 +42,14 @@ async fn get_score_achievement(
 }
 
 #[utoipa::path(
-    tag = "scores/{uid}",
+    tag = "scores/achievements/{uid}",
     put,
-    path = "/api/scores/{uid}",
+    path = "/api/scores/achievements/{uid}",
     responses(
         (status = 200, description = "ScoreAchievement updated", body = ScoreAchievement),
     )
 )]
-#[put("/api/scores/{uid}")]
+#[put("/api/scores/achievements/{uid}")]
 async fn put_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,

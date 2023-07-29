@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-cors = "0.6.4"
 actix-files = "0.6.2"
 actix-multipart = "0.6.0"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
@@ -20,8 +19,8 @@ rand = "0.8.5"
 regex = "1.9.1"
 reqwest = { version = "0.11.18", features = ["json"] }
 rust-argon2 = "1.0.0"
-serde = { version = "1.0.173", features = ["derive"] }
-serde_json = "1.0.103"
+serde = { version = "1.0.177", features = ["derive"] }
+serde_json = "1.0.104"
 sqlx = { version = "0.7.1", features = [
     "postgres",
     "chrono",
@@ -29,6 +28,6 @@ sqlx = { version = "0.7.1", features = [
     "runtime-tokio-native-tls",
 ] }
 strum = { version = "0.25.0", features = ["derive"] }
-utoipa = { version = "3.3.0", features = ["actix_extras", "chrono"] }
+utoipa = { version = "3.4.3", features = ["actix_extras", "chrono"] }
 utoipa-swagger-ui = { version = "3.1.4", features = ["actix-web"] }
 uuid = { version = "1.4.1", features = ["v4", "serde"] }

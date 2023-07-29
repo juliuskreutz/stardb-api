@@ -2,15 +2,18 @@ mod uid;
 
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
-use serde::Deserialize;
+use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
-    api::{schemas::*, scores::ScoresParams},
+    api::scores::{Scores, ScoresParams},
     database::{self, DbScoreDamage},
     Result,
 };
+
+use super::Region;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -36,6 +39,23 @@ struct DamageUpdateTemporary {
 pub struct DamageParams {
     pub character: Option<String>,
     pub support: Option<bool>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ScoreDamage {
+    pub global_rank: i64,
+    pub regional_rank: i64,
+    pub uid: i64,
+    pub character: String,
+    pub support: bool,
+    pub damage: i32,
+    pub video: String,
+    pub region: Region,
+    pub name: String,
+    pub level: i32,
+    pub signature: String,
+    pub avatar_icon: String,
+    pub updated_at: NaiveDateTime,
 }
 
 impl From<DbScoreDamage> for ScoreDamage {
