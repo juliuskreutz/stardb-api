@@ -1,5 +1,5 @@
 /target/
 /mihomo/
 
-Cargo.lock
-.env
+/Cargo.lock
+/.env
