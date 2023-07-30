@@ -44,6 +44,7 @@ pub struct User {
     email: Option<String>,
     admin: bool,
     uids: Vec<i64>,
+    achievements: Vec<i64>,
 }
 
 #[utoipa::path(
@@ -69,8 +70,14 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> Result<impl Respon
 
     let uids = database::get_connections_by_username(&username, &pool)
         .await?
-        .iter()
+        .into_iter()
         .map(|c| c.uid)
+        .collect();
+
+    let achievements = database::get_completed_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|c| c.id)
         .collect();
 
     let user = User {
@@ -78,6 +85,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> Result<impl Respon
         email,
         admin,
         uids,
+        achievements,
     };
 
     Ok(HttpResponse::Ok().json(user))

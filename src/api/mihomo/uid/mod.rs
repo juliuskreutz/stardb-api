@@ -32,7 +32,9 @@ async fn get_mihomo(uid: web::Path<i64>) -> Result<impl Responder> {
 
     if !PathBuf::from(&path).exists() {
         reqwest::Client::new()
-            .put(&format!("http://localhost:8000/api/scores/{uid}"))
+            .put(&format!(
+                "http://localhost:8000/api/scores/achievements/{uid}"
+            ))
             .send()
             .await?;
     }

@@ -40,7 +40,10 @@ async fn update_100() -> Result<()> {
 
     for score in scores.scores {
         client
-            .put(&format!("http://localhost:8000/api/scores/{}", score.uid))
+            .put(&format!(
+                "http://localhost:8000/api/scores/achievements/{}",
+                score.uid
+            ))
             .send()
             .await?;
     }
@@ -60,7 +63,10 @@ async fn update_rest() -> Result<()> {
 
     for score in scores.scores {
         client
-            .put(&format!("http://localhost:8000/api/scores/{}", score.uid))
+            .put(&format!(
+                "http://localhost:8000/api/scores/achievements/{}",
+                score.uid
+            ))
             .send()
             .await?;
     }
