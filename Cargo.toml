@@ -10,7 +10,7 @@ actix-session = { version = "0.7.2", features = ["cookie-session"] }
 actix-web = "4.3.1"
 chrono = { version = "0.4.26", features = ["serde"] }
 csv = "1.2.2"
-dotenv_codegen = "0.15.0"
+dotenv = "0.15.0"
 env_logger = "0.10.0"
 lettre = { version = "0.10.4", features = ["tokio1-native-tls"] }
 linked-hash-map = "0.5.6"

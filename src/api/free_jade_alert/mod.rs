@@ -223,7 +223,7 @@ async fn post_free_jade_alert(
     let webhook: Webhook = free_jade_alert.0.into();
 
     client
-        .post(dotenv_codegen::dotenv!("DISCORD_WEBHOOK"))
+        .post(dotenv::var("DISCORD_WEBHOOK")?)
         .json(&webhook)
         .send()
         .await?;

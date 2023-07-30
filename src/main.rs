@@ -48,10 +48,11 @@ struct ApiDoc;
 #[actix_web::main]
 async fn main() -> Result<()> {
     env_logger::init();
+    dotenv::dotenv()?;
 
     let _ = fs::create_dir("mihomo");
 
-    let pool = PgPool::connect(dotenv_codegen::dotenv!("DATABASE_URL")).await?;
+    let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
 
     sqlx::migrate!().run(&pool).await?;
 

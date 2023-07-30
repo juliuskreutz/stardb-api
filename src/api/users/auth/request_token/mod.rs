@@ -63,10 +63,8 @@ async fn request_token(
         .subject("Stardb Password Reset")
         .body(format!("https://stardb.gg/login?token={token}"))?;
 
-    let credentials = Credentials::new(
-        dotenv_codegen::dotenv!("SMTP_USERNAME").to_string(),
-        dotenv_codegen::dotenv!("SMTP_PASSWORD").to_string(),
-    );
+    let credentials =
+        Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
 
     let mailer = SmtpTransport::relay("mail.hosting.de")?
         .credentials(credentials)
