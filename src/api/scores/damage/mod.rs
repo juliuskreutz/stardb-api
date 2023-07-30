@@ -144,7 +144,7 @@ async fn get_scores_damage(
 }
 
 #[utoipa::path(
-    tag = "pinned",
+    tag = "/scores/damage",
     put,
     path = "/api/scores/damage",
     request_body = DamageUpdateTemporary,

@@ -14,7 +14,7 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me")),
-    paths(get_me, get_verifications, put_verification, put_email, delete_email, put_password),
+    paths(get_me, get_verifications, put_verification, put_email, delete_email, put_password, get_user_achievements, put_user_achievement, delete_user_achievement),
     components(schemas(
         User,
         Verification,
@@ -35,7 +35,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(put_verification)
         .service(put_email)
         .service(delete_email)
-        .service(put_password);
+        .service(put_password)
+        .service(get_user_achievements)
+        .service(put_user_achievement)
+        .service(delete_user_achievement);
 }
 
 #[derive(Serialize, ToSchema)]
