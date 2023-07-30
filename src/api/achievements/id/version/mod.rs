@@ -8,6 +8,7 @@ use crate::{database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "achievements/{id}/version")),
     paths(put_achievement_version, delete_achievement_version),
     components(schemas(VersionUpdate))
 )]
@@ -28,7 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/version",
     put,
     path = "/api/achievements/{id}/version",
     request_body = VersionUpdate,
@@ -59,7 +60,7 @@ async fn put_achievement_version(
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/version",
     delete,
     path = "/api/achievements/{id}/version",
     responses(
