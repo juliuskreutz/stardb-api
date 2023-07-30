@@ -8,6 +8,7 @@ use crate::{database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "achievements/{id}/comment")),
     paths(put_achievement_comment, delete_achievement_comment),
     components(schemas(CommentUpdate))
 )]
@@ -28,7 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/comment",
     put,
     path = "/api/achievements/{id}/comment",
     request_body = CommentUpdate,
@@ -59,7 +60,7 @@ async fn put_achievement_comment(
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/comment",
     delete,
     path = "/api/achievements/{id}/comment",
     responses(

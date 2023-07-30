@@ -8,6 +8,7 @@ use crate::{api::achievements::Difficulty, database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "achievements/{id}/difficulty")),
     paths(put_achievement_difficulty, delete_achievement_difficulty),
     components(schemas(DifficultyUpdate))
 )]
@@ -28,7 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/difficulty",
     put,
     path = "/api/achievements/{id}/difficulty",
     request_body = DifficultyUpdate,
@@ -60,7 +61,7 @@ async fn put_achievement_difficulty(
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/difficulty",
     delete,
     path = "/api/achievements/{id}/difficulty",
     responses(

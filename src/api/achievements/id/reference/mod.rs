@@ -8,6 +8,7 @@ use crate::{database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
+    tags((name = "achievements/{id}/reference")),
     paths(put_achievement_reference, delete_achievement_reference),
     components(schemas(ReferenceUpdate))
 )]
@@ -28,7 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/reference",
     put,
     path = "/api/achievements/{id}/reference",
     request_body = ReferenceUpdate,
@@ -59,7 +60,7 @@ async fn put_achievement_reference(
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}",
+    tag = "achievements/{id}/reference",
     delete,
     path = "/api/achievements/{id}/reference",
     responses(
