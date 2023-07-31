@@ -7,7 +7,7 @@ use std::{collections::HashMap, fs, sync::Mutex};
 
 use actix_files::Files;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, web::Data, App, HttpServer};
+use actix_web::{cookie::Key, middleware::Compress, web::Data, App, HttpServer};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -72,6 +72,7 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(password_resets.clone())
             .app_data(pool.clone())
+            .wrap(Compress::default())
             .wrap(SessionMiddleware::new(
                 CookieSessionStore::default(),
                 key.clone(),

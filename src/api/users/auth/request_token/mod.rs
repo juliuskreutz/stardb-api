@@ -46,6 +46,17 @@ async fn request_token(
     password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    {
+        if password_resets
+            .lock()
+            .map_err(|_| "lock broken")?
+            .values()
+            .any(|s| s == &password_reset.username)
+        {
+            return Ok(HttpResponse::BadRequest().finish());
+        }
+    }
+
     let Ok(user) = database::get_user_by_username(&password_reset.username, &pool).await else {
         return Ok(HttpResponse::BadRequest().finish());
     };
