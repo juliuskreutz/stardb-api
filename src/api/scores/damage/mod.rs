@@ -29,7 +29,7 @@ struct ApiDoc;
 #[derive(Deserialize, ToSchema)]
 struct DamageUpdateTemporary {
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -37,7 +37,7 @@ struct DamageUpdateTemporary {
 
 #[derive(Deserialize, IntoParams)]
 pub struct DamageParams {
-    pub character: Option<String>,
+    pub character: Option<i32>,
     pub support: Option<bool>,
 }
 
@@ -46,7 +46,7 @@ pub struct ScoreDamage {
     pub global_rank: i64,
     pub regional_rank: i64,
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -116,7 +116,7 @@ async fn get_scores_damage(
     let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores_damage = database::get_scores_damage(
-        damage_params.character.clone(),
+        damage_params.character,
         damage_params.support,
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
@@ -169,7 +169,7 @@ async fn put_score_damage_temporary(
     }
 
     let uid = damage_update_temporary.uid;
-    let character = damage_update_temporary.character.clone();
+    let character = damage_update_temporary.character;
     let support = damage_update_temporary.support;
     let damage = damage_update_temporary.damage;
     let video = damage_update_temporary.video.clone();

@@ -5,11 +5,16 @@
     "columns": [
       {
         "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
         "name": "tag",
         "type_info": "Text"
       },
       {
-        "ordinal": 1,
+        "ordinal": 2,
         "name": "name",
         "type_info": "Text"
       }
@@ -18,6 +23,7 @@
       "Left": []
     },
     "nullable": [
+      false,
       false,
       false
     ]

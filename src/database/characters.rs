@@ -4,6 +4,7 @@ use crate::Result;
 
 #[derive(Default)]
 pub struct DbCharacter {
+    pub id: i32,
     pub tag: String,
     pub name: String,
 }
@@ -12,14 +13,16 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
     sqlx::query!(
         "
         INSERT INTO
-            characters(tag, name)
+            characters(id, tag, name)
         VALUES
-            ($1, $2)
+            ($1, $2, $3)
         ON CONFLICT
-            (tag)
+            (id)
         DO UPDATE SET
+            tag = EXCLUDED.tag,
             name = EXCLUDED.name
         ",
+        character.id,
         character.tag,
         character.name,
     )

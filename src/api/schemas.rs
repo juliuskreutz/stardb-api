@@ -8,7 +8,7 @@ pub struct SubmissionDamage {
     #[schema(value_type = String)]
     pub uuid: Uuid,
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -38,7 +38,7 @@ pub struct SubmissionShield {
 #[derive(Deserialize, ToSchema)]
 pub struct SubmissionDamageUpdate {
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,

@@ -8,7 +8,7 @@ use crate::Result;
 pub struct DbSubmissionDamage {
     pub uuid: Uuid,
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,

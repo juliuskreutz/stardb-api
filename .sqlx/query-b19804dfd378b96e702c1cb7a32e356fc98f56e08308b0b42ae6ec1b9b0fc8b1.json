@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n                WHERE\n                    ($2::TEXT IS NULL OR character = $2)\n                AND\n                    ($3::BOOLEAN IS NULL OR support = $3)\n            ) ranked\n        WHERE\n            uid = $1\n        ORDER BY\n            global_rank\n        LIMIT\n            1\n        ",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY damage DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY damage DESC) regional_rank,\n                    *\n                FROM\n                    scores_damage\n                NATURAL JOIN\n                    scores\n                WHERE\n                    ($1::INT4 IS NULL OR character = $1)\n                AND\n                    ($2::BOOLEAN IS NULL OR support = $2)\n            ) ranked\n        WHERE\n            ($3::TEXT IS NULL OR region = $3)\n        AND\n            ($4::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($4) || '%')\n        ORDER BY\n            (CASE WHEN $4 IS NOT NULL THEN LEVENSHTEIN(name, $4) ELSE global_rank END)\n        LIMIT\n            $5\n        OFFSET\n            $6\n        ",
   "describe": {
     "columns": [
       {
@@ -21,7 +21,7 @@
       {
         "ordinal": 3,
         "name": "character",
-        "type_info": "Text"
+        "type_info": "Int4"
       },
       {
         "ordinal": 4,
@@ -81,9 +81,12 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
+        "Int4",
+        "Bool",
         "Text",
-        "Bool"
+        "Text",
+        "Int8",
+        "Int8"
       ]
     },
     "nullable": [
@@ -104,5 +107,5 @@
       false
     ]
   },
-  "hash": "2d6388fa448d74c3e0ea3d97641e04dfe2ef20b7ff954c45dac6ced79b9fd7a6"
+  "hash": "b19804dfd378b96e702c1cb7a32e356fc98f56e08308b0b42ae6ec1b9b0fc8b1"
 }

@@ -8,6 +8,7 @@ use std::{collections::HashMap, fs, sync::Mutex};
 use actix_files::Files;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, web::Data, App, HttpServer};
+use convert_case::{Case, Casing};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -44,6 +45,18 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
     ))
 )]
 struct ApiDoc;
+
+trait ToTag {
+    fn to_tag(&self) -> String;
+}
+
+impl<T: AsRef<str>> ToTag for T {
+    fn to_tag(&self) -> String {
+        self.as_ref()
+            .replace(|c: char| !c.is_alphanumeric(), "")
+            .to_case(Case::Kebab)
+    }
+}
 
 #[actix_web::main]
 async fn main() -> Result<()> {

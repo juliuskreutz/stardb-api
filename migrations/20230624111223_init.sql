@@ -13,13 +13,14 @@ CREATE TABLE IF NOT EXISTS scores (
 );
 
 CREATE TABLE IF NOT EXISTS characters (
-    tag TEXT PRIMARY KEY NOT NULL,
+    id INT4 PRIMARY KEY NOT NULL,
+    tag TEXT NOT NULL,
     name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS scores_damage (
     uid INT8 NOT NULL REFERENCES scores ON DELETE CASCADE,
-    character TEXT NOT NULL REFERENCES characters ON DELETE CASCADE,
+    character INT4 NOT NULL REFERENCES characters ON DELETE CASCADE,
     support BOOLEAN NOT NULL,
     damage INT4 NOT NULL,
     video TEXT NOT NULL,
@@ -41,7 +42,7 @@ CREATE TABLE IF NOT EXISTS scores_shield (
 CREATE TABLE IF NOT EXISTS submissions_damage (
     uuid UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
     uid INT8 NOT NULL REFERENCES scores ON DELETE CASCADE,
-    character TEXT NOT NULL REFERENCES characters ON DELETE CASCADE,
+    character INT4 NOT NULL REFERENCES characters ON DELETE CASCADE,
     support BOOLEAN NOT NULL,
     damage INT4 NOT NULL,
     video TEXT NOT NULL,

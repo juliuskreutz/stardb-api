@@ -22,7 +22,7 @@ struct ApiDoc;
 
 #[derive(Deserialize, ToSchema)]
 pub struct DamageUpdate {
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -55,7 +55,7 @@ async fn get_score_damage(
 ) -> Result<impl Responder> {
     let score: ScoreDamage = database::get_score_damage_by_uid(
         *uid,
-        damage_params.character.clone(),
+        damage_params.character,
         damage_params.support,
         &pool,
     )
@@ -92,7 +92,7 @@ async fn put_score_damage(
     }
 
     let uid = *uid;
-    let character = damage_update.character.clone();
+    let character = damage_update.character;
     let support = damage_update.support;
     let damage = damage_update.damage;
     let video = damage_update.video.clone();

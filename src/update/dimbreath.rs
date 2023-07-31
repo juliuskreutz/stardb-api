@@ -7,7 +7,7 @@ use sqlx::PgPool;
 
 use crate::{
     database::{self, DbAchievement, DbCharacter, DbSeries},
-    Result,
+    Result, ToTag,
 };
 
 #[derive(Deserialize)]
@@ -56,10 +56,10 @@ struct RewardData {
 
 #[derive(Deserialize)]
 struct AvatarConfig {
+    #[serde(rename = "AvatarID")]
+    id: i32,
     #[serde(rename = "AvatarName")]
     name: TextHash,
-    #[serde(rename = "AvatarVOTag")]
-    tag: String,
 }
 
 #[derive(Deserialize)]
@@ -190,25 +190,31 @@ async fn update(pool: &PgPool) -> Result<()> {
             continue;
         }
 
-        let tag = avatar_config.tag.clone();
+        let id = avatar_config.id;
+        let tag = name.to_tag();
 
-        let db_character = DbCharacter { tag, name };
+        let db_character = DbCharacter { id, tag, name };
 
         database::set_character(&db_character, pool).await?;
     }
 
-    let trailblazer_phys = DbCharacter {
-        tag: "trailblazerphys".to_string(),
-        name: "Trailblazer\u{00A0}•\u{00A0}Physical".to_string(),
-    };
+    {
+        let id = 8001;
+        let name = "Trailblazer\u{00A0}•\u{00A0}Physical".to_string();
+        let tag = name.to_tag();
+        let db_character = DbCharacter { id, tag, name };
 
-    let trailblazer_fire = DbCharacter {
-        tag: "trailblazerfire".to_string(),
-        name: "Trailblazer\u{00A0}•\u{00A0}Fire".to_string(),
-    };
+        database::set_character(&db_character, pool).await?;
+    }
 
-    database::set_character(&trailblazer_phys, pool).await?;
-    database::set_character(&trailblazer_fire, pool).await?;
+    {
+        let id = 8002;
+        let name = "Trailblazer\u{00A0}•\u{00A0}Fire".to_string();
+        let tag = name.to_tag();
+        let db_character = DbCharacter { id, tag, name };
+
+        database::set_character(&db_character, pool).await?;
+    }
 
     Ok(())
 }

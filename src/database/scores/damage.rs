@@ -8,7 +8,7 @@ pub struct DbScoreDamage {
     pub global_rank: Option<i64>,
     pub regional_rank: Option<i64>,
     pub uid: i64,
-    pub character: String,
+    pub character: i32,
     pub support: bool,
     pub damage: i32,
     pub video: String,
@@ -48,7 +48,7 @@ pub async fn set_score_damage(score: &DbScoreDamage, pool: &PgPool) -> Result<()
 }
 
 pub async fn get_scores_damage(
-    character: Option<String>,
+    character: Option<i32>,
     support: Option<bool>,
     region: Option<String>,
     query: Option<String>,
@@ -72,7 +72,7 @@ pub async fn get_scores_damage(
                 NATURAL JOIN
                     scores
                 WHERE
-                    ($1::TEXT IS NULL OR character = $1)
+                    ($1::INT4 IS NULL OR character = $1)
                 AND
                     ($2::BOOLEAN IS NULL OR support = $2)
             ) ranked
@@ -111,7 +111,7 @@ pub async fn count_scores_damage(region: &str, pool: &PgPool) -> Result<i64> {
 
 pub async fn get_score_damage_by_uid(
     uid: i64,
-    character: Option<String>,
+    character: Option<i32>,
     support: Option<bool>,
     pool: &PgPool,
 ) -> Result<DbScoreDamage> {
@@ -131,7 +131,7 @@ pub async fn get_score_damage_by_uid(
                 NATURAL JOIN
                     scores
                 WHERE
-                    ($2::TEXT IS NULL OR character = $2)
+                    ($2::INT4 IS NULL OR character = $2)
                 AND
                     ($3::BOOLEAN IS NULL OR support = $3)
             ) ranked
