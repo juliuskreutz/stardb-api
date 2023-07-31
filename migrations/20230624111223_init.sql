@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS series (
 CREATE TABLE IF NOT EXISTS achievements (
     id INT8 PRIMARY KEY NOT NULL,
     series_id INT4 NOT NULL REFERENCES series ON DELETE CASCADE,
-    title TEXT NOT NULL,
+    tag TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     description TEXT NOT NULL,
     jades INT4 NOT NULL,
     hidden BOOLEAN NOT NULL,

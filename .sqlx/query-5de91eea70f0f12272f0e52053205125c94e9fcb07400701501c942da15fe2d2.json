@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            achievements.*,\n            percent,\n            series.name series,\n            series.priority priority\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series_id = series.id\n        WHERE\n            achievements.id = $1\n        ",
+  "query": "\n        SELECT\n            achievements.*,\n            percent,\n            series.tag series_tag,\n            series.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        ORDER BY\n            series.priority DESC, id\n        ",
   "describe": {
     "columns": [
       {
@@ -10,12 +10,12 @@
       },
       {
         "ordinal": 1,
-        "name": "series_id",
+        "name": "series",
         "type_info": "Int4"
       },
       {
         "ordinal": 2,
-        "name": "title",
+        "name": "name",
         "type_info": "Text"
       },
       {
@@ -60,24 +60,27 @@
       },
       {
         "ordinal": 11,
+        "name": "tag",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 12,
-        "name": "series",
+        "ordinal": 13,
+        "name": "series_tag",
         "type_info": "Text"
       },
       {
-        "ordinal": 13,
-        "name": "priority",
-        "type_info": "Int4"
+        "ordinal": 14,
+        "name": "series_name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
-      "Left": [
-        "Int8"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -91,10 +94,11 @@
       true,
       true,
       true,
+      false,
       null,
       false,
       false
     ]
   },
-  "hash": "0e48d3ee6bc8b3eeb8bc42e7fd688f9413b7de12183085bb1b2644626e2f8bd2"
+  "hash": "5de91eea70f0f12272f0e52053205125c94e9fcb07400701501c942da15fe2d2"
 }

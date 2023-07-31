@@ -42,7 +42,9 @@ async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Respon
     let mut groupings: HashMap<i32, usize> = HashMap::new();
 
     for db_achievement in db_achievements {
-        let achievements = series.entry(db_achievement.series.clone()).or_default();
+        let achievements = series
+            .entry(db_achievement.series_name.clone())
+            .or_default();
 
         let mut achievement = Achievement::from(db_achievement);
 

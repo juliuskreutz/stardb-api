@@ -6,12 +6,12 @@ use utoipa::ToSchema;
 
 use crate::Result;
 
-#[derive(Default, Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct Mihomo {
     pub player: Player,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Player {
     pub nickname: String,
     pub level: i32,
@@ -20,12 +20,12 @@ pub struct Player {
     pub space_info: SpaceInfo,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Avatar {
     pub icon: String,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SpaceInfo {
     pub achievement_count: i32,
 }

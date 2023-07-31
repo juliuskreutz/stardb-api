@@ -2,7 +2,6 @@ use sqlx::PgPool;
 
 use crate::Result;
 
-#[derive(Default)]
 pub struct DbCharacter {
     pub id: i32,
     pub tag: String,

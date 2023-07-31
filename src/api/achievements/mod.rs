@@ -35,8 +35,11 @@ enum Difficulty {
 #[derive(Serialize, ToSchema)]
 struct Achievement {
     id: i64,
-    series: String,
-    title: String,
+    series: i32,
+    series_tag: String,
+    series_name: String,
+    tag: String,
+    name: String,
     description: String,
     jades: i32,
     hidden: bool,
@@ -60,7 +63,10 @@ impl From<DbAchievement> for Achievement {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
-            title: db_achievement.title,
+            series_tag: db_achievement.series_tag,
+            series_name: db_achievement.series_name,
+            tag: db_achievement.tag,
+            name: db_achievement.name,
             description: db_achievement.description,
             jades: db_achievement.jades,
             hidden: db_achievement.hidden,

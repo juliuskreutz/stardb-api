@@ -2,11 +2,13 @@ use sqlx::PgPool;
 
 use crate::Result;
 
-#[derive(Default)]
 pub struct DbAchievement {
     pub id: i64,
-    pub series_id: i32,
-    pub title: String,
+    pub series: i32,
+    pub series_tag: String,
+    pub series_name: String,
+    pub tag: String,
+    pub name: String,
     pub description: String,
     pub hidden: bool,
     pub jades: i32,
@@ -16,29 +18,29 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub set: Option<i32>,
     pub percent: Option<f64>,
-    pub series: String,
-    pub priority: i32,
 }
 
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series_id, title, description, jades, hidden)
+            achievements(id, series, tag, name, description, jades, hidden)
         VALUES
-            ($1, $2, $3, $4, $5, $6)
+            ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT
             (id)
         DO UPDATE SET
-            series_id = EXCLUDED.series_id,
-            title = EXCLUDED.title,
+        series = EXCLUDED.series,
+            tag = EXCLUDED.tag,
+            name = EXCLUDED.name,
             description = EXCLUDED.description,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden
         ",
         achievement.id,
-        achievement.series_id,
-        achievement.title,
+        achievement.series,
+        achievement.tag,
+        achievement.name,
         achievement.description,
         achievement.jades,
         achievement.hidden,
@@ -56,8 +58,8 @@ pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
         SELECT
             achievements.*,
             percent,
-            series.name series,
-            series.priority priority
+            series.tag series_tag,
+            series.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
@@ -65,9 +67,9 @@ pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
         INNER JOIN
             series
         ON
-            series_id = series.id
+            series = series.id
         ORDER BY
-            priority DESC, id
+            series.priority DESC, id
         "
     )
     .fetch_all(pool)
@@ -102,8 +104,8 @@ pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchieveme
         "SELECT
             achievements.*,
             percent,
-            series.name series,
-            series.priority priority
+            series.tag series_tag,
+            series.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
@@ -111,7 +113,7 @@ pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchieveme
         INNER JOIN
             series
         ON
-            series_id = series.id
+            series = series.id
         WHERE
             achievements.id = $1
         ",

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievements(id, series, tag, name, description, jades, hidden)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n        series = EXCLUDED.series,\n            tag = EXCLUDED.tag,\n            name = EXCLUDED.name,\n            description = EXCLUDED.description,\n            jades = EXCLUDED.jades,\n            hidden = EXCLUDED.hidden\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2e1a3f99c9659fe94aacff44e95765b7a3d39739502daa4776a6086fd3bdad64"
+}

@@ -2,7 +2,6 @@ use sqlx::PgPool;
 
 use crate::Result;
 
-#[derive(Default)]
 pub struct DbSeries {
     pub id: i32,
     pub tag: String,

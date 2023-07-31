@@ -134,14 +134,16 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let id = achievement_data.id;
 
-        let series_id = achievement_data.series;
+        let series = achievement_data.series;
 
-        let title = html_re
+        let name = html_re
             .replace_all(
                 &text_map[&achievement_data.title.hash.to_string()],
                 |_: &Captures| "",
             )
             .to_string();
+
+        let tag = name.to_tag();
 
         let re = Regex::new(r"#(\d+)\[i\](%?)")?;
         let description = re
@@ -172,12 +174,20 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let db_achievement = DbAchievement {
             id,
-            series_id,
-            title,
+            series,
+            series_tag: String::new(),
+            series_name: String::new(),
+            tag,
+            name,
             description,
             jades,
             hidden,
-            ..Default::default()
+            version: None,
+            comment: None,
+            reference: None,
+            difficulty: None,
+            set: None,
+            percent: None,
         };
 
         database::set_achievement(&db_achievement, pool).await?;
