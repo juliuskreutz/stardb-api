@@ -5,6 +5,7 @@ use crate::Result;
 #[derive(Default)]
 pub struct DbSeries {
     pub id: i32,
+    pub tag: String,
     pub name: String,
     pub priority: i32,
 }
@@ -13,16 +14,18 @@ pub async fn set_series(series: &DbSeries, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            series(id, name, priority)
+            series(id, tag, name, priority)
         VALUES
-            ($1, $2, $3)
+            ($1, $2, $3, $4)
         ON CONFLICT
             (id)
         DO UPDATE SET
+            tag = EXCLUDED.tag,
             name = EXCLUDED.name,
             priority = EXCLUDED.priority
         ",
         series.id,
+        series.tag,
         series.name,
         series.priority,
     )

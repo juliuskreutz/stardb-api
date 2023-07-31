@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            series(id, tag, name, priority)\n        VALUES\n            ($1, $2, $3, $4)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            tag = EXCLUDED.tag,\n            name = EXCLUDED.name,\n            priority = EXCLUDED.priority\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3fcdb3ef77ad2e411fa4f27fcb539dd6162a8cca20683b4ddeffd745493e61f3"
+}

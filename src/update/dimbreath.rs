@@ -117,9 +117,15 @@ async fn update(pool: &PgPool) -> Result<()> {
     for series in achievement_series.values() {
         let id = series.id;
         let name = text_map[&series.title.hash.to_string()].clone();
+        let tag = name.to_tag();
         let priority = series.priority;
 
-        let db_series = DbSeries { id, name, priority };
+        let db_series = DbSeries {
+            id,
+            tag,
+            name,
+            priority,
+        };
         database::set_series(&db_series, pool).await?;
     }
 

@@ -17,12 +17,18 @@
         "ordinal": 2,
         "name": "priority",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "tag",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": []
     },
     "nullable": [
+      false,
       false,
       false,
       false
