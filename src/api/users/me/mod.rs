@@ -18,7 +18,6 @@ use crate::{
     components(schemas(
         User,
         Verification,
-        Otp,
         EmailUpdate,
         PasswordUpdate
     ))
@@ -44,10 +43,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Serialize, ToSchema)]
 pub struct User {
     username: String,
-    email: Option<String>,
     admin: bool,
-    uids: Vec<i64>,
-    achievements: Vec<i64>,
 }
 
 #[utoipa::path(
@@ -60,36 +56,16 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
-async fn get_me(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_me(session: Session) -> Result<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let user = database::get_user_by_username(&username, &pool).await?;
-
-    let username = user.username.clone();
-    let email = user.email.clone();
-    let admin = user.admin;
-
-    let uids = database::get_connections_by_username(&username, &pool)
-        .await?
-        .into_iter()
-        .map(|c| c.uid)
-        .collect();
-
-    let achievements = database::get_completed_by_username(&username, &pool)
-        .await?
-        .into_iter()
-        .map(|c| c.id)
-        .collect();
-
-    let user = User {
-        username,
-        email,
-        admin,
-        uids,
-        achievements,
+    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+        return Ok(HttpResponse::BadRequest().finish());
     };
+
+    let user = User { username, admin };
 
     Ok(HttpResponse::Ok().json(user))
 }
@@ -104,7 +80,7 @@ impl From<DbVerification> for Verification {
     fn from(db_verification: DbVerification) -> Self {
         Verification {
             uid: db_verification.uid,
-            otp: db_verification.otp,
+            otp: db_verification.token,
         }
     }
 }
@@ -134,11 +110,6 @@ async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<
     Ok(HttpResponse::Ok().json(verifications))
 }
 
-#[derive(Serialize, ToSchema)]
-pub struct Otp {
-    otp: String,
-}
-
 #[utoipa::path(
     tag = "users/me",
     put,
@@ -158,7 +129,7 @@ async fn put_verification(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let otp: String = rand::thread_rng()
+    let token: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(6)
         .map(char::from)
@@ -167,16 +138,12 @@ async fn put_verification(
     let db_verification = DbVerification {
         uid: *uid,
         username,
-        otp,
+        token,
     };
 
     database::set_verification(&db_verification, &pool).await?;
 
-    let otp = Otp {
-        otp: db_verification.otp.clone(),
-    };
-
-    Ok(HttpResponse::Ok().json(otp))
+    Ok(HttpResponse::Ok().json(db_verification.token))
 }
 
 #[derive(Deserialize, ToSchema)]

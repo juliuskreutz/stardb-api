@@ -13,6 +13,7 @@ convert_case = "0.6.0"
 csv = "1.2.2"
 dotenv = "0.15.0"
 env_logger = "0.10.0"
+futures = "0.3.28"
 lettre = { version = "0.10.4", features = ["tokio1-native-tls"] }
 linked-hash-map = "0.5.6"
 log = "0.4.19"

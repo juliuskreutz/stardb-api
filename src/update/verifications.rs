@@ -26,7 +26,7 @@ async fn update(pool: &PgPool) -> Result<()> {
     for verification in verifications {
         let api_data = mihomo::get(verification.uid).await?;
 
-        if !api_data.player.signature.ends_with(&verification.otp) {
+        if !api_data.player.signature.ends_with(&verification.token) {
             continue;
         }
 

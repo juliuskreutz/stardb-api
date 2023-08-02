@@ -23,6 +23,8 @@ struct Character {
     id: i32,
     tag: String,
     name: String,
+    element: String,
+    path: String,
 }
 
 impl From<DbCharacter> for Character {
@@ -31,6 +33,8 @@ impl From<DbCharacter> for Character {
             id: db_character.id,
             tag: db_character.tag,
             name: db_character.name,
+            element: db_character.element,
+            path: db_character.path,
         }
     }
 }

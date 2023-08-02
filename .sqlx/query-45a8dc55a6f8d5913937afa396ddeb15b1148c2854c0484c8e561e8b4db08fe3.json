@@ -17,12 +17,24 @@
         "ordinal": 2,
         "name": "name",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "element",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "path",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": []
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false

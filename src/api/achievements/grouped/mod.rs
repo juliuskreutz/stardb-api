@@ -9,12 +9,27 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{api::achievements::Achievement, database, Result};
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "achievements/grouped")), paths(get_achievements_grouped), components(schemas(Group)))]
+#[openapi(
+    tags((name = "achievements/grouped")),
+    paths(get_achievements_grouped),
+    components(schemas(
+        Groups,
+        AchivementsGrouped
+    ))
+)]
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
-struct Group {
+struct Groups {
+    achievement_count: usize,
+    jade_count: i32,
+    series: Vec<AchivementsGrouped>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct AchivementsGrouped {
     series: String,
+    jade_count: i32,
     achievements: Vec<Vec<Achievement>>,
 }
 
@@ -64,11 +79,21 @@ async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Respon
 
     let series = series
         .into_iter()
-        .map(|(series, achievements)| Group {
+        .map(|(series, achievements)| AchivementsGrouped {
             series,
+            jade_count: achievements.iter().map(|a| a[0].jades).sum(),
             achievements,
         })
         .collect::<Vec<_>>();
 
-    Ok(HttpResponse::Ok().json(series))
+    let achievement_count = series.iter().map(|ag| ag.achievements.len()).sum();
+    let jade_count = series.iter().map(|ag| ag.jade_count).sum();
+
+    let groups = Groups {
+        achievement_count,
+        jade_count,
+        series,
+    };
+
+    Ok(HttpResponse::Ok().json(groups))
 }

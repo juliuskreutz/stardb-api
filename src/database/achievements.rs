@@ -16,6 +16,7 @@ pub struct DbAchievement {
     pub comment: Option<String>,
     pub reference: Option<String>,
     pub difficulty: Option<String>,
+    pub gacha: bool,
     pub set: Option<i32>,
     pub percent: Option<f64>,
 }
@@ -164,6 +165,18 @@ pub async fn update_achievement_difficulty(id: i64, difficulty: &str, pool: &PgP
         "UPDATE achievements SET difficulty = $2 WHERE id = $1",
         id,
         difficulty,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn update_achievement_gacha(id: i64, gacha: bool, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "UPDATE achievements SET gacha = $2 WHERE id = $1",
+        id,
+        gacha,
     )
     .execute(pool)
     .await?;

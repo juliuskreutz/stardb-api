@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "otp",
+        "name": "token",
         "type_info": "Text"
       }
     ],

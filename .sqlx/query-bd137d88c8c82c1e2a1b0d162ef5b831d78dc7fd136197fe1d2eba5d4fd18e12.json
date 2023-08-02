@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            characters(id, tag, name, element, path)\n        VALUES\n            ($1, $2, $3, $4, $5)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            tag = EXCLUDED.tag,\n            name = EXCLUDED.name,\n            element = EXCLUDED.element,\n            path = EXCLUDED.path\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bd137d88c8c82c1e2a1b0d162ef5b831d78dc7fd136197fe1d2eba5d4fd18e12"
+}

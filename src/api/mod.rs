@@ -8,6 +8,7 @@ pub mod schemas;
 mod scores;
 mod series;
 pub mod submissions;
+mod tier_list;
 mod users;
 
 use actix_web::web;
@@ -25,6 +26,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(mihomo::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(series::openapi());
+    openapi.merge(tier_list::openapi());
     openapi.merge(users::openapi());
     openapi
 }
@@ -36,5 +38,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(mihomo::configure)
         .configure(scores::configure)
         .configure(series::configure)
+        .configure(tier_list::configure)
         .configure(users::configure);
 }

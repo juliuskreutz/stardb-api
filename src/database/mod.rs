@@ -5,6 +5,7 @@ mod connections;
 mod scores;
 mod series;
 mod submissions;
+mod tier_list;
 mod users;
 mod verifications;
 
@@ -15,5 +16,6 @@ pub use connections::*;
 pub use scores::*;
 pub use series::*;
 pub use submissions::*;
+pub use tier_list::*;
 pub use users::*;
 pub use verifications::*;

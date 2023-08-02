@@ -6,24 +6,30 @@ pub struct DbCharacter {
     pub id: i32,
     pub tag: String,
     pub name: String,
+    pub element: String,
+    pub path: String,
 }
 
 pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            characters(id, tag, name)
+            characters(id, tag, name, element, path)
         VALUES
-            ($1, $2, $3)
+            ($1, $2, $3, $4, $5)
         ON CONFLICT
             (id)
         DO UPDATE SET
             tag = EXCLUDED.tag,
-            name = EXCLUDED.name
+            name = EXCLUDED.name,
+            element = EXCLUDED.element,
+            path = EXCLUDED.path
         ",
         character.id,
         character.tag,
         character.name,
+        character.element,
+        character.path,
     )
     .execute(pool)
     .await?;

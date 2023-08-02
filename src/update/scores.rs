@@ -1,4 +1,7 @@
-use actix_web::rt;
+use std::{sync::Arc, time::Duration};
+
+use actix_web::rt::{self, time};
+use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -16,60 +19,48 @@ struct Score {
 
 pub async fn scores() {
     rt::spawn(async {
-        loop {
-            let _ = update_100().await;
-        }
-    });
+        let minutes = 10;
 
-    rt::spawn(async {
+        let mut timer = time::interval(Duration::from_secs(60 * minutes));
+
         loop {
-            let _ = update_rest().await;
+            timer.tick().await;
+
+            let _ = update().await;
         }
     });
 }
 
-async fn update_100() -> Result<()> {
-    let client = Client::new();
+async fn update() -> Result<()> {
+    let client = Arc::new(Client::new());
 
     let scores: Scores = client
-        .get("http://localhost:8000/api/scores?limit=100")
+        .get("http://localhost:8000/api/scores/achievements")
         .send()
         .await?
         .json()
         .await?;
 
-    for score in scores.scores {
-        client
-            .put(&format!(
-                "http://localhost:8000/api/scores/achievements/{}",
-                score.uid
-            ))
-            .send()
-            .await?;
-    }
-
-    Ok(())
-}
-
-async fn update_rest() -> Result<()> {
-    let client = Client::new();
-
-    let scores: Scores = client
-        .get("http://localhost:8000/api/scores?offset=100")
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    for score in scores.scores {
-        client
-            .put(&format!(
-                "http://localhost:8000/api/scores/achievements/{}",
-                score.uid
-            ))
-            .send()
-            .await?;
-    }
+    futures::stream::iter(scores.scores)
+        .map(|s| (client.clone(), s))
+        .map(|(client, score)| async move {
+            loop {
+                if client
+                    .put(&format!(
+                        "http://localhost:8000/api/scores/achievements/{}",
+                        score.uid
+                    ))
+                    .send()
+                    .await
+                    .is_ok()
+                {
+                    break;
+                }
+            }
+        })
+        .buffer_unordered(8)
+        .collect::<Vec<_>>()
+        .await;
 
     Ok(())
 }

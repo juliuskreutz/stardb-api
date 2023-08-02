@@ -51,6 +51,7 @@ struct Achievement {
     reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     difficulty: Option<Difficulty>,
+    gacha: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     set: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -77,6 +78,7 @@ impl From<DbAchievement> for Achievement {
                 .difficulty
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
+            gacha: db_achievement.gacha,
             set: db_achievement.set,
             related: None,
             percent: db_achievement.percent.unwrap_or_default(),

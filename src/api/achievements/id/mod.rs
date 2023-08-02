@@ -1,5 +1,6 @@
 mod comment;
 mod difficulty;
+mod gacha;
 mod reference;
 mod version;
 
@@ -19,6 +20,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(comment::openapi());
     openapi.merge(reference::openapi());
     openapi.merge(difficulty::openapi());
+    openapi.merge(gacha::openapi());
     openapi
 }
 
@@ -27,6 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(comment::configure)
         .configure(reference::configure)
         .configure(difficulty::configure)
+        .configure(gacha::configure)
         .service(get_achievement);
 }
 

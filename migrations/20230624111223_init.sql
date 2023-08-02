@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS scores (
 CREATE TABLE IF NOT EXISTS characters (
     id INT4 PRIMARY KEY NOT NULL,
     tag TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    element TEXT NOT NULL,
+    path TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS scores_damage (
@@ -94,6 +96,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     comment TEXT,
     reference TEXT,
     difficulty TEXT,
+    gacha BOOLEAN NOT NULL DEFAULT false,
     set INT4
 );
 
@@ -106,7 +109,7 @@ CREATE TABLE IF NOT EXISTS completed (
 CREATE TABLE IF NOT EXISTS verifications (
     uid INT8 PRIMARY KEY NOT NULL REFERENCES scores ON DELETE CASCADE,
     username TEXT NOT NULL REFERENCES users ON DELETE CASCADE,
-    otp TEXT NOT NULL
+    token TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS connections (
@@ -114,4 +117,23 @@ CREATE TABLE IF NOT EXISTS connections (
     username TEXT NOT NULL REFERENCES users ON DELETE CASCADE
 );
 
+
+CREATE TABLE IF NOT EXISTS tier_list (
+    character INT4 NOT NULL REFERENCES characters ON DELETE CASCADE,
+    eidolon INT4 NOT NULL,
+    role TEXT,
+    st_dps INT4,
+    aoe_dps INT4,
+    buffer INT4,
+    debuffer INT4,
+    healer INT4,
+    survivability INT4,
+    sp_efficiency INT4,
+    avg_break INT4,
+    st_break INT4,
+    base_speed INT4,
+    footnote TEXT,
+    score INT4 NOT NULL,
+    PRIMARY KEY (character, eidolon, role)
+);
 

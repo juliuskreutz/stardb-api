@@ -1,0 +1,128 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            tier_list.*,\n            characters.tag character_tag,\n            characters.name character_name,\n            characters.element character_element,\n            characters.path character_path\n        FROM\n            tier_list\n        INNER JOIN\n            characters\n        ON\n            character = characters.id\n        ORDER BY\n            score\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "eidolon",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "role",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "st_dps",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "aoe_dps",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "buffer",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "debuffer",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "healer",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "survivability",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "sp_efficiency",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "avg_break",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "st_break",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "base_speed",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "footnote",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "character_tag",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
+        "name": "character_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "character_element",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 18,
+        "name": "character_path",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e7f50536927e1fb252dc330787e4d8c3d569e03015b268ffc725d60f3ec3ecb3"
+}

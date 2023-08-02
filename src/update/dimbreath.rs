@@ -60,6 +60,16 @@ struct AvatarConfig {
     id: i32,
     #[serde(rename = "AvatarName")]
     name: TextHash,
+    #[serde(rename = "DamageType")]
+    element: String,
+    #[serde(rename = "AvatarBaseType")]
+    base_type: String,
+}
+
+#[derive(Deserialize)]
+struct AvatarBaseType {
+    #[serde(rename = "FirstWordText")]
+    path: String,
 }
 
 #[derive(Deserialize)]
@@ -186,6 +196,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             comment: None,
             reference: None,
             difficulty: None,
+            gacha: false,
             set: None,
             percent: None,
         };
@@ -199,35 +210,37 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
+    let avatar_base_type: HashMap<String, AvatarBaseType> =
+        reqwest::get(&format!("{url}ExcelOutput/AvatarBaseType.json"))
+            .await?
+            .json()
+            .await?;
+
     for avatar_config in avatar_config.values() {
-        let name = text_map[&avatar_config.name.hash.to_string()].clone();
+        let mut name = text_map[&avatar_config.name.hash.to_string()].clone();
 
         if name == "{NICKNAME}" {
-            continue;
+            if avatar_config.id == 8001 {
+                name = "Trailblazer\u{00A0}•\u{00A0}Physical".to_string();
+            } else if avatar_config.id == 8003 {
+                name = "Trailblazer\u{00A0}•\u{00A0}Fire".to_string();
+            } else {
+                continue;
+            }
         }
 
         let id = avatar_config.id;
         let tag = name.to_tag();
+        let element = avatar_config.element.clone();
+        let path = avatar_base_type[&avatar_config.base_type].path.clone();
 
-        let db_character = DbCharacter { id, tag, name };
-
-        database::set_character(&db_character, pool).await?;
-    }
-
-    {
-        let id = 8001;
-        let name = "Trailblazer\u{00A0}•\u{00A0}Physical".to_string();
-        let tag = name.to_tag();
-        let db_character = DbCharacter { id, tag, name };
-
-        database::set_character(&db_character, pool).await?;
-    }
-
-    {
-        let id = 8002;
-        let name = "Trailblazer\u{00A0}•\u{00A0}Fire".to_string();
-        let tag = name.to_tag();
-        let db_character = DbCharacter { id, tag, name };
+        let db_character = DbCharacter {
+            id,
+            tag,
+            name,
+            element,
+            path,
+        };
 
         database::set_character(&db_character, pool).await?;
     }

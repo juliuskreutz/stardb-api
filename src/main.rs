@@ -53,8 +53,8 @@ trait ToTag {
 impl<T: AsRef<str>> ToTag for T {
     fn to_tag(&self) -> String {
         self.as_ref()
-            .replace(|c: char| !c.is_alphanumeric(), "")
             .to_case(Case::Kebab)
+            .replace(|c: char| !c.is_alphanumeric() && c != '-', "")
     }
 }
 

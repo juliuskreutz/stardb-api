@@ -5,25 +5,25 @@ use crate::Result;
 pub struct DbVerification {
     pub uid: i64,
     pub username: String,
-    pub otp: String,
+    pub token: String,
 }
 
 pub async fn set_verification(verification: &DbVerification, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            verifications(uid, username, otp)
+            verifications(uid, username, token)
         VALUES
             ($1, $2, $3)
         ON CONFLICT
             (uid)
         DO UPDATE SET
             username = EXCLUDED.username,
-            otp = EXCLUDED.otp
+            token = EXCLUDED.token
         ",
         verification.uid,
         verification.username,
-        verification.otp,
+        verification.token,
     )
     .execute(pool)
     .await?;
