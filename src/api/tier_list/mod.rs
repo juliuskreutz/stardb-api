@@ -28,7 +28,7 @@ pub struct TierListEntry {
     character_element: String,
     character_path: String,
     eidolon: i32,
-    role: Option<String>,
+    role: String,
     st_dps: Option<i32>,
     aoe_dps: Option<i32>,
     buffer: Option<i32>,

@@ -22,7 +22,7 @@ struct ApiDoc;
 #[derive(Deserialize, ToSchema)]
 struct TierListEntryUpdate {
     eidolon: i32,
-    role: Option<String>,
+    role: String,
     st_dps: Option<i32>,
     aoe_dps: Option<i32>,
     buffer: Option<i32>,
@@ -35,6 +35,7 @@ struct TierListEntryUpdate {
     base_speed: Option<i32>,
     footnote: Option<String>,
     score: i32,
+    score_number: i32,
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -108,6 +109,7 @@ async fn put_tier_list_entry(
         base_speed: tier_list_entry_update.base_speed,
         footnote: tier_list_entry_update.footnote.clone(),
         score: tier_list_entry_update.score,
+        score_number: tier_list_entry_update.score_number,
     };
 
     database::set_tier_list_entry(&db_tier_list_entry, &pool).await?;

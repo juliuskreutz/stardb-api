@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            tier_list(character, eidolon, role, st_dps, aoe_dps, buffer, debuffer, healer, survivability, sp_efficiency, avg_break, st_break, base_speed, footnote, score, score_number)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)\n        ON CONFLICT\n            (character, eidolon, role)\n        DO UPDATE SET\n            st_dps = EXCLUDED.st_dps,\n            aoe_dps = EXCLUDED.aoe_dps,\n            buffer = EXCLUDED.buffer,\n            debuffer = EXCLUDED.debuffer,\n            healer = EXCLUDED.healer,\n            survivability = EXCLUDED.survivability,\n            sp_efficiency = EXCLUDED.sp_efficiency,\n            avg_break = EXCLUDED.avg_break,\n            st_break = EXCLUDED.st_break,\n            base_speed = EXCLUDED.base_speed,\n            footnote = EXCLUDED.footnote,\n            score = EXCLUDED.score,\n            score_number = EXCLUDED.score_number\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "02dbe573ed2e31dee1b5697c0edec88915f345800a9e65d51744e86894408f82"
+}

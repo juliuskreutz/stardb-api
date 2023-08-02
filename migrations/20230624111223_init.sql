@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS submissions_damage (
     damage INT4 NOT NULL,
     video TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
-    UNIQUE(uid, character, support)
+    UNIQUE (uid, character, support)
 );
 
 CREATE TABLE IF NOT EXISTS submissions_heal (
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS submissions_heal (
     heal INT4 NOT NULL,
     video TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
-    UNIQUE(uid)
+    UNIQUE (uid)
 );
 
 CREATE TABLE IF NOT EXISTS submissions_shield (
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS connections (
 CREATE TABLE IF NOT EXISTS tier_list (
     character INT4 NOT NULL REFERENCES characters ON DELETE CASCADE,
     eidolon INT4 NOT NULL,
-    role TEXT,
+    role TEXT NOT NULL,
     st_dps INT4,
     aoe_dps INT4,
     buffer INT4,
@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS tier_list (
     base_speed INT4,
     footnote TEXT,
     score INT4 NOT NULL,
+    score_number INT4 NOT NULL,
     PRIMARY KEY (character, eidolon, role)
 );
 

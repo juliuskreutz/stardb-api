@@ -29,6 +29,7 @@ struct Groups {
 #[derive(Serialize, ToSchema)]
 struct AchivementsGrouped {
     series: String,
+    achievement_count: usize,
     jade_count: i32,
     achievements: Vec<Vec<Achievement>>,
 }
@@ -81,6 +82,7 @@ async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Respon
         .into_iter()
         .map(|(series, achievements)| AchivementsGrouped {
             series,
+            achievement_count: achievements.len(),
             jade_count: achievements.iter().map(|a| a[0].jades).sum(),
             achievements,
         })

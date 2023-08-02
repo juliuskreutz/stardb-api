@@ -9,7 +9,7 @@ pub struct DbTierListEntry {
     pub character_element: String,
     pub character_path: String,
     pub eidolon: i32,
-    pub role: Option<String>,
+    pub role: String,
     pub st_dps: Option<i32>,
     pub aoe_dps: Option<i32>,
     pub buffer: Option<i32>,
@@ -22,17 +22,18 @@ pub struct DbTierListEntry {
     pub base_speed: Option<i32>,
     pub footnote: Option<String>,
     pub score: i32,
+    pub score_number: i32,
 }
 
 pub async fn set_tier_list_entry(tier_list_entry: &DbTierListEntry, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            tier_list(character, eidolon, role, st_dps, aoe_dps, buffer, debuffer, healer, survivability, sp_efficiency, avg_break, st_break, base_speed, footnote, score)
+            tier_list(character, eidolon, role, st_dps, aoe_dps, buffer, debuffer, healer, survivability, sp_efficiency, avg_break, st_break, base_speed, footnote, score, score_number)
         VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT
-            (character, eidolon)
+            (character, eidolon, role)
         DO UPDATE SET
             st_dps = EXCLUDED.st_dps,
             aoe_dps = EXCLUDED.aoe_dps,
@@ -45,7 +46,8 @@ pub async fn set_tier_list_entry(tier_list_entry: &DbTierListEntry, pool: &PgPoo
             st_break = EXCLUDED.st_break,
             base_speed = EXCLUDED.base_speed,
             footnote = EXCLUDED.footnote,
-            score = EXCLUDED.score
+            score = EXCLUDED.score,
+            score_number = EXCLUDED.score_number
         ",
         tier_list_entry.character,
         tier_list_entry.eidolon,
@@ -62,6 +64,7 @@ pub async fn set_tier_list_entry(tier_list_entry: &DbTierListEntry, pool: &PgPoo
         tier_list_entry.base_speed,
         tier_list_entry.footnote,
         tier_list_entry.score,
+        tier_list_entry.score_number,
     )
     .execute(pool)
     .await?;
@@ -86,7 +89,7 @@ pub async fn get_tier_list_entries(pool: &PgPool) -> Result<Vec<DbTierListEntry>
         ON
             character = characters.id
         ORDER BY
-            score
+            score_number DESC
         "
     )
     .fetch_all(pool)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            tier_list.*,\n            characters.tag character_tag,\n            characters.name character_name,\n            characters.element character_element,\n            characters.path character_path\n        FROM\n            tier_list\n        INNER JOIN\n            characters\n        ON\n            character = characters.id\n        ORDER BY\n            score\n        ",
+  "query": "\n        SELECT\n            tier_list.*,\n            characters.tag character_tag,\n            characters.name character_name,\n            characters.element character_element,\n            characters.path character_path\n        FROM\n            tier_list\n        INNER JOIN\n            characters\n        ON\n            character = characters.id\n        ORDER BY\n            score_number DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -80,21 +80,26 @@
       },
       {
         "ordinal": 15,
+        "name": "score_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 16,
         "name": "character_tag",
         "type_info": "Text"
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "character_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "character_element",
         "type_info": "Text"
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "character_path",
         "type_info": "Text"
       }
@@ -121,8 +126,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "e7f50536927e1fb252dc330787e4d8c3d569e03015b268ffc725d60f3ec3ecb3"
+  "hash": "08fb7445797d016fbd840c13afa2675dc54953d1bf6ce49a091232d01280a080"
 }
