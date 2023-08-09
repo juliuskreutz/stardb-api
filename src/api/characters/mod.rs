@@ -1,7 +1,9 @@
+mod id;
+
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
     database::{self, DbCharacter},
@@ -27,6 +29,12 @@ struct Character {
     path: String,
 }
 
+#[derive(Deserialize, IntoParams)]
+struct CharacterParams {
+    element: Option<String>,
+    path: Option<String>,
+}
+
 impl From<DbCharacter> for Character {
     fn from(db_character: DbCharacter) -> Self {
         Character {
@@ -40,24 +48,35 @@ impl From<DbCharacter> for Character {
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(id::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_characters);
+    cfg.service(get_characters).configure(id::configure);
 }
 
 #[utoipa::path(
     tag = "characters",
     get,
     path = "/api/characters",
+    params(CharacterParams),
     responses(
         (status = 200, description = "[Character]", body = Vec<Character>),
     )
 )]
 #[get("/api/characters")]
-async fn get_characters(pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let db_characters = database::get_characters(&pool).await?;
+async fn get_characters(
+    character_params: web::Query<CharacterParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let db_characters = database::get_characters(
+        character_params.element.as_deref(),
+        character_params.path.as_deref(),
+        &pool,
+    )
+    .await?;
 
     let characters: Vec<_> = db_characters.into_iter().map(Character::from).collect();
 

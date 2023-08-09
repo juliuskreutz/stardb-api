@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM characters",
+  "query": "SELECT * FROM characters WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -30,7 +30,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Int4"
+      ]
     },
     "nullable": [
       false,
@@ -40,5 +42,5 @@
       false
     ]
   },
-  "hash": "45a8dc55a6f8d5913937afa396ddeb15b1148c2854c0484c8e561e8b4db08fe3"
+  "hash": "6765194e62a40c9d38e6f0cde1b028f4784ccd455e56261c1cdb2cebdac12fb9"
 }
