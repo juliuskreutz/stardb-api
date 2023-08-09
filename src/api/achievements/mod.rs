@@ -5,7 +5,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
     database::{self, DbAchievement},
@@ -59,6 +59,15 @@ struct Achievement {
     percent: f64,
 }
 
+#[derive(Deserialize, IntoParams)]
+struct AchievementParams {
+    series: Option<i32>,
+    series_tag: Option<String>,
+    hidden: Option<bool>,
+    version: Option<String>,
+    gacha: Option<bool>,
+}
+
 impl From<DbAchievement> for Achievement {
     fn from(db_achievement: DbAchievement) -> Self {
         Achievement {
@@ -103,13 +112,25 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "achievements",
     get,
     path = "/api/achievements",
+    params(AchievementParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
 )]
 #[get("/api/achievements")]
-async fn get_achievements(pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let db_achievements = database::get_achievements(&pool).await?;
+async fn get_achievements(
+    achievement_params: web::Query<AchievementParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let db_achievements = database::get_achievements(
+        achievement_params.series,
+        achievement_params.series_tag.as_deref(),
+        achievement_params.hidden,
+        achievement_params.version.as_deref(),
+        achievement_params.gacha,
+        &pool,
+    )
+    .await?;
 
     let mut achievements = Vec::new();
 

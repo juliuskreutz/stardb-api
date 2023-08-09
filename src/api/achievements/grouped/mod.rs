@@ -6,7 +6,10 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::achievements::Achievement, database, Result};
+use crate::{
+    api::achievements::{Achievement, AchievementParams},
+    database, Result,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -46,13 +49,25 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "achievements/grouped",
     get,
     path = "/api/achievements/grouped",
+    params(AchievementParams),
     responses(
-        (status = 200, description = "[Group]", body = Vec<Group>),
+        (status = 200, description = "Groups", body = Groups),
     )
 )]
 #[get("/api/achievements/grouped")]
-async fn get_achievements_grouped(pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let db_achievements = database::get_achievements(&pool).await?;
+async fn get_achievements_grouped(
+    achievement_params: web::Query<AchievementParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let db_achievements = database::get_achievements(
+        achievement_params.series,
+        achievement_params.series_tag.as_deref(),
+        achievement_params.hidden,
+        achievement_params.version.as_deref(),
+        achievement_params.gacha,
+        &pool,
+    )
+    .await?;
 
     let mut series: LinkedHashMap<String, Vec<Vec<Achievement>>> = LinkedHashMap::new();
     let mut groupings: HashMap<i32, usize> = HashMap::new();

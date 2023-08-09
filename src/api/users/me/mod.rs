@@ -115,7 +115,7 @@ async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<
     put,
     path = "/api/users/me/verifications/{uid}",
     responses(
-        (status = 200, description = "Added verification", body = Otp),
+        (status = 200, description = "Added verification", body = String),
         (status = 400, description = "Not logged in"),
     )
 )]
