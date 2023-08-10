@@ -10,8 +10,9 @@ pub struct DbAchievement {
     pub tag: String,
     pub name: String,
     pub description: String,
-    pub hidden: bool,
     pub jades: i32,
+    pub hidden: bool,
+    pub priority: i32,
     pub version: Option<String>,
     pub comment: Option<String>,
     pub reference: Option<String>,
@@ -19,14 +20,13 @@ pub struct DbAchievement {
     pub gacha: bool,
     pub set: Option<i32>,
     pub percent: Option<f64>,
-    pub i: i32,
 }
 
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, tag, name, description, jades, hidden, i)
+            achievements(id, series, tag, name, description, jades, hidden, priority)
         VALUES
             ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT
@@ -38,7 +38,7 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
             description = EXCLUDED.description,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden,
-            i = EXCLUDED.i
+            priority = EXCLUDED.priority
         ",
         achievement.id,
         achievement.series,
@@ -47,7 +47,7 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
         achievement.description,
         achievement.jades,
         achievement.hidden,
-        achievement.i,
+        achievement.priority,
     )
     .execute(pool)
     .await?;
@@ -90,7 +90,7 @@ pub async fn get_achievements(
         AND
             ($5::BOOLEAN IS NULL OR gacha = $5)
         ORDER BY
-            series.priority DESC, i
+            series.priority DESC, priority DESC
         ",
         series,
         series_tag,

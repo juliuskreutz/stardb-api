@@ -1,7 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
 use actix_web::rt::{self, time};
-use indexmap::IndexMap;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -25,6 +24,8 @@ struct AchievementData {
     param_list: Vec<Param>,
     #[serde(rename = "ShowType")]
     show_type: Option<String>,
+    #[serde(rename = "Priority")]
+    priority: i32,
 }
 
 #[derive(Deserialize)]
@@ -101,7 +102,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         .json()
         .await?;
 
-    let achievement_data: IndexMap<String, AchievementData> =
+    let achievement_data: HashMap<String, AchievementData> =
         reqwest::get(&format!("{url}ExcelOutput/AchievementData.json"))
             .await?
             .json()
@@ -140,7 +141,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_series(&db_series, pool).await?;
     }
 
-    for (i, achievement_data) in achievement_data.values().enumerate() {
+    for achievement_data in achievement_data.values() {
         let html_re = Regex::new(r"<[^>]*>")?;
 
         let id = achievement_data.id;
@@ -183,6 +184,8 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
 
+        let priority = achievement_data.priority;
+
         let db_achievement = DbAchievement {
             id,
             series,
@@ -193,6 +196,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             description,
             jades,
             hidden,
+            priority,
             version: None,
             comment: None,
             reference: None,
@@ -200,7 +204,6 @@ async fn update(pool: &PgPool) -> Result<()> {
             gacha: false,
             set: None,
             percent: None,
-            i: i as i32,
         };
 
         database::set_achievement(&db_achievement, pool).await?;
