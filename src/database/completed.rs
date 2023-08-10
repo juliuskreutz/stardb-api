@@ -56,3 +56,13 @@ pub async fn get_completed_by_username(username: &str, pool: &PgPool) -> Result<
     .fetch_all(pool)
     .await?)
 }
+
+pub async fn get_distinct_username_count(pool: &PgPool) -> Result<i64> {
+    Ok(
+        sqlx::query!("SELECT COUNT(DISTINCT username) FROM completed")
+            .fetch_one(pool)
+            .await?
+            .count
+            .unwrap_or_default(),
+    )
+}

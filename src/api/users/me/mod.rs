@@ -14,7 +14,7 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me")),
-    paths(get_me, get_verifications, put_verification, put_email, delete_email, put_password, get_user_achievements, put_user_achievement, delete_user_achievement),
+    paths(get_me, get_verifications, put_verification, put_email, delete_email, put_password, get_user_achievements, put_user_achievements, put_user_achievement, delete_user_achievement),
     components(schemas(
         User,
         Verification,
@@ -36,6 +36,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(delete_email)
         .service(put_password)
         .service(get_user_achievements)
+        .service(put_user_achievements)
         .service(put_user_achievement)
         .service(delete_user_achievement);
 }
@@ -258,6 +259,37 @@ async fn get_user_achievements(
         .collect();
 
     Ok(HttpResponse::Ok().json(completed))
+}
+
+#[utoipa::path(
+    tag = "users/me",
+    put,
+    path = "/api/users/me/achievements",
+    request_body = Vec<i64>,
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Not logged in"),
+    )
+)]
+#[put("/api/users/me/achievements")]
+async fn put_user_achievements(
+    session: Session,
+    ids: web::Json<Vec<i64>>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let mut complete = DbComplete { username, id: 0 };
+
+    for id in ids.0 {
+        complete.id = id;
+
+        database::add_complete(&complete, &pool).await?;
+    }
+
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(

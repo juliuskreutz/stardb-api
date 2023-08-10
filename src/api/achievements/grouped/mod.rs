@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix_web::{get, web, HttpResponse, Responder};
-use linked_hash_map::LinkedHashMap;
+use indexmap::IndexMap;
 use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -26,6 +26,7 @@ struct ApiDoc;
 struct Groups {
     achievement_count: usize,
     jade_count: i32,
+    user_count: i64,
     series: Vec<AchivementsGrouped>,
 }
 
@@ -69,7 +70,7 @@ async fn get_achievements_grouped(
     )
     .await?;
 
-    let mut series: LinkedHashMap<String, Vec<Vec<Achievement>>> = LinkedHashMap::new();
+    let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
     let mut groupings: HashMap<i32, usize> = HashMap::new();
 
     for db_achievement in db_achievements {
@@ -106,9 +107,12 @@ async fn get_achievements_grouped(
     let achievement_count = series.iter().map(|ag| ag.achievements.len()).sum();
     let jade_count = series.iter().map(|ag| ag.jade_count).sum();
 
+    let user_count = database::get_distinct_username_count(&pool).await?;
+
     let groups = Groups {
         achievement_count,
         jade_count,
+        user_count,
         series,
     };
 

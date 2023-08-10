@@ -19,15 +19,16 @@ pub struct DbAchievement {
     pub gacha: bool,
     pub set: Option<i32>,
     pub percent: Option<f64>,
+    pub i: i32,
 }
 
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, tag, name, description, jades, hidden)
+            achievements(id, series, tag, name, description, jades, hidden, i)
         VALUES
-            ($1, $2, $3, $4, $5, $6, $7)
+            ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT
             (id)
         DO UPDATE SET
@@ -36,7 +37,8 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
             name = EXCLUDED.name,
             description = EXCLUDED.description,
             jades = EXCLUDED.jades,
-            hidden = EXCLUDED.hidden
+            hidden = EXCLUDED.hidden,
+            i = EXCLUDED.i
         ",
         achievement.id,
         achievement.series,
@@ -45,6 +47,7 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
         achievement.description,
         achievement.jades,
         achievement.hidden,
+        achievement.i,
     )
     .execute(pool)
     .await?;
@@ -87,7 +90,7 @@ pub async fn get_achievements(
         AND
             ($5::BOOLEAN IS NULL OR gacha = $5)
         ORDER BY
-            series.priority DESC, id
+            series.priority DESC, i
         ",
         series,
         series_tag,

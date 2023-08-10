@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS achievements (
     reference TEXT,
     difficulty TEXT,
     gacha BOOLEAN NOT NULL DEFAULT false,
-    set INT4
+    set INT4,
+    i INT4 NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS completed (

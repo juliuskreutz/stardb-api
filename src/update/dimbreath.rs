@@ -1,6 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use actix_web::rt::{self, time};
+use indexmap::IndexMap;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -100,7 +101,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         .json()
         .await?;
 
-    let achievement_data: HashMap<String, AchievementData> =
+    let achievement_data: IndexMap<String, AchievementData> =
         reqwest::get(&format!("{url}ExcelOutput/AchievementData.json"))
             .await?
             .json()
@@ -139,7 +140,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_series(&db_series, pool).await?;
     }
 
-    for achievement_data in achievement_data.values() {
+    for (i, achievement_data) in achievement_data.values().enumerate() {
         let html_re = Regex::new(r"<[^>]*>")?;
 
         let id = achievement_data.id;
@@ -199,6 +200,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             gacha: false,
             set: None,
             percent: None,
+            i: i as i32,
         };
 
         database::set_achievement(&db_achievement, pool).await?;

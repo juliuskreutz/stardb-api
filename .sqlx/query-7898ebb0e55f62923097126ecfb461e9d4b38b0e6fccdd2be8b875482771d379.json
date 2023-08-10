@@ -70,16 +70,21 @@
       },
       {
         "ordinal": 13,
+        "name": "i",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "series_tag",
         "type_info": "Text"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "series_name",
         "type_info": "Text"
       }
@@ -101,6 +106,7 @@
       true,
       true,
       true,
+      false,
       false,
       false,
       null,
