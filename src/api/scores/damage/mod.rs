@@ -1,7 +1,6 @@
 mod uid;
 
-use actix_session::Session;
-use actix_web::{get, put, web, HttpResponse, Responder};
+use actix_web::{get, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -18,22 +17,12 @@ use super::Region;
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "scores/damage")),
-    paths(get_scores_damage, put_score_damage_temporary),
+    paths(get_scores_damage),
     components(schemas(
-        ScoreDamage,
-        DamageUpdateTemporary
+        ScoreDamage
     ))
 )]
 struct ApiDoc;
-
-#[derive(Deserialize, ToSchema)]
-struct DamageUpdateTemporary {
-    pub uid: i64,
-    pub character: i32,
-    pub support: bool,
-    pub damage: i32,
-    pub video: String,
-}
 
 #[derive(Deserialize, IntoParams)]
 pub struct DamageParams {
@@ -85,9 +74,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(put_score_damage_temporary)
-        .service(get_scores_damage)
-        .configure(uid::configure);
+    cfg.service(get_scores_damage).configure(uid::configure);
 }
 
 #[utoipa::path(
@@ -141,49 +128,4 @@ async fn get_scores_damage(
     };
 
     Ok(HttpResponse::Ok().json(scores_damage))
-}
-
-#[utoipa::path(
-    tag = "/scores/damage",
-    put,
-    path = "/api/scores/damage",
-    request_body = DamageUpdateTemporary,
-    responses(
-        (status = 200, description = "ScoreDamage updated"),
-        (status = 403, description = "Not an admin"),
-    ),
-    security(("admin" = []))
-)]
-#[put("/api/scores/damage")]
-async fn put_score_damage_temporary(
-    session: Session,
-    damage_update_temporary: web::Json<DamageUpdateTemporary>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    if !admin {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
-    let uid = damage_update_temporary.uid;
-    let character = damage_update_temporary.character;
-    let support = damage_update_temporary.support;
-    let damage = damage_update_temporary.damage;
-    let video = damage_update_temporary.video.clone();
-
-    let db_set_score_damage = DbScoreDamage {
-        uid,
-        character,
-        support,
-        damage,
-        video,
-        ..Default::default()
-    };
-
-    database::set_score_damage(&db_set_score_damage, &pool).await?;
-
-    Ok(HttpResponse::Ok().finish())
 }

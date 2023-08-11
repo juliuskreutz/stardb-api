@@ -13,7 +13,6 @@ pub struct DbScoreDamage {
     pub damage: i32,
     pub video: String,
     pub region: String,
-    pub timestamp: NaiveDateTime,
     pub name: String,
     pub level: i32,
     pub signature: String,
@@ -70,7 +69,7 @@ pub async fn get_scores_damage(
                 FROM
                     scores_damage
                 NATURAL JOIN
-                    scores
+                    mihomo
                 WHERE
                     ($1::INT4 IS NULL OR character = $1)
                 AND
@@ -100,7 +99,7 @@ pub async fn get_scores_damage(
 
 pub async fn count_scores_damage(region: &str, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_damage NATURAL JOIN scores WHERE region = $1",
+        "SELECT COUNT(*) as count FROM scores_damage NATURAL JOIN mihomo WHERE region = $1",
         region,
     )
     .fetch_one(pool)
@@ -129,7 +128,7 @@ pub async fn get_score_damage_by_uid(
                 FROM
                     scores_damage
                 NATURAL JOIN
-                    scores
+                    mihomo
                 WHERE
                     ($2::INT4 IS NULL OR character = $2)
                 AND

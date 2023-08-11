@@ -4,12 +4,10 @@ use sqlx::PgPool;
 use crate::Result;
 
 #[derive(Default)]
-pub struct DbScoreHeal {
+pub struct DbScoreAchievement {
     pub global_rank: Option<i64>,
     pub regional_rank: Option<i64>,
     pub uid: i64,
-    pub heal: i32,
-    pub video: String,
     pub region: String,
     pub name: String,
     pub level: i32,
@@ -17,51 +15,54 @@ pub struct DbScoreHeal {
     pub avatar_icon: String,
     pub achievement_count: i32,
     pub updated_at: NaiveDateTime,
+    pub timestamp: NaiveDateTime,
 }
 
-pub async fn set_score_heal(score: &DbScoreHeal, pool: &PgPool) -> Result<DbScoreHeal> {
-    sqlx::query!(
+pub async fn set_score_achievement(
+    score: &DbScoreAchievement,
+    pool: &PgPool,
+) -> Result<DbScoreAchievement> {
+    sqlx::query_as!(
+        Score,
         "
         INSERT INTO
-            scores_heal(uid, heal, video)
+            scores_achievement(uid, timestamp)
         VALUES
-            ($1, $2, $3)
+            ($1, $2)
         ON CONFLICT
             (uid)
         DO UPDATE SET
-            heal = EXCLUDED.heal,
-            video = EXCLUDED.video
+            timestamp = EXCLUDED.timestamp
         ",
         score.uid,
-        score.heal,
-        score.video,
+        score.timestamp,
     )
     .execute(pool)
     .await?;
 
-    get_score_heal_by_uid(score.uid, pool).await
+    get_score_achievement_by_uid(score.uid, pool).await
 }
 
-pub async fn get_scores_heal(
+pub async fn get_scores_achievement(
     region: Option<String>,
     query: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
     pool: &PgPool,
-) -> Result<Vec<DbScoreHeal>> {
+) -> Result<Vec<DbScoreAchievement>> {
     Ok(sqlx::query_as!(
-        DbScoreHeal,
+        DbScoreAchievement,
         "
         SELECT
             *
         FROM
             (
                 SELECT
-                    RANK() OVER (ORDER BY heal DESC) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY heal DESC) regional_rank,
+                    RANK() OVER (ORDER BY achievement_count DESC) global_rank,
+                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC) regional_rank,
                     *
                 FROM
-                    scores_heal
+                    scores_achievement
                 NATURAL JOIN
                     mihomo
             ) ranked
@@ -85,10 +86,10 @@ pub async fn get_scores_heal(
     .await?)
 }
 
-pub async fn count_scores_heal(region: &str, pool: &PgPool) -> Result<i64> {
+pub async fn count_scores_achievement(region: &str, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_heal NATURAL JOIN mihomo WHERE region = $1",
-        region,
+        "SELECT COUNT(*) as count FROM mihomo WHERE region = $1",
+        region
     )
     .fetch_one(pool)
     .await?
@@ -96,20 +97,20 @@ pub async fn count_scores_heal(region: &str, pool: &PgPool) -> Result<i64> {
     .unwrap())
 }
 
-pub async fn get_score_heal_by_uid(uid: i64, pool: &PgPool) -> Result<DbScoreHeal> {
+pub async fn get_score_achievement_by_uid(uid: i64, pool: &PgPool) -> Result<DbScoreAchievement> {
     Ok(sqlx::query_as!(
-        DbScoreHeal,
+        DbScoreAchievement,
         "
         SELECT
             *
         FROM
             (
                 SELECT
-                    RANK() OVER (ORDER BY heal DESC) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY heal DESC) regional_rank,
+                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
+                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
                     *
                 FROM
-                    scores_heal
+                    scores_achievement
                 NATURAL JOIN
                     mihomo
             ) ranked

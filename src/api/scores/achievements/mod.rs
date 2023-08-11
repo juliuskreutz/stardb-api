@@ -8,7 +8,7 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::scores::{Region, Scores, ScoresParams},
-    database::{self, DbScore},
+    database::{self, DbScoreAchievement},
     Result,
 };
 
@@ -36,8 +36,8 @@ pub struct ScoreAchievement {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<DbScore> for ScoreAchievement {
-    fn from(db_score: DbScore) -> Self {
+impl From<DbScoreAchievement> for ScoreAchievement {
+    fn from(db_score: DbScoreAchievement) -> Self {
         ScoreAchievement {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -80,14 +80,14 @@ async fn get_scores_achievement(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let count_na = database::count_scores(&Region::NA.to_string(), &pool).await?;
-    let count_eu = database::count_scores(&Region::EU.to_string(), &pool).await?;
-    let count_asia = database::count_scores(&Region::Asia.to_string(), &pool).await?;
-    let count_cn = database::count_scores(&Region::CN.to_string(), &pool).await?;
+    let count_na = database::count_scores_achievement(&Region::NA.to_string(), &pool).await?;
+    let count_eu = database::count_scores_achievement(&Region::EU.to_string(), &pool).await?;
+    let count_asia = database::count_scores_achievement(&Region::Asia.to_string(), &pool).await?;
+    let count_cn = database::count_scores_achievement(&Region::CN.to_string(), &pool).await?;
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores = database::get_scores(
+    let db_scores = database::get_scores_achievement(
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
         scores_params.limit,

@@ -33,7 +33,7 @@ pub enum UserLogin {
 }
 
 #[utoipa::path(
-    tag = "pinned",
+    tag = "users/auth/login",
     post,
     path = "/api/users/auth/login",
     request_body(content = UserLogin,

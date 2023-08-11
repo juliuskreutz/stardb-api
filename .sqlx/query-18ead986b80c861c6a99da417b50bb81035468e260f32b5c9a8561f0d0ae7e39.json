@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY heal DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY heal DESC) regional_rank,\n                    *\n                FROM\n                    scores_heal\n                NATURAL JOIN\n                    mihomo\n            ) ranked\n        WHERE\n            ($1::TEXT IS NULL OR region = $1)\n        AND\n            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')\n        ORDER BY\n            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)\n        LIMIT\n            $3\n        OFFSET\n            $4\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "global_rank",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "regional_rank",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "uid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "heal",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "video",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "region",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "signature",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "avatar_icon",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "achievement_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "18ead986b80c861c6a99da417b50bb81035468e260f32b5c9a8561f0d0ae7e39"
+}

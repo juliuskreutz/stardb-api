@@ -10,18 +10,18 @@
       },
       {
         "ordinal": 1,
-        "name": "name",
+        "name": "tag",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "priority",
-        "type_info": "Int4"
+        "name": "name",
+        "type_info": "Text"
       },
       {
         "ordinal": 3,
-        "name": "tag",
-        "type_info": "Text"
+        "name": "priority",
+        "type_info": "Int4"
       }
     ],
     "parameters": {

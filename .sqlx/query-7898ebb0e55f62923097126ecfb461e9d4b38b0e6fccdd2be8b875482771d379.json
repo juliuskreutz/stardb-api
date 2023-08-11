@@ -15,58 +15,58 @@
       },
       {
         "ordinal": 2,
-        "name": "name",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 3,
-        "name": "description",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 4,
-        "name": "jades",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 5,
-        "name": "hidden",
-        "type_info": "Bool"
-      },
-      {
-        "ordinal": 6,
-        "name": "comment",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 7,
-        "name": "reference",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 8,
-        "name": "difficulty",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 9,
-        "name": "set",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 10,
-        "name": "version",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 11,
         "name": "tag",
         "type_info": "Text"
       },
       {
-        "ordinal": 12,
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "jades",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "hidden",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "comment",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "reference",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "difficulty",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
         "name": "gacha",
         "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "set",
+        "type_info": "Int4"
       },
       {
         "ordinal": 13,
@@ -101,13 +101,13 @@
       false,
       false,
       false,
-      true,
+      false,
       true,
       true,
       true,
       true,
       false,
-      false,
+      true,
       false,
       null,
       false,

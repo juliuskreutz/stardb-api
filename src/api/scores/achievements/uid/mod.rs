@@ -1,17 +1,14 @@
 use actix_web::{get, put, web, HttpResponse, Responder};
-use chrono::{Duration, Utc};
-use regex::{Captures, Regex};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::scores::achievements::ScoreAchievement,
-    database::{self, DbScore},
-    mihomo, Result,
-};
+use crate::{api::scores::achievements::ScoreAchievement, database, Result};
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "scores/achievements/{uid}")), paths(get_score_achievement, put_score_achievement))]
+#[openapi(
+    tags((name = "scores/achievements/{uid}")),
+    paths(get_score_achievement, put_score_achievement)
+)]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -36,7 +33,9 @@ async fn get_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let score: ScoreAchievement = database::get_score_by_uid(*uid, &pool).await?.into();
+    let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
+        .await?
+        .into();
 
     Ok(HttpResponse::Ok().json(score))
 }
@@ -46,7 +45,7 @@ async fn get_score_achievement(
     put,
     path = "/api/scores/achievements/{uid}",
     responses(
-        (status = 200, description = "ScoreAchievement updated", body = ScoreAchievement),
+        (status = 200, description = "ScoreAchievement", body = ScoreAchievement),
     )
 )]
 #[put("/api/scores/achievements/{uid}")]
@@ -54,63 +53,14 @@ async fn put_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let now = Utc::now().naive_utc();
+    reqwest::Client::new()
+        .put(format!("http://localhost:8000/api/mihomo/{uid}"))
+        .send()
+        .await?;
 
-    let uid = *uid;
-
-    let info = mihomo::get(uid).await?;
-
-    let re = Regex::new(r"<[^>]*>")?;
-
-    let name = re
-        .replace_all(&info.player.nickname, |_: &Captures| "")
-        .to_string();
-    let region = match uid.to_string().chars().next() {
-        Some('6') => "na",
-        Some('7') => "eu",
-        Some('8') | Some('9') => "asia",
-        _ => "cn",
-    }
-    .to_string();
-    let level = info.player.level;
-    let avatar_icon = info.player.avatar.icon.clone();
-    let signature = re
-        .replace_all(&info.player.signature, |_: &Captures| "")
-        .to_string();
-    let achievement_count = info.player.space_info.achievement_count;
-    let updated_at = info.updated_at;
-    let timestamp = database::get_score_by_uid(uid, &pool)
-        .await
-        .ok()
-        .and_then(|sd| {
-            if sd.achievement_count == achievement_count {
-                Some(sd.timestamp)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(
-            now + match region.as_str() {
-                "na" => Duration::hours(-5),
-                "eu" => Duration::hours(1),
-                _ => Duration::hours(8),
-            },
-        );
-
-    let db_score = DbScore {
-        uid,
-        region,
-        name,
-        level,
-        signature,
-        avatar_icon,
-        achievement_count,
-        updated_at,
-        timestamp,
-        ..Default::default()
-    };
-
-    let score: ScoreAchievement = database::set_score(&db_score, &pool).await?.into();
+    let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
+        .await?
+        .into();
 
     Ok(HttpResponse::Ok().json(score))
 }

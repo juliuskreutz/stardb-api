@@ -46,10 +46,7 @@ async fn update() -> Result<()> {
         .map(|(client, score)| async move {
             loop {
                 if client
-                    .put(&format!(
-                        "http://localhost:8000/api/scores/achievements/{}",
-                        score.uid
-                    ))
+                    .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
                     .send()
                     .await
                     .is_ok()

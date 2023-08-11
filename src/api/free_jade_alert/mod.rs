@@ -198,7 +198,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[utoipa::path(
-    tag = "pinned",
+    tag = "free-jade-alert",
     post,
     path = "/api/free-jade-alert",
     responses(
