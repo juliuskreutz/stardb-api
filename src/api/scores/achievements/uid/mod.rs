@@ -78,6 +78,7 @@ async fn put_score_achievement(
         .replace_all(&info.player.signature, |_: &Captures| "")
         .to_string();
     let achievement_count = info.player.space_info.achievement_count;
+    let updated_at = info.updated_at;
     let timestamp = database::get_score_by_uid(uid, &pool)
         .await
         .ok()
@@ -104,6 +105,7 @@ async fn put_score_achievement(
         signature,
         avatar_icon,
         achievement_count,
+        updated_at,
         timestamp,
         ..Default::default()
     };

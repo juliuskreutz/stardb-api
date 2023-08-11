@@ -10,41 +10,10 @@ use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, web::Data, App, HttpServer};
 use convert_case::{Case, Casing};
 use sqlx::PgPool;
-use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
-
-#[derive(OpenApi)]
-#[openapi(
-    tags((name = "pinned")),
-    paths(
-        api::submissions::damage::get_submissions_damage,
-        api::submissions::damage::get_submission_damage,
-        api::submissions::damage::post_submission_damage,
-        api::submissions::damage::delete_submission_damage,
-        api::submissions::heal::get_submissions_heal,
-        api::submissions::heal::get_submission_heal,
-        api::submissions::heal::post_submission_heal,
-        api::submissions::heal::delete_submission_heal,
-        api::submissions::shield::get_submissions_shield,
-        api::submissions::shield::get_submission_shield,
-        api::submissions::shield::post_submission_shield,
-        api::submissions::shield::delete_submission_shield,
-        api::import::import,
-    ),
-    components(schemas(
-        api::schemas::SubmissionDamage,
-        api::schemas::SubmissionDamageUpdate,
-        api::schemas::SubmissionHeal,
-        api::schemas::SubmissionHealUpdate,
-        api::schemas::SubmissionShield,
-        api::schemas::SubmissionShieldUpdate,
-        api::import::File
-    ))
-)]
-struct ApiDoc;
 
 trait ToTag {
     fn to_tag(&self) -> String;
@@ -78,8 +47,7 @@ async fn main() -> Result<()> {
 
     let key = Key::generate();
 
-    let mut openapi = ApiDoc::openapi();
-    openapi.merge(api::openapi());
+    let openapi = api::openapi();
 
     HttpServer::new(move || {
         App::new()
@@ -94,19 +62,6 @@ async fn main() -> Result<()> {
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
             .configure(api::configure)
-            .service(api::submissions::damage::get_submissions_damage)
-            .service(api::submissions::damage::get_submission_damage)
-            .service(api::submissions::damage::post_submission_damage)
-            .service(api::submissions::damage::delete_submission_damage)
-            .service(api::submissions::heal::get_submissions_heal)
-            .service(api::submissions::heal::get_submission_heal)
-            .service(api::submissions::heal::post_submission_heal)
-            .service(api::submissions::heal::delete_submission_heal)
-            .service(api::submissions::shield::get_submissions_shield)
-            .service(api::submissions::shield::get_submission_shield)
-            .service(api::submissions::shield::post_submission_shield)
-            .service(api::submissions::shield::delete_submission_shield)
-            .service(api::import::import)
     })
     .bind(("localhost", 8000))?
     .run()

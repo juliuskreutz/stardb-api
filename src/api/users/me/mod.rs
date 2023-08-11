@@ -1,7 +1,9 @@
+mod verifications;
+
 use actix_session::Session;
 use actix_web::{delete, get, put, web, HttpResponse, Responder};
 use argon2::Config;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -14,7 +16,7 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me")),
-    paths(get_me, get_verifications, put_verification, put_email, delete_email, put_password, get_user_achievements, put_user_achievements, put_user_achievement, delete_user_achievement),
+    paths(get_me, put_email, delete_email, put_password, get_user_achievements, put_user_achievements, put_user_achievement, delete_user_achievement),
     components(schemas(
         User,
         Verification,
@@ -25,20 +27,21 @@ use crate::{
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(verifications::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_me)
-        .service(get_verifications)
-        .service(put_verification)
         .service(put_email)
         .service(delete_email)
         .service(put_password)
         .service(get_user_achievements)
         .service(put_user_achievements)
         .service(put_user_achievement)
-        .service(delete_user_achievement);
+        .service(delete_user_achievement)
+        .configure(verifications::configure);
 }
 
 #[derive(Serialize, ToSchema)]
@@ -84,67 +87,6 @@ impl From<DbVerification> for Verification {
             otp: db_verification.token,
         }
     }
-}
-
-#[utoipa::path(
-    tag = "users/me",
-    get,
-    path = "/api/users/me/verifications",
-    responses(
-        (status = 200, description = "Verifications", body = Vec<Verification>),
-        (status = 400, description = "Not logged in"),
-    )
-)]
-#[get("/api/users/me/verifications")]
-async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let db_verifications = database::get_verifications_by_username(&username, &pool).await?;
-
-    let verifications: Vec<_> = db_verifications
-        .into_iter()
-        .map(Verification::from)
-        .collect();
-
-    Ok(HttpResponse::Ok().json(verifications))
-}
-
-#[utoipa::path(
-    tag = "users/me",
-    put,
-    path = "/api/users/me/verifications/{uid}",
-    responses(
-        (status = 200, description = "Added verification", body = String),
-        (status = 400, description = "Not logged in"),
-    )
-)]
-#[put("/api/users/me/verifications/{uid}")]
-async fn put_verification(
-    session: Session,
-    uid: web::Path<i64>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let token: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(6)
-        .map(char::from)
-        .collect();
-
-    let db_verification = DbVerification {
-        uid: *uid,
-        username,
-        token,
-    };
-
-    database::set_verification(&db_verification, &pool).await?;
-
-    Ok(HttpResponse::Ok().json(db_verification.token))
 }
 
 #[derive(Deserialize, ToSchema)]

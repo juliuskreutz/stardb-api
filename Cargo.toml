@@ -16,7 +16,6 @@ env_logger = "0.10.0"
 futures = "0.3.28"
 indexmap = "2.0.0"
 lettre = { version = "0.10.4", features = ["tokio1-native-tls"] }
-linked-hash-map = "0.5.6"
 log = "0.4.19"
 rand = "0.8.5"
 regex = "1.9.1"

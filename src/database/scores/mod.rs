@@ -22,8 +22,8 @@ pub struct DbScore {
     pub signature: String,
     pub avatar_icon: String,
     pub achievement_count: i32,
-    pub timestamp: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub timestamp: NaiveDateTime,
 }
 
 pub async fn set_score(score: &DbScore, pool: &PgPool) -> Result<DbScore> {
@@ -31,9 +31,9 @@ pub async fn set_score(score: &DbScore, pool: &PgPool) -> Result<DbScore> {
         Score,
         "
         INSERT INTO
-            scores(uid, region, name, level, signature, avatar_icon, achievement_count, timestamp)
+            scores(uid, region, name, level, signature, avatar_icon, achievement_count, updated_at, timestamp)
         VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8)
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT
             (uid)
         DO UPDATE SET
@@ -42,8 +42,8 @@ pub async fn set_score(score: &DbScore, pool: &PgPool) -> Result<DbScore> {
             signature = EXCLUDED.signature,
             avatar_icon = EXCLUDED.avatar_icon,
             achievement_count = EXCLUDED.achievement_count,
-            timestamp = EXCLUDED.timestamp,
-            updated_at = now()
+            updated_at = EXCLUDED.updated_at,
+            timestamp = EXCLUDED.timestamp
         ",
         score.uid,
         score.region,
@@ -52,6 +52,7 @@ pub async fn set_score(score: &DbScore, pool: &PgPool) -> Result<DbScore> {
         score.signature,
         score.avatar_icon,
         score.achievement_count,
+        score.updated_at,
         score.timestamp,
     )
     .execute(pool)
