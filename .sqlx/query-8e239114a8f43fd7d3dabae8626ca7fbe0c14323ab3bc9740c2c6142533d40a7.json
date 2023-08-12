@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            achievements.*,\n            percent,\n            series.tag series_tag,\n            series.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        WHERE\n            ($1::INT4 IS NULL OR series = $1)\n        AND\n            ($2::TEXT IS NULL OR series.tag = $2)\n        AND\n            ($3::BOOLEAN IS NULL OR hidden = $3)\n        AND\n            ($4::TEXT IS NULL OR version = $4)\n        AND\n            ($5::BOOLEAN IS NULL OR gacha = $5)\n        ORDER BY\n            series.priority DESC, priority DESC\n        ",
+  "query": "\n        SELECT\n            achievements.*,\n            percent,\n            series.tag series_tag,\n            series.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        WHERE\n            ($1::INT4 IS NULL OR series = $1)\n        AND\n            ($2::TEXT IS NULL OR series.tag = $2)\n        AND\n            ($3::BOOLEAN IS NULL OR hidden = $3)\n        AND\n            ($4::TEXT IS NULL OR version = $4)\n        AND\n            ($5::BOOLEAN IS NULL OR gacha = $5)\n        ORDER BY\n            series.priority DESC, series, priority DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -118,5 +118,5 @@
       false
     ]
   },
-  "hash": "854b439e7b4f4b20b489159a57f2c797f8c49ca544c46747b7b8697d4ab7c8ff"
+  "hash": "8e239114a8f43fd7d3dabae8626ca7fbe0c14323ab3bc9740c2c6142533d40a7"
 }

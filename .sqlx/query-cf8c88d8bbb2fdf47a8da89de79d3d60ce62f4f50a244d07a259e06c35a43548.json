@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY achievement_count DESC) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC) regional_rank,\n                    *\n                FROM\n                    scores_achievement\n                NATURAL JOIN\n                    mihomo\n            ) ranked\n        WHERE\n            ($1::TEXT IS NULL OR region = $1)\n        AND\n            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')\n        ORDER BY\n            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)\n        LIMIT\n            $3\n        OFFSET\n            $4\n        ",
+  "query": "\n        SELECT\n            *\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,\n                    *\n                FROM\n                    scores_achievement\n                NATURAL JOIN\n                    mihomo\n            ) ranked\n        WHERE\n            ($1::TEXT IS NULL OR region = $1)\n        AND\n            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')\n        ORDER BY\n            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)\n        LIMIT\n            $3\n        OFFSET\n            $4\n        ",
   "describe": {
     "columns": [
       {
@@ -81,5 +81,5 @@
       false
     ]
   },
-  "hash": "6877ee72e56acefb4969afec375d1705c0a3132743ba50fcb634fe14dff8ba13"
+  "hash": "cf8c88d8bbb2fdf47a8da89de79d3d60ce62f4f50a244d07a259e06c35a43548"
 }

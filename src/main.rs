@@ -6,8 +6,12 @@ mod update;
 use std::{collections::HashMap, fs, sync::Mutex};
 
 use actix_files::Files;
-use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, web::Data, App, HttpServer};
+use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
+use actix_web::{
+    cookie::{time::Duration, Key},
+    web::Data,
+    App, HttpServer,
+};
 use convert_case::{Case, Casing};
 use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
@@ -53,10 +57,16 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(password_resets.clone())
             .app_data(pool.clone())
-            .wrap(SessionMiddleware::new(
-                CookieSessionStore::default(),
-                key.clone(),
-            ))
+            .wrap(if cfg!(debug_assertions) {
+                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                    .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
+                    .cookie_secure(false)
+                    .build()
+            } else {
+                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                    .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
+                    .build()
+            })
             .service(Files::new("/static", "static").show_files_listing())
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),

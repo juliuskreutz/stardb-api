@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            series\n        ORDER BY\n            priority DESC\n        ",
+  "query": "\n        SELECT\n            *\n        FROM\n            series\n        ORDER BY\n            priority DESC, id\n        ",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "6ab5f2bc01779decef53f52fef661b4739804833531f4555fde1ae30a5ecc54a"
+  "hash": "1fac2a59ba1f43e00b2a596fc4a0af29fa009d1afe50c5539c33fabf4a9155ba"
 }

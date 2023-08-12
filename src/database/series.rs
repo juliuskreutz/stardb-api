@@ -43,7 +43,7 @@ pub async fn get_series(pool: &PgPool) -> Result<Vec<DbSeries>> {
         FROM
             series
         ORDER BY
-            priority DESC
+            priority DESC, id
         "
     )
     .fetch_all(pool)

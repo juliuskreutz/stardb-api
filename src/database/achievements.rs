@@ -90,7 +90,7 @@ pub async fn get_achievements(
         AND
             ($5::BOOLEAN IS NULL OR gacha = $5)
         ORDER BY
-            series.priority DESC, priority DESC
+            series.priority DESC, series, priority DESC
         ",
         series,
         series_tag,

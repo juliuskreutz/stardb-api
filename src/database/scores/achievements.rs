@@ -58,8 +58,8 @@ pub async fn get_scores_achievement(
         FROM
             (
                 SELECT
-                    RANK() OVER (ORDER BY achievement_count DESC) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC) regional_rank,
+                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
+                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
                     *
                 FROM
                     scores_achievement
