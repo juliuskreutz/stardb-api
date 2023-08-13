@@ -1,15 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, rt, web, HttpResponse, Responder};
+use futures::lock::Mutex;
 use indexmap::IndexMap;
 use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{
-    api::achievements::{Achievement, AchievementParams},
-    database, Result,
-};
+use crate::{api::achievements::Achievement, database, Result};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -22,7 +20,7 @@ use crate::{
 )]
 struct ApiDoc;
 
-#[derive(Serialize, ToSchema)]
+#[derive(Default, Serialize, ToSchema)]
 struct Groups {
     achievement_count: usize,
     jade_count: i32,
@@ -42,33 +40,26 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
+pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+    let groups = web::Data::new(Mutex::new(Groups::default()));
+
+    rt::spawn(async move {
+        let minutes = 1;
+
+        let mut timer = rt::time::interval(Duration::from_secs(60 * minutes));
+
+        loop {
+            timer.tick().await;
+
+            let _ = update(&groups, &pool).await;
+        }
+    });
+
     cfg.service(get_achievements_grouped);
 }
 
-#[utoipa::path(
-    tag = "achievements/grouped",
-    get,
-    path = "/api/achievements/grouped",
-    params(AchievementParams),
-    responses(
-        (status = 200, description = "Groups", body = Groups),
-    )
-)]
-#[get("/api/achievements/grouped")]
-async fn get_achievements_grouped(
-    achievement_params: web::Query<AchievementParams>,
-    pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let db_achievements = database::get_achievements(
-        achievement_params.series,
-        achievement_params.series_tag.as_deref(),
-        achievement_params.hidden,
-        achievement_params.version.as_deref(),
-        achievement_params.gacha,
-        &pool,
-    )
-    .await?;
+async fn update(groups: &web::Data<Mutex<Groups>>, pool: &PgPool) -> Result<()> {
+    let db_achievements = database::get_achievements(pool).await?;
 
     let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
     let mut groupings: HashMap<i32, usize> = HashMap::new();
@@ -78,11 +69,9 @@ async fn get_achievements_grouped(
             .entry(db_achievement.series_name.clone())
             .or_default();
 
-        let mut achievement = Achievement::from(db_achievement);
+        let achievement = Achievement::from(db_achievement);
 
         if let Some(set) = achievement.set {
-            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
-
             if let Some(&i) = groupings.get(&set) {
                 achievements[i].push(achievement);
                 continue;
@@ -104,17 +93,31 @@ async fn get_achievements_grouped(
         })
         .collect::<Vec<_>>();
 
-    let achievement_count = series.iter().map(|ag| ag.achievements.len()).sum();
-    let jade_count = series.iter().map(|ag| ag.jade_count).sum();
+    let (achievement_count, jade_count) = series.iter().fold((0, 0), |(a_count, j_count), ag| {
+        (a_count + ag.achievements.len(), j_count + ag.jade_count)
+    });
 
-    let user_count = database::get_distinct_username_count(&pool).await?;
+    let user_count = database::get_distinct_username_count(pool).await?;
 
-    let groups = Groups {
+    *groups.lock().await = Groups {
         achievement_count,
         jade_count,
         user_count,
         series,
     };
 
-    Ok(HttpResponse::Ok().json(groups))
+    Ok(())
+}
+
+#[utoipa::path(
+    tag = "achievements/grouped",
+    get,
+    path = "/api/achievements/grouped",
+    responses(
+        (status = 200, description = "Groups", body = Groups),
+    )
+)]
+#[get("/api/achievements/grouped")]
+async fn get_achievements_grouped(groups: web::Data<Mutex<Groups>>) -> Result<impl Responder> {
+    Ok(HttpResponse::Ok().json(&*groups.lock().await))
 }

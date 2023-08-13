@@ -2,6 +2,7 @@ use sqlx::PgPool;
 
 use crate::Result;
 
+#[derive(Clone)]
 pub struct DbAchievement {
     pub id: i64,
     pub series: i32,
@@ -55,14 +56,7 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn get_achievements(
-    series: Option<i32>,
-    series_tag: Option<&str>,
-    hidden: Option<bool>,
-    version: Option<&str>,
-    gacha: Option<bool>,
-    pool: &PgPool,
-) -> Result<Vec<DbAchievement>> {
+pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
     Ok(sqlx::query_as!(
         DbAchievement,
         "
@@ -79,24 +73,9 @@ pub async fn get_achievements(
             series
         ON
             series = series.id
-        WHERE
-            ($1::INT4 IS NULL OR series = $1)
-        AND
-            ($2::TEXT IS NULL OR series.tag = $2)
-        AND
-            ($3::BOOLEAN IS NULL OR hidden = $3)
-        AND
-            ($4::TEXT IS NULL OR version = $4)
-        AND
-            ($5::BOOLEAN IS NULL OR gacha = $5)
         ORDER BY
             series.priority DESC, series, priority DESC
-        ",
-        series,
-        series_tag,
-        hidden,
-        version,
-        gacha,
+        "
     )
     .fetch_all(pool)
     .await?)

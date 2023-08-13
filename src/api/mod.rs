@@ -1,13 +1,14 @@
 mod achievements;
 mod characters;
 mod free_jade_alert;
-pub mod import;
+mod import;
 mod mihomo;
 mod scores;
 mod series;
 mod users;
 
 use actix_web::web;
+use sqlx::PgPool;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -27,8 +28,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(achievements::configure)
+pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+    cfg.configure(|cfg| achievements::configure(cfg, pool))
         .configure(characters::configure)
         .configure(free_jade_alert::configure)
         .configure(import::configure)
