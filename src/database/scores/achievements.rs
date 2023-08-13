@@ -44,8 +44,8 @@ pub async fn set_score_achievement(
 }
 
 pub async fn get_scores_achievement(
-    region: Option<String>,
-    query: Option<String>,
+    region: Option<&str>,
+    query: Option<&str>,
     limit: Option<i64>,
     offset: Option<i64>,
     pool: &PgPool,
@@ -90,6 +90,17 @@ pub async fn count_scores_achievement(region: &str, pool: &PgPool) -> Result<i64
     Ok(sqlx::query!(
         "SELECT COUNT(*) as count FROM mihomo WHERE region = $1",
         region
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
+}
+
+pub async fn count_scores_achievement_query(query: Option<&str>, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM mihomo WHERE ($1::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($1) || '%')",
+        query,
     )
     .fetch_one(pool)
     .await?

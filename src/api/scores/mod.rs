@@ -39,6 +39,7 @@ pub struct Scores<T: Serialize> {
     pub count_eu: i64,
     pub count_asia: i64,
     pub count_cn: i64,
+    pub count_query: i64,
     pub scores: Vec<T>,
 }
 

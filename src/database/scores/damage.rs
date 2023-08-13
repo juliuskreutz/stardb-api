@@ -108,6 +108,17 @@ pub async fn count_scores_damage(region: &str, pool: &PgPool) -> Result<i64> {
     .unwrap())
 }
 
+pub async fn count_scores_damage_query(query: Option<&str>, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query!(
+        "SELECT COUNT(*) as count FROM scores_damage NATURAL JOIN mihomo WHERE ($1::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($1) || '%')",
+        query,
+    )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
+}
+
 pub async fn get_score_damage_by_uid(
     uid: i64,
     character: Option<i32>,

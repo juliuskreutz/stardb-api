@@ -99,6 +99,8 @@ async fn get_scores_damage(
     let count_eu = database::count_scores_damage(&Region::EU.to_string(), &pool).await?;
     let count_asia = database::count_scores_damage(&Region::Asia.to_string(), &pool).await?;
     let count_cn = database::count_scores_damage(&Region::CN.to_string(), &pool).await?;
+    let count_query =
+        database::count_scores_damage_query(scores_params.query.as_deref(), &pool).await?;
 
     let count = count_na + count_eu + count_asia + count_cn;
 
@@ -124,6 +126,7 @@ async fn get_scores_damage(
         count_eu,
         count_asia,
         count_cn,
+        count_query,
         scores,
     };
 

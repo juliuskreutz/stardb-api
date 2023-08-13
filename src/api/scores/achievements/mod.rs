@@ -84,12 +84,18 @@ async fn get_scores_achievement(
     let count_eu = database::count_scores_achievement(&Region::EU.to_string(), &pool).await?;
     let count_asia = database::count_scores_achievement(&Region::Asia.to_string(), &pool).await?;
     let count_cn = database::count_scores_achievement(&Region::CN.to_string(), &pool).await?;
+    let count_query =
+        database::count_scores_achievement_query(scores_params.query.as_deref(), &pool).await?;
 
     let count = count_na + count_eu + count_asia + count_cn;
 
     let db_scores = database::get_scores_achievement(
-        scores_params.region.as_ref().map(|r| r.to_string()),
-        scores_params.query.clone(),
+        scores_params
+            .region
+            .as_ref()
+            .map(|r| r.to_string())
+            .as_deref(),
+        scores_params.query.as_deref(),
         scores_params.limit,
         scores_params.offset,
         &pool,
@@ -104,6 +110,7 @@ async fn get_scores_achievement(
         count_eu,
         count_asia,
         count_cn,
+        count_query,
         scores,
     };
 
