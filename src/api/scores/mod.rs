@@ -16,7 +16,7 @@ use self::{
 #[openapi(components(schemas(Region, ScoresAchievement, ScoresDamage, ScoresHeal, ScoresShield)))]
 struct ApiDoc;
 
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
+#[derive(Display, EnumString, Serialize, Deserialize, ToSchema, Clone, Copy)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum Region {

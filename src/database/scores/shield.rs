@@ -85,20 +85,14 @@ pub async fn get_scores_shield(
     .await?)
 }
 
-pub async fn count_scores_shield(region: &str, pool: &PgPool) -> Result<i64> {
+pub async fn count_scores_shield(
+    region: Option<&str>,
+    query: Option<&str>,
+    pool: &PgPool,
+) -> Result<i64> {
     Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN mihomo WHERE region = $1",
+        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN mihomo WHERE ($1::TEXT IS NULL OR region = $1) AND ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')",
         region,
-    )
-    .fetch_one(pool)
-    .await?
-    .count
-    .unwrap())
-}
-
-pub async fn count_scores_shield_query(query: Option<&str>, pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN mihomo WHERE ($1::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($1) || '%')",
         query,
     )
     .fetch_one(pool)
