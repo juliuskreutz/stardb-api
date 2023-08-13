@@ -85,10 +85,15 @@ pub async fn get_scores_heal(
     .await?)
 }
 
-pub async fn count_scores_heal(region: &str, pool: &PgPool) -> Result<i64> {
+pub async fn count_scores_heal(
+    region: Option<&str>,
+    query: Option<&str>,
+    pool: &PgPool,
+) -> Result<i64> {
     Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_heal NATURAL JOIN mihomo WHERE region = $1",
+        "SELECT COUNT(*) as count FROM scores_heal NATURAL JOIN mihomo WHERE ($1::TEXT IS NULL OR region = $1) AND ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')",
         region,
+        query,
     )
     .fetch_one(pool)
     .await?
