@@ -80,7 +80,7 @@ struct TextHash {
     hash: i64,
 }
 
-pub async fn achievements(pool: PgPool) {
+pub async fn dimbreath(pool: PgPool) {
     rt::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60 * 5));
 

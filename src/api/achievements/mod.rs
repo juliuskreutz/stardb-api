@@ -1,11 +1,14 @@
 mod grouped;
 mod id;
 
-use actix_web::{get, web, HttpResponse, Responder};
+use std::time::Duration;
+
+use actix_web::{get, rt, web, HttpResponse, Responder};
+use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     database::{self, DbAchievement},
@@ -36,9 +39,7 @@ enum Difficulty {
 struct Achievement {
     id: i64,
     series: i32,
-    series_tag: String,
     series_name: String,
-    tag: String,
     name: String,
     description: String,
     jades: i32,
@@ -54,18 +55,7 @@ struct Achievement {
     gacha: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     set: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    related: Option<Vec<i64>>,
     percent: f64,
-}
-
-#[derive(Deserialize, IntoParams)]
-struct AchievementParams {
-    series: Option<i32>,
-    series_tag: Option<String>,
-    hidden: Option<bool>,
-    version: Option<String>,
-    gacha: Option<bool>,
 }
 
 impl From<DbAchievement> for Achievement {
@@ -73,23 +63,20 @@ impl From<DbAchievement> for Achievement {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
-            series_tag: db_achievement.series_tag,
-            series_name: db_achievement.series_name,
-            tag: db_achievement.tag,
-            name: db_achievement.name,
-            description: db_achievement.description,
+            series_name: db_achievement.series_name.clone(),
+            name: db_achievement.name.clone(),
+            description: db_achievement.description.clone(),
             jades: db_achievement.jades,
             hidden: db_achievement.hidden,
-            version: db_achievement.version,
-            comment: db_achievement.comment,
-            reference: db_achievement.reference,
+            version: db_achievement.version.clone(),
+            comment: db_achievement.comment.clone(),
+            reference: db_achievement.reference.clone(),
             difficulty: db_achievement
                 .difficulty
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
             gacha: db_achievement.gacha,
             set: db_achievement.set,
-            related: None,
             percent: db_achievement.percent.unwrap_or_default(),
         }
     }
@@ -102,47 +89,55 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_achievements)
-        .configure(grouped::configure)
+pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+    let achievements = web::Data::new(Mutex::new(Vec::new()));
+
+    {
+        let achievements = achievements.clone();
+        let pool = pool.clone();
+
+        rt::spawn(async move {
+            let minutes = 1;
+
+            let mut timer = rt::time::interval(Duration::from_secs(60 * minutes));
+
+            loop {
+                timer.tick().await;
+
+                let _ = update(&achievements, &pool).await;
+            }
+        });
+    }
+
+    cfg.app_data(achievements)
+        .service(get_achievements)
+        .configure(|cfg| grouped::configure(cfg, pool))
         .configure(id::configure);
+}
+
+async fn update(achievements: &web::Data<Mutex<Vec<Achievement>>>, pool: &PgPool) -> Result<()> {
+    let db_achievements = database::get_achievements(pool).await?;
+
+    *achievements.lock().await = db_achievements
+        .clone()
+        .into_iter()
+        .map(Achievement::from)
+        .collect();
+
+    Ok(())
 }
 
 #[utoipa::path(
     tag = "achievements",
     get,
     path = "/api/achievements",
-    params(AchievementParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
 )]
 #[get("/api/achievements")]
 async fn get_achievements(
-    achievement_params: web::Query<AchievementParams>,
-    pool: web::Data<PgPool>,
+    achievements: web::Data<Mutex<Vec<Achievement>>>,
 ) -> Result<impl Responder> {
-    let db_achievements = database::get_achievements(
-        achievement_params.series,
-        achievement_params.series_tag.as_deref(),
-        achievement_params.hidden,
-        achievement_params.version.as_deref(),
-        achievement_params.gacha,
-        &pool,
-    )
-    .await?;
-
-    let mut achievements = Vec::new();
-
-    for db_achievement in db_achievements {
-        let mut achievement = Achievement::from(db_achievement);
-
-        if let Some(set) = achievement.set {
-            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
-        };
-
-        achievements.push(achievement);
-    }
-
-    Ok(HttpResponse::Ok().json(achievements))
+    Ok(HttpResponse::Ok().json(&*achievements.lock().await))
 }

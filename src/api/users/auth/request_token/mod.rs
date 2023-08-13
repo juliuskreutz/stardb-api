@@ -1,6 +1,7 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use actix_web::{post, rt, web, HttpResponse, Responder};
+use futures::lock::Mutex;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -42,22 +43,22 @@ pub struct RequestToken {
 )]
 #[post("/api/users/auth/request-token")]
 async fn request_token(
-    password_reset: web::Json<RequestToken>,
-    password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
+    request_token: web::Json<RequestToken>,
+    tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     {
-        if password_resets
+        if tokens
             .lock()
-            .map_err(|_| "lock broken")?
+            .await
             .values()
-            .any(|s| s == &password_reset.username)
+            .any(|s| s == &request_token.username)
         {
             return Ok(HttpResponse::BadRequest().finish());
         }
     }
 
-    let Ok(user) = database::get_user_by_username(&password_reset.username, &pool).await else {
+    let Ok(user) = database::get_user_by_username(&request_token.username, &pool).await else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
@@ -83,18 +84,12 @@ async fn request_token(
 
     mailer.send(&email)?;
 
-    password_resets
-        .lock()
-        .map_err(|_| "lock broken")?
-        .insert(token, user.username.clone());
+    tokens.lock().await.insert(token, user.username.clone());
 
     rt::spawn(async move {
         rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
-        password_resets
-            .lock()
-            .map_err(|_| "lock broken")?
-            .remove(&token);
+        tokens.lock().await.remove(&token);
 
         Result::<()>::Ok(())
     });

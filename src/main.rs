@@ -3,7 +3,7 @@ mod database;
 mod mihomo;
 mod update;
 
-use std::{collections::HashMap, fs, sync::Mutex};
+use std::{collections::HashMap, fs};
 
 use actix_files::Files;
 use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
@@ -13,6 +13,7 @@ use actix_web::{
     App, HttpServer,
 };
 use convert_case::{Case, Casing};
+use futures::lock::Mutex;
 use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
@@ -34,20 +35,20 @@ impl<T: AsRef<str>> ToTag for T {
 #[actix_web::main]
 async fn main() -> Result<()> {
     env_logger::init();
+
     dotenv::dotenv()?;
 
     let _ = fs::create_dir("mihomo");
 
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
-
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements(pool.clone()).await;
+    update::dimbreath(pool.clone()).await;
     update::verifications(pool.clone()).await;
     update::scores().await;
 
-    let password_resets = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
-    let pool = Data::new(pool);
+    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
+    let pool_data = Data::new(pool.clone());
 
     let key = Key::generate();
 
@@ -55,8 +56,8 @@ async fn main() -> Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(password_resets.clone())
-            .app_data(pool.clone())
+            .app_data(tokens_data.clone())
+            .app_data(pool_data.clone())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
@@ -71,7 +72,7 @@ async fn main() -> Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(api::configure)
+            .configure(|cfg| api::configure(cfg, pool.clone()))
     })
     .bind(("localhost", 8000))?
     .run()
