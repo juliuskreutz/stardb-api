@@ -43,19 +43,23 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     let groups = web::Data::new(Mutex::new(Groups::default()));
 
-    rt::spawn(async move {
-        let minutes = 1;
+    {
+        let groups = groups.clone();
 
-        let mut timer = rt::time::interval(Duration::from_secs(60 * minutes));
+        rt::spawn(async move {
+            let minutes = 1;
 
-        loop {
-            timer.tick().await;
+            let mut timer = rt::time::interval(Duration::from_secs(60 * minutes));
 
-            let _ = update(&groups, &pool).await;
-        }
-    });
+            loop {
+                timer.tick().await;
 
-    cfg.service(get_achievements_grouped);
+                let _ = update(&groups, &pool).await;
+            }
+        });
+    }
+
+    cfg.app_data(groups).service(get_achievements_grouped);
 }
 
 async fn update(groups: &web::Data<Mutex<Groups>>, pool: &PgPool) -> Result<()> {
