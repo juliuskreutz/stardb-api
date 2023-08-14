@@ -75,7 +75,7 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
         ON
             series = series_text.id AND series_text.language = $1
         ORDER BY
-            series.priority DESC, series, priority DESC
+            series.priority DESC, series, priority DESC, id
         ",
         language
     )
