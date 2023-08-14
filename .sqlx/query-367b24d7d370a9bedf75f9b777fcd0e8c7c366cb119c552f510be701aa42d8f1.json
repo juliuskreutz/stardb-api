@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            series_text(id, language, name)\n        VALUES\n            ($1, $2, $3)\n        ON CONFLICT\n            (id, language)\n        DO UPDATE SET\n            name = EXCLUDED.name\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "367b24d7d370a9bedf75f9b777fcd0e8c7c366cb119c552f510be701aa42d8f1"
+}

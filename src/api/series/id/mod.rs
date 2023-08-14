@@ -2,7 +2,10 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::series::Series, database, Result};
+use crate::{
+    api::{series::Series, LanguageParams},
+    database, Result,
+};
 
 #[derive(OpenApi)]
 #[openapi(tags((name = "series/{id}")), paths(get_series))]
@@ -20,13 +23,20 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "series/{id}",
     get,
     path = "/api/series/{id}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Series", body = Series),
     )
 )]
 #[get("/api/series/{id}")]
-async fn get_series(id: web::Path<i32>, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let series = Series::from(database::get_series_by_id(*id, &pool).await?);
+async fn get_series(
+    id: web::Path<i32>,
+    language_param: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let series = Series::from(
+        database::get_series_by_id(*id, &language_param.lang.to_string(), &pool).await?,
+    );
 
     Ok(HttpResponse::Ok().json(series))
 }
