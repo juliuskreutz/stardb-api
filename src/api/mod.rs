@@ -58,21 +58,21 @@ enum Language {
 }
 
 impl Language {
-    pub fn get_flag(&self) -> String {
+    pub fn name(&self) -> String {
         match self {
-            Language::Chs => "🇨🇳",
-            Language::Cht => "🇨🇳",
-            Language::De => "🇩🇪",
-            Language::En => "🇬🇧",
-            Language::Es => "🇪🇸",
-            Language::Fr => "🇫🇷",
-            Language::Id => "🇮🇳",
-            Language::Jp => "🇯🇵",
-            Language::Kr => "🇰🇷",
-            Language::Pt => "🇵🇹",
-            Language::Ru => "🇷🇺",
-            Language::Th => "🇹🇭",
-            Language::Vi => "🇻🇳",
+            Language::Chs => "简体中文",
+            Language::Cht => "繁體中文",
+            Language::De => "Deutsch",
+            Language::En => "English",
+            Language::Es => "Español",
+            Language::Fr => "Français",
+            Language::Id => "हिंदी",
+            Language::Jp => "日本語",
+            Language::Kr => "한국어",
+            Language::Pt => "Português",
+            Language::Ru => "Русский",
+            Language::Th => "ไทย",
+            Language::Vi => "Tiếng Việt",
         }
         .to_string()
     }
