@@ -1,19 +1,22 @@
 mod grouped;
 mod id;
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use actix_web::{get, rt, web, HttpResponse, Responder};
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::{Display, EnumString};
+use strum::{Display, EnumString, IntoEnumIterator};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::LanguageParams,
     database::{self, DbAchievement},
     Result,
 };
+
+use super::Language;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -21,6 +24,7 @@ use crate::{
     paths(get_achievements),
     components(schemas(
         Difficulty,
+        Language,
         Achievement
     ))
 )]
@@ -90,7 +94,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    let achievements = web::Data::new(Mutex::new(Vec::new()));
+    let achievements = web::Data::new(Mutex::new(HashMap::new()));
 
     {
         let achievements = achievements.clone();
@@ -115,14 +119,24 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(id::configure);
 }
 
-async fn update(achievements: &web::Data<Mutex<Vec<Achievement>>>, pool: &PgPool) -> Result<()> {
-    let db_achievements = database::get_achievements(pool).await?;
+async fn update(
+    achievements: &web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
+    pool: &PgPool,
+) -> Result<()> {
+    let mut map = HashMap::new();
 
-    *achievements.lock().await = db_achievements
-        .clone()
-        .into_iter()
-        .map(Achievement::from)
-        .collect();
+    for language in Language::iter() {
+        let achievements = database::get_achievements(&language.to_string(), pool)
+            .await?
+            .clone()
+            .into_iter()
+            .map(Achievement::from)
+            .collect();
+
+        map.insert(language, achievements);
+    }
+
+    *achievements.lock().await = map;
 
     Ok(())
 }
@@ -131,13 +145,17 @@ async fn update(achievements: &web::Data<Mutex<Vec<Achievement>>>, pool: &PgPool
     tag = "achievements",
     get,
     path = "/api/achievements",
+    params(LanguageParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
 )]
 #[get("/api/achievements")]
 async fn get_achievements(
-    achievements: web::Data<Mutex<Vec<Achievement>>>,
+    language_params: web::Query<LanguageParams>,
+    achievements: web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
 ) -> Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(&*achievements.lock().await))
+    let achievements = &achievements.lock().await[&language_params.lang];
+
+    Ok(HttpResponse::Ok().json(achievements))
 }

@@ -10,6 +10,8 @@ use crate::{
     Result,
 };
 
+use super::LanguageParams;
+
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "series")),
@@ -51,13 +53,17 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "series",
     get,
     path = "/api/series",
+    params(LanguageParams),
     responses(
         (status = 200, description = "[Series]", body = Vec<Series>),
     )
 )]
 #[get("/api/series")]
-async fn get_seriess(pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let series: Vec<_> = database::get_series(&pool)
+async fn get_seriess(
+    language_param: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> Result<impl Responder> {
+    let series: Vec<_> = database::get_series(&language_param.lang.to_string(), &pool)
         .await?
         .into_iter()
         .map(Series::from)

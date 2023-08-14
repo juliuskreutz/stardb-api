@@ -5,9 +5,15 @@ use futures::lock::Mutex;
 use indexmap::IndexMap;
 use serde::Serialize;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::achievements::Achievement, database, Result};
+use crate::{
+    api::achievements::{Achievement, LanguageParams},
+    database, Result,
+};
+
+use super::Language;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -41,7 +47,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    let groups = web::Data::new(Mutex::new(Groups::default()));
+    let groups = web::Data::new(Mutex::new(HashMap::new()));
 
     {
         let groups = groups.clone();
@@ -62,53 +68,62 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.app_data(groups).service(get_achievements_grouped);
 }
 
-async fn update(groups: &web::Data<Mutex<Groups>>, pool: &PgPool) -> Result<()> {
-    let db_achievements = database::get_achievements(pool).await?;
+async fn update(groups: &web::Data<Mutex<HashMap<Language, Groups>>>, pool: &PgPool) -> Result<()> {
+    let mut map = HashMap::new();
 
-    let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
-    let mut groupings: HashMap<i32, usize> = HashMap::new();
+    for language in Language::iter() {
+        let db_achievements = database::get_achievements(&language.to_string(), pool).await?;
 
-    for db_achievement in db_achievements {
-        let achievements = series
-            .entry(db_achievement.series_name.clone())
-            .or_default();
+        let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
+        let mut groupings: HashMap<i32, usize> = HashMap::new();
 
-        let achievement = Achievement::from(db_achievement);
+        for db_achievement in db_achievements {
+            let achievements = series
+                .entry(db_achievement.series_name.clone())
+                .or_default();
 
-        if let Some(set) = achievement.set {
-            if let Some(&i) = groupings.get(&set) {
-                achievements[i].push(achievement);
-                continue;
+            let achievement = Achievement::from(db_achievement);
+
+            if let Some(set) = achievement.set {
+                if let Some(&i) = groupings.get(&set) {
+                    achievements[i].push(achievement);
+                    continue;
+                }
+
+                groupings.insert(set, achievements.len());
             }
 
-            groupings.insert(set, achievements.len());
+            achievements.push(vec![achievement]);
         }
 
-        achievements.push(vec![achievement]);
+        let series = series
+            .into_iter()
+            .map(|(series, achievements)| AchivementsGrouped {
+                series,
+                achievement_count: achievements.len(),
+                jade_count: achievements.iter().map(|a| a[0].jades).sum(),
+                achievements,
+            })
+            .collect::<Vec<_>>();
+
+        let (achievement_count, jade_count) =
+            series.iter().fold((0, 0), |(a_count, j_count), ag| {
+                (a_count + ag.achievements.len(), j_count + ag.jade_count)
+            });
+
+        let user_count = database::get_distinct_username_count(pool).await?;
+
+        let group = Groups {
+            achievement_count,
+            jade_count,
+            user_count,
+            series,
+        };
+
+        map.insert(language, group);
     }
 
-    let series = series
-        .into_iter()
-        .map(|(series, achievements)| AchivementsGrouped {
-            series,
-            achievement_count: achievements.len(),
-            jade_count: achievements.iter().map(|a| a[0].jades).sum(),
-            achievements,
-        })
-        .collect::<Vec<_>>();
-
-    let (achievement_count, jade_count) = series.iter().fold((0, 0), |(a_count, j_count), ag| {
-        (a_count + ag.achievements.len(), j_count + ag.jade_count)
-    });
-
-    let user_count = database::get_distinct_username_count(pool).await?;
-
-    *groups.lock().await = Groups {
-        achievement_count,
-        jade_count,
-        user_count,
-        series,
-    };
+    *groups.lock().await = map;
 
     Ok(())
 }
@@ -117,11 +132,17 @@ async fn update(groups: &web::Data<Mutex<Groups>>, pool: &PgPool) -> Result<()> 
     tag = "achievements/grouped",
     get,
     path = "/api/achievements/grouped",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Groups", body = Groups),
     )
 )]
 #[get("/api/achievements/grouped")]
-async fn get_achievements_grouped(groups: web::Data<Mutex<Groups>>) -> Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(&*groups.lock().await))
+async fn get_achievements_grouped(
+    language_params: web::Query<LanguageParams>,
+    groups: web::Data<Mutex<HashMap<Language, Groups>>>,
+) -> Result<impl Responder> {
+    let groups = &groups.lock().await[&language_params.lang];
+
+    Ok(HttpResponse::Ok().json(groups))
 }

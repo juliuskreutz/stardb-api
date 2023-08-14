@@ -8,12 +8,40 @@ mod series;
 mod users;
 
 use actix_web::web;
+use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use strum::{Display, EnumIter, EnumString};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 #[derive(OpenApi)]
-#[openapi()]
+#[openapi(components(schemas(Language)))]
 struct ApiDoc;
+
+#[derive(Deserialize, IntoParams)]
+struct LanguageParams {
+    #[serde(default)]
+    lang: Language,
+}
+
+#[derive(Default, PartialEq, Eq, Hash, Display, EnumString, EnumIter, Deserialize, ToSchema)]
+#[strum(serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+enum Language {
+    Chs,
+    Cht,
+    De,
+    #[default]
+    En,
+    Es,
+    Fr,
+    Id,
+    Jp,
+    Kr,
+    Pt,
+    Ru,
+    Th,
+    Vi,
+}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{
-    database::{self, DbAchievement, DbCharacter, DbSeries},
+    database::{self, DbAchievement, DbAchievementText, DbCharacter, DbSeries, DbSeriesText},
     Result, ToTag,
 };
 
@@ -97,10 +97,21 @@ pub async fn dimbreath(pool: PgPool) {
 async fn update(pool: &PgPool) -> Result<()> {
     let url = "https://raw.githubusercontent.com/Dimbreath/StarRailData/master/";
 
-    let text_map: HashMap<String, String> = reqwest::get(&format!("{url}TextMap/TextMapEN.json"))
-        .await?
-        .json()
-        .await?;
+    let languages = [
+        "CHS", "CHT", "DE", "EN", "ES", "FR", "ID", "JP", "KR", "PT", "RU", "TH", "VI",
+    ];
+
+    let mut text_maps = HashMap::new();
+
+    for language in languages {
+        let text_map: HashMap<String, String> =
+            reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
+                .await?
+                .json()
+                .await?;
+
+        text_maps.insert(language, text_map);
+    }
 
     let achievement_data: HashMap<String, AchievementData> =
         reqwest::get(&format!("{url}ExcelOutput/AchievementData.json"))
@@ -126,87 +137,108 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
-    for series in achievement_series.values() {
-        let id = series.id;
-        let name = text_map[&series.title.hash.to_string()].clone();
-        let tag = name.to_tag();
-        let priority = series.priority;
+    for language in languages {
+        for series in achievement_series.values() {
+            let id = series.id;
+            let name = text_maps[language][&series.title.hash.to_string()].clone();
+            let tag = name.to_tag();
+            let priority = series.priority;
 
-        let db_series = DbSeries {
-            id,
-            tag,
-            name,
-            priority,
-        };
-        database::set_series(&db_series, pool).await?;
+            let db_series = DbSeries {
+                id,
+                tag,
+                priority,
+                name: String::new(),
+            };
+            database::set_series(&db_series, pool).await?;
+
+            let db_series_text = DbSeriesText {
+                id,
+                language: language.to_lowercase(),
+                name,
+            };
+
+            database::set_series_text(&db_series_text, pool).await?;
+        }
     }
 
-    for achievement_data in achievement_data.values() {
-        let html_re = Regex::new(r"<[^>]*>")?;
+    for language in languages {
+        for achievement_data in achievement_data.values() {
+            let html_re = Regex::new(r"<[^>]*>")?;
 
-        let id = achievement_data.id;
+            let id = achievement_data.id;
 
-        let series = achievement_data.series;
+            let series = achievement_data.series;
 
-        let name = html_re
-            .replace_all(
-                &text_map[&achievement_data.title.hash.to_string()],
-                |_: &Captures| "",
-            )
-            .to_string();
+            let name = html_re
+                .replace_all(
+                    &text_maps[language][&achievement_data.title.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
 
-        let tag = name.to_tag();
+            let tag = name.to_tag();
 
-        let re = Regex::new(r"#(\d+)\[i\](%?)")?;
-        let description = re
-            .replace_all(
-                &text_map[&achievement_data.description.hash.to_string()],
-                |c: &Captures| {
-                    let m = c.get(1).unwrap();
-                    let i: usize = m.as_str().parse().unwrap();
+            let re = Regex::new(r"#(\d+)\[i\](%?)")?;
+            let description = re
+                .replace_all(
+                    &text_maps[language][&achievement_data.description.hash.to_string()],
+                    |c: &Captures| {
+                        let m = c.get(1).unwrap();
+                        let i: usize = m.as_str().parse().unwrap();
 
-                    if c.get(2).map_or(false, |m| !m.is_empty()) {
-                        ((achievement_data.param_list[i - 1].value * 100.0) as i32).to_string()
-                            + "%"
-                    } else {
-                        achievement_data.param_list[i - 1].value.to_string()
-                    }
-                },
-            )
-            .to_string();
-        let description = html_re
-            .replace_all(&description, |_: &Captures| "")
-            .replace("\\n", "");
+                        if c.get(2).map_or(false, |m| !m.is_empty()) {
+                            ((achievement_data.param_list[i - 1].value * 100.0) as i32).to_string()
+                                + "%"
+                        } else {
+                            achievement_data.param_list[i - 1].value.to_string()
+                        }
+                    },
+                )
+                .to_string();
+            let description = html_re
+                .replace_all(&description, |_: &Captures| "")
+                .replace("\\n", "");
 
-        let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
-            .jades
-            .unwrap_or_default();
+            let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
+                .jades
+                .unwrap_or_default();
 
-        let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
+            let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
 
-        let priority = achievement_data.priority;
+            let priority = achievement_data.priority;
 
-        let db_achievement = DbAchievement {
-            id,
-            series,
-            series_tag: String::new(),
-            series_name: String::new(),
-            tag,
-            name,
-            description,
-            jades,
-            hidden,
-            priority,
-            version: None,
-            comment: None,
-            reference: None,
-            difficulty: None,
-            gacha: false,
-            set: None,
-            percent: None,
-        };
+            let db_achievement = DbAchievement {
+                id,
+                series,
+                series_tag: String::new(),
+                series_name: String::new(),
+                tag,
+                name: String::new(),
+                description: String::new(),
+                jades,
+                hidden,
+                priority,
+                version: None,
+                comment: None,
+                reference: None,
+                difficulty: None,
+                gacha: false,
+                set: None,
+                percent: None,
+            };
 
-        database::set_achievement(&db_achievement, pool).await?;
+            database::set_achievement(&db_achievement, pool).await?;
+
+            let db_achievement_text = DbAchievementText {
+                id,
+                language: language.to_lowercase(),
+                name,
+                description,
+            };
+
+            database::set_achievement_text(&db_achievement_text, pool).await?;
+        }
     }
 
     let avatar_config: HashMap<String, AvatarConfig> =
@@ -222,7 +254,8 @@ async fn update(pool: &PgPool) -> Result<()> {
             .await?;
 
     for avatar_config in avatar_config.values() {
-        let mut name = text_map[&avatar_config.name.hash.to_string()].clone();
+        // /api/characters always uses EN text
+        let mut name = text_maps["EN"][&avatar_config.name.hash.to_string()].clone();
 
         if name == "{NICKNAME}" {
             if avatar_config.id == 8001 {

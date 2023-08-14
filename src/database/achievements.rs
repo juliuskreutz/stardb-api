@@ -23,20 +23,27 @@ pub struct DbAchievement {
     pub percent: Option<f64>,
 }
 
+// SELECT
+//     *
+// FROM
+//     achievements
+// INNER JOIN
+//     achievements_languages
+// ON
+//     achievements_languages.id = id AND achievements_languages.language = $1;
+
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, tag, name, description, jades, hidden, priority)
+            achievements(id, series, tag, jades, hidden, priority)
         VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8)
+            ($1, $2, $3, $4, $5, $6)
         ON CONFLICT
             (id)
         DO UPDATE SET
         series = EXCLUDED.series,
             tag = EXCLUDED.tag,
-            name = EXCLUDED.name,
-            description = EXCLUDED.description,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden,
             priority = EXCLUDED.priority
@@ -44,8 +51,6 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
         achievement.id,
         achievement.series,
         achievement.tag,
-        achievement.name,
-        achievement.description,
         achievement.jades,
         achievement.hidden,
         achievement.priority,
@@ -56,26 +61,37 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn get_achievements(pool: &PgPool) -> Result<Vec<DbAchievement>> {
+pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAchievement>> {
     Ok(sqlx::query_as!(
         DbAchievement,
         "
         SELECT
             achievements.*,
+            achievements_text.name,
+            achievements_text.description,
             percent,
             series.tag series_tag,
-            series.name series_name
+            series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
         INNER JOIN
+            achievements_text
+        ON
+            achievements.id = achievements_text.id AND achievements_text.language = $1
+        INNER JOIN
             series
         ON
             series = series.id
+        INNER JOIN
+            series_text
+        ON
+            series = series.id AND series_text.language = $1
         ORDER BY
             series.priority DESC, series, priority DESC
-        "
+        ",
+        language
     )
     .fetch_all(pool)
     .await?)
@@ -103,26 +119,41 @@ pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
     .collect())
 }
 
-pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchievement> {
+pub async fn get_achievement_by_id(
+    id: i64,
+    language: &str,
+    pool: &PgPool,
+) -> Result<DbAchievement> {
     Ok(sqlx::query_as!(
         DbAchievement,
         "SELECT
             achievements.*,
+            achievements_text.name,
+            achievements_text.description,
             percent,
             series.tag series_tag,
-            series.name series_name
+            series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
         INNER JOIN
+            achievements_text
+        ON
+            achievements.id = achievements_text.id AND achievements_text.language = $2
+        INNER JOIN
             series
         ON
             series = series.id
+        INNER JOIN
+            series_text
+        ON
+            series = series.id AND series_text.language = $2
         WHERE
             achievements.id = $1
         ",
-        id
+        id,
+        language,
     )
     .fetch_one(pool)
     .await?)
