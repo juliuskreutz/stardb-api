@@ -2,13 +2,14 @@ mod achievements;
 mod characters;
 mod free_jade_alert;
 mod import;
+mod languages;
 mod mihomo;
 mod scores;
 mod series;
 mod users;
 
 use actix_web::web;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumIter, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
@@ -23,7 +24,9 @@ struct LanguageParams {
     lang: Language,
 }
 
-#[derive(Default, PartialEq, Eq, Hash, Display, EnumString, EnumIter, Deserialize, ToSchema)]
+#[derive(
+    Default, PartialEq, Eq, Hash, Display, EnumString, EnumIter, Serialize, Deserialize, ToSchema,
+)]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 enum Language {
@@ -49,6 +52,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(characters::openapi());
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import::openapi());
+    openapi.merge(languages::openapi());
     openapi.merge(mihomo::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(series::openapi());
@@ -61,6 +65,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(characters::configure)
         .configure(free_jade_alert::configure)
         .configure(import::configure)
+        .configure(languages::configure)
         .configure(mihomo::configure)
         .configure(scores::configure)
         .configure(series::configure)
