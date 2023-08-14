@@ -139,8 +139,23 @@ async fn update(pool: &PgPool) -> Result<()> {
 
     for language in languages {
         for series in achievement_series.values() {
+            let html_re = Regex::new(r"<[^>]*>")?;
+            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+
             let id = series.id;
-            let name = text_maps[language][&series.title.hash.to_string()].clone();
+
+            let name = gender_re
+                .replace_all(
+                    &html_re.replace_all(
+                        &text_maps[language][&series.title.hash.to_string()],
+                        |_: &Captures| "",
+                    ),
+                    |c: &Captures| {
+                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                    },
+                )
+                .to_string();
+
             let priority = series.priority;
 
             let db_series = DbSeries {
