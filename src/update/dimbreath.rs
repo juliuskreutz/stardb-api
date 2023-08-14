@@ -101,18 +101,6 @@ async fn update(pool: &PgPool) -> Result<()> {
         "CHS", "CHT", "DE", "EN", "ES", "FR", "ID", "JP", "KR", "PT", "RU", "TH", "VI",
     ];
 
-    let mut text_maps = HashMap::new();
-
-    for language in languages {
-        let text_map: HashMap<String, String> =
-            reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
-                .await?
-                .json()
-                .await?;
-
-        text_maps.insert(language, text_map);
-    }
-
     let achievement_data: HashMap<String, AchievementData> =
         reqwest::get(&format!("{url}ExcelOutput/AchievementData.json"))
             .await?
@@ -137,33 +125,74 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
-    for language in languages {
-        for series in achievement_series.values() {
-            let html_re = Regex::new(r"<[^>]*>")?;
-            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+    for series in achievement_series.values() {
+        let id = series.id;
 
+        let priority = series.priority;
+
+        let db_series = DbSeries {
+            id,
+            priority,
+            name: String::new(),
+        };
+        database::set_series(&db_series, pool).await?;
+    }
+
+    for achievement_data in achievement_data.values() {
+        let id = achievement_data.id;
+
+        let series = achievement_data.series;
+
+        let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
+            .jades
+            .unwrap_or_default();
+
+        let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
+
+        let priority = achievement_data.priority;
+
+        let db_achievement = DbAchievement {
+            id,
+            series,
+            series_name: String::new(),
+            name: String::new(),
+            description: String::new(),
+            jades,
+            hidden,
+            priority,
+            version: None,
+            comment: None,
+            reference: None,
+            difficulty: None,
+            gacha: false,
+            set: None,
+            percent: None,
+        };
+
+        database::set_achievement(&db_achievement, pool).await?;
+    }
+
+    for language in languages {
+        let text_map: HashMap<String, String> =
+            reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
+                .await?
+                .json()
+                .await?;
+
+        for series in achievement_series.values() {
             let id = series.id;
 
+            let html_re = Regex::new(r"<[^>]*>")?;
+            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
             let name = gender_re
                 .replace_all(
-                    &html_re.replace_all(
-                        &text_maps[language][&series.title.hash.to_string()],
-                        |_: &Captures| "",
-                    ),
+                    &html_re
+                        .replace_all(&text_map[&series.title.hash.to_string()], |_: &Captures| ""),
                     |c: &Captures| {
                         c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
                     },
                 )
                 .to_string();
-
-            let priority = series.priority;
-
-            let db_series = DbSeries {
-                id,
-                priority,
-                name: String::new(),
-            };
-            database::set_series(&db_series, pool).await?;
 
             let db_series_text = DbSeriesText {
                 id,
@@ -173,19 +202,14 @@ async fn update(pool: &PgPool) -> Result<()> {
 
             database::set_series_text(&db_series_text, pool).await?;
         }
-    }
 
-    for language in languages {
         for achievement_data in achievement_data.values() {
-            let html_re = Regex::new(r"<[^>]*>")?;
-
             let id = achievement_data.id;
 
-            let series = achievement_data.series;
-
+            let html_re = Regex::new(r"<[^>]*>")?;
             let name = html_re
                 .replace_all(
-                    &text_maps[language][&achievement_data.title.hash.to_string()],
+                    &text_map[&achievement_data.title.hash.to_string()],
                     |_: &Captures| "",
                 )
                 .to_string();
@@ -193,7 +217,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             let re = Regex::new(r"#(\d+)\[i\](%?)")?;
             let description = re
                 .replace_all(
-                    &text_maps[language][&achievement_data.description.hash.to_string()],
+                    &text_map[&achievement_data.description.hash.to_string()],
                     |c: &Captures| {
                         let m = c.get(1).unwrap();
                         let i: usize = m.as_str().parse().unwrap();
@@ -211,34 +235,6 @@ async fn update(pool: &PgPool) -> Result<()> {
                 .replace_all(&description, |_: &Captures| "")
                 .replace("\\n", "");
 
-            let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
-                .jades
-                .unwrap_or_default();
-
-            let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
-
-            let priority = achievement_data.priority;
-
-            let db_achievement = DbAchievement {
-                id,
-                series,
-                series_name: String::new(),
-                name: String::new(),
-                description: String::new(),
-                jades,
-                hidden,
-                priority,
-                version: None,
-                comment: None,
-                reference: None,
-                difficulty: None,
-                gacha: false,
-                set: None,
-                percent: None,
-            };
-
-            database::set_achievement(&db_achievement, pool).await?;
-
             let db_achievement_text = DbAchievementText {
                 id,
                 language: language.to_lowercase(),
@@ -249,6 +245,11 @@ async fn update(pool: &PgPool) -> Result<()> {
             database::set_achievement_text(&db_achievement_text, pool).await?;
         }
     }
+
+    let text_map: HashMap<String, String> = reqwest::get(&format!("{url}TextMap/TextMapEN.json"))
+        .await?
+        .json()
+        .await?;
 
     let avatar_config: HashMap<String, AvatarConfig> =
         reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
@@ -264,7 +265,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
     for avatar_config in avatar_config.values() {
         // /api/characters always uses EN text
-        let mut name = text_maps["EN"][&avatar_config.name.hash.to_string()].clone();
+        let mut name = text_map[&avatar_config.name.hash.to_string()].clone();
 
         if name == "{NICKNAME}" {
             if avatar_config.id == 8001 {

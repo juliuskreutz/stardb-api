@@ -75,7 +75,11 @@ async fn register(
 
     let salt = rand::thread_rng().gen::<[u8; 32]>();
 
-    let password = argon2::hash_encoded(password.as_bytes(), &salt, &argon2::Config::default())?;
+    let password = argon2::hash_encoded(
+        password.as_bytes(),
+        &salt,
+        &argon2::Config::rfc9106_low_mem(),
+    )?;
 
     {
         let username = username.clone();

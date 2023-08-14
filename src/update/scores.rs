@@ -1,6 +1,6 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use actix_web::rt::{self, time};
+use actix_web::rt;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -19,13 +19,7 @@ struct Score {
 
 pub async fn scores() {
     rt::spawn(async {
-        let minutes = 10;
-
-        let mut timer = time::interval(Duration::from_secs(60 * minutes));
-
         loop {
-            timer.tick().await;
-
             let _ = update().await;
         }
     });
