@@ -7,7 +7,7 @@ use sqlx::PgPool;
 
 use crate::{
     database::{self, DbAchievement, DbAchievementText, DbCharacter, DbSeries, DbSeriesText},
-    Result, ToTag,
+    Result,
 };
 
 #[derive(Deserialize)]
@@ -141,12 +141,10 @@ async fn update(pool: &PgPool) -> Result<()> {
         for series in achievement_series.values() {
             let id = series.id;
             let name = text_maps[language][&series.title.hash.to_string()].clone();
-            let tag = name.to_tag();
             let priority = series.priority;
 
             let db_series = DbSeries {
                 id,
-                tag,
                 priority,
                 name: String::new(),
             };
@@ -176,8 +174,6 @@ async fn update(pool: &PgPool) -> Result<()> {
                     |_: &Captures| "",
                 )
                 .to_string();
-
-            let tag = name.to_tag();
 
             let re = Regex::new(r"#(\d+)\[i\](%?)")?;
             let description = re
@@ -211,9 +207,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             let db_achievement = DbAchievement {
                 id,
                 series,
-                series_tag: String::new(),
                 series_name: String::new(),
-                tag,
                 name: String::new(),
                 description: String::new(),
                 jades,
@@ -268,13 +262,11 @@ async fn update(pool: &PgPool) -> Result<()> {
         }
 
         let id = avatar_config.id;
-        let tag = name.to_tag();
         let element = avatar_config.element.clone();
         let path = avatar_base_type[&avatar_config.base_type].path.clone();
 
         let db_character = DbCharacter {
             id,
-            tag,
             name,
             element,
             path,

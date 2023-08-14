@@ -4,7 +4,6 @@ use crate::Result;
 
 pub struct DbSeries {
     pub id: i32,
-    pub tag: String,
     pub name: String,
     pub priority: i32,
 }
@@ -13,17 +12,15 @@ pub async fn set_series(series: &DbSeries, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            series(id, tag, priority)
+            series(id, priority)
         VALUES
-            ($1, $2, $3)
+            ($1, $2)
         ON CONFLICT
             (id)
         DO UPDATE SET
-            tag = EXCLUDED.tag,
             priority = EXCLUDED.priority
         ",
         series.id,
-        series.tag,
         series.priority,
     )
     .execute(pool)
@@ -38,7 +35,6 @@ pub async fn get_series(language: &str, pool: &PgPool) -> Result<Vec<DbSeries>> 
         "
         SELECT
             series.id,
-            series.tag,
             series_text.name,
             series.priority
         FROM
@@ -62,7 +58,6 @@ pub async fn get_series_by_id(id: i32, language: &str, pool: &PgPool) -> Result<
         "
         SELECT
             series.id,
-            series.tag,
             series_text.name,
             series.priority
         FROM
