@@ -66,7 +66,7 @@ impl Language {
             Language::En => "English",
             Language::Es => "Español",
             Language::Fr => "Français",
-            Language::Id => "हिंदी",
+            Language::Id => "Bahasa Indonesia",
             Language::Jp => "日本語",
             Language::Kr => "한국어",
             Language::Pt => "Português",
