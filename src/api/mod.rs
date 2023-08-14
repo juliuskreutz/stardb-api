@@ -57,6 +57,27 @@ enum Language {
     Vi,
 }
 
+impl Language {
+    pub fn get_flag(&self) -> String {
+        match self {
+            Language::Chs => "🇨🇳",
+            Language::Cht => "🇨🇳",
+            Language::De => "🇩🇪",
+            Language::En => "🇬🇧",
+            Language::Es => "🇪🇸",
+            Language::Fr => "🇫🇷",
+            Language::Id => "🇮🇳",
+            Language::Jp => "🇯🇵",
+            Language::Kr => "🇰🇷",
+            Language::Pt => "🇵🇹",
+            Language::Ru => "🇷🇺",
+            Language::Th => "🇹🇭",
+            Language::Vi => "🇻🇳",
+        }
+        .to_string()
+    }
+}
+
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
