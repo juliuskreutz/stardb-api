@@ -31,5 +31,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/languages")]
 async fn get_languages() -> Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(Language::iter().collect::<Vec<_>>()))
+    Ok(HttpResponse::Ok().json(
+        Language::iter()
+            .map(|l| {
+                serde_json::json!({
+                    l.to_string(): l.get_flag()
+                })
+            })
+            .collect::<Vec<_>>(),
+    ))
 }
