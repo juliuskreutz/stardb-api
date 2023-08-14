@@ -58,7 +58,7 @@ enum Language {
 }
 
 impl Language {
-    pub fn get_flag(&self) -> &str {
+    pub fn get_flag(&self) -> String {
         match self {
             Language::Chs => "🇨🇳",
             Language::Cht => "🇨🇳",
@@ -74,6 +74,7 @@ impl Language {
             Language::Th => "🇹🇭",
             Language::Vi => "🇻🇳",
         }
+        .to_string()
     }
 }
 
