@@ -23,15 +23,6 @@ pub struct DbAchievement {
     pub percent: Option<f64>,
 }
 
-// SELECT
-//     *
-// FROM
-//     achievements
-// INNER JOIN
-//     achievements_languages
-// ON
-//     achievements_languages.id = id AND achievements_languages.language = $1;
-
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
@@ -87,7 +78,7 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
         INNER JOIN
             series_text
         ON
-            series = series.id AND series_text.language = $1
+            series = series_text.id AND series_text.language = $1
         ORDER BY
             series.priority DESC, series, priority DESC
         ",
