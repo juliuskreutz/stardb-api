@@ -1,14 +1,14 @@
-mod grouped;
 mod id;
 
 use std::{collections::HashMap, time::Duration};
 
 use actix_web::{get, rt, web, HttpResponse, Responder};
 use futures::lock::Mutex;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString, IntoEnumIterator};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
     api::LanguageParams,
@@ -25,6 +25,7 @@ use super::Language;
     components(schemas(
         Difficulty,
         Language,
+        Layout,
         Achievement
     ))
 )]
@@ -37,6 +38,20 @@ enum Difficulty {
     Easy,
     Medium,
     Hard,
+}
+
+#[derive(Default, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+enum Layout {
+    #[default]
+    Flat,
+    Grouped,
+}
+
+#[derive(Deserialize, IntoParams)]
+struct AchievementParams {
+    #[serde(default)]
+    layout: Layout,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -60,6 +75,22 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     set: Option<i32>,
     percent: f64,
+}
+
+#[derive(Default, Serialize, ToSchema)]
+struct Groups {
+    achievement_count: usize,
+    jade_count: i32,
+    user_count: i64,
+    series: Vec<AchivementsGrouped>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct AchivementsGrouped {
+    series: String,
+    achievement_count: usize,
+    jade_count: i32,
+    achievements: Vec<Vec<Achievement>>,
 }
 
 impl From<DbAchievement> for Achievement {
@@ -88,16 +119,17 @@ impl From<DbAchievement> for Achievement {
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
-    openapi.merge(grouped::openapi());
     openapi.merge(id::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     let achievements = web::Data::new(Mutex::new(HashMap::new()));
+    let groups = web::Data::new(Mutex::new(HashMap::new()));
 
     {
         let achievements = achievements.clone();
+        let groups = groups.clone();
         let pool = pool.clone();
 
         rt::spawn(async move {
@@ -108,35 +140,88 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
             loop {
                 timer.tick().await;
 
-                let _ = update(&achievements, &pool).await;
+                let _ = update(&achievements, &groups, &pool).await;
             }
         });
     }
 
     cfg.app_data(achievements)
+        .app_data(groups)
         .service(get_achievements)
-        .configure(|cfg| grouped::configure(cfg, pool))
         .configure(id::configure);
 }
 
 async fn update(
     achievements: &web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
+    groups: &web::Data<Mutex<HashMap<Language, Groups>>>,
     pool: &PgPool,
 ) -> Result<()> {
-    let mut map = HashMap::new();
+    let mut achievements_map = HashMap::new();
+    let mut groups_map = HashMap::new();
 
     for language in Language::iter() {
-        let achievements = database::get_achievements(&language.to_string(), pool)
-            .await?
-            .clone()
-            .into_iter()
-            .map(Achievement::from)
-            .collect();
+        let db_achievements = database::get_achievements(&language.to_string(), pool).await?;
 
-        map.insert(language, achievements);
+        achievements_map.insert(
+            language,
+            db_achievements
+                .clone()
+                .into_iter()
+                .map(Achievement::from)
+                .collect(),
+        );
+
+        let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
+        let mut groupings: HashMap<i32, usize> = HashMap::new();
+
+        for db_achievement in db_achievements {
+            let achievements = series
+                .entry(db_achievement.series_name.clone())
+                .or_default();
+
+            let achievement = Achievement::from(db_achievement);
+
+            if let Some(set) = achievement.set {
+                if let Some(&i) = groupings.get(&set) {
+                    achievements[i].push(achievement);
+                    continue;
+                }
+
+                groupings.insert(set, achievements.len());
+            }
+
+            achievements.push(vec![achievement]);
+        }
+
+        let series = series
+            .into_iter()
+            .map(|(series, achievements)| AchivementsGrouped {
+                series,
+                achievement_count: achievements.len(),
+                jade_count: achievements.iter().map(|a| a[0].jades).sum(),
+                achievements,
+            })
+            .collect::<Vec<_>>();
+
+        let (achievement_count, jade_count) =
+            series.iter().fold((0, 0), |(a_count, j_count), ag| {
+                (a_count + ag.achievements.len(), j_count + ag.jade_count)
+            });
+
+        let user_count = database::get_distinct_username_count(pool).await?;
+
+        let group = Groups {
+            achievement_count,
+            jade_count,
+            user_count,
+            series,
+        };
+
+        groups_map.insert(language, group);
     }
 
-    *achievements.lock().await = map;
+    *achievements.lock().await = achievements_map;
+    *groups.lock().await = groups_map;
 
     Ok(())
 }
@@ -145,7 +230,7 @@ async fn update(
     tag = "achievements",
     get,
     path = "/api/achievements",
-    params(LanguageParams),
+    params(LanguageParams, AchievementParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
@@ -153,9 +238,12 @@ async fn update(
 #[get("/api/achievements")]
 async fn get_achievements(
     language_params: web::Query<LanguageParams>,
+    achievement_params: web::Query<AchievementParams>,
     achievements: web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
+    groups: web::Data<Mutex<HashMap<Language, Groups>>>,
 ) -> Result<impl Responder> {
-    let achievements = &achievements.lock().await[&language_params.lang];
-
-    Ok(HttpResponse::Ok().json(achievements))
+    Ok(match achievement_params.layout {
+        Layout::Flat => HttpResponse::Ok().json(&achievements.lock().await[&language_params.lang]),
+        Layout::Grouped => HttpResponse::Ok().json(&groups.lock().await[&language_params.lang]),
+    })
 }

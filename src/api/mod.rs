@@ -25,7 +25,18 @@ struct LanguageParams {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Hash, Display, EnumString, EnumIter, Serialize, Deserialize, ToSchema,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    EnumString,
+    EnumIter,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Clone,
+    Copy,
 )]
 #[strum(serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]

@@ -139,7 +139,7 @@ pub async fn get_achievement_by_id(
         INNER JOIN
             series_text
         ON
-            series = series.id AND series_text.language = $2
+            series = series_text.id AND series_text.language = $2
         WHERE
             achievements.id = $1
         ",
