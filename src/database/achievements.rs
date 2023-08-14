@@ -6,9 +6,7 @@ use crate::Result;
 pub struct DbAchievement {
     pub id: i64,
     pub series: i32,
-    pub series_tag: String,
     pub series_name: String,
-    pub tag: String,
     pub name: String,
     pub description: String,
     pub jades: i32,
@@ -27,21 +25,19 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, tag, jades, hidden, priority)
+            achievements(id, series, jades, hidden, priority)
         VALUES
-            ($1, $2, $3, $4, $5, $6)
+            ($1, $2, $3, $4, $5)
         ON CONFLICT
             (id)
         DO UPDATE SET
         series = EXCLUDED.series,
-            tag = EXCLUDED.tag,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden,
             priority = EXCLUDED.priority
         ",
         achievement.id,
         achievement.series,
-        achievement.tag,
         achievement.jades,
         achievement.hidden,
         achievement.priority,
@@ -61,7 +57,6 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
             achievements_text.name,
             achievements_text.description,
             percent,
-            series.tag series_tag,
             series_text.name series_name
         FROM
             achievements
@@ -122,7 +117,6 @@ pub async fn get_achievement_by_id(
             achievements_text.name,
             achievements_text.description,
             percent,
-            series.tag series_tag,
             series_text.name series_name
         FROM
             achievements

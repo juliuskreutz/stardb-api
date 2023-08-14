@@ -25,7 +25,6 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct Series {
     id: i32,
-    tag: String,
     name: String,
 }
 
@@ -33,7 +32,6 @@ impl From<DbSeries> for Series {
     fn from(db_series: DbSeries) -> Self {
         Self {
             id: db_series.id,
-            tag: db_series.tag,
             name: db_series.name,
         }
     }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            series.tag series_tag,\n            series_text.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $2\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        INNER JOIN\n            series_text\n        ON\n            series = series_text.id AND series_text.language = $2\n        WHERE\n            achievements.id = $1\n        ",
+  "query": "SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            series_text.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $2\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        INNER JOIN\n            series_text\n        ON\n            series = series_text.id AND series_text.language = $2\n        WHERE\n            achievements.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -15,76 +15,66 @@
       },
       {
         "ordinal": 2,
-        "name": "tag",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 3,
         "name": "jades",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "hidden",
         "type_info": "Bool"
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "version",
         "type_info": "Text"
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "comment",
         "type_info": "Text"
       },
       {
-        "ordinal": 7,
+        "ordinal": 6,
         "name": "reference",
         "type_info": "Text"
       },
       {
-        "ordinal": 8,
+        "ordinal": 7,
         "name": "difficulty",
         "type_info": "Text"
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "gacha",
         "type_info": "Bool"
       },
       {
-        "ordinal": 10,
+        "ordinal": 9,
         "name": "set",
         "type_info": "Int4"
       },
       {
-        "ordinal": 11,
+        "ordinal": 10,
         "name": "priority",
         "type_info": "Int4"
       },
       {
-        "ordinal": 12,
+        "ordinal": 11,
         "name": "name",
         "type_info": "Text"
       },
       {
-        "ordinal": 13,
+        "ordinal": 12,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 14,
+        "ordinal": 13,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 15,
-        "name": "series_tag",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 16,
+        "ordinal": 14,
         "name": "series_name",
         "type_info": "Text"
       }
@@ -100,7 +90,6 @@
       false,
       false,
       false,
-      false,
       true,
       true,
       true,
@@ -111,9 +100,8 @@
       false,
       false,
       null,
-      false,
       false
     ]
   },
-  "hash": "b6abbd12b15dc23b14c2ff5aca0ee73390aa61d4dda51f0a6960dd43036cca04"
+  "hash": "2e9b93f277125501fa13ac063fb5cafea6038ce054ba0d8940be294461e41df6"
 }

@@ -12,25 +12,12 @@ use actix_web::{
     web::Data,
     App, HttpServer,
 };
-use convert_case::{Case, Casing};
 use futures::lock::Mutex;
 use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
-
-trait ToTag {
-    fn to_tag(&self) -> String;
-}
-
-impl<T: AsRef<str>> ToTag for T {
-    fn to_tag(&self) -> String {
-        self.as_ref()
-            .replace(|c: char| !c.is_alphanumeric(), " ")
-            .to_case(Case::Kebab)
-    }
-}
 
 #[actix_web::main]
 async fn main() -> Result<()> {
