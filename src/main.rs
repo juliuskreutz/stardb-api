@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
     sqlx::migrate!().run(&pool).await?;
 
+    update::community_tier_list(pool.clone()).await;
     update::dimbreath(pool.clone()).await;
     update::verifications(pool.clone()).await;
     update::scores().await;

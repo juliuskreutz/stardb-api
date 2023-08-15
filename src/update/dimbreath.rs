@@ -87,9 +87,7 @@ pub async fn dimbreath(pool: PgPool) {
         loop {
             interval.tick().await;
 
-            if let Err(e) = update(&pool).await {
-                println!("{e}");
-            }
+            let _ = update(&pool).await;
         }
     });
 }
