@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct DbScoreShield {

@@ -5,8 +5,8 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
+    api::ApiResult,
     database::{self, DbVerification},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -38,7 +38,7 @@ async fn put_verification(
     session: Session,
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

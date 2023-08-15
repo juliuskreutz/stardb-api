@@ -7,8 +7,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbVerification},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -56,7 +56,7 @@ impl From<DbVerification> for Verification {
     )
 )]
 #[get("/api/users/me/verifications")]
-async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

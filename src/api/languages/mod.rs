@@ -3,7 +3,7 @@ use serde::Serialize;
 use strum::IntoEnumIterator;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::Result;
+use crate::api::ApiResult;
 
 use super::Language;
 
@@ -40,7 +40,7 @@ struct LanguageName {
     )
 )]
 #[get("/api/languages")]
-async fn get_languages() -> Result<impl Responder> {
+async fn get_languages() -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().json(
         Language::iter()
             .map(|l| LanguageName {

@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbCharacter},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -68,7 +68,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_characters(
     character_params: web::Query<CharacterParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let db_characters = database::get_characters(
         character_params.element.as_deref(),
         character_params.path.as_deref(),

@@ -5,9 +5,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::heal::ScoreHeal,
+    api::{scores::heal::ScoreHeal, ApiResult},
     database::{self, DbScoreHeal},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -43,7 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/scores/heal/{uid}")]
-async fn get_score_heal(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_score_heal(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let score: ScoreHeal = database::get_score_heal_by_uid(*uid, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(score))
@@ -66,7 +65,7 @@ async fn put_score_heal(
     uid: web::Path<i64>,
     heal_update: web::Json<HealUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(admin)) = session.get::<bool>("admin") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

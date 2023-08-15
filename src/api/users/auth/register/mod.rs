@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbUser},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -54,7 +54,7 @@ async fn register(
     session: Session,
     user_register: web::Json<UserRegister>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let username = user_register.username.clone();
     let password = user_register.password.clone();
     let email = user_register.email.clone();

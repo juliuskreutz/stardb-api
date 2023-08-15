@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 pub struct DbUser {
     pub username: String,

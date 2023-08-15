@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbSeries},
-    Result,
 };
 
 use super::LanguageParams;
@@ -60,7 +60,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let series: Vec<_> = database::get_series(&language_param.lang.to_string(), &pool)
         .await?
         .into_iter()

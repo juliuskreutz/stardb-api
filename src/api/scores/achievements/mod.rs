@@ -7,9 +7,11 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::{Region, Scores, ScoresParams},
+    api::{
+        scores::{Region, Scores, ScoresParams},
+        ApiResult,
+    },
     database::{self, DbScoreAchievement},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -79,7 +81,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_scores_achievement(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let count_na =
         database::count_scores_achievement(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =

@@ -1,11 +1,12 @@
 use std::time::Duration;
 
 use actix_web::rt::{self, time};
+use anyhow::Result;
 use sqlx::PgPool;
 
 use crate::{
     database::{self, DbConnection},
-    mihomo, Result,
+    mihomo,
 };
 
 pub async fn verifications(pool: PgPool) {

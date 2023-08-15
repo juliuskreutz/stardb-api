@@ -3,8 +3,8 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{series::Series, LanguageParams},
-    database, Result,
+    api::{series::Series, ApiResult, LanguageParams},
+    database,
 };
 
 #[derive(OpenApi)]
@@ -33,7 +33,7 @@ async fn get_series(
     id: web::Path<i32>,
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let series = Series::from(
         database::get_series_by_id(*id, &language_param.lang.to_string(), &pool).await?,
     );

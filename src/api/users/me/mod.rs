@@ -9,7 +9,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::Result;
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -56,7 +56,7 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
-async fn get_me(session: Session) -> Result<impl Responder> {
+async fn get_me(session: Session) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

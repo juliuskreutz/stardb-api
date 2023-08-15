@@ -11,9 +11,8 @@ use strum::{Display, EnumString, IntoEnumIterator};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
-    api::LanguageParams,
+    api::{ApiResult, LanguageParams},
     database::{self, DbAchievement},
-    Result,
 };
 
 use super::Language;
@@ -155,7 +154,7 @@ async fn update(
     achievements: &web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
     groups: &web::Data<Mutex<HashMap<Language, Groups>>>,
     pool: &PgPool,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     let mut achievements_map = HashMap::new();
     let mut groups_map = HashMap::new();
 
@@ -241,7 +240,7 @@ async fn get_achievements(
     achievement_params: web::Query<AchievementParams>,
     achievements: web::Data<Mutex<HashMap<Language, Vec<Achievement>>>>,
     groups: web::Data<Mutex<HashMap<Language, Groups>>>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     Ok(match achievement_params.layout {
         Layout::Flat => HttpResponse::Ok().json(&achievements.lock().await[&language_params.lang]),
         Layout::Grouped => HttpResponse::Ok().json(&groups.lock().await[&language_params.lang]),

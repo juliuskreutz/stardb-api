@@ -4,7 +4,7 @@ use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 
-use crate::Result;
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -209,7 +209,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn post_free_jade_alert(
     session: Session,
     free_jade_alert: web::Json<FreeJadeAlert>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(admin)) = session.get::<bool>("admin") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

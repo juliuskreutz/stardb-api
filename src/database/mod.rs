@@ -7,6 +7,7 @@ mod mihomo;
 mod scores;
 mod series;
 mod series_text;
+mod sessions;
 mod users;
 mod verifications;
 
@@ -19,5 +20,6 @@ pub use mihomo::*;
 pub use scores::*;
 pub use series::*;
 pub use series_text::*;
+pub use sessions::*;
 pub use users::*;
 pub use verifications::*;

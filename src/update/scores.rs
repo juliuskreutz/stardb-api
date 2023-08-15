@@ -5,7 +5,7 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::Result;
+use anyhow::Result;
 
 #[derive(Deserialize)]
 struct Scores {

@@ -14,6 +14,8 @@ use sqlx::PgPool;
 use strum::{Display, EnumIter, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
+type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
+
 #[derive(OpenApi)]
 #[openapi(components(schemas(Language)))]
 struct ApiDoc;

@@ -1,13 +1,13 @@
 use std::{collections::HashMap, time::Duration};
 
 use actix_web::rt::{self, time};
+use anyhow::Result;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{
-    database::{self, DbAchievement, DbAchievementText, DbCharacter, DbSeries, DbSeriesText},
-    Result,
+use crate::database::{
+    self, DbAchievement, DbAchievementText, DbCharacter, DbSeries, DbSeriesText,
 };
 
 #[derive(Deserialize)]

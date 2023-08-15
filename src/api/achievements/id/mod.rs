@@ -9,8 +9,11 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::achievements::{Achievement, LanguageParams},
-    database, Result,
+    api::{
+        achievements::{Achievement, LanguageParams},
+        ApiResult,
+    },
+    database,
 };
 
 #[derive(OpenApi)]
@@ -50,7 +53,7 @@ async fn get_achievement(
     id: web::Path<i64>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let db_achievement =
         database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
 
