@@ -1,5 +1,6 @@
 mod achievements;
 mod characters;
+mod community_tier_list;
 mod free_jade_alert;
 mod import;
 mod languages;
@@ -84,6 +85,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
     openapi.merge(characters::openapi());
+    openapi.merge(community_tier_list::openapi());
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import::openapi());
     openapi.merge(languages::openapi());
@@ -97,6 +99,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.configure(|cfg| achievements::configure(cfg, pool))
         .configure(characters::configure)
+        .configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
         .configure(import::configure)
         .configure(languages::configure)

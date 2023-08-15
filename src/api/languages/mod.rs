@@ -36,7 +36,7 @@ struct LanguageName {
     get,
     path = "/api/languages",
     responses(
-        (status = 200, description = "[LanguageFlag]", body = Vec<LanguageFlag>),
+        (status = 200, description = "[LanguageName]", body = Vec<LanguageName>),
     )
 )]
 #[get("/api/languages")]
