@@ -76,10 +76,7 @@ async fn login(
         }
     };
 
-    let user = database::get_user_by_username(&username, &pool).await?;
-
-    session.insert("username", user.username)?;
-    session.insert("admin", user.admin)?;
+    session.insert("username", username)?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -2,9 +2,10 @@ use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -209,12 +210,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn post_free_jade_alert(
     session: Session,
     free_jade_alert: web::Json<FreeJadeAlert>,
+    pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

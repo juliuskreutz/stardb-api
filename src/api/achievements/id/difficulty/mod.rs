@@ -49,11 +49,14 @@ async fn put_achievement_difficulty(
     difficulty_update: web::Json<DifficultyUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
@@ -79,11 +82,14 @@ async fn delete_achievement_difficulty(
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

@@ -29,7 +29,7 @@ impl SessionStore for PgSessionStore {
 
         let db_session = database::get_session_by_uuid(uuid, &self.pool)
             .await
-            .map_err(LoadError::Other)?;
+            .map_err(LoadError::Deserialization)?;
 
         serde_json::from_value(db_session.value)
             .map(Some)
@@ -44,7 +44,7 @@ impl SessionStore for PgSessionStore {
     ) -> Result<SessionKey, SaveError> {
         let uuid = Uuid::new_v4();
 
-        let value = serde_json::to_value(session_state)
+        let value = serde_json::to_value(&session_state)
             .map_err(anyhow::Error::new)
             .map_err(SaveError::Serialization)?;
 
@@ -76,7 +76,7 @@ impl SessionStore for PgSessionStore {
             .map_err(anyhow::Error::new)
             .map_err(UpdateError::Other)?;
 
-        let value = serde_json::to_value(session_state)
+        let value = serde_json::to_value(&session_state)
             .map_err(anyhow::Error::new)
             .map_err(UpdateError::Serialization)?;
 

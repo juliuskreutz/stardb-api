@@ -87,13 +87,11 @@ async fn register(
             username,
             password,
             email,
-            admin: false,
         };
         database::set_user(&user, &pool).await?;
     }
 
     session.insert("username", username)?;
-    session.insert("admin", false)?;
 
     Ok(HttpResponse::Ok().finish())
 }

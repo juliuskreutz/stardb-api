@@ -2,14 +2,16 @@ mod achievements;
 mod email;
 mod password;
 mod uids;
+mod username;
 mod verifications;
 
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
+use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -27,6 +29,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(email::openapi());
     openapi.merge(password::openapi());
     openapi.merge(uids::openapi());
+    openapi.merge(username::openapi());
     openapi.merge(verifications::openapi());
     openapi
 }
@@ -37,6 +40,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(email::configure)
         .configure(password::configure)
         .configure(uids::configure)
+        .configure(username::configure)
         .configure(verifications::configure);
 }
 
@@ -56,14 +60,14 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
-async fn get_me(session: Session) -> ApiResult<impl Responder> {
+async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
+    let admin = database::get_admin_by_username(&username, &pool)
+        .await
+        .is_ok();
 
     let user = User { username, admin };
 

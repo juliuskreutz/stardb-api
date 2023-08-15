@@ -1,5 +1,6 @@
 mod achievements;
 mod achievements_text;
+mod admins;
 mod characters;
 mod completed;
 mod connections;
@@ -13,6 +14,7 @@ mod verifications;
 
 pub use achievements::*;
 pub use achievements_text::*;
+pub use admins::*;
 pub use characters::*;
 pub use completed::*;
 pub use connections::*;
