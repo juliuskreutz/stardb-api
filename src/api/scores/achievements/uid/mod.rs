@@ -2,7 +2,10 @@ use actix_web::{get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::scores::achievements::ScoreAchievement, database, Result};
+use crate::{
+    api::{scores::achievements::ScoreAchievement, ApiResult},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -32,7 +35,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
         .await?
         .into();
@@ -52,7 +55,7 @@ async fn get_score_achievement(
 async fn put_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     reqwest::Client::new()
         .put(format!("http://localhost:8000/api/mihomo/{uid}"))
         .send()

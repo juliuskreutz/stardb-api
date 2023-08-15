@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
 
-use crate::Result;
+use anyhow::Result;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct Mihomo {

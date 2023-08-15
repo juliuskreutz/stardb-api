@@ -5,9 +5,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::shield::ScoreShield,
+    api::{scores::shield::ScoreShield, ApiResult},
     database::{self, DbScoreShield},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -43,7 +42,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/scores/shield/{uid}")]
-async fn get_score_shield(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_score_shield(
+    uid: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
     let score: ScoreShield = database::get_score_shield_by_uid(*uid, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(score))
@@ -66,12 +68,15 @@ async fn put_score_shield(
     uid: web::Path<i64>,
     shield_update: web::Json<ShieldUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

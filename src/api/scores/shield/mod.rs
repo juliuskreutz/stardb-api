@@ -7,9 +7,11 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::{Scores, ScoresParams},
+    api::{
+        scores::{Scores, ScoresParams},
+        ApiResult,
+    },
     database::{self, DbScoreShield},
-    Result,
 };
 
 use super::Region;
@@ -82,11 +84,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_scores_shield(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let count_na = database::count_scores_shield(&Region::NA.to_string(), &pool).await?;
-    let count_eu = database::count_scores_shield(&Region::EU.to_string(), &pool).await?;
-    let count_asia = database::count_scores_shield(&Region::Asia.to_string(), &pool).await?;
-    let count_cn = database::count_scores_shield(&Region::CN.to_string(), &pool).await?;
+) -> ApiResult<impl Responder> {
+    let count_na =
+        database::count_scores_shield(Some(&Region::NA.to_string()), None, &pool).await?;
+    let count_eu =
+        database::count_scores_shield(Some(&Region::EU.to_string()), None, &pool).await?;
+    let count_asia =
+        database::count_scores_shield(Some(&Region::Asia.to_string()), None, &pool).await?;
+    let count_cn =
+        database::count_scores_shield(Some(&Region::CN.to_string()), None, &pool).await?;
+    let count_query = database::count_scores_shield(
+        scores_params.region.map(|r| r.to_string()).as_deref(),
+        scores_params.query.as_deref(),
+        &pool,
+    )
+    .await?;
 
     let count = count_na + count_eu + count_asia + count_cn;
 
@@ -110,6 +122,7 @@ async fn get_scores_shield(
         count_eu,
         count_asia,
         count_cn,
+        count_query,
         scores,
     };
 

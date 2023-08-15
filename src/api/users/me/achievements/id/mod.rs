@@ -4,8 +4,8 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
+    api::ApiResult,
     database::{self, DbComplete},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -38,7 +38,7 @@ async fn put_user_achievement(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -66,7 +66,7 @@ async fn delete_user_achievement(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

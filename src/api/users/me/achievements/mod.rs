@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
+    api::ApiResult,
     database::{self, DbComplete},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -42,7 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_user_achievements(
     session: Session,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -71,7 +71,7 @@ async fn put_user_achievements(
     session: Session,
     ids: web::Json<Vec<i64>>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbCharacter},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -23,7 +23,6 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct Character {
     id: i32,
-    tag: String,
     name: String,
     element: String,
     path: String,
@@ -39,7 +38,6 @@ impl From<DbCharacter> for Character {
     fn from(db_character: DbCharacter) -> Self {
         Character {
             id: db_character.id,
-            tag: db_character.tag,
             name: db_character.name,
             element: db_character.element,
             path: db_character.path,
@@ -70,7 +68,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_characters(
     character_params: web::Query<CharacterParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let db_characters = database::get_characters(
         character_params.element.as_deref(),
         character_params.path.as_deref(),

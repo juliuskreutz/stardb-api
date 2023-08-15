@@ -4,7 +4,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -36,7 +36,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/email")]
-async fn get_email(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -66,7 +66,7 @@ async fn put_email(
     session: Session,
     email_update: web::Json<EmailUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -86,7 +86,7 @@ async fn put_email(
     )
 )]
 #[delete("/api/users/me/email")]
-async fn delete_email(session: Session, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn delete_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            series.id,\n            series_text.name,\n            series.priority\n        FROM\n            series\n        INNER JOIN\n            series_text\n        ON\n            series_text.id = series.id AND series_text.language = $1\n        ORDER BY\n            priority DESC, series.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "priority",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "de104be00e25fc6264f7f006cad1d5f411b95708e07b961c53a00d5be84800d8"
+}

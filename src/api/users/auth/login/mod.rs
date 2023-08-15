@@ -1,13 +1,14 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
+use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -51,9 +52,9 @@ pub enum UserLogin {
 async fn login(
     session: Session,
     user_login: web::Json<UserLogin>,
-    password_resets: web::Data<Mutex<HashMap<Uuid, String>>>,
+    tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let username = match &*user_login {
         UserLogin::UsernamePassword { username, password } => {
             let Ok(user) = database::get_user_by_username(username, &pool).await else {
@@ -67,11 +68,7 @@ async fn login(
             username.clone()
         }
         UserLogin::Token { token } => {
-            let Some(username) = password_resets
-                .lock()
-                .map_err(|_| "lock broken")?
-                .remove(&token.parse()?)
-            else {
+            let Some(username) = tokens.lock().await.remove(&token.parse()?) else {
                 return Ok(HttpResponse::BadRequest().finish());
             };
 
@@ -79,10 +76,7 @@ async fn login(
         }
     };
 
-    let user = database::get_user_by_username(&username, &pool).await?;
-
-    session.insert("username", user.username)?;
-    session.insert("admin", user.admin)?;
+    session.insert("username", username)?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS sessions (
+    uuid UUID NOT NULL PRIMARY KEY,
+    value JSON NOT NULL,
+    expiry TIMESTAMP NOT NULL
+);

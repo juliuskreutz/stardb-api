@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS admins (
+    username TEXT PRIMARY KEY NOT NULL REFERENCES users
+);
+
+ALTER TABLE users DROP COLUMN admin;

@@ -8,7 +8,13 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::achievements::Achievement, database, Result};
+use crate::{
+    api::{
+        achievements::{Achievement, LanguageParams},
+        ApiResult,
+    },
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(tags((name = "achievements/{id}")), paths(get_achievement))]
@@ -37,20 +43,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "achievements/{id}",
     get,
     path = "/api/achievements/{id}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Achievement", body = Achievement),
     )
 )]
 #[get("/api/achievements/{id}")]
-async fn get_achievement(id: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
-    let db_achievement = database::get_achievement_by_id(*id, &pool).await?;
-    let set = db_achievement.set;
+async fn get_achievement(
+    id: web::Path<i64>,
+    language_params: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let db_achievement =
+        database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
 
-    let mut achievement = Achievement::from(db_achievement);
-
-    if let Some(set) = set {
-        achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
-    };
+    let achievement = Achievement::from(db_achievement);
 
     Ok(HttpResponse::Ok().json(achievement))
 }

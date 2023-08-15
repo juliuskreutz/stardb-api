@@ -5,9 +5,11 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::damage::{DamageParams, ScoreDamage},
+    api::{
+        scores::damage::{DamageParams, ScoreDamage},
+        ApiResult,
+    },
     database::{self, DbScoreDamage},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -52,7 +54,7 @@ async fn get_score_damage(
     uid: web::Path<i64>,
     damage_params: web::Query<DamageParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let score: ScoreDamage = database::get_score_damage_by_uid(
         *uid,
         damage_params.character,
@@ -82,12 +84,15 @@ async fn put_score_damage(
     uid: web::Path<i64>,
     damage_update: web::Json<DamageUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

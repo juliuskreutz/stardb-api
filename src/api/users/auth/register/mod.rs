@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbUser},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -54,7 +54,7 @@ async fn register(
     session: Session,
     user_register: web::Json<UserRegister>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let username = user_register.username.clone();
     let password = user_register.password.clone();
     let email = user_register.email.clone();
@@ -75,7 +75,11 @@ async fn register(
 
     let salt = rand::thread_rng().gen::<[u8; 32]>();
 
-    let password = argon2::hash_encoded(password.as_bytes(), &salt, &argon2::Config::default())?;
+    let password = argon2::hash_encoded(
+        password.as_bytes(),
+        &salt,
+        &argon2::Config::rfc9106_low_mem(),
+    )?;
 
     {
         let username = username.clone();
@@ -83,13 +87,11 @@ async fn register(
             username,
             password,
             email,
-            admin: false,
         };
         database::set_user(&user, &pool).await?;
     }
 
     session.insert("username", username)?;
-    session.insert("admin", false)?;
 
     Ok(HttpResponse::Ok().finish())
 }

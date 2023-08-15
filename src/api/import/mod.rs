@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
+    api::ApiResult,
     database::{self, DbComplete},
-    Result,
 };
 
 #[derive(OpenApi)]
@@ -59,7 +59,7 @@ async fn import(
     session: Session,
     file: MultipartForm<File>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

@@ -1,69 +1,58 @@
 mod api;
 mod database;
 mod mihomo;
+mod pg_session_store;
 mod update;
 
-use std::{collections::HashMap, fs, sync::Mutex};
+use std::{collections::HashMap, fs};
 
 use actix_files::Files;
-use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
+use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
     cookie::{time::Duration, Key},
     web::Data,
     App, HttpServer,
 };
-use convert_case::{Case, Casing};
+use futures::lock::Mutex;
 use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
-type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
-
-trait ToTag {
-    fn to_tag(&self) -> String;
-}
-
-impl<T: AsRef<str>> ToTag for T {
-    fn to_tag(&self) -> String {
-        self.as_ref()
-            .replace(|c: char| !c.is_alphanumeric(), " ")
-            .to_case(Case::Kebab)
-    }
-}
+use pg_session_store::PgSessionStore;
 
 #[actix_web::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
+
     dotenv::dotenv()?;
 
     let _ = fs::create_dir("mihomo");
 
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
-
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements(pool.clone()).await;
+    update::dimbreath(pool.clone()).await;
     update::verifications(pool.clone()).await;
     update::scores().await;
 
-    let password_resets = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
-    let pool = Data::new(pool);
+    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
+    let pool_data = Data::new(pool.clone());
 
-    let key = Key::generate();
+    let key = Key::from(&std::fs::read("session_key")?);
 
     let openapi = api::openapi();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(password_resets.clone())
-            .app_data(pool.clone())
+            .app_data(tokens_data.clone())
+            .app_data(pool_data.clone())
             .wrap(if cfg!(debug_assertions) {
-                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .cookie_secure(false)
                     .build()
             } else {
-                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .build()
             })
@@ -71,7 +60,7 @@ async fn main() -> Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(api::configure)
+            .configure(|cfg| api::configure(cfg, pool.clone()))
     })
     .bind(("localhost", 8000))?
     .run()

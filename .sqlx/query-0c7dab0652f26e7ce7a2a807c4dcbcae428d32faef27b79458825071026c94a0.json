@@ -10,21 +10,16 @@
       },
       {
         "ordinal": 1,
-        "name": "tag",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 2,
         "name": "name",
         "type_info": "Text"
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "element",
         "type_info": "Text"
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "path",
         "type_info": "Text"
       }
@@ -36,7 +31,6 @@
       ]
     },
     "nullable": [
-      false,
       false,
       false,
       false,

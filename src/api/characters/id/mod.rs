@@ -2,7 +2,10 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::characters::Character, database, Result};
+use crate::{
+    api::{characters::Character, ApiResult},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -28,7 +31,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/characters/{id}")]
-async fn get_character(id: web::Path<i32>, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn get_character(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let character: Character = database::get_character_by_id(*id, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(character))

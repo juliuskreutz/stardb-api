@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 #[derive(Default)]
 pub struct DbScoreShield {
@@ -85,10 +85,15 @@ pub async fn get_scores_shield(
     .await?)
 }
 
-pub async fn count_scores_shield(region: &str, pool: &PgPool) -> Result<i64> {
+pub async fn count_scores_shield(
+    region: Option<&str>,
+    query: Option<&str>,
+    pool: &PgPool,
+) -> Result<i64> {
     Ok(sqlx::query!(
-        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN mihomo WHERE region = $1",
+        "SELECT COUNT(*) as count FROM scores_shield NATURAL JOIN mihomo WHERE ($1::TEXT IS NULL OR region = $1) AND ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')",
         region,
+        query,
     )
     .fetch_one(pool)
     .await?

@@ -1,13 +1,12 @@
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
+#[derive(Clone)]
 pub struct DbAchievement {
     pub id: i64,
     pub series: i32,
-    pub series_tag: String,
     pub series_name: String,
-    pub tag: String,
     pub name: String,
     pub description: String,
     pub jades: i32,
@@ -26,25 +25,19 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     sqlx::query!(
         "
         INSERT INTO
-            achievements(id, series, tag, name, description, jades, hidden, priority)
+            achievements(id, series, jades, hidden, priority)
         VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8)
+            ($1, $2, $3, $4, $5)
         ON CONFLICT
             (id)
         DO UPDATE SET
         series = EXCLUDED.series,
-            tag = EXCLUDED.tag,
-            name = EXCLUDED.name,
-            description = EXCLUDED.description,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden,
             priority = EXCLUDED.priority
         ",
         achievement.id,
         achievement.series,
-        achievement.tag,
-        achievement.name,
-        achievement.description,
         achievement.jades,
         achievement.hidden,
         achievement.priority,
@@ -55,48 +48,36 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn get_achievements(
-    series: Option<i32>,
-    series_tag: Option<&str>,
-    hidden: Option<bool>,
-    version: Option<&str>,
-    gacha: Option<bool>,
-    pool: &PgPool,
-) -> Result<Vec<DbAchievement>> {
+pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAchievement>> {
     Ok(sqlx::query_as!(
         DbAchievement,
         "
         SELECT
             achievements.*,
+            achievements_text.name,
+            achievements_text.description,
             percent,
-            series.tag series_tag,
-            series.name series_name
+            series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
         INNER JOIN
+            achievements_text
+        ON
+            achievements.id = achievements_text.id AND achievements_text.language = $1
+        INNER JOIN
             series
         ON
             series = series.id
-        WHERE
-            ($1::INT4 IS NULL OR series = $1)
-        AND
-            ($2::TEXT IS NULL OR series.tag = $2)
-        AND
-            ($3::BOOLEAN IS NULL OR hidden = $3)
-        AND
-            ($4::TEXT IS NULL OR version = $4)
-        AND
-            ($5::BOOLEAN IS NULL OR gacha = $5)
+        INNER JOIN
+            series_text
+        ON
+            series = series_text.id AND series_text.language = $1
         ORDER BY
-            series.priority DESC, series, priority DESC
+            series.priority DESC, series, priority DESC, id
         ",
-        series,
-        series_tag,
-        hidden,
-        version,
-        gacha,
+        language
     )
     .fetch_all(pool)
     .await?)
@@ -124,26 +105,40 @@ pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
     .collect())
 }
 
-pub async fn get_achievement_by_id(id: i64, pool: &PgPool) -> Result<DbAchievement> {
+pub async fn get_achievement_by_id(
+    id: i64,
+    language: &str,
+    pool: &PgPool,
+) -> Result<DbAchievement> {
     Ok(sqlx::query_as!(
         DbAchievement,
         "SELECT
             achievements.*,
+            achievements_text.name,
+            achievements_text.description,
             percent,
-            series.tag series_tag,
-            series.name series_name
+            series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
             (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
         INNER JOIN
+            achievements_text
+        ON
+            achievements.id = achievements_text.id AND achievements_text.language = $2
+        INNER JOIN
             series
         ON
             series = series.id
+        INNER JOIN
+            series_text
+        ON
+            series = series_text.id AND series_text.language = $2
         WHERE
             achievements.id = $1
         ",
-        id
+        id,
+        language,
     )
     .fetch_one(pool)
     .await?)
