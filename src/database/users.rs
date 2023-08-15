@@ -1,12 +1,11 @@
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 pub struct DbUser {
     pub username: String,
     pub password: String,
     pub email: Option<String>,
-    pub admin: bool,
 }
 
 pub async fn set_user(user: &DbUser, pool: &PgPool) -> Result<()> {

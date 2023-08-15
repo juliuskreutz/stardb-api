@@ -4,7 +4,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -45,12 +45,15 @@ async fn put_achievement_reference(
     id: web::Path<i64>,
     reference_update: web::Json<ReferenceUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
@@ -74,12 +77,15 @@ async fn delete_achievement_reference(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
-    let Ok(Some(admin)) = session.get::<bool>("admin") else {
+) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !admin {
+    if database::get_admin_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

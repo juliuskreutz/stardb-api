@@ -7,9 +7,11 @@ use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
-    api::scores::{Scores, ScoresParams},
+    api::{
+        scores::{Scores, ScoresParams},
+        ApiResult,
+    },
     database::{self, DbScoreDamage},
-    Result,
 };
 
 use super::Region;
@@ -94,7 +96,7 @@ async fn get_scores_damage(
     damage_params: web::Query<DamageParams>,
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let count_na =
         database::count_scores_damage(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =

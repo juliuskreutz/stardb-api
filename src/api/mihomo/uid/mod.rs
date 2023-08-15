@@ -8,8 +8,9 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
+    api::ApiResult,
     database::{self, DbMihomo, DbScoreAchievement},
-    mihomo, Result,
+    mihomo,
 };
 
 #[derive(OpenApi)]
@@ -36,7 +37,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/mihomo/{uid}")]
-async fn get_mihomo(uid: web::Path<i64>) -> Result<impl Responder> {
+async fn get_mihomo(uid: web::Path<i64>) -> ApiResult<impl Responder> {
     let path = format!("mihomo/{uid}.json");
 
     if !PathBuf::from(&path).exists() {
@@ -60,7 +61,7 @@ async fn get_mihomo(uid: web::Path<i64>) -> Result<impl Responder> {
     )
 )]
 #[put("/api/mihomo/{uid}")]
-async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> Result<impl Responder> {
+async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let now = Utc::now().naive_utc();
 
     let uid = *uid;

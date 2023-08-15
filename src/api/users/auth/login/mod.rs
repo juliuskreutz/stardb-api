@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -54,7 +54,7 @@ async fn login(
     user_login: web::Json<UserLogin>,
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let username = match &*user_login {
         UserLogin::UsernamePassword { username, password } => {
             let Ok(user) = database::get_user_by_username(username, &pool).await else {
@@ -76,10 +76,7 @@ async fn login(
         }
     };
 
-    let user = database::get_user_by_username(&username, &pool).await?;
-
-    session.insert("username", user.username)?;
-    session.insert("admin", user.admin)?;
+    session.insert("username", username)?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -7,9 +7,11 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::scores::{Scores, ScoresParams},
+    api::{
+        scores::{Scores, ScoresParams},
+        ApiResult,
+    },
     database::{self, DbScoreShield},
-    Result,
 };
 
 use super::Region;
@@ -82,7 +84,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 async fn get_scores_shield(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let count_na =
         database::count_scores_shield(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =

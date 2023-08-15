@@ -17,11 +17,6 @@
         "ordinal": 2,
         "name": "email",
         "type_info": "Text"
-      },
-      {
-        "ordinal": 3,
-        "name": "admin",
-        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -32,8 +27,7 @@
     "nullable": [
       false,
       false,
-      true,
-      false
+      true
     ]
   },
   "hash": "606364c79e0990deb07dfbe6c32b3d302d083ec5333f3a5ce04113c38a041100"

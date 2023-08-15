@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 pub struct DbSeriesText {
     pub id: i32,

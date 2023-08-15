@@ -3,7 +3,7 @@ use serde::Serialize;
 use strum::IntoEnumIterator;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::Result;
+use crate::api::ApiResult;
 
 use super::Language;
 
@@ -12,7 +12,7 @@ use super::Language;
     tags((name = "languages")),
     paths(get_languages),
     components(schemas(
-        LanguageFlag
+        LanguageName
     ))
 )]
 struct ApiDoc;
@@ -26,9 +26,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Serialize, ToSchema)]
-struct LanguageFlag {
+struct LanguageName {
     id: Language,
-    flag: String,
+    name: String,
 }
 
 #[utoipa::path(
@@ -40,12 +40,12 @@ struct LanguageFlag {
     )
 )]
 #[get("/api/languages")]
-async fn get_languages() -> Result<impl Responder> {
+async fn get_languages() -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().json(
         Language::iter()
-            .map(|l| LanguageFlag {
+            .map(|l| LanguageName {
                 id: l,
-                flag: l.get_flag(),
+                name: l.name(),
             })
             .collect::<Vec<_>>(),
     ))

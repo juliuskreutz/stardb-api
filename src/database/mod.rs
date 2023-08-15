@@ -1,5 +1,6 @@
 mod achievements;
 mod achievements_text;
+mod admins;
 mod characters;
 mod completed;
 mod connections;
@@ -7,11 +8,13 @@ mod mihomo;
 mod scores;
 mod series;
 mod series_text;
+mod sessions;
 mod users;
 mod verifications;
 
 pub use achievements::*;
 pub use achievements_text::*;
+pub use admins::*;
 pub use characters::*;
 pub use completed::*;
 pub use connections::*;
@@ -19,5 +22,6 @@ pub use mihomo::*;
 pub use scores::*;
 pub use series::*;
 pub use series_text::*;
+pub use sessions::*;
 pub use users::*;
 pub use verifications::*;

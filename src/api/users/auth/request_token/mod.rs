@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -46,7 +46,7 @@ async fn request_token(
     request_token: web::Json<RequestToken>,
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     {
         if tokens
             .lock()
@@ -72,8 +72,8 @@ async fn request_token(
     let email = Message::builder()
         .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
         .to(to)
-        .subject("Stardb Password Reset")
-        .body(format!("https://stardb.gg/login?token={token}"))?;
+        .subject("StarDB.GG Emergency Login")
+        .body(format!("Click -> https://stardb.gg/login?token={token}"))?;
 
     let credentials =
         Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
@@ -90,8 +90,6 @@ async fn request_token(
         rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
         tokens.lock().await.remove(&token);
-
-        Result::<()>::Ok(())
     });
 
     Ok(HttpResponse::Ok().finish())

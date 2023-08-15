@@ -1,12 +1,13 @@
 mod api;
 mod database;
 mod mihomo;
+mod pg_session_store;
 mod update;
 
 use std::{collections::HashMap, fs};
 
 use actix_files::Files;
-use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
+use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
     cookie::{time::Duration, Key},
     web::Data,
@@ -17,10 +18,10 @@ use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
-type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
+use pg_session_store::PgSessionStore;
 
 #[actix_web::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     dotenv::dotenv()?;
@@ -37,7 +38,7 @@ async fn main() -> Result<()> {
     let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
     let pool_data = Data::new(pool.clone());
 
-    let key = Key::generate();
+    let key = Key::from(&std::fs::read("session_key")?);
 
     let openapi = api::openapi();
 
@@ -46,12 +47,12 @@ async fn main() -> Result<()> {
             .app_data(tokens_data.clone())
             .app_data(pool_data.clone())
             .wrap(if cfg!(debug_assertions) {
-                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .cookie_secure(false)
                     .build()
             } else {
-                SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .build()
             })

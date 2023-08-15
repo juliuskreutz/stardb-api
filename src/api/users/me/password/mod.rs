@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{database, Result};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -45,7 +45,7 @@ async fn put_password(
     session: Session,
     password_update: web::Json<PasswordUpdate>,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder> {
+) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

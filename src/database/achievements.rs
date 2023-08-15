@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::Result;
+use anyhow::Result;
 
 #[derive(Clone)]
 pub struct DbAchievement {
