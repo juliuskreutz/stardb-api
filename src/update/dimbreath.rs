@@ -1,4 +1,7 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use actix_web::rt::{self, time};
 use anyhow::Result;
@@ -87,7 +90,19 @@ pub async fn dimbreath(pool: PgPool) {
         loop {
             interval.tick().await;
 
-            let _ = update(&pool).await;
+            let start = Instant::now();
+
+            if let Err(e) = update(&pool).await {
+                log::error!(
+                    "Dimbreath update failed with {e} in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            } else {
+                log::info!(
+                    "Dimbreath update succeeded in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            }
         }
     });
 }

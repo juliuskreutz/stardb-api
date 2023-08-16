@@ -1,6 +1,9 @@
 mod id;
 
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use actix_web::{get, rt, web, HttpResponse, Responder};
 use futures::lock::Mutex;
@@ -139,7 +142,19 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
             loop {
                 timer.tick().await;
 
-                let _ = update(&achievements, &groups, &pool).await;
+                let start = Instant::now();
+
+                if let Err(e) = update(&achievements, &groups, &pool).await {
+                    log::error!(
+                        "Achievements update failed with {e} in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                } else {
+                    log::info!(
+                        "Achievements update succeeded in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                }
             }
         });
     }
