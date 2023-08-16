@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM characters WHERE id = $1",
+  "query": "\n        SELECT\n            characters.*,\n            characters_text.name,\n            characters_text.element,\n            characters_text.path\n        FROM\n            characters\n        INNER JOIN\n            characters_text\n        ON\n            characters.id = characters_text.id AND characters_text.language = $2\n        WHERE\n            characters.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -26,7 +26,8 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Int4",
+        "Text"
       ]
     },
     "nullable": [
@@ -36,5 +37,5 @@
       false
     ]
   },
-  "hash": "6765194e62a40c9d38e6f0cde1b028f4784ccd455e56261c1cdb2cebdac12fb9"
+  "hash": "80fd74afd5558c2cfea62f579e3a8b59b4c11ca33cbf6888f8c72fb5c3e24440"
 }
