@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use actix_web::rt::{self, time};
 use anyhow::Result;
@@ -47,7 +47,19 @@ pub async fn community_tier_list(pool: PgPool) {
         loop {
             interval.tick().await;
 
-            let _ = update(&pool).await;
+            let start = Instant::now();
+
+            if let Err(e) = update(&pool).await {
+                log::error!(
+                    "Community Tier List update failed with {e} in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            } else {
+                log::info!(
+                    "Community Tier List update succeeded in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            }
         }
     });
 }

@@ -1,11 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use actix_web::rt;
+use anyhow::Result;
 use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-
-use anyhow::Result;
 
 #[derive(Deserialize)]
 struct Scores {
@@ -20,7 +19,19 @@ struct Score {
 pub async fn scores() {
     rt::spawn(async {
         loop {
-            let _ = update().await;
+            let start = Instant::now();
+
+            if let Err(e) = update().await {
+                log::error!(
+                    "Scores update failed with {e} in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            } else {
+                log::info!(
+                    "Scores update succeeded in {}s",
+                    start.elapsed().as_secs_f64()
+                );
+            }
         }
     });
 }

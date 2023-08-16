@@ -4,7 +4,10 @@ mod mihomo;
 mod pg_session_store;
 mod update;
 
-use std::{collections::HashMap, fs};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+};
 
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
@@ -22,9 +25,15 @@ use pg_session_store::PgSessionStore;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
-
     dotenv::dotenv()?;
+
+    env_logger::Builder::from_default_env()
+        .target(env_logger::Target::Pipe(Box::new(
+            File::options().append(true).create(true).open("log.log")?,
+        )))
+        .init();
+
+    log::info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
 
