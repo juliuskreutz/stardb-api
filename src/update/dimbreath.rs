@@ -10,7 +10,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::database::{
-    self, DbAchievement, DbAchievementText, DbCharacter, DbSeries, DbSeriesText,
+    self, DbAchievement, DbAchievementText, DbCharacter, DbCharacterText, DbSeries, DbSeriesText,
 };
 
 #[derive(Deserialize)]
@@ -73,8 +73,14 @@ struct AvatarConfig {
 
 #[derive(Deserialize)]
 struct AvatarBaseType {
-    #[serde(rename = "FirstWordText")]
-    path: String,
+    #[serde(rename = "BaseTypeText")]
+    text: TextHash,
+}
+
+#[derive(Deserialize)]
+struct DamageType {
+    #[serde(rename = "DamageTypeName")]
+    name: TextHash,
 }
 
 #[derive(Deserialize)]
@@ -138,6 +144,28 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
+    let mut avatar_config: HashMap<String, AvatarConfig> =
+        reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
+            .await?
+            .json()
+            .await?;
+    // Second physical traiblazer
+    avatar_config.remove("8002");
+    // Second fire traiblazer
+    avatar_config.remove("8004");
+
+    let avatar_base_type: HashMap<String, AvatarBaseType> =
+        reqwest::get(&format!("{url}ExcelOutput/AvatarBaseType.json"))
+            .await?
+            .json()
+            .await?;
+
+    let damage_type: HashMap<String, DamageType> =
+        reqwest::get(&format!("{url}ExcelOutput/DamageType.json"))
+            .await?
+            .json()
+            .await?;
+
     for series in achievement_series.values() {
         let id = series.id;
 
@@ -185,6 +213,19 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_achievement(&db_achievement, pool).await?;
     }
 
+    for avatar_config in avatar_config.values() {
+        let id = avatar_config.id;
+
+        let db_character = DbCharacter {
+            id,
+            name: String::new(),
+            element: String::new(),
+            path: String::new(),
+        };
+
+        database::set_character(&db_character, pool).await?;
+    }
+
     for language in languages {
         let text_map: HashMap<String, String> =
             reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
@@ -227,8 +268,8 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let re = Regex::new(r"#(\d+)\[i\](%?)")?;
-            let description = re
+            let param_re = Regex::new(r"#(\d+)\[i\](%?)")?;
+            let description = param_re
                 .replace_all(
                     &text_map[&achievement_data.description.hash.to_string()],
                     |c: &Captures| {
@@ -257,51 +298,45 @@ async fn update(pool: &PgPool) -> Result<()> {
 
             database::set_achievement_text(&db_achievement_text, pool).await?;
         }
-    }
 
-    let text_map: HashMap<String, String> = reqwest::get(&format!("{url}TextMap/TextMapEN.json"))
-        .await?
-        .json()
-        .await?;
+        for avatar_config in avatar_config.values() {
+            let element =
+                text_map[&damage_type[&avatar_config.element].name.hash.to_string()].clone();
 
-    let avatar_config: HashMap<String, AvatarConfig> =
-        reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
-            .await?
-            .json()
-            .await?;
+            let name = match avatar_config.id {
+                8001 | 8003 => {
+                    //-2090701432 = Trailblazer
+                    let trail_blazer = text_map["-2090701432"].clone();
 
-    let avatar_base_type: HashMap<String, AvatarBaseType> =
-        reqwest::get(&format!("{url}ExcelOutput/AvatarBaseType.json"))
-            .await?
-            .json()
-            .await?;
+                    format!("{trail_blazer}\u{00A0}•\u{00A0}{element}")
+                }
+                _ => text_map[&avatar_config.name.hash.to_string()].clone(),
+            };
 
-    for avatar_config in avatar_config.values() {
-        // /api/characters always uses EN text
-        let mut name = text_map[&avatar_config.name.hash.to_string()].clone();
+            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+            let name = gender_re
+                .replace_all(&name, |c: &Captures| {
+                    c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                })
+                .to_string();
 
-        if name == "{NICKNAME}" {
-            if avatar_config.id == 8001 {
-                name = "Trailblazer\u{00A0}•\u{00A0}Physical".to_string();
-            } else if avatar_config.id == 8003 {
-                name = "Trailblazer\u{00A0}•\u{00A0}Fire".to_string();
-            } else {
-                continue;
-            }
+            let id = avatar_config.id;
+            let path = text_map[&avatar_base_type[&avatar_config.base_type]
+                .text
+                .hash
+                .to_string()]
+                .clone();
+
+            let db_character_text = DbCharacterText {
+                id,
+                language: language.to_lowercase(),
+                name,
+                element,
+                path,
+            };
+
+            database::set_character_text(&db_character_text, pool).await?;
         }
-
-        let id = avatar_config.id;
-        let element = avatar_config.element.clone();
-        let path = avatar_base_type[&avatar_config.base_type].path.clone();
-
-        let db_character = DbCharacter {
-            id,
-            name,
-            element,
-            path,
-        };
-
-        database::set_character(&db_character, pool).await?;
     }
 
     Ok(())

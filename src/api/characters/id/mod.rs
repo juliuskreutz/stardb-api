@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{characters::Character, ApiResult},
+    api::{characters::Character, ApiResult, LanguageParams},
     database,
 };
 
@@ -26,13 +26,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "characters/{id}",
     get,
     path = "/api/characters/{id}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Character", body = Character),
     )
 )]
 #[get("/api/characters/{id}")]
-async fn get_character(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let character: Character = database::get_character_by_id(*id, &pool).await?.into();
+async fn get_character(
+    id: web::Path<i32>,
+    language_params: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let character: Character =
+        database::get_character_by_id(*id, &language_params.lang.to_string(), &pool)
+            .await?
+            .into();
 
     Ok(HttpResponse::Ok().json(character))
 }

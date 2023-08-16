@@ -8,6 +8,8 @@ use crate::{
     database::{self, DbCommunityTierListEntry},
 };
 
+use super::LanguageParams;
+
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "community-tier-list")),
@@ -57,13 +59,18 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "community-tier-list",
     get,
     path = "/api/community-tier-list",
+    params(LanguageParams),
     responses(
         (status = 200, description = "[CommunityTierListEntry]", body = Vec<CommunityTierListEntry>),
     )
 )]
 #[get("/api/community-tier-list")]
-async fn get_community_tier_list_entries(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let db_community_tier_list_entries = database::get_community_tier_list_entries(&pool).await?;
+async fn get_community_tier_list_entries(
+    language_params: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let db_community_tier_list_entries =
+        database::get_community_tier_list_entries(&language_params.lang.to_string(), &pool).await?;
 
     let community_tier_list_entries: Vec<_> = db_community_tier_list_entries
         .into_iter()

@@ -65,7 +65,7 @@ pub async fn community_tier_list(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={}&includeGridData=true&ranges=Stats!B2:F31&prettyPrint=true", dotenv::var("GOOGLE_API_KEY")?)).await?.json().await?;
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={}&includeGridData=true&ranges=Stats!B2:F31", dotenv::var("GOOGLE_API_KEY")?)).await?.json().await?;
 
     for row_data in &spreadsheet.sheets[0].data[0].row_data {
         let character = row_data.values[0].effective_value.number_value as i32;

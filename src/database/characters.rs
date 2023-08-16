@@ -1,6 +1,5 @@
-use sqlx::PgPool;
-
 use anyhow::Result;
+use sqlx::PgPool;
 
 pub struct DbCharacter {
     pub id: i32,
@@ -13,20 +12,12 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
     sqlx::query!(
         "
         INSERT INTO
-            characters(id, name, element, path)
+            characters(id)
         VALUES
-            ($1, $2, $3, $4)
-        ON CONFLICT
-            (id)
-        DO UPDATE SET
-            name = EXCLUDED.name,
-            element = EXCLUDED.element,
-            path = EXCLUDED.path
+            ($1)
+        ON CONFLICT DO NOTHING;
         ",
         character.id,
-        character.name,
-        character.element,
-        character.path,
     )
     .execute(pool)
     .await?;
@@ -34,34 +25,49 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
     Ok(())
 }
 
-pub async fn get_characters(
-    element: Option<&str>,
-    path: Option<&str>,
-    pool: &PgPool,
-) -> Result<Vec<DbCharacter>> {
+pub async fn get_characters(language: &str, pool: &PgPool) -> Result<Vec<DbCharacter>> {
     Ok(sqlx::query_as!(
         DbCharacter,
         "
         SELECT
-            *
+            characters.*,
+            characters_text.name,
+            characters_text.element,
+            characters_text.path
         FROM
             characters
-        WHERE
-            ($1::TEXT IS NULL OR LOWER(element) = LOWER($1))
-        AND
-            ($2::TEXT IS NULL OR LOWER(path) = LOWER($2))
+        INNER JOIN
+            characters_text
+        ON
+            characters.id = characters_text.id AND characters_text.language = $1
         ",
-        element,
-        path,
+        language,
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn get_character_by_id(id: i32, pool: &PgPool) -> Result<DbCharacter> {
-    Ok(
-        sqlx::query_as!(DbCharacter, "SELECT * FROM characters WHERE id = $1", id)
-            .fetch_one(pool)
-            .await?,
+pub async fn get_character_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbCharacter> {
+    Ok(sqlx::query_as!(
+        DbCharacter,
+        "
+        SELECT
+            characters.*,
+            characters_text.name,
+            characters_text.element,
+            characters_text.path
+        FROM
+            characters
+        INNER JOIN
+            characters_text
+        ON
+            characters.id = characters_text.id AND characters_text.language = $2
+        WHERE
+            characters.id = $1
+        ",
+        id,
+        language,
     )
+    .fetch_one(pool)
+    .await?)
 }

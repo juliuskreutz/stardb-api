@@ -43,6 +43,7 @@ pub async fn set_community_tier_list_entry(
 }
 
 pub async fn get_community_tier_list_entries(
+    language: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbCommunityTierListEntry>> {
     Ok(sqlx::query_as!(
@@ -50,18 +51,19 @@ pub async fn get_community_tier_list_entries(
         "
         SELECT
             community_tier_list_entries.*,
-            characters.name character_name,
-            characters.element character_element,
-            characters.path character_path
+            characters_text.name character_name,
+            characters_text.element character_element,
+            characters_text.path character_path
         FROM
             community_tier_list_entries
         INNER JOIN
-            characters
+            characters_text
         ON
-            character = id
+            character = characters_text.id AND language = $1
         ORDER BY
             average DESC
         ",
+        language,
     )
     .fetch_all(pool)
     .await?)
