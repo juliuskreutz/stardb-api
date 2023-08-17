@@ -1,3 +1,0 @@
-ALTER TABLE series DROP COLUMN tag;
-ALTER TABLE achievements DROP COLUMN tag;
-ALTER TABLE characters DROP COLUMN tag;

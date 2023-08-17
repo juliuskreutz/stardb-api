@@ -6,12 +6,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
-use crate::{
-    api::{
-        scores::{Scores, ScoresParams},
-        ApiResult,
-    },
-    database::{self, DbScoreDamage},
+use crate::api::{
+    scores::{Scores, ScoresParams},
+    ApiResult,
 };
 
 use super::Region;
@@ -49,8 +46,8 @@ pub struct ScoreDamage {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<DbScoreDamage> for ScoreDamage {
-    fn from(db_score: DbScoreDamage) -> Self {
+impl From<stardb_database::DbScoreDamage> for ScoreDamage {
+    fn from(db_score: stardb_database::DbScoreDamage) -> Self {
         ScoreDamage {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -98,14 +95,14 @@ async fn get_scores_damage(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =
-        database::count_scores_damage(Some(&Region::NA.to_string()), None, &pool).await?;
+        stardb_database::count_scores_damage(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =
-        database::count_scores_damage(Some(&Region::EU.to_string()), None, &pool).await?;
+        stardb_database::count_scores_damage(Some(&Region::EU.to_string()), None, &pool).await?;
     let count_asia =
-        database::count_scores_damage(Some(&Region::Asia.to_string()), None, &pool).await?;
+        stardb_database::count_scores_damage(Some(&Region::Asia.to_string()), None, &pool).await?;
     let count_cn =
-        database::count_scores_damage(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_damage(
+        stardb_database::count_scores_damage(Some(&Region::CN.to_string()), None, &pool).await?;
+    let count_query = stardb_database::count_scores_damage(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         &pool,
@@ -114,7 +111,7 @@ async fn get_scores_damage(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores_damage = database::get_scores_damage(
+    let db_scores_damage = stardb_database::get_scores_damage(
         damage_params.character,
         damage_params.support,
         scores_params.region.as_ref().map(|r| r.to_string()),

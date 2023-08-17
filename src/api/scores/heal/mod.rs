@@ -6,12 +6,9 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{
-    api::{
-        scores::{Scores, ScoresParams},
-        ApiResult,
-    },
-    database::{self, DbScoreHeal},
+use crate::api::{
+    scores::{Scores, ScoresParams},
+    ApiResult,
 };
 
 use super::Region;
@@ -41,8 +38,8 @@ pub struct ScoreHeal {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<DbScoreHeal> for ScoreHeal {
-    fn from(db_score: DbScoreHeal) -> Self {
+impl From<stardb_database::DbScoreHeal> for ScoreHeal {
+    fn from(db_score: stardb_database::DbScoreHeal) -> Self {
         ScoreHeal {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -85,12 +82,15 @@ async fn get_scores_heal(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na = database::count_scores_heal(Some(&Region::NA.to_string()), None, &pool).await?;
-    let count_eu = database::count_scores_heal(Some(&Region::EU.to_string()), None, &pool).await?;
+    let count_na =
+        stardb_database::count_scores_heal(Some(&Region::NA.to_string()), None, &pool).await?;
+    let count_eu =
+        stardb_database::count_scores_heal(Some(&Region::EU.to_string()), None, &pool).await?;
     let count_asia =
-        database::count_scores_heal(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn = database::count_scores_heal(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_heal(
+        stardb_database::count_scores_heal(Some(&Region::Asia.to_string()), None, &pool).await?;
+    let count_cn =
+        stardb_database::count_scores_heal(Some(&Region::CN.to_string()), None, &pool).await?;
+    let count_query = stardb_database::count_scores_heal(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         &pool,
@@ -99,7 +99,7 @@ async fn get_scores_heal(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores_heal = database::get_scores_heal(
+    let db_scores_heal = stardb_database::get_scores_heal(
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
         scores_params.limit,

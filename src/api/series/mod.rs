@@ -5,10 +5,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{
-    api::ApiResult,
-    database::{self, DbSeries},
-};
+use crate::api::ApiResult;
 
 use super::LanguageParams;
 
@@ -28,8 +25,8 @@ struct Series {
     name: String,
 }
 
-impl From<DbSeries> for Series {
-    fn from(db_series: DbSeries) -> Self {
+impl From<stardb_database::DbSeries> for Series {
+    fn from(db_series: stardb_database::DbSeries) -> Self {
         Self {
             id: db_series.id,
             name: db_series.name,
@@ -61,7 +58,7 @@ async fn get_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series: Vec<_> = database::get_series(&language_param.lang.to_string(), &pool)
+    let series: Vec<_> = stardb_database::get_series(&language_param.lang.to_string(), &pool)
         .await?
         .into_iter()
         .map(Series::from)

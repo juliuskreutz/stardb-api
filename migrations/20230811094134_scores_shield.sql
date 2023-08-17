@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS scores_shield (
-    uid INT8 PRIMARY KEY NOT NULL REFERENCES mihomo ON DELETE CASCADE,
-    shield INT4 NOT NULL,
-    video TEXT NOT NULL
-);

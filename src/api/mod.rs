@@ -5,6 +5,7 @@ mod free_jade_alert;
 mod import;
 mod languages;
 mod mihomo;
+pub mod private;
 mod scores;
 mod series;
 mod users;
@@ -103,6 +104,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(import::configure)
         .configure(languages::configure)
         .configure(mihomo::configure)
+        .configure(private::configure)
         .configure(scores::configure)
         .configure(series::configure)
         .configure(users::configure);

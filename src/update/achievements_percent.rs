@@ -3,8 +3,6 @@ use std::time::{Duration, Instant};
 use actix_web::rt::{self, time};
 use sqlx::PgPool;
 
-use crate::database;
-
 pub async fn achievements_percent(pool: PgPool) {
     rt::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60));
@@ -14,7 +12,7 @@ pub async fn achievements_percent(pool: PgPool) {
 
             let start = Instant::now();
 
-            if let Err(e) = database::update_achievements_percent(&pool).await {
+            if let Err(e) = stardb_database::update_achievements_percent(&pool).await {
                 log::error!(
                     "Achievements Percent update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()

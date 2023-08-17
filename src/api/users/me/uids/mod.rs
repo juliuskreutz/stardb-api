@@ -3,7 +3,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -35,7 +35,7 @@ async fn get_user_uids(session: Session, pool: web::Data<PgPool>) -> ApiResult<i
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let uids: Vec<_> = database::get_connections_by_username(&username, &pool)
+    let uids: Vec<_> = stardb_database::get_connections_by_username(&username, &pool)
         .await?
         .iter()
         .map(|c| c.uid)
