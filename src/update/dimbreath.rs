@@ -204,7 +204,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             video: None,
             gacha: false,
             set: None,
-            percent: None,
+            percent: 0.0,
         };
 
         stardb_database::set_achievement(&db_achievement, pool).await?;
