@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievements_percent(id, percent)\n        SELECT\n            *\n        FROM\n            (SELECT\n                id,\n                (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent\n            FROM\n                completed\n            GROUP BY\n                id\n            ) percents\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            percent = EXCLUDED.percent\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "d7cecea8fbbd14a406d6db316da6dded9736cf4877a7116fc39e2b64957a711e"
+}

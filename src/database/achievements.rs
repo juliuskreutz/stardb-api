@@ -18,6 +18,7 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub gacha: bool,
     pub set: Option<i32>,
+    // This shouldn't be an option, because it has a default value of 0 but sqlx doesn't allow it
     pub percent: Option<f64>,
 }
 
@@ -31,7 +32,7 @@ pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Resu
         ON CONFLICT
             (id)
         DO UPDATE SET
-        series = EXCLUDED.series,
+            series = EXCLUDED.series,
             jades = EXCLUDED.jades,
             hidden = EXCLUDED.hidden,
             priority = EXCLUDED.priority
@@ -56,12 +57,12 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
             achievements.*,
             achievements_text.name,
             achievements_text.description,
-            percent,
+            COALESCE(achievements_percent.percent, 0) percent,
             series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
-            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
+            achievements_percent
         INNER JOIN
             achievements_text
         ON
@@ -116,12 +117,12 @@ pub async fn get_achievement_by_id(
             achievements.*,
             achievements_text.name,
             achievements_text.description,
-            percent,
+            COALESCE(achievements_percent.percent, 0) percent,
             series_text.name series_name
         FROM
             achievements
         NATURAL LEFT JOIN
-            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents
+            achievements_percent
         INNER JOIN
             achievements_text
         ON
