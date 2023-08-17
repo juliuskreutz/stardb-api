@@ -40,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
     sqlx::migrate!().run(&pool).await?;
 
+    update::achievements_percent(pool.clone()).await;
     update::community_tier_list(pool.clone()).await;
     update::dimbreath(pool.clone()).await;
     update::verifications(pool.clone()).await;
@@ -70,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(|cfg| api::configure(cfg, pool.clone()))
+            .configure(api::configure)
     })
     .bind(("localhost", 8000))?
     .run()

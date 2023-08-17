@@ -1,4 +1,5 @@
 mod achievements;
+mod achievements_percents;
 mod achievements_text;
 mod admins;
 mod characters;
@@ -15,6 +16,7 @@ mod users;
 mod verifications;
 
 pub use achievements::*;
+pub use achievements_percents::*;
 pub use achievements_text::*;
 pub use admins::*;
 pub use characters::*;

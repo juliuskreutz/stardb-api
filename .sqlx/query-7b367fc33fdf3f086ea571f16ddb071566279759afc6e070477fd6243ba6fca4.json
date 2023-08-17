@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            series_text.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            (SELECT id, (COUNT(*)::float) / (SELECT COUNT(DISTINCT username) from completed) percent FROM completed GROUP BY id) percents\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $1\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        INNER JOIN\n            series_text\n        ON\n            series = series_text.id AND series_text.language = $1\n        ORDER BY\n            series.priority DESC, series, priority DESC, id\n        ",
+  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            COALESCE(achievements_percent.percent, 0) percent,\n            series_text.name series_name\n        FROM\n            achievements\n        NATURAL LEFT JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $1\n        INNER JOIN\n            series\n        ON\n            series = series.id\n        INNER JOIN\n            series_text\n        ON\n            series = series_text.id AND series_text.language = $1\n        ORDER BY\n            series.priority DESC, series, priority DESC, id\n        ",
   "describe": {
     "columns": [
       {
@@ -102,5 +102,5 @@
       false
     ]
   },
-  "hash": "9377a853fdf3224872f3a571fe1c18d6947d3cbaab43fb9bc983a7f64742e084"
+  "hash": "7b367fc33fdf3f086ea571f16ddb071566279759afc6e070477fd6243ba6fca4"
 }

@@ -11,7 +11,6 @@ mod users;
 
 use actix_web::web;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use strum::{Display, EnumIter, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
@@ -96,8 +95,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    cfg.configure(|cfg| achievements::configure(cfg, pool))
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.configure(achievements::configure)
         .configure(characters::configure)
         .configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
