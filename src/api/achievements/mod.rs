@@ -113,7 +113,7 @@ impl From<stardb_database::DbAchievement> for Achievement {
             gacha: db_achievement.gacha,
             set: db_achievement.set,
             related: None,
-            percent: db_achievement.percent.unwrap_or_default(),
+            percent: db_achievement.percent,
         }
     }
 }

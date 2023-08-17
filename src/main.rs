@@ -49,8 +49,6 @@ async fn main() -> anyhow::Result<()> {
     let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
     let pool_data = Data::new(pool.clone());
 
-    let achievement_tracker_cache_data = api::private::cache_achievement_tracker(pool.clone());
-
     let key = Key::from(&std::fs::read("session_key")?);
 
     let openapi = api::openapi();
@@ -59,7 +57,6 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(tokens_data.clone())
             .app_data(pool_data.clone())
-            .app_data(achievement_tracker_cache_data.clone())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
