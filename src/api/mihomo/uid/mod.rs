@@ -7,11 +7,7 @@ use serde_json::Value;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::ApiResult,
-    database::{self, DbMihomo, DbScoreAchievement},
-    mihomo,
-};
+use crate::{api::ApiResult, mihomo};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -87,7 +83,7 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
         .to_string();
     let achievement_count = info.player.space_info.achievement_count;
     let updated_at = info.updated_at;
-    let timestamp = database::get_score_achievement_by_uid(uid, &pool)
+    let timestamp = stardb_database::get_score_achievement_by_uid(uid, &pool)
         .await
         .ok()
         .and_then(|sd| {
@@ -105,7 +101,7 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
             },
         );
 
-    let db_mihomo = DbMihomo {
+    let db_mihomo = stardb_database::DbMihomo {
         uid,
         region,
         name,
@@ -116,15 +112,15 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
         updated_at,
     };
 
-    database::set_mihomo(&db_mihomo, &pool).await?;
+    stardb_database::set_mihomo(&db_mihomo, &pool).await?;
 
-    let db_score_achievement = DbScoreAchievement {
+    let db_score_achievement = stardb_database::DbScoreAchievement {
         uid,
         timestamp,
         ..Default::default()
     };
 
-    database::set_score_achievement(&db_score_achievement, &pool).await?;
+    stardb_database::set_score_achievement(&db_score_achievement, &pool).await?;
 
     Ok(HttpResponse::Ok())
 }

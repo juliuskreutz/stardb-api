@@ -8,15 +8,15 @@ use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "achievements/{id}/reference")),
-    paths(put_achievement_reference, delete_achievement_reference),
-    components(schemas(ReferenceUpdate))
+    tags((name = "achievements/{id}/video")),
+    paths(put_achievement_video, delete_achievement_video),
+    components(schemas(VideoUpdate))
 )]
 struct ApiDoc;
 
 #[derive(Deserialize, ToSchema)]
-struct ReferenceUpdate {
-    reference: String,
+struct VideoUpdate {
+    video: String,
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -24,26 +24,26 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(put_achievement_reference)
-        .service(delete_achievement_reference);
+    cfg.service(put_achievement_video)
+        .service(delete_achievement_video);
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}/reference",
+    tag = "achievements/{id}/video",
     put,
-    path = "/api/achievements/{id}/reference",
-    request_body = ReferenceUpdate,
+    path = "/api/achievements/{id}/video",
+    request_body = VideoUpdate,
     responses(
-        (status = 200, description = "Updated reference"),
+        (status = 200, description = "Updated video"),
         (status = 403, description = "Not an admin"),
     ),
     security(("admin" = []))
 )]
-#[put("/api/achievements/{id}/reference")]
-async fn put_achievement_reference(
+#[put("/api/achievements/{id}/video")]
+async fn put_achievement_video(
     session: Session,
     id: web::Path<i64>,
-    reference_update: web::Json<ReferenceUpdate>,
+    video_update: web::Json<VideoUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -57,23 +57,23 @@ async fn put_achievement_reference(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::update_achievement_reference(*id, &reference_update.reference, &pool).await?;
+    stardb_database::update_achievement_video(*id, &video_update.video, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
-    tag = "achievements/{id}/reference",
+    tag = "achievements/{id}/video",
     delete,
-    path = "/api/achievements/{id}/reference",
+    path = "/api/achievements/{id}/video",
     responses(
-        (status = 200, description = "Deleted reference"),
+        (status = 200, description = "Deleted video"),
         (status = 403, description = "Not an admin"),
     ),
     security(("admin" = []))
 )]
-#[delete("/api/achievements/{id}/reference")]
-async fn delete_achievement_reference(
+#[delete("/api/achievements/{id}/video")]
+async fn delete_achievement_video(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
@@ -89,7 +89,7 @@ async fn delete_achievement_reference(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::delete_achievement_reference(*id, &pool).await?;
+    stardb_database::delete_achievement_video(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

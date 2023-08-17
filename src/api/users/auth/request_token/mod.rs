@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
-use crate::{api::ApiResult, database};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -58,7 +58,7 @@ async fn request_token(
         }
     }
 
-    let Ok(user) = database::get_user_by_username(&request_token.username, &pool).await else {
+    let Ok(user) = stardb_database::get_user_by_username(&request_token.username, &pool).await else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 

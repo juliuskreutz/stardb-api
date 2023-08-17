@@ -5,8 +5,6 @@ use anyhow::Result;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::database::{self, DbCommunityTierListEntry};
-
 #[derive(Deserialize)]
 struct Spreadsheet {
     sheets: Vec<Sheet>,
@@ -74,7 +72,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         let variance = row_data.values[3].effective_value.number_value;
         let votes = row_data.values[4].effective_value.number_value as i32;
 
-        let db_community_tier_list_entry = DbCommunityTierListEntry {
+        let db_community_tier_list_entry = stardb_database::DbCommunityTierListEntry {
             character,
             eidolon,
             average,
@@ -85,7 +83,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             character_element: "".to_string(),
         };
 
-        database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;
+        stardb_database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;
     }
 
     Ok(())

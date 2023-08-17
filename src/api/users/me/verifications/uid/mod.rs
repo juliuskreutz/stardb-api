@@ -4,10 +4,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::ApiResult,
-    database::{self, DbVerification},
-};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -49,13 +46,13 @@ async fn put_verification(
         .map(char::from)
         .collect();
 
-    let db_verification = DbVerification {
+    let db_verification = stardb_database::DbVerification {
         uid: *uid,
         username,
         token,
     };
 
-    database::set_verification(&db_verification, &pool).await?;
+    stardb_database::set_verification(&db_verification, &pool).await?;
 
     Ok(HttpResponse::Ok().json(db_verification.token))
 }

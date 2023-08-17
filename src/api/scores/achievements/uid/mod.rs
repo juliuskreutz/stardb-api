@@ -2,10 +2,7 @@ use actix_web::{get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::{scores::achievements::ScoreAchievement, ApiResult},
-    database,
-};
+use crate::api::{scores::achievements::ScoreAchievement, ApiResult};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -36,7 +33,7 @@ async fn get_score_achievement(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
+    let score: ScoreAchievement = stardb_database::get_score_achievement_by_uid(*uid, &pool)
         .await?
         .into();
 
@@ -61,7 +58,7 @@ async fn put_score_achievement(
         .send()
         .await?;
 
-    let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
+    let score: ScoreAchievement = stardb_database::get_score_achievement_by_uid(*uid, &pool)
         .await?
         .into();
 

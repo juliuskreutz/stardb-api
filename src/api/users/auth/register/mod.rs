@@ -5,10 +5,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{
-    api::ApiResult,
-    database::{self, DbUser},
-};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -66,7 +63,7 @@ async fn register(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    if database::get_user_by_username(&username, &pool)
+    if stardb_database::get_user_by_username(&username, &pool)
         .await
         .is_ok()
     {
@@ -83,12 +80,12 @@ async fn register(
 
     {
         let username = username.clone();
-        let user = DbUser {
+        let user = stardb_database::DbUser {
             username,
             password,
             email,
         };
-        database::set_user(&user, &pool).await?;
+        stardb_database::set_user(&user, &pool).await?;
     }
 
     session.insert("username", username)?;

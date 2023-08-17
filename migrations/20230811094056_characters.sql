@@ -1,7 +1,0 @@
-CREATE TABLE IF NOT EXISTS characters (
-    id INT4 PRIMARY KEY NOT NULL,
-    tag TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    element TEXT NOT NULL,
-    path TEXT NOT NULL
-);

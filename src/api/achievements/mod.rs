@@ -9,10 +9,7 @@ use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
-use crate::{
-    api::{ApiResult, LanguageParams},
-    database::{self, DbAchievement},
-};
+use crate::api::{ApiResult, LanguageParams};
 
 use super::Language;
 
@@ -69,9 +66,13 @@ struct Achievement {
     reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     difficulty: Option<Difficulty>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    video: Option<String>,
     gacha: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     set: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    related: Option<Vec<i64>>,
     percent: f64,
 }
 
@@ -91,8 +92,8 @@ struct AchivementsGrouped {
     achievements: Vec<Vec<Achievement>>,
 }
 
-impl From<DbAchievement> for Achievement {
-    fn from(db_achievement: DbAchievement) -> Self {
+impl From<stardb_database::DbAchievement> for Achievement {
+    fn from(db_achievement: stardb_database::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
@@ -108,8 +109,10 @@ impl From<DbAchievement> for Achievement {
                 .difficulty
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
+            video: db_achievement.video.clone(),
             gacha: db_achievement.gacha,
             set: db_achievement.set,
+            related: None,
             percent: db_achievement.percent.unwrap_or_default(),
         }
     }
@@ -141,15 +144,24 @@ async fn get_achievements(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievements =
-        database::get_achievements(&language_params.lang.to_string(), &pool).await?;
+        stardb_database::get_achievements(&language_params.lang.to_string(), &pool).await?;
 
     Ok(match achievement_params.layout {
-        Layout::Flat => HttpResponse::Ok().json(
-            db_achievements
+        Layout::Flat => {
+            let mut achievements = db_achievements
                 .into_iter()
                 .map(Achievement::from)
-                .collect::<Vec<_>>(),
-        ),
+                .collect::<Vec<_>>();
+
+            for achievement in &mut achievements {
+                if let Some(set) = achievement.set {
+                    achievement.related =
+                        Some(stardb_database::get_related(achievement.id, set, &pool).await?);
+                }
+            }
+
+            HttpResponse::Ok().json(achievements)
+        }
         Layout::Grouped => {
             let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
             let mut groupings: HashMap<i32, usize> = HashMap::new();
@@ -188,7 +200,7 @@ async fn get_achievements(
                     (a_count + ag.achievements.len(), j_count + ag.jade_count)
                 });
 
-            let user_count = database::get_distinct_username_count(&pool).await?;
+            let user_count = stardb_database::get_distinct_username_count(&pool).await?;
 
             let groups = Groups {
                 achievement_count,

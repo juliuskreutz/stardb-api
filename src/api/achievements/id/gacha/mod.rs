@@ -3,7 +3,7 @@ use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -41,14 +41,14 @@ async fn put_achievement_gacha(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::get_admin_by_username(&username, &pool)
+    if stardb_database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_gacha(*id, true, &pool).await?;
+    stardb_database::update_achievement_gacha(*id, true, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -73,14 +73,14 @@ async fn delete_achievement_gacha(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::get_admin_by_username(&username, &pool)
+    if stardb_database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_gacha(*id, false, &pool).await?;
+    stardb_database::update_achievement_gacha(*id, false, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

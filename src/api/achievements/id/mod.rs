@@ -3,17 +3,15 @@ mod difficulty;
 mod gacha;
 mod reference;
 mod version;
+mod video;
 
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::{
-        achievements::{Achievement, LanguageParams},
-        ApiResult,
-    },
-    database,
+use crate::api::{
+    achievements::{Achievement, LanguageParams},
+    ApiResult,
 };
 
 #[derive(OpenApi)]
@@ -22,20 +20,22 @@ struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
-    openapi.merge(version::openapi());
     openapi.merge(comment::openapi());
-    openapi.merge(reference::openapi());
     openapi.merge(difficulty::openapi());
     openapi.merge(gacha::openapi());
+    openapi.merge(reference::openapi());
+    openapi.merge(version::openapi());
+    openapi.merge(video::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(version::configure)
-        .configure(comment::configure)
-        .configure(reference::configure)
+    cfg.configure(comment::configure)
         .configure(difficulty::configure)
         .configure(gacha::configure)
+        .configure(reference::configure)
+        .configure(version::configure)
+        .configure(video::configure)
         .service(get_achievement);
 }
 
@@ -55,9 +55,14 @@ async fn get_achievement(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievement =
-        database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
+        stardb_database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool)
+            .await?;
 
-    let achievement = Achievement::from(db_achievement);
+    let mut achievement = Achievement::from(db_achievement);
+
+    if let Some(set) = achievement.set {
+        achievement.related = Some(stardb_database::get_related(achievement.id, set, &pool).await?);
+    }
 
     Ok(HttpResponse::Ok().json(achievement))
 }

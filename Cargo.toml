@@ -31,6 +31,7 @@ sqlx = { version = "0.7.1", features = [
     "uuid",
     "runtime-tokio-native-tls",
 ] }
+stardb-database = { git = "https://github.com/juliuskreutz/stardb-database" }
 strum = { version = "0.25.0", features = ["derive"] }
 utoipa = { version = "3.4.4", features = ["actix_extras", "chrono"] }
 utoipa-swagger-ui = { version = "3.1.5", features = ["actix-web"] }

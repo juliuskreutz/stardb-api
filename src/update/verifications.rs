@@ -4,10 +4,7 @@ use actix_web::rt::{self, time};
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::{
-    database::{self, DbConnection},
-    mihomo,
-};
+use crate::mihomo;
 
 pub async fn verifications(pool: PgPool) {
     rt::spawn(async move {
@@ -34,7 +31,7 @@ pub async fn verifications(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let verifications = database::get_verifications(pool).await?;
+    let verifications = stardb_database::get_verifications(pool).await?;
 
     for verification in verifications {
         let api_data = mihomo::get(verification.uid).await?;
@@ -43,14 +40,14 @@ async fn update(pool: &PgPool) -> Result<()> {
             continue;
         }
 
-        database::delete_verification_by_uid(verification.uid, pool).await?;
+        stardb_database::delete_verification_by_uid(verification.uid, pool).await?;
 
-        let connection = DbConnection {
+        let connection = stardb_database::DbConnection {
             uid: verification.uid,
             username: verification.username.clone(),
         };
 
-        database::set_connection(&connection, pool).await?;
+        stardb_database::set_connection(&connection, pool).await?;
     }
 
     Ok(())

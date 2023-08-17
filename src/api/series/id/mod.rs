@@ -2,10 +2,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::{series::Series, ApiResult, LanguageParams},
-    database,
-};
+use crate::api::{series::Series, ApiResult, LanguageParams};
 
 #[derive(OpenApi)]
 #[openapi(tags((name = "series/{id}")), paths(get_series))]
@@ -35,7 +32,7 @@ async fn get_series(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let series = Series::from(
-        database::get_series_by_id(*id, &language_param.lang.to_string(), &pool).await?,
+        stardb_database::get_series_by_id(*id, &language_param.lang.to_string(), &pool).await?,
     );
 
     Ok(HttpResponse::Ok().json(series))

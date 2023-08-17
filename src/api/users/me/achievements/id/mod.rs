@@ -3,10 +3,7 @@ use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::ApiResult,
-    database::{self, DbComplete},
-};
+use crate::api::ApiResult;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -45,9 +42,9 @@ async fn put_user_achievement(
 
     let id = *id;
 
-    let db_complete = DbComplete { username, id };
+    let db_complete = stardb_database::DbComplete { username, id };
 
-    database::add_complete(&db_complete, &pool).await?;
+    stardb_database::add_complete(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -73,9 +70,9 @@ async fn delete_user_achievement(
 
     let id = *id;
 
-    let db_complete = DbComplete { username, id };
+    let db_complete = stardb_database::DbComplete { username, id };
 
-    database::delete_complete(&db_complete, &pool).await?;
+    stardb_database::delete_complete(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
