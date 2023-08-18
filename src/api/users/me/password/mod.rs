@@ -55,7 +55,7 @@ async fn put_password(
     let password = argon2::hash_encoded(
         password_update.password.as_bytes(),
         &salt,
-        &Config::default(),
+        &Config::rfc9106_low_mem(),
     )?;
 
     stardb_database::update_user_password(&username, &password, &pool).await?;

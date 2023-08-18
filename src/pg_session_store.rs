@@ -29,10 +29,12 @@ impl SessionStore for PgSessionStore {
             .await
             .map_err(LoadError::Deserialization)?;
 
-        serde_json::from_value(db_session.value)
-            .map(Some)
-            .map_err(anyhow::Error::new)
-            .map_err(LoadError::Deserialization)
+        let mut session_state = HashMap::new();
+        session_state.insert(
+            "username".to_string(),
+            format!("\"{}\"", db_session.username),
+        );
+        Ok(Some(session_state))
     }
 
     async fn save(
@@ -42,15 +44,14 @@ impl SessionStore for PgSessionStore {
     ) -> Result<SessionKey, SaveError> {
         let uuid = Uuid::new_v4();
 
-        let value = serde_json::to_value(&session_state)
-            .map_err(anyhow::Error::new)
-            .map_err(SaveError::Serialization)?;
+        let username = &session_state["username"];
+        let username = username[1..username.len() - 1].to_string();
 
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
         let db_session = stardb_database::DbSession {
             uuid,
-            value,
+            username,
             expiry,
         };
 
@@ -74,15 +75,14 @@ impl SessionStore for PgSessionStore {
             .map_err(anyhow::Error::new)
             .map_err(UpdateError::Other)?;
 
-        let value = serde_json::to_value(&session_state)
-            .map_err(anyhow::Error::new)
-            .map_err(UpdateError::Serialization)?;
+        let username = &session_state["username"];
+        let username = username[1..username.len() - 1].to_string();
 
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
         let db_session = stardb_database::DbSession {
             uuid,
-            value,
+            username,
             expiry,
         };
 
