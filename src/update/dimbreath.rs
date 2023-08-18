@@ -110,6 +110,9 @@ pub async fn dimbreath(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
+    let html_re = Regex::new(r"<[^>]*>")?;
+    let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+
     let url = "https://raw.githubusercontent.com/Dimbreath/StarRailData/master/";
 
     let languages = [
@@ -233,8 +236,6 @@ async fn update(pool: &PgPool) -> Result<()> {
         for series in achievement_series.values() {
             let id = series.id;
 
-            let html_re = Regex::new(r"<[^>]*>")?;
-            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
             let name = gender_re
                 .replace_all(
                     &html_re
@@ -257,11 +258,15 @@ async fn update(pool: &PgPool) -> Result<()> {
         for achievement_data in achievement_data.values() {
             let id = achievement_data.id;
 
-            let html_re = Regex::new(r"<[^>]*>")?;
-            let name = html_re
+            let name = gender_re
                 .replace_all(
-                    &text_map[&achievement_data.title.hash.to_string()],
-                    |_: &Captures| "",
+                    &html_re.replace_all(
+                        &text_map[&achievement_data.title.hash.to_string()],
+                        |_: &Captures| "",
+                    ),
+                    |c: &Captures| {
+                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                    },
                 )
                 .to_string();
 
@@ -282,9 +287,14 @@ async fn update(pool: &PgPool) -> Result<()> {
                     },
                 )
                 .to_string();
-            let description = html_re
-                .replace_all(&description, |_: &Captures| "")
-                .replace("\\n", "");
+            let description = gender_re
+                .replace_all(
+                    &html_re.replace_all(&description, |_: &Captures| ""),
+                    |c: &Captures| {
+                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                    },
+                )
+                .to_string();
 
             let db_achievement_text = stardb_database::DbAchievementText {
                 id,
@@ -310,7 +320,6 @@ async fn update(pool: &PgPool) -> Result<()> {
                 _ => text_map[&avatar_config.name.hash.to_string()].clone(),
             };
 
-            let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
             let name = gender_re
                 .replace_all(&name, |c: &Captures| {
                     c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
