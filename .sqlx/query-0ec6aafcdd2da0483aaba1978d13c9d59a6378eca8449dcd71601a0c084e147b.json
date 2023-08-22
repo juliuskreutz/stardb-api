@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievements_percent(id, percent)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            percent = EXCLUDED.percent\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ec6aafcdd2da0483aaba1978d13c9d59a6378eca8449dcd71601a0c084e147b"
+}

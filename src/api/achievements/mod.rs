@@ -9,7 +9,10 @@ use sqlx::PgPool;
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
-use crate::api::{ApiResult, LanguageParams};
+use crate::{
+    api::{ApiResult, LanguageParams},
+    database,
+};
 
 use super::Language;
 
@@ -92,8 +95,8 @@ struct AchivementsGrouped {
     achievements: Vec<Vec<Achievement>>,
 }
 
-impl From<stardb_database::DbAchievement> for Achievement {
-    fn from(db_achievement: stardb_database::DbAchievement) -> Self {
+impl From<database::DbAchievement> for Achievement {
+    fn from(db_achievement: database::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
@@ -144,7 +147,7 @@ async fn get_achievements(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievements =
-        stardb_database::get_achievements(&language_params.lang.to_string(), &pool).await?;
+        database::get_achievements(&language_params.lang.to_string(), &pool).await?;
 
     Ok(match achievement_params.layout {
         Layout::Flat => {
@@ -156,7 +159,7 @@ async fn get_achievements(
             for achievement in &mut achievements {
                 if let Some(set) = achievement.set {
                     achievement.related =
-                        Some(stardb_database::get_related(achievement.id, set, &pool).await?);
+                        Some(database::get_related(achievement.id, set, &pool).await?);
                 }
             }
 
@@ -200,7 +203,7 @@ async fn get_achievements(
                     (a_count + ag.achievements.len(), j_count + ag.jade_count)
                 });
 
-            let user_count = stardb_database::get_distinct_username_count(&pool).await?;
+            let user_count = database::get_distinct_username_count(&pool).await?;
 
             let groups = Groups {
                 achievement_count,

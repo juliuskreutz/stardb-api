@@ -5,6 +5,8 @@ use anyhow::Result;
 use serde::Deserialize;
 use sqlx::PgPool;
 
+use crate::database;
+
 #[derive(Deserialize)]
 struct Spreadsheet {
     sheets: Vec<Sheet>,
@@ -63,7 +65,15 @@ pub async fn community_tier_list(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={}&includeGridData=true&ranges=Stats!B2:F31", dotenv::var("GOOGLE_API_KEY")?)).await?.json().await?;
+    let key = dotenv::var("GOOGLE_API_KEY")?;
+
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!G2")).await?.json().await?;
+
+    let total_votes = spreadsheet.sheets[0].data[0].row_data[0].values[0]
+        .effective_value
+        .number_value as i32;
+
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:F31")).await?.json().await?;
 
     for row_data in &spreadsheet.sheets[0].data[0].row_data {
         let character = row_data.values[0].effective_value.number_value as i32;
@@ -72,7 +82,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         let variance = row_data.values[3].effective_value.number_value;
         let votes = row_data.values[4].effective_value.number_value as i32;
 
-        let db_community_tier_list_entry = stardb_database::DbCommunityTierListEntry {
+        let db_community_tier_list_entry = database::DbCommunityTierListEntry {
             character,
             eidolon,
             average,
@@ -81,9 +91,10 @@ async fn update(pool: &PgPool) -> Result<()> {
             character_name: "".to_string(),
             character_path: "".to_string(),
             character_element: "".to_string(),
+            total_votes,
         };
 
-        stardb_database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;
+        database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;
     }
 
     Ok(())

@@ -4,7 +4,10 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{achievements::Difficulty, ApiResult};
+use crate::{
+    api::{achievements::Difficulty, ApiResult},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -50,19 +53,15 @@ async fn put_achievement_difficulty(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::update_achievement_difficulty(
-        *id,
-        &difficulty_update.difficulty.to_string(),
-        &pool,
-    )
-    .await?;
+    database::update_achievement_difficulty(*id, &difficulty_update.difficulty.to_string(), &pool)
+        .await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -87,14 +86,14 @@ async fn delete_achievement_difficulty(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::delete_achievement_difficulty(*id, &pool).await?;
+    database::delete_achievement_difficulty(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

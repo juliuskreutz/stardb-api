@@ -4,7 +4,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -50,14 +50,14 @@ async fn put_achievement_version(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::update_achievement_version(*id, &version_update.version, &pool).await?;
+    database::update_achievement_version(*id, &version_update.version, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -82,14 +82,14 @@ async fn delete_achievement_version(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    stardb_database::delete_achievement_version(*id, &pool).await?;
+    database::delete_achievement_version(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

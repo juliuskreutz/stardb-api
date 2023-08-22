@@ -1,4 +1,5 @@
 mod api;
+mod database;
 mod mihomo;
 mod pg_session_store;
 mod update;
@@ -38,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     let _ = fs::create_dir("mihomo");
 
     let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
-    stardb_database::migrate(&pool).await?;
+    sqlx::migrate!().run(&pool).await?;
 
     update::achievements_percent(pool.clone()).await;
     update::community_tier_list(pool.clone()).await;
@@ -46,8 +47,10 @@ async fn main() -> anyhow::Result<()> {
     update::verifications(pool.clone()).await;
     update::scores().await;
 
-    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
     let pool_data = Data::new(pool.clone());
+    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
+    //FIXME: This is ugly as hell
+    let achievement_tracker_cache_data = api::cache_achievement_tracker(pool.clone());
 
     let key = Key::from(&std::fs::read("session_key")?);
 
@@ -57,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(tokens_data.clone())
             .app_data(pool_data.clone())
+            .app_data(achievement_tracker_cache_data.clone())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())

@@ -5,7 +5,7 @@ use actix_web::{get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -44,7 +44,7 @@ async fn get_user_achievements(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let completed: Vec<_> = stardb_database::get_completed_by_username(&username, &pool)
+    let completed: Vec<_> = database::get_completed_by_username(&username, &pool)
         .await?
         .iter()
         .map(|c| c.id)
@@ -73,12 +73,12 @@ async fn put_user_achievements(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete = stardb_database::DbComplete { username, id: 0 };
+    let mut complete = database::DbComplete { username, id: 0 };
 
     for id in ids.0 {
         complete.id = id;
 
-        stardb_database::add_complete(&complete, &pool).await?;
+        database::add_complete(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())

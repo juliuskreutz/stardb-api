@@ -6,9 +6,12 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{
-    scores::{Region, Scores, ScoresParams},
-    ApiResult,
+use crate::{
+    api::{
+        scores::{Region, Scores, ScoresParams},
+        ApiResult,
+    },
+    database,
 };
 
 #[derive(OpenApi)]
@@ -35,8 +38,8 @@ pub struct ScoreAchievement {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<stardb_database::DbScoreAchievement> for ScoreAchievement {
-    fn from(db_score: stardb_database::DbScoreAchievement) -> Self {
+impl From<database::DbScoreAchievement> for ScoreAchievement {
+    fn from(db_score: database::DbScoreAchievement) -> Self {
         ScoreAchievement {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -80,18 +83,14 @@ async fn get_scores_achievement(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =
-        stardb_database::count_scores_achievement(Some(&Region::NA.to_string()), None, &pool)
-            .await?;
+        database::count_scores_achievement(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =
-        stardb_database::count_scores_achievement(Some(&Region::EU.to_string()), None, &pool)
-            .await?;
+        database::count_scores_achievement(Some(&Region::EU.to_string()), None, &pool).await?;
     let count_asia =
-        stardb_database::count_scores_achievement(Some(&Region::Asia.to_string()), None, &pool)
-            .await?;
+        database::count_scores_achievement(Some(&Region::Asia.to_string()), None, &pool).await?;
     let count_cn =
-        stardb_database::count_scores_achievement(Some(&Region::CN.to_string()), None, &pool)
-            .await?;
-    let count_query = stardb_database::count_scores_achievement(
+        database::count_scores_achievement(Some(&Region::CN.to_string()), None, &pool).await?;
+    let count_query = database::count_scores_achievement(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         &pool,
@@ -100,7 +99,7 @@ async fn get_scores_achievement(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores = stardb_database::get_scores_achievement(
+    let db_scores = database::get_scores_achievement(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         scores_params.limit,

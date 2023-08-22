@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -58,7 +58,7 @@ async fn put_password(
         &Config::rfc9106_low_mem(),
     )?;
 
-    stardb_database::update_user_password(&username, &password, &pool).await?;
+    database::update_user_password(&username, &password, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

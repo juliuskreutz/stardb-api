@@ -6,9 +6,12 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{
-    scores::{Scores, ScoresParams},
-    ApiResult,
+use crate::{
+    api::{
+        scores::{Scores, ScoresParams},
+        ApiResult,
+    },
+    database,
 };
 
 use super::Region;
@@ -38,8 +41,8 @@ pub struct ScoreShield {
     pub updated_at: NaiveDateTime,
 }
 
-impl From<stardb_database::DbScoreShield> for ScoreShield {
-    fn from(db_score: stardb_database::DbScoreShield) -> Self {
+impl From<database::DbScoreShield> for ScoreShield {
+    fn from(db_score: database::DbScoreShield) -> Self {
         ScoreShield {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -83,14 +86,14 @@ async fn get_scores_shield(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =
-        stardb_database::count_scores_shield(Some(&Region::NA.to_string()), None, &pool).await?;
+        database::count_scores_shield(Some(&Region::NA.to_string()), None, &pool).await?;
     let count_eu =
-        stardb_database::count_scores_shield(Some(&Region::EU.to_string()), None, &pool).await?;
+        database::count_scores_shield(Some(&Region::EU.to_string()), None, &pool).await?;
     let count_asia =
-        stardb_database::count_scores_shield(Some(&Region::Asia.to_string()), None, &pool).await?;
+        database::count_scores_shield(Some(&Region::Asia.to_string()), None, &pool).await?;
     let count_cn =
-        stardb_database::count_scores_shield(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = stardb_database::count_scores_shield(
+        database::count_scores_shield(Some(&Region::CN.to_string()), None, &pool).await?;
+    let count_query = database::count_scores_shield(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         &pool,
@@ -99,7 +102,7 @@ async fn get_scores_shield(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores_shield = stardb_database::get_scores_shield(
+    let db_scores_shield = database::get_scores_shield(
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
         scores_params.limit,

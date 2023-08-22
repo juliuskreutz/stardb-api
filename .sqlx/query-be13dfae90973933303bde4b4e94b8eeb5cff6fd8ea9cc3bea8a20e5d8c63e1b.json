@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE achievements SET version = NULL WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "be13dfae90973933303bde4b4e94b8eeb5cff6fd8ea9cc3bea8a20e5d8c63e1b"
+}

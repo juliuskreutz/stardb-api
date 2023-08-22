@@ -6,7 +6,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -34,8 +34,8 @@ pub struct Verification {
     otp: String,
 }
 
-impl From<stardb_database::DbVerification> for Verification {
-    fn from(db_verification: stardb_database::DbVerification) -> Self {
+impl From<database::DbVerification> for Verification {
+    fn from(db_verification: database::DbVerification) -> Self {
         Verification {
             uid: db_verification.uid,
             otp: db_verification.token,
@@ -58,7 +58,7 @@ async fn get_verifications(session: Session, pool: web::Data<PgPool>) -> ApiResu
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let db_verifications = stardb_database::get_verifications_by_username(&username, &pool).await?;
+    let db_verifications = database::get_verifications_by_username(&username, &pool).await?;
 
     let verifications: Vec<_> = db_verifications
         .into_iter()

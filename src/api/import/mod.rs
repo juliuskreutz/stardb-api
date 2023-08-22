@@ -5,7 +5,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -70,15 +70,15 @@ async fn import(
             continue;
         }
 
-        let db_complete = stardb_database::DbComplete {
+        let db_complete = database::DbComplete {
             username: username.clone(),
             id: achievement.key,
         };
 
         if achievement.done == "TRUE" {
-            stardb_database::add_complete(&db_complete, &pool).await?;
+            database::add_complete(&db_complete, &pool).await?;
         } else if achievement.done == "FALSE" {
-            stardb_database::delete_complete(&db_complete, &pool).await?;
+            database::delete_complete(&db_complete, &pool).await?;
         }
     }
 

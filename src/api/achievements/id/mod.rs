@@ -9,9 +9,12 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::api::{
-    achievements::{Achievement, LanguageParams},
-    ApiResult,
+use crate::{
+    api::{
+        achievements::{Achievement, LanguageParams},
+        ApiResult,
+    },
+    database,
 };
 
 #[derive(OpenApi)]
@@ -55,13 +58,12 @@ async fn get_achievement(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievement =
-        stardb_database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool)
-            .await?;
+        database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
 
     let mut achievement = Achievement::from(db_achievement);
 
     if let Some(set) = achievement.set {
-        achievement.related = Some(stardb_database::get_related(achievement.id, set, &pool).await?);
+        achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
     }
 
     Ok(HttpResponse::Ok().json(achievement))
