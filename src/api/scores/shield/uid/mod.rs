@@ -4,7 +4,10 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{scores::shield::ScoreShield, ApiResult};
+use crate::{
+    api::{scores::shield::ScoreShield, ApiResult},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -43,9 +46,7 @@ async fn get_score_shield(
     uid: web::Path<i64>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let score: ScoreShield = stardb_database::get_score_shield_by_uid(*uid, &pool)
-        .await?
-        .into();
+    let score: ScoreShield = database::get_score_shield_by_uid(*uid, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(score))
 }
@@ -72,7 +73,7 @@ async fn put_score_shield(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
@@ -83,14 +84,14 @@ async fn put_score_shield(
     let shield = shield_update.shield;
     let video = shield_update.video.clone();
 
-    let db_set_score_shield = stardb_database::DbScoreShield {
+    let db_set_score_shield = database::DbScoreShield {
         uid,
         shield,
         video,
         ..Default::default()
     };
 
-    stardb_database::set_score_shield(&db_set_score_shield, &pool).await?;
+    database::set_score_shield(&db_set_score_shield, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

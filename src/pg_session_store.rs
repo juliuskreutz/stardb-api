@@ -6,6 +6,8 @@ use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::database;
+
 pub struct PgSessionStore {
     pool: PgPool,
 }
@@ -25,7 +27,7 @@ impl SessionStore for PgSessionStore {
             .map_err(anyhow::Error::new)
             .map_err(LoadError::Other)?;
 
-        let db_session = stardb_database::get_session_by_uuid(uuid, &self.pool)
+        let db_session = database::get_session_by_uuid(uuid, &self.pool)
             .await
             .map_err(LoadError::Deserialization)?;
 
@@ -49,13 +51,13 @@ impl SessionStore for PgSessionStore {
 
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
-        let db_session = stardb_database::DbSession {
+        let db_session = database::DbSession {
             uuid,
             username,
             expiry,
         };
 
-        stardb_database::set_session(&db_session, &self.pool)
+        database::set_session(&db_session, &self.pool)
             .await
             .map_err(SaveError::Other)?;
 
@@ -80,13 +82,13 @@ impl SessionStore for PgSessionStore {
 
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
-        let db_session = stardb_database::DbSession {
+        let db_session = database::DbSession {
             uuid,
             username,
             expiry,
         };
 
-        stardb_database::set_session(&db_session, &self.pool)
+        database::set_session(&db_session, &self.pool)
             .await
             .map_err(UpdateError::Other)?;
 
@@ -100,12 +102,12 @@ impl SessionStore for PgSessionStore {
 
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
-        stardb_database::update_session_expiry(uuid, expiry, &self.pool).await
+        database::update_session_expiry(uuid, expiry, &self.pool).await
     }
 
     async fn delete(&self, session_key: &SessionKey) -> anyhow::Result<()> {
         let uuid = Uuid::from_str(session_key.as_ref())?;
 
-        stardb_database::delete_session_by_uuid(uuid, &self.pool).await
+        database::delete_session_by_uuid(uuid, &self.pool).await
     }
 }

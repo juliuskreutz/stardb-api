@@ -4,7 +4,10 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{scores::heal::ScoreHeal, ApiResult};
+use crate::{
+    api::{scores::heal::ScoreHeal, ApiResult},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -40,9 +43,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/scores/heal/{uid}")]
 async fn get_score_heal(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let score: ScoreHeal = stardb_database::get_score_heal_by_uid(*uid, &pool)
-        .await?
-        .into();
+    let score: ScoreHeal = database::get_score_heal_by_uid(*uid, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(score))
 }
@@ -69,7 +70,7 @@ async fn put_score_heal(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
@@ -80,14 +81,14 @@ async fn put_score_heal(
     let heal = heal_update.heal;
     let video = heal_update.video.clone();
 
-    let db_set_score_heal = stardb_database::DbScoreHeal {
+    let db_set_score_heal = database::DbScoreHeal {
         uid,
         heal,
         video,
         ..Default::default()
     };
 
-    stardb_database::set_score_heal(&db_set_score_heal, &pool).await?;
+    database::set_score_heal(&db_set_score_heal, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

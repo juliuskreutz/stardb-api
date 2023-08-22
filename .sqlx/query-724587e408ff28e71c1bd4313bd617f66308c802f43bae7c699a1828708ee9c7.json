@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            characters(id)\n        VALUES\n            ($1)\n        ON CONFLICT DO NOTHING;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "724587e408ff28e71c1bd4313bd617f66308c802f43bae7c699a1828708ee9c7"
+}

@@ -9,6 +9,8 @@ use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
 
+use crate::database;
+
 #[derive(Deserialize)]
 struct AchievementData {
     #[serde(rename = "AchievementID")]
@@ -87,7 +89,7 @@ struct TextHash {
 
 pub async fn dimbreath(pool: PgPool) {
     rt::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60 * 5));
+        let mut interval = time::interval(Duration::from_secs(60 * 10));
 
         loop {
             interval.tick().await;
@@ -170,12 +172,12 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let priority = series.priority;
 
-        let db_series = stardb_database::DbSeries {
+        let db_series = database::DbSeries {
             id,
             priority,
             name: String::new(),
         };
-        stardb_database::set_series(&db_series, pool).await?;
+        database::set_series(&db_series, pool).await?;
     }
 
     for achievement_data in achievement_data.values() {
@@ -191,7 +193,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let priority = achievement_data.priority;
 
-        let db_achievement = stardb_database::DbAchievement {
+        let db_achievement = database::DbAchievement {
             id,
             series,
             series_name: String::new(),
@@ -210,20 +212,20 @@ async fn update(pool: &PgPool) -> Result<()> {
             percent: 0.0,
         };
 
-        stardb_database::set_achievement(&db_achievement, pool).await?;
+        database::set_achievement(&db_achievement, pool).await?;
     }
 
     for avatar_config in avatar_config.values() {
         let id = avatar_config.id;
 
-        let db_character = stardb_database::DbCharacter {
+        let db_character = database::DbCharacter {
             id,
             name: String::new(),
             element: String::new(),
             path: String::new(),
         };
 
-        stardb_database::set_character(&db_character, pool).await?;
+        database::set_character(&db_character, pool).await?;
     }
 
     for language in languages {
@@ -246,13 +248,13 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_series_text = stardb_database::DbSeriesText {
+            let db_series_text = database::DbSeriesText {
                 id,
                 language: language.to_lowercase(),
                 name,
             };
 
-            stardb_database::set_series_text(&db_series_text, pool).await?;
+            database::set_series_text(&db_series_text, pool).await?;
         }
 
         for achievement_data in achievement_data.values() {
@@ -296,14 +298,14 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_achievement_text = stardb_database::DbAchievementText {
+            let db_achievement_text = database::DbAchievementText {
                 id,
                 language: language.to_lowercase(),
                 name,
                 description,
             };
 
-            stardb_database::set_achievement_text(&db_achievement_text, pool).await?;
+            database::set_achievement_text(&db_achievement_text, pool).await?;
         }
 
         for avatar_config in avatar_config.values() {
@@ -333,7 +335,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 .to_string()]
                 .clone();
 
-            let db_character_text = stardb_database::DbCharacterText {
+            let db_character_text = database::DbCharacterText {
                 id,
                 language: language.to_lowercase(),
                 name,
@@ -341,7 +343,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 path,
             };
 
-            stardb_database::set_character_text(&db_character_text, pool).await?;
+            database::set_character_text(&db_character_text, pool).await?;
         }
     }
 

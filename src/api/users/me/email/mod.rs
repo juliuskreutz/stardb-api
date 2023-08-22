@@ -4,7 +4,7 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -41,7 +41,7 @@ async fn get_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl 
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let user = stardb_database::get_user_by_username(&username, &pool).await?;
+    let user = database::get_user_by_username(&username, &pool).await?;
 
     Ok(HttpResponse::Ok().json(user.email))
 }
@@ -71,7 +71,7 @@ async fn put_email(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    stardb_database::update_user_email(&username, &email_update.email, &pool).await?;
+    database::update_user_email(&username, &email_update.email, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -91,7 +91,7 @@ async fn delete_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<im
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    stardb_database::delete_user_email(&username, &pool).await?;
+    database::delete_user_email(&username, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

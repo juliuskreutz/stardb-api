@@ -3,7 +3,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 use super::LanguageParams;
 
@@ -29,8 +29,8 @@ struct CommunityTierListEntry {
     votes: i32,
 }
 
-impl From<stardb_database::DbCommunityTierListEntry> for CommunityTierListEntry {
-    fn from(db_character: stardb_database::DbCommunityTierListEntry) -> Self {
+impl From<database::DbCommunityTierListEntry> for CommunityTierListEntry {
+    fn from(db_character: database::DbCommunityTierListEntry) -> Self {
         CommunityTierListEntry {
             character: db_character.character,
             character_name: db_character.character_name,
@@ -67,8 +67,7 @@ async fn get_community_tier_list_entries(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_community_tier_list_entries =
-        stardb_database::get_community_tier_list_entries(&language_params.lang.to_string(), &pool)
-            .await?;
+        database::get_community_tier_list_entries(&language_params.lang.to_string(), &pool).await?;
 
     let community_tier_list_entries: Vec<_> = db_community_tier_list_entries
         .into_iter()

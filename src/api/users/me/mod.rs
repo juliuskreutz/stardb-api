@@ -11,7 +11,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -65,7 +65,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let admin = stardb_database::get_admin_by_username(&username, &pool)
+    let admin = database::get_admin_by_username(&username, &pool)
         .await
         .is_ok();
 

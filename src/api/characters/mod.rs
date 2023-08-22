@@ -5,7 +5,10 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{ApiResult, LanguageParams};
+use crate::{
+    api::{ApiResult, LanguageParams},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -25,8 +28,8 @@ struct Character {
     path: String,
 }
 
-impl From<stardb_database::DbCharacter> for Character {
-    fn from(db_character: stardb_database::DbCharacter) -> Self {
+impl From<database::DbCharacter> for Character {
+    fn from(db_character: database::DbCharacter) -> Self {
         Character {
             id: db_character.id,
             name: db_character.name,
@@ -60,8 +63,7 @@ async fn get_characters(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_characters =
-        stardb_database::get_characters(&language_params.lang.to_string(), &pool).await?;
+    let db_characters = database::get_characters(&language_params.lang.to_string(), &pool).await?;
 
     let characters: Vec<_> = db_characters.into_iter().map(Character::from).collect();
 

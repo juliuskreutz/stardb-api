@@ -1,7 +1,13 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use actix_web::rt::{self, time};
+use anyhow::Result;
 use sqlx::PgPool;
+
+use crate::database;
 
 pub async fn achievements_percent(pool: PgPool) {
     rt::spawn(async move {
@@ -12,7 +18,7 @@ pub async fn achievements_percent(pool: PgPool) {
 
             let start = Instant::now();
 
-            if let Err(e) = stardb_database::update_achievements_percent(&pool).await {
+            if let Err(e) = update(&pool).await {
                 log::error!(
                     "Achievements Percent update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
@@ -25,4 +31,44 @@ pub async fn achievements_percent(pool: PgPool) {
             }
         }
     });
+}
+
+async fn update(pool: &PgPool) -> Result<()> {
+    let completed = database::get_completed(pool).await?;
+
+    let mut usernames_achievements: HashMap<String, Vec<i64>> = HashMap::new();
+
+    for completed in &completed {
+        usernames_achievements
+            .entry(completed.username.clone())
+            .and_modify(|v| v.push(completed.id))
+            .or_insert(vec![completed.id]);
+    }
+
+    let mut achievements_count = HashMap::new();
+
+    for achievements in usernames_achievements.values().filter(|v| v.len() >= 50) {
+        for &achievement in achievements {
+            achievements_count
+                .entry(achievement)
+                .and_modify(|c| *c += 1)
+                .or_insert(1usize);
+        }
+    }
+
+    let achievements_id = database::get_achievements_id(pool).await?;
+
+    for id in achievements_id {
+        let percent = if let Some(&count) = achievements_count.get(&id) {
+            count as f64 / usernames_achievements.len() as f64
+        } else {
+            0.0
+        };
+
+        let achievement_percent = database::DbAchievementPercent { id, percent };
+
+        database::set_achievement_percent(&achievement_percent, pool).await?;
+    }
+
+    Ok(())
 }

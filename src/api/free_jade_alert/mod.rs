@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::ApiResult;
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -216,7 +216,7 @@ async fn post_free_jade_alert(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {

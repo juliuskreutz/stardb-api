@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            sessions(uuid, username, expiry)\n        VALUES\n            ($1, $2, $3)\n        ON CONFLICT\n            (uuid)\n        DO UPDATE SET\n            username = EXCLUDED.username,\n            expiry = EXCLUDED.expiry\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9247dc8cdac5981de2d8b22581d11dbffa8d38255cdfdc42b4caf20e8b61d0de"
+}

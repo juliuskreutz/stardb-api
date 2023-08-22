@@ -5,20 +5,37 @@ mod free_jade_alert;
 mod import;
 mod languages;
 mod mihomo;
+mod pages;
 mod scores;
 mod series;
 mod users;
 
-use actix_web::web;
+use actix_web::{guard, web};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use strum::{Display, EnumIter, EnumString};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{
+    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
+    IntoParams, Modify, OpenApi, ToSchema,
+};
 
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 #[derive(OpenApi)]
-#[openapi(components(schemas(Language)))]
+#[openapi(components(schemas(Language)), modifiers(&PrivateAddon))]
 struct ApiDoc;
+
+struct PrivateAddon;
+
+impl Modify for PrivateAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.as_mut().unwrap();
+        components.add_security_scheme(
+            "api_key",
+            SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("x-api-key"))),
+        )
+    }
+}
 
 #[derive(Deserialize, IntoParams)]
 struct LanguageParams {
@@ -80,6 +97,11 @@ impl Language {
     }
 }
 
+fn private(ctx: &guard::GuardContext) -> bool {
+    Some(dotenv::var("API_KEY").unwrap().as_bytes())
+        == ctx.head().headers().get("x-api-key").map(|h| h.as_bytes())
+}
+
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
@@ -89,6 +111,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(import::openapi());
     openapi.merge(languages::openapi());
     openapi.merge(mihomo::openapi());
+    openapi.merge(pages::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(series::openapi());
     openapi.merge(users::openapi());
@@ -103,7 +126,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(import::configure)
         .configure(languages::configure)
         .configure(mihomo::configure)
+        .configure(pages::configure)
         .configure(scores::configure)
         .configure(series::configure)
         .configure(users::configure);
+}
+
+pub fn cache_achievement_tracker(
+    pool: PgPool,
+) -> web::Data<pages::achievement_tracker::AchievementTrackerCache> {
+    pages::cache_achievement_tracker(pool)
 }

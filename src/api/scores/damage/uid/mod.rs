@@ -4,9 +4,12 @@ use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::api::{
-    scores::damage::{DamageParams, ScoreDamage},
-    ApiResult,
+use crate::{
+    api::{
+        scores::damage::{DamageParams, ScoreDamage},
+        ApiResult,
+    },
+    database,
 };
 
 #[derive(OpenApi)]
@@ -52,7 +55,7 @@ async fn get_score_damage(
     damage_params: web::Query<DamageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let score: ScoreDamage = stardb_database::get_score_damage_by_uid(
+    let score: ScoreDamage = database::get_score_damage_by_uid(
         *uid,
         damage_params.character,
         damage_params.support,
@@ -86,7 +89,7 @@ async fn put_score_damage(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if stardb_database::get_admin_by_username(&username, &pool)
+    if database::get_admin_by_username(&username, &pool)
         .await
         .is_err()
     {
@@ -99,7 +102,7 @@ async fn put_score_damage(
     let damage = damage_update.damage;
     let video = damage_update.video.clone();
 
-    let db_set_score_damage = stardb_database::DbScoreDamage {
+    let db_set_score_damage = database::DbScoreDamage {
         uid,
         character,
         support,
@@ -108,7 +111,7 @@ async fn put_score_damage(
         ..Default::default()
     };
 
-    stardb_database::set_score_damage(&db_set_score_damage, &pool).await?;
+    database::set_score_damage(&db_set_score_damage, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

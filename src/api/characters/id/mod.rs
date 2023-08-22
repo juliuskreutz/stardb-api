@@ -2,7 +2,10 @@ use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::api::{characters::Character, ApiResult, LanguageParams};
+use crate::{
+    api::{characters::Character, ApiResult, LanguageParams},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -35,7 +38,7 @@ async fn get_character(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let character: Character =
-        stardb_database::get_character_by_id(*id, &language_params.lang.to_string(), &pool)
+        database::get_character_by_id(*id, &language_params.lang.to_string(), &pool)
             .await?
             .into();
 
