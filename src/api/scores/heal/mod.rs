@@ -7,10 +7,7 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{
-        scores::{Scores, ScoresParams},
-        ApiResult,
-    },
+    api::{scores::ScoresParams, ApiResult},
     database,
 };
 
@@ -27,18 +24,18 @@ use super::Region;
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
-pub struct ScoreHeal {
-    pub global_rank: i64,
-    pub regional_rank: i64,
-    pub uid: i64,
-    pub heal: i32,
-    pub video: String,
-    pub region: Region,
-    pub name: String,
-    pub level: i32,
-    pub signature: String,
-    pub avatar_icon: String,
-    pub updated_at: NaiveDateTime,
+struct ScoreHeal {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    heal: i32,
+    video: String,
+    region: Region,
+    name: String,
+    level: i32,
+    signature: String,
+    avatar_icon: String,
+    updated_at: NaiveDateTime,
 }
 
 impl From<database::DbScoreHeal> for ScoreHeal {
@@ -77,7 +74,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         ScoresParams
     ),
     responses(
-        (status = 200, description = "ScoresHeal", body = ScoresHeal),
+        (status = 200, description = "[ScoreHeal]", body = Vec<ScoreHeal>),
     )
 )]
 #[get("/api/scores/heal")]
@@ -85,20 +82,6 @@ async fn get_scores_heal(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na = database::count_scores_heal(Some(&Region::NA.to_string()), None, &pool).await?;
-    let count_eu = database::count_scores_heal(Some(&Region::EU.to_string()), None, &pool).await?;
-    let count_asia =
-        database::count_scores_heal(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn = database::count_scores_heal(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_heal(
-        scores_params.region.map(|r| r.to_string()).as_deref(),
-        scores_params.query.as_deref(),
-        &pool,
-    )
-    .await?;
-
-    let count = count_na + count_eu + count_asia + count_cn;
-
     let db_scores_heal = database::get_scores_heal(
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
@@ -108,17 +91,7 @@ async fn get_scores_heal(
     )
     .await?;
 
-    let scores = db_scores_heal.into_iter().map(ScoreHeal::from).collect();
+    let scores: Vec<_> = db_scores_heal.into_iter().map(ScoreHeal::from).collect();
 
-    let scores_heal = Scores {
-        count,
-        count_na,
-        count_eu,
-        count_asia,
-        count_cn,
-        count_query,
-        scores,
-    };
-
-    Ok(HttpResponse::Ok().json(scores_heal))
+    Ok(HttpResponse::Ok().json(scores))
 }

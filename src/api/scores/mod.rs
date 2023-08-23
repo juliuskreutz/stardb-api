@@ -8,12 +8,8 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
-use self::{
-    achievements::ScoreAchievement, damage::ScoreDamage, heal::ScoreHeal, shield::ScoreShield,
-};
-
 #[derive(OpenApi)]
-#[openapi(components(schemas(Region, ScoresAchievement, ScoresDamage, ScoresHeal, ScoresShield)))]
+#[openapi(components(schemas(Region)))]
 struct ApiDoc;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema, Clone, Copy)]
@@ -24,23 +20,6 @@ pub enum Region {
     EU,
     Asia,
     CN,
-}
-
-#[derive(Serialize, ToSchema)]
-#[aliases(
-    ScoresAchievement = Scores<ScoreAchievement>,
-    ScoresDamage = Scores<ScoreDamage>,
-    ScoresHeal = Scores<ScoreHeal>,
-    ScoresShield = Scores<ScoreShield>
-)]
-pub struct Scores<T: Serialize> {
-    pub count: i64,
-    pub count_na: i64,
-    pub count_eu: i64,
-    pub count_asia: i64,
-    pub count_cn: i64,
-    pub count_query: i64,
-    pub scores: Vec<T>,
 }
 
 #[derive(Deserialize, IntoParams)]

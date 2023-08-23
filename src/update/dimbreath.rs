@@ -145,15 +145,11 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
-    let mut avatar_config: HashMap<String, AvatarConfig> =
+    let avatar_config: HashMap<String, AvatarConfig> =
         reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
             .await?
             .json()
             .await?;
-    // Second physical traiblazer
-    avatar_config.remove("8002");
-    // Second fire traiblazer
-    avatar_config.remove("8004");
 
     let avatar_base_type: HashMap<String, AvatarBaseType> =
         reqwest::get(&format!("{url}ExcelOutput/AvatarBaseType.json"))
@@ -229,11 +225,25 @@ async fn update(pool: &PgPool) -> Result<()> {
     }
 
     for language in languages {
-        let text_map: HashMap<String, String> =
+        let mut text_map: HashMap<String, String> =
             reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
                 .await?
                 .json()
                 .await?;
+
+        // -1976918066 = Dan Heng (Imbibitor Lunae)
+        *text_map.get_mut("-1976918066").unwrap() = match language {
+            "CHS" => "丹恒 (饮月)",
+            "CHT" => "丹恆 (飲月)",
+            "JP" => "丹恒 (飲月)",
+            "KR" => "단항 (음월)",
+            "PT" => "Dan Heng (Embebidor Lunae)",
+            "RU" => "Дань Хэн (Пожиратель Луны)",
+            "TH" => "Dan Heng (จ้าวยลจันทรา)",
+            "VI" => "Dan Heng (Ẩm Nguyệt)",
+            _ => "Dan Heng (Imbibitor Lunae)",
+        }
+        .to_string();
 
         for series in achievement_series.values() {
             let id = series.id;
@@ -313,11 +323,11 @@ async fn update(pool: &PgPool) -> Result<()> {
                 text_map[&damage_type[&avatar_config.element].name.hash.to_string()].clone();
 
             let name = match avatar_config.id {
-                8001 | 8003 => {
-                    //-2090701432 = Trailblazer
+                8001..=8004 => {
+                    // -2090701432 = Trailblazer
                     let trail_blazer = text_map["-2090701432"].clone();
 
-                    format!("{trail_blazer}\u{00A0}•\u{00A0}{element}")
+                    format!("{trail_blazer} ({element})")
                 }
                 _ => text_map[&avatar_config.name.hash.to_string()].clone(),
             };
