@@ -1,13 +1,10 @@
 mod id;
 
-use std::collections::HashMap;
-
 use actix_web::{get, web, HttpResponse, Responder};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumString};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::{ApiResult, LanguageParams},
@@ -23,7 +20,6 @@ use super::Language;
     components(schemas(
         Difficulty,
         Language,
-        Layout,
         Achievement
     ))
 )]
@@ -36,20 +32,6 @@ enum Difficulty {
     Easy,
     Medium,
     Hard,
-}
-
-#[derive(Default, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
-enum Layout {
-    #[default]
-    Flat,
-    Grouped,
-}
-
-#[derive(Deserialize, IntoParams)]
-struct AchievementParams {
-    #[serde(default)]
-    layout: Layout,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -77,22 +59,6 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     related: Option<Vec<i64>>,
     percent: f64,
-}
-
-#[derive(Default, Serialize, ToSchema)]
-struct Groups {
-    achievement_count: usize,
-    jade_count: i32,
-    user_count: i64,
-    series: Vec<AchivementsGrouped>,
-}
-
-#[derive(Serialize, ToSchema)]
-struct AchivementsGrouped {
-    series: String,
-    achievement_count: usize,
-    jade_count: i32,
-    achievements: Vec<Vec<Achievement>>,
 }
 
 impl From<database::DbAchievement> for Achievement {
@@ -135,7 +101,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "achievements",
     get,
     path = "/api/achievements",
-    params(LanguageParams, AchievementParams),
+    params(LanguageParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
@@ -143,76 +109,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[get("/api/achievements")]
 async fn get_achievements(
     language_params: web::Query<LanguageParams>,
-    achievement_params: web::Query<AchievementParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievements =
         database::get_achievements(&language_params.lang.to_string(), &pool).await?;
 
-    Ok(match achievement_params.layout {
-        Layout::Flat => {
-            let mut achievements = db_achievements
-                .into_iter()
-                .map(Achievement::from)
-                .collect::<Vec<_>>();
+    let mut achievements = db_achievements
+        .into_iter()
+        .map(Achievement::from)
+        .collect::<Vec<_>>();
 
-            for achievement in &mut achievements {
-                if let Some(set) = achievement.set {
-                    achievement.related =
-                        Some(database::get_related(achievement.id, set, &pool).await?);
-                }
-            }
-
-            HttpResponse::Ok().json(achievements)
+    for achievement in &mut achievements {
+        if let Some(set) = achievement.set {
+            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
         }
-        Layout::Grouped => {
-            let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
-            let mut groupings: HashMap<i32, usize> = HashMap::new();
+    }
 
-            for db_achievement in db_achievements {
-                let achievements = series
-                    .entry(db_achievement.series_name.clone())
-                    .or_default();
-
-                let achievement = Achievement::from(db_achievement);
-
-                if let Some(set) = achievement.set {
-                    if let Some(&i) = groupings.get(&set) {
-                        achievements[i].push(achievement);
-                        continue;
-                    }
-
-                    groupings.insert(set, achievements.len());
-                }
-
-                achievements.push(vec![achievement]);
-            }
-
-            let series = series
-                .into_iter()
-                .map(|(series, achievements)| AchivementsGrouped {
-                    series,
-                    achievement_count: achievements.len(),
-                    jade_count: achievements.iter().map(|a| a[0].jades).sum(),
-                    achievements,
-                })
-                .collect::<Vec<_>>();
-
-            let (achievement_count, jade_count) =
-                series.iter().fold((0, 0), |(a_count, j_count), ag| {
-                    (a_count + ag.achievements.len(), j_count + ag.jade_count)
-                });
-
-            let user_count = database::get_distinct_username_count(&pool).await?;
-
-            let groups = Groups {
-                achievement_count,
-                jade_count,
-                user_count,
-                series,
-            };
-
-            HttpResponse::Ok().json(groups)
-        }
-    })
+    Ok(HttpResponse::Ok().json(achievements))
 }
