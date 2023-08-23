@@ -1,3 +1,5 @@
+use std::env;
+
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{NaiveDateTime, Utc};
@@ -228,7 +230,7 @@ async fn post_free_jade_alert(
     let webhook: Webhook = free_jade_alert.0.into();
 
     client
-        .post(dotenv::var("DISCORD_WEBHOOK")?)
+        .post(env::var("DISCORD_WEBHOOK")?)
         .json(&webhook)
         .send()
         .await?;

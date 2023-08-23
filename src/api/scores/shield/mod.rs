@@ -7,10 +7,7 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{
-        scores::{Scores, ScoresParams},
-        ApiResult,
-    },
+    api::{scores::ScoresParams, ApiResult},
     database,
 };
 
@@ -27,18 +24,18 @@ use super::Region;
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
-pub struct ScoreShield {
-    pub global_rank: i64,
-    pub regional_rank: i64,
-    pub uid: i64,
-    pub shield: i32,
-    pub video: String,
-    pub region: Region,
-    pub name: String,
-    pub level: i32,
-    pub signature: String,
-    pub avatar_icon: String,
-    pub updated_at: NaiveDateTime,
+struct ScoreShield {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    shield: i32,
+    video: String,
+    region: Region,
+    name: String,
+    level: i32,
+    signature: String,
+    avatar_icon: String,
+    updated_at: NaiveDateTime,
 }
 
 impl From<database::DbScoreShield> for ScoreShield {
@@ -77,7 +74,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         ScoresParams
     ),
     responses(
-        (status = 200, description = "ScoresShield", body = ScoresShield),
+        (status = 200, description = "[ScoreShield]", body = Vec<ScoreShield>),
     )
 )]
 #[get("/api/scores/shield")]
@@ -85,23 +82,6 @@ async fn get_scores_shield(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na =
-        database::count_scores_shield(Some(&Region::NA.to_string()), None, &pool).await?;
-    let count_eu =
-        database::count_scores_shield(Some(&Region::EU.to_string()), None, &pool).await?;
-    let count_asia =
-        database::count_scores_shield(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::count_scores_shield(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_shield(
-        scores_params.region.map(|r| r.to_string()).as_deref(),
-        scores_params.query.as_deref(),
-        &pool,
-    )
-    .await?;
-
-    let count = count_na + count_eu + count_asia + count_cn;
-
     let db_scores_shield = database::get_scores_shield(
         scores_params.region.as_ref().map(|r| r.to_string()),
         scores_params.query.clone(),
@@ -111,20 +91,10 @@ async fn get_scores_shield(
     )
     .await?;
 
-    let scores = db_scores_shield
+    let scores: Vec<_> = db_scores_shield
         .into_iter()
         .map(ScoreShield::from)
         .collect();
 
-    let scores_shield = Scores {
-        count,
-        count_na,
-        count_eu,
-        count_asia,
-        count_cn,
-        count_query,
-        scores,
-    };
-
-    Ok(HttpResponse::Ok().json(scores_shield))
+    Ok(HttpResponse::Ok().json(scores))
 }

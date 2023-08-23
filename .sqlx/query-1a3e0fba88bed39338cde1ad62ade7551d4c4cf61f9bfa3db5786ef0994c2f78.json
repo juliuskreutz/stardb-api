@@ -35,16 +35,31 @@
       },
       {
         "ordinal": 6,
+        "name": "quartile_1",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 7,
+        "name": "quartile_3",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 8,
+        "name": "confidence_interval_95",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
         "name": "character_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 7,
+        "ordinal": 10,
         "name": "character_element",
         "type_info": "Text"
       },
       {
-        "ordinal": 8,
+        "ordinal": 11,
         "name": "character_path",
         "type_info": "Text"
       }
@@ -55,6 +70,9 @@
       ]
     },
     "nullable": [
+      false,
+      false,
+      false,
       false,
       false,
       false,

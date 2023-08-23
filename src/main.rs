@@ -6,6 +6,7 @@ mod update;
 
 use std::{
     collections::HashMap,
+    env,
     fs::{self, File},
 };
 
@@ -38,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
 
     let _ = fs::create_dir("mihomo");
 
-    let pool = PgPool::connect(&dotenv::var("DATABASE_URL")?).await?;
+    let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
     sqlx::migrate!().run(&pool).await?;
 
     update::achievements_percent(pool.clone()).await;

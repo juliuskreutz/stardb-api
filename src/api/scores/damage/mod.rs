@@ -7,10 +7,7 @@ use sqlx::PgPool;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
-    api::{
-        scores::{Scores, ScoresParams},
-        ApiResult,
-    },
+    api::{scores::ScoresParams, ApiResult},
     database,
 };
 
@@ -33,20 +30,20 @@ pub struct DamageParams {
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct ScoreDamage {
-    pub global_rank: i64,
-    pub regional_rank: i64,
-    pub uid: i64,
-    pub character: i32,
-    pub support: bool,
-    pub damage: i32,
-    pub video: String,
-    pub region: Region,
-    pub name: String,
-    pub level: i32,
-    pub signature: String,
-    pub avatar_icon: String,
-    pub updated_at: NaiveDateTime,
+struct ScoreDamage {
+    global_rank: i64,
+    regional_rank: i64,
+    uid: i64,
+    character: i32,
+    support: bool,
+    damage: i32,
+    video: String,
+    region: Region,
+    name: String,
+    level: i32,
+    signature: String,
+    avatar_icon: String,
+    updated_at: NaiveDateTime,
 }
 
 impl From<database::DbScoreDamage> for ScoreDamage {
@@ -88,7 +85,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         ScoresParams
     ),
     responses(
-        (status = 200, description = "ScoresDamage", body = ScoresDamage),
+        (status = 200, description = "[ScoreDamage]", body = Vec<ScoreDamage>),
     )
 )]
 #[get("/api/scores/damage")]
@@ -97,23 +94,6 @@ async fn get_scores_damage(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na =
-        database::count_scores_damage(Some(&Region::NA.to_string()), None, &pool).await?;
-    let count_eu =
-        database::count_scores_damage(Some(&Region::EU.to_string()), None, &pool).await?;
-    let count_asia =
-        database::count_scores_damage(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::count_scores_damage(Some(&Region::CN.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_damage(
-        scores_params.region.map(|r| r.to_string()).as_deref(),
-        scores_params.query.as_deref(),
-        &pool,
-    )
-    .await?;
-
-    let count = count_na + count_eu + count_asia + count_cn;
-
     let db_scores_damage = database::get_scores_damage(
         damage_params.character,
         damage_params.support,
@@ -125,20 +105,10 @@ async fn get_scores_damage(
     )
     .await?;
 
-    let scores = db_scores_damage
+    let scores: Vec<_> = db_scores_damage
         .into_iter()
         .map(ScoreDamage::from)
         .collect();
 
-    let scores_damage = Scores {
-        count,
-        count_na,
-        count_eu,
-        count_asia,
-        count_cn,
-        count_query,
-        scores,
-    };
-
-    Ok(HttpResponse::Ok().json(scores_damage))
+    Ok(HttpResponse::Ok().json(scores))
 }

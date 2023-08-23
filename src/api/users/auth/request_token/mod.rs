@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 use actix_web::{post, rt, web, HttpResponse, Responder};
 use futures::lock::Mutex;
@@ -75,8 +75,7 @@ async fn request_token(
         .subject("StarDB.GG Emergency Login")
         .body(format!("Click -> https://stardb.gg/login?token={token}"))?;
 
-    let credentials =
-        Credentials::new(dotenv::var("SMTP_USERNAME")?, dotenv::var("SMTP_PASSWORD")?);
+    let credentials = Credentials::new(env::var("SMTP_USERNAME")?, env::var("SMTP_PASSWORD")?);
 
     let mailer = SmtpTransport::relay("mail.hosting.de")?
         .credentials(credentials)

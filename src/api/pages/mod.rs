@@ -1,6 +1,7 @@
 pub mod achievement_tracker;
 mod community_tier_list;
 mod leaderboard;
+mod profiles;
 
 use actix_web::web;
 use sqlx::PgPool;
@@ -15,13 +16,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(achievement_tracker::openapi());
     openapi.merge(community_tier_list::openapi());
     openapi.merge(leaderboard::openapi());
+    openapi.merge(profiles::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(achievement_tracker::configure)
         .configure(community_tier_list::configure)
-        .configure(leaderboard::configure);
+        .configure(leaderboard::configure)
+        .configure(profiles::configure);
 }
 
 pub fn cache_achievement_tracker(

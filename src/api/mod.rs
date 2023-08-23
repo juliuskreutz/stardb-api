@@ -10,6 +10,8 @@ mod scores;
 mod series;
 mod users;
 
+use std::env;
+
 use actix_web::{guard, web};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -98,7 +100,7 @@ impl Language {
 }
 
 fn private(ctx: &guard::GuardContext) -> bool {
-    Some(dotenv::var("API_KEY").unwrap().as_bytes())
+    Some(env::var("API_KEY").unwrap().as_bytes())
         == ctx.head().headers().get("x-api-key").map(|h| h.as_bytes())
 }
 

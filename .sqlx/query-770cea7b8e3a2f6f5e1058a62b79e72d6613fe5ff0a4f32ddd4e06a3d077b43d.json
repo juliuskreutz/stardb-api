@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            community_tier_list_entries(character, eidolon, average, variance, quartile_1, quartile_3, confidence_interval_95, votes, total_votes)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n        ON CONFLICT\n            (character, eidolon)\n        DO UPDATE SET\n            average = EXCLUDED.average,\n            variance = EXCLUDED.variance,\n            quartile_1 = EXCLUDED.quartile_1,\n            quartile_3 = EXCLUDED.quartile_3,\n            confidence_interval_95 = EXCLUDED.confidence_interval_95,\n            votes = EXCLUDED.votes,\n            total_votes = EXCLUDED.total_votes\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "770cea7b8e3a2f6f5e1058a62b79e72d6613fe5ff0a4f32ddd4e06a3d077b43d"
+}

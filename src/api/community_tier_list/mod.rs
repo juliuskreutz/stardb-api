@@ -26,20 +26,26 @@ struct CommunityTierListEntry {
     eidolon: i32,
     average: f64,
     variance: f64,
+    quartile_1: f64,
+    quartile_3: f64,
+    confidence_interval_95: f64,
     votes: i32,
 }
 
 impl From<database::DbCommunityTierListEntry> for CommunityTierListEntry {
-    fn from(db_character: database::DbCommunityTierListEntry) -> Self {
+    fn from(db_entry: database::DbCommunityTierListEntry) -> Self {
         CommunityTierListEntry {
-            character: db_character.character,
-            character_name: db_character.character_name,
-            character_path: db_character.character_path,
-            character_element: db_character.character_element,
-            eidolon: db_character.eidolon,
-            average: db_character.average,
-            variance: db_character.variance,
-            votes: db_character.votes,
+            character: db_entry.character,
+            character_name: db_entry.character_name,
+            character_path: db_entry.character_path,
+            character_element: db_entry.character_element,
+            eidolon: db_entry.eidolon,
+            average: db_entry.average,
+            variance: db_entry.variance,
+            quartile_1: db_entry.quartile_1,
+            quartile_3: db_entry.quartile_3,
+            confidence_interval_95: db_entry.confidence_interval_95,
+            votes: db_entry.votes,
         }
     }
 }
