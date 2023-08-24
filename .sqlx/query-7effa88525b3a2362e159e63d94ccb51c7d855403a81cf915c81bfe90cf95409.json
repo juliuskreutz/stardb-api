@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            community_tier_list_entries.*,\n            characters_text.name character_name,\n            characters_text.element character_element,\n            characters_text.path character_path\n        FROM\n            community_tier_list_entries\n        INNER JOIN\n            characters_text\n        ON\n            character = characters_text.id AND language = $1\n        ORDER BY\n            average DESC\n        ",
+  "query": "\n        SELECT\n            community_tier_list_entries.*,\n            characters.rarity character_rarity,\n            characters_text.name character_name,\n            characters_text.element character_element,\n            characters_text.path character_path\n        FROM\n            community_tier_list_entries\n        INNER JOIN\n            characters\n        ON\n            character = characters.id\n        INNER JOIN\n            characters_text\n        ON\n            character = characters_text.id AND language = $1\n        ORDER BY\n            average DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -50,16 +50,21 @@
       },
       {
         "ordinal": 9,
+        "name": "character_rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
         "name": "character_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "character_element",
         "type_info": "Text"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "character_path",
         "type_info": "Text"
       }
@@ -81,8 +86,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "1a3e0fba88bed39338cde1ad62ade7551d4c4cf61f9bfa3db5786ef0994c2f78"
+  "hash": "7effa88525b3a2362e159e63d94ccb51c7d855403a81cf915c81bfe90cf95409"
 }

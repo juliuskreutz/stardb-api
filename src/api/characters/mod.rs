@@ -23,6 +23,7 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct Character {
     id: i32,
+    rarity: i32,
     name: String,
     element: String,
     path: String,
@@ -32,6 +33,7 @@ impl From<database::DbCharacter> for Character {
     fn from(db_character: database::DbCharacter) -> Self {
         Character {
             id: db_character.id,
+            rarity: db_character.rarity,
             name: db_character.name,
             element: db_character.element,
             path: db_character.path,

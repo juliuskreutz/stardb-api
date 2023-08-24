@@ -6,11 +6,6 @@ use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-struct Scores {
-    scores: Vec<Score>,
-}
-
 #[derive(Serialize, Deserialize)]
 struct Score {
     uid: i64,
@@ -39,14 +34,14 @@ pub async fn scores() {
 async fn update() -> Result<()> {
     let client = Arc::new(Client::new());
 
-    let scores: Scores = client
+    let scores: Vec<Score> = client
         .get("http://localhost:8000/api/scores/achievements")
         .send()
         .await?
         .json()
         .await?;
 
-    futures::stream::iter(scores.scores)
+    futures::stream::iter(scores)
         .map(|s| (client.clone(), s))
         .map(|(client, score)| async move {
             loop {

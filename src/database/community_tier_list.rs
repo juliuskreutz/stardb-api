@@ -10,10 +10,11 @@ pub struct DbCommunityTierListEntry {
     pub quartile_3: f64,
     pub confidence_interval_95: f64,
     pub votes: i32,
+    pub total_votes: i32,
+    pub character_rarity: i32,
     pub character_name: String,
     pub character_path: String,
     pub character_element: String,
-    pub total_votes: i32,
 }
 
 pub async fn set_community_tier_list_entry(
@@ -62,11 +63,16 @@ pub async fn get_community_tier_list_entries(
         "
         SELECT
             community_tier_list_entries.*,
+            characters.rarity character_rarity,
             characters_text.name character_name,
             characters_text.element character_element,
             characters_text.path character_path
         FROM
             community_tier_list_entries
+        INNER JOIN
+            characters
+        ON
+            character = characters.id
         INNER JOIN
             characters_text
         ON
