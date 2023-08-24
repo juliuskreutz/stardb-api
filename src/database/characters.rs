@@ -3,6 +3,7 @@ use sqlx::PgPool;
 
 pub struct DbCharacter {
     pub id: i32,
+    pub rarity: i32,
     pub name: String,
     pub element: String,
     pub path: String,
@@ -12,12 +13,16 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
     sqlx::query!(
         "
         INSERT INTO
-            characters(id)
+            characters(id, rarity)
         VALUES
-            ($1)
-        ON CONFLICT DO NOTHING;
+            ($1, $2)
+        ON CONFLICT
+            (id)
+        DO UPDATE SET
+            rarity = EXCLUDED.rarity
         ",
         character.id,
+        character.rarity,
     )
     .execute(pool)
     .await?;

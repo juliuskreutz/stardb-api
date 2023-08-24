@@ -41,18 +41,15 @@ async fn update(pool: &PgPool) -> Result<()> {
     for completed in &completed {
         usernames_achievements
             .entry(completed.username.clone())
-            .and_modify(|v| v.push(completed.id))
-            .or_insert(vec![completed.id]);
+            .or_default()
+            .push(completed.id)
     }
 
-    let mut achievements_count = HashMap::new();
+    let mut achievements_count: HashMap<i64, usize> = HashMap::new();
 
     for achievements in usernames_achievements.values().filter(|v| v.len() >= 50) {
         for &achievement in achievements {
-            achievements_count
-                .entry(achievement)
-                .and_modify(|c| *c += 1)
-                .or_insert(1usize);
+            *achievements_count.entry(achievement).or_default() += 1;
         }
     }
 

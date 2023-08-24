@@ -42,9 +42,13 @@ async fn put_user_achievement(
 
     let id = *id;
 
-    let db_complete = database::DbComplete { username, id };
+    let forbidden = [4082301, 4070910, 4070915, 4020203, 4070904, 4070916];
 
-    database::add_complete(&db_complete, &pool).await?;
+    if !forbidden.contains(&id) {
+        let db_complete = database::DbComplete { username, id };
+
+        database::add_complete(&db_complete, &pool).await?;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }

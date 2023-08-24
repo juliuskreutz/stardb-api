@@ -97,10 +97,11 @@ async fn update(pool: &PgPool) -> Result<()> {
             quartile_3,
             confidence_interval_95,
             votes,
+            total_votes,
+            character_rarity: 0,
             character_name: "".to_string(),
             character_path: "".to_string(),
             character_element: "".to_string(),
-            total_votes,
         };
 
         database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;

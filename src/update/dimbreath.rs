@@ -61,6 +61,8 @@ struct RewardData {
 struct AvatarConfig {
     #[serde(rename = "AvatarID")]
     id: i32,
+    #[serde(rename = "Rarity")]
+    rarity: String,
     #[serde(rename = "AvatarName")]
     name: TextHash,
     #[serde(rename = "DamageType")]
@@ -114,6 +116,7 @@ pub async fn dimbreath(pool: PgPool) {
 async fn update(pool: &PgPool) -> Result<()> {
     let html_re = Regex::new(r"<[^>]*>")?;
     let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+    let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
 
     let url = "https://raw.githubusercontent.com/Dimbreath/StarRailData/master/";
 
@@ -214,8 +217,15 @@ async fn update(pool: &PgPool) -> Result<()> {
     for avatar_config in avatar_config.values() {
         let id = avatar_config.id;
 
+        let rarity = rarity_re
+            .captures(&avatar_config.rarity)
+            .and_then(|c| c.get(1))
+            .and_then(|m| m.as_str().parse().ok())
+            .unwrap_or_default();
+
         let db_character = database::DbCharacter {
             id,
+            rarity,
             name: String::new(),
             element: String::new(),
             path: String::new(),

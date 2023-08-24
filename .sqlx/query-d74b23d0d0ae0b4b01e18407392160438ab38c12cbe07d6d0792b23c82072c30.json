@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            characters(id, rarity)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            rarity = EXCLUDED.rarity\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d74b23d0d0ae0b4b01e18407392160438ab38c12cbe07d6d0792b23c82072c30"
+}
