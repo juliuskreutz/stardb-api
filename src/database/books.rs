@@ -6,6 +6,8 @@ pub struct DbBook {
     pub id: i64,
     pub series: i32,
     pub series_name: String,
+    pub series_world: i32,
+    pub series_world_name: String,
     pub series_inside: i32,
     pub name: String,
     pub percent: f64,
@@ -42,7 +44,9 @@ pub async fn get_books(language: &str, pool: &PgPool) -> Result<Vec<DbBook>> {
             books.*,
             books_text.name,
             percent,
-            book_series_text.name series_name
+            book_series.world series_world,
+            book_series_text.name series_name,
+            book_series_worlds_text.name series_world_name
         FROM
             books
         NATURAL INNER JOIN
@@ -59,6 +63,10 @@ pub async fn get_books(language: &str, pool: &PgPool) -> Result<Vec<DbBook>> {
             book_series_text
         ON
             series = book_series_text.id AND book_series_text.language = $1
+        INNER JOIN
+            book_series_worlds_text
+        ON
+            book_series.world = book_series_worlds_text.id AND book_series_worlds_text.language = $1
         ORDER BY
             id
         ",
@@ -76,7 +84,9 @@ pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<Db
             books.*,
             books_text.name,
             percent,
-            book_series_text.name series_name
+            book_series.world series_world,
+            book_series_text.name series_name,
+            book_series_worlds_text.name series_world_name
         FROM
             books
         NATURAL INNER JOIN
@@ -93,6 +103,10 @@ pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<Db
             book_series_text
         ON
             series = book_series_text.id AND book_series_text.language = $2
+        INNER JOIN
+            book_series_worlds_text
+        ON
+            book_series.world = book_series_worlds_text.id AND book_series_worlds_text.language = $2
         WHERE
             books.id = $1
         ",

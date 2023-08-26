@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            books.*,\n            books_text.name,\n            percent,\n            book_series.world series_world,\n            book_series_text.name series_name,\n            book_series_worlds_text.name series_world_name\n        FROM\n            books\n        NATURAL INNER JOIN\n            books_percent\n        INNER JOIN\n            books_text\n        ON\n            books.id = books_text.id AND books_text.language = $1\n        INNER JOIN\n            book_series\n        ON\n            series = book_series.id\n        INNER JOIN\n            book_series_text\n        ON\n            series = book_series_text.id AND book_series_text.language = $1\n        INNER JOIN\n            book_series_worlds_text\n        ON\n            book_series.world = book_series_worlds_text.id AND book_series_worlds_text.language = $1\n        ORDER BY\n            id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "series_inside",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "series",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "percent",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "series_world",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "series_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "series_world_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "eebce2d863e45079e7a2aefa5f39c92b17964163ad46128dfb21a28fac3b1623"
+}

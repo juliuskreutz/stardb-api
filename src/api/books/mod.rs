@@ -38,8 +38,10 @@ enum Difficulty {
 struct Book {
     id: i64,
     series: i32,
-    series_inside: i32,
     series_name: String,
+    series_world: i32,
+    series_world_name: String,
+    series_inside: i32,
     name: String,
     percent: f64,
 }
@@ -49,9 +51,11 @@ impl From<database::DbBook> for Book {
         Book {
             id: db_book.id,
             series: db_book.series,
+            series_name: db_book.series_name,
+            series_world: db_book.series_world,
+            series_world_name: db_book.series_world_name,
             series_inside: db_book.series_inside,
-            series_name: db_book.series_name.clone(),
-            name: db_book.name.clone(),
+            name: db_book.name,
             percent: db_book.percent,
         }
     }
