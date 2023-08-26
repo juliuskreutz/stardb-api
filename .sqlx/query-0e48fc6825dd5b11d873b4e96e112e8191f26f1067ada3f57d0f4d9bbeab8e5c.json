@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM completed WHERE username = $1",
+  "query": "SELECT * FROM users_achievements",
   "describe": {
     "columns": [
       {
@@ -15,14 +15,12 @@
       }
     ],
     "parameters": {
-      "Left": [
-        "Text"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
       false
     ]
   },
-  "hash": "e636809cc0c856be3890b080f5c3a5c8d250d7613eb8139571b917b006bc169e"
+  "hash": "0e48fc6825dd5b11d873b4e96e112e8191f26f1067ada3f57d0f4d9bbeab8e5c"
 }

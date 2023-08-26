@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            book_series.id,\n            book_series_text.name\n        FROM\n            book_series\n        INNER JOIN\n            book_series_text\n        ON\n            book_series_text.id = book_series.id AND book_series_text.language = $1\n        ORDER BY\n            id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "8245f1623d7bde68642a1a2d2b5021bb7a46e4971ced47e67ad3fc73a996f3b5"
+}

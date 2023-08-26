@@ -84,6 +84,26 @@ struct DamageType {
 }
 
 #[derive(Deserialize)]
+struct LocalbookConfig {
+    #[serde(rename = "BookID")]
+    id: i64,
+    #[serde(rename = "BookSeriesID")]
+    series: i32,
+    #[serde(rename = "BookSeriesInsideID")]
+    series_inside: i32,
+    #[serde(rename = "BookInsideName")]
+    name: TextHash,
+}
+
+#[derive(Deserialize)]
+struct BookSeriesConfig {
+    #[serde(rename = "BookSeriesID")]
+    id: i32,
+    #[serde(rename = "BookSeries")]
+    name: TextHash,
+}
+
+#[derive(Deserialize)]
 struct TextHash {
     #[serde(rename = "Hash")]
     hash: i64,
@@ -166,17 +186,29 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
-    for series in achievement_series.values() {
-        let id = series.id;
+    let localbook_config: HashMap<String, LocalbookConfig> =
+        reqwest::get(&format!("{url}ExcelOutput/LocalbookConfig.json"))
+            .await?
+            .json()
+            .await?;
 
-        let priority = series.priority;
+    let book_series_config: HashMap<String, BookSeriesConfig> =
+        reqwest::get(&format!("{url}ExcelOutput/BookSeriesConfig.json"))
+            .await?
+            .json()
+            .await?;
+
+    for achievement_series in achievement_series.values() {
+        let id = achievement_series.id;
+
+        let priority = achievement_series.priority;
 
         let db_series = database::DbAchievementSeries {
             id,
             priority,
             name: String::new(),
         };
-        database::set_series(&db_series, pool).await?;
+        database::set_achievement_series(&db_series, pool).await?;
     }
 
     for achievement_data in achievement_data.values() {
@@ -234,6 +266,34 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_character(&db_character, pool).await?;
     }
 
+    for book_series_config in book_series_config.values() {
+        let id = book_series_config.id;
+
+        let db_series = database::DbBookSeries {
+            id,
+            name: String::new(),
+        };
+
+        database::set_book_series(&db_series, pool).await?;
+    }
+
+    for localbook_config in localbook_config.values() {
+        let id = localbook_config.id;
+        let series = localbook_config.series;
+        let series_inside = localbook_config.series_inside;
+
+        let db_book = database::DbBook {
+            id,
+            series,
+            series_name: String::new(),
+            series_inside,
+            name: String::new(),
+            percent: 0.0,
+        };
+
+        database::set_book(&db_book, pool).await?;
+    }
+
     for language in languages {
         let mut text_map: HashMap<String, String> =
             reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
@@ -255,13 +315,15 @@ async fn update(pool: &PgPool) -> Result<()> {
         }
         .to_string();
 
-        for series in achievement_series.values() {
-            let id = series.id;
+        for achievement_series in achievement_series.values() {
+            let id = achievement_series.id;
 
             let name = gender_re
                 .replace_all(
-                    &html_re
-                        .replace_all(&text_map[&series.title.hash.to_string()], |_: &Captures| ""),
+                    &html_re.replace_all(
+                        &text_map[&achievement_series.title.hash.to_string()],
+                        |_: &Captures| "",
+                    ),
                     |c: &Captures| {
                         c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
                     },
@@ -274,7 +336,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 name,
             };
 
-            database::set_series_text(&db_series_text, pool).await?;
+            database::set_achievement_series_text(&db_series_text, pool).await?;
         }
 
         for achievement_data in achievement_data.values() {
@@ -364,6 +426,44 @@ async fn update(pool: &PgPool) -> Result<()> {
             };
 
             database::set_character_text(&db_character_text, pool).await?;
+        }
+
+        for book_series_config in book_series_config.values() {
+            let id = book_series_config.id;
+
+            let name = html_re
+                .replace_all(
+                    &text_map[&book_series_config.name.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
+
+            let db_book_series_text = database::DbBookSeriesText {
+                id,
+                language: language.to_lowercase(),
+                name,
+            };
+
+            database::set_book_series_text(&db_book_series_text, pool).await?;
+        }
+
+        for localbook_config in localbook_config.values() {
+            let id = localbook_config.id;
+
+            let name = html_re
+                .replace_all(
+                    &text_map[&localbook_config.name.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
+
+            let db_book_text = database::DbBookText {
+                id,
+                language: language.to_lowercase(),
+                name,
+            };
+
+            database::set_book_text(&db_book_text, pool).await?;
         }
     }
 

@@ -9,8 +9,8 @@ use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "users/me/achievements")),
-    paths(get_user_achievements, put_user_achievements)
+    tags((name = "users/me/books")),
+    paths(get_user_books, put_user_books)
 )]
 struct ApiDoc;
 
@@ -21,30 +21,27 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_user_achievements)
-        .service(put_user_achievements)
+    cfg.service(get_user_books)
+        .service(put_user_books)
         .configure(id::configure);
 }
 
 #[utoipa::path(
-    tag = "users/me/achievements",
+    tag = "users/me/books",
     get,
-    path = "/api/users/me/achievements",
+    path = "/api/users/me/books",
     responses(
-        (status = 200, description = "Achievement ids", body = Vec<i64>),
+        (status = 200, description = "Book ids", body = Vec<i64>),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[get("/api/users/me/achievements")]
-async fn get_user_achievements(
-    session: Session,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
+#[get("/api/users/me/books")]
+async fn get_user_books(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let completed: Vec<_> = database::get_user_achievements_by_username(&username, &pool)
+    let completed: Vec<_> = database::get_user_books_by_username(&username, &pool)
         .await?
         .iter()
         .map(|c| c.id)
@@ -54,17 +51,17 @@ async fn get_user_achievements(
 }
 
 #[utoipa::path(
-    tag = "users/me/achievements",
+    tag = "users/me/books",
     put,
-    path = "/api/users/me/achievements",
+    path = "/api/users/me/books",
     request_body = Vec<i64>,
     responses(
         (status = 200, description = "Success"),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[put("/api/users/me/achievements")]
-async fn put_user_achievements(
+#[put("/api/users/me/books")]
+async fn put_user_books(
     session: Session,
     ids: web::Json<Vec<i64>>,
     pool: web::Data<PgPool>,
@@ -73,12 +70,12 @@ async fn put_user_achievements(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete = database::DbUserAchievement { username, id: 0 };
+    let mut complete = database::DbUserBook { username, id: 0 };
 
     for id in ids.0 {
         complete.id = id;
 
-        database::add_user_achievement(&complete, &pool).await?;
+        database::add_user_book(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())

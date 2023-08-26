@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM completed",
+  "query": "SELECT * FROM users_books",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "c5083b77fece856b5e63e28c9f90f0ca5ae3bef50e92c1de4f0e1c3d9f1ecb91"
+  "hash": "0ec57854b5f4060f7b0330ed60c95231b7791da8cd2b0d2db5bf828a053f1f81"
 }
