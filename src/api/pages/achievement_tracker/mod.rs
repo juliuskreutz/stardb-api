@@ -3,17 +3,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{
-    get,
-    rt::{self, time},
-    web, HttpResponse, Responder,
-};
+use actix_web::{get, web, HttpResponse, Responder};
 use anyhow::Result;
 use async_rwlock::RwLock;
 use indexmap::IndexMap;
 use serde::Serialize;
 use sqlx::PgPool;
 use strum::{EnumString, IntoEnumIterator};
+use tokio::time;
 use utoipa::OpenApi;
 
 use crate::{
@@ -109,7 +106,7 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
     {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
-        rt::spawn(async move {
+        tokio::spawn(async move {
             let mut interval = time::interval(Duration::from_secs(60));
 
             loop {

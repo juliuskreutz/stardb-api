@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 use pg_session_store::PgSessionStore;
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
 
@@ -45,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
     update::achievements_percent(pool.clone()).await;
     update::community_tier_list(pool.clone()).await;
     update::dimbreath(pool.clone()).await;
+    update::star_rail_res().await;
     update::verifications(pool.clone()).await;
     update::scores().await;
 
@@ -83,5 +84,5 @@ async fn main() -> anyhow::Result<()> {
     .run()
     .await?;
 
-    Ok(())
+    std::process::exit(0)
 }

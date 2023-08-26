@@ -3,11 +3,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::rt::{self, time};
 use anyhow::Result;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
+use tokio::time;
 
 use crate::database;
 
@@ -90,7 +90,7 @@ struct TextHash {
 }
 
 pub async fn dimbreath(pool: PgPool) {
-    rt::spawn(async move {
+    tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60 * 10));
 
         loop {
@@ -171,7 +171,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let priority = series.priority;
 
-        let db_series = database::DbSeries {
+        let db_series = database::DbAchievementSeries {
             id,
             priority,
             name: String::new(),
@@ -268,7 +268,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_series_text = database::DbSeriesText {
+            let db_series_text = database::DbAchievementSeriesText {
                 id,
                 language: language.to_lowercase(),
                 name,

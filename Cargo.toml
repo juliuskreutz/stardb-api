@@ -17,6 +17,7 @@ csv = "1.2.2"
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 futures = "0.3.28"
+image = "0.24.7"
 indexmap = "2.0.0"
 lettre = { version = "0.10.4", features = ["tokio1-native-tls"] }
 log = "0.4.20"
@@ -33,6 +34,9 @@ sqlx = { version = "0.7.1", features = [
     "runtime-tokio-native-tls",
 ] }
 strum = { version = "0.25.0", features = ["derive"] }
+tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
 utoipa = { version = "3.4.4", features = ["actix_extras", "chrono"] }
 utoipa-swagger-ui = { version = "3.1.5", features = ["actix-web"] }
 uuid = { version = "1.4.1", features = ["v4", "serde"] }
+walkdir = "2.3.3"
+webp = "0.2.5"

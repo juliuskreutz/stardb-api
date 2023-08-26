@@ -11,22 +11,22 @@ use super::LanguageParams;
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "series")),
-    paths(get_seriess),
+    tags((name = "achievement-series")),
+    paths(get_achievement_seriess),
     components(schemas(
-        Series
+        AchievementSeries
     ))
 )]
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
-struct Series {
+struct AchievementSeries {
     id: i32,
     name: String,
 }
 
-impl From<database::DbSeries> for Series {
-    fn from(db_series: database::DbSeries) -> Self {
+impl From<database::DbAchievementSeries> for AchievementSeries {
+    fn from(db_series: database::DbAchievementSeries) -> Self {
         Self {
             id: db_series.id,
             name: db_series.name,
@@ -41,27 +41,28 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_seriess).configure(id::configure);
+    cfg.service(get_achievement_seriess)
+        .configure(id::configure);
 }
 
 #[utoipa::path(
-    tag = "series",
+    tag = "achievement-series",
     get,
-    path = "/api/series",
+    path = "/api/achievement-series",
     params(LanguageParams),
     responses(
-        (status = 200, description = "[Series]", body = Vec<Series>),
+        (status = 200, description = "[AchievementSeries]", body = Vec<AchievementSeries>),
     )
 )]
-#[get("/api/series")]
-async fn get_seriess(
+#[get("/api/achievement-series")]
+async fn get_achievement_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let series: Vec<_> = database::get_series(&language_param.lang.to_string(), &pool)
         .await?
         .into_iter()
-        .map(Series::from)
+        .map(AchievementSeries::from)
         .collect();
 
     Ok(HttpResponse::Ok().json(series))

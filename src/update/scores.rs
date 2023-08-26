@@ -1,6 +1,5 @@
 use std::{sync::Arc, time::Instant};
 
-use actix_web::rt;
 use anyhow::Result;
 use futures::StreamExt;
 use reqwest::Client;
@@ -12,7 +11,7 @@ struct Score {
 }
 
 pub async fn scores() {
-    rt::spawn(async {
+    tokio::spawn(async {
         loop {
             let start = Instant::now();
 
