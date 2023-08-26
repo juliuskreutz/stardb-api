@@ -57,7 +57,7 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
             achievements_text.name,
             achievements_text.description,
             percent,
-            series_text.name series_name
+            achievement_series_text.name series_name
         FROM
             achievements
         NATURAL INNER JOIN
@@ -67,15 +67,15 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
         ON
             achievements.id = achievements_text.id AND achievements_text.language = $1
         INNER JOIN
-            series
+            achievement_series
         ON
-            series = series.id
+            series = achievement_series.id
         INNER JOIN
-            series_text
+            achievement_series_text
         ON
-            series = series_text.id AND series_text.language = $1
+            series = achievement_series_text.id AND achievement_series_text.language = $1
         ORDER BY
-            series.priority DESC, series, priority DESC, id
+            achievement_series.priority DESC, series, priority DESC, id
         ",
         language
     )
@@ -126,7 +126,7 @@ pub async fn get_achievement_by_id(
             achievements_text.name,
             achievements_text.description,
             percent,
-            series_text.name series_name
+            achievement_series_text.name series_name
         FROM
             achievements
         NATURAL INNER JOIN
@@ -136,13 +136,13 @@ pub async fn get_achievement_by_id(
         ON
             achievements.id = achievements_text.id AND achievements_text.language = $2
         INNER JOIN
-            series
+            achievement_series
         ON
-            series = series.id
+            series = achievement_series.id
         INNER JOIN
-            series_text
+            achievement_series_text
         ON
-            series = series_text.id AND series_text.language = $2
+            series = achievement_series_text.id AND achievement_series_text.language = $2
         WHERE
             achievements.id = $1
         ",

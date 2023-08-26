@@ -24,6 +24,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 struct CommunityTierList {
     total_votes: i32,
     entries: Vec<Entry>,
+    sextiles: Vec<f64>,
 }
 
 #[derive(Serialize)]
@@ -81,10 +82,16 @@ async fn get_community_tier_list(
 
     let total_votes = db_entries[0].total_votes;
     let entries: Vec<_> = db_entries.into_iter().map(Entry::from).collect();
+    let sextiles = database::get_community_tier_list_sextiles(&pool)
+        .await?
+        .into_iter()
+        .map(|s| s.value)
+        .collect();
 
     let community_tier_list = CommunityTierList {
         total_votes,
         entries,
+        sextiles,
     };
 
     Ok(HttpResponse::Ok().json(community_tier_list))

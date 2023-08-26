@@ -3,10 +3,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::rt::{self, time};
 use anyhow::Result;
 use serde::Deserialize;
 use sqlx::PgPool;
+use tokio::time;
 
 use crate::database;
 
@@ -44,7 +44,7 @@ struct EffectiveValue {
 }
 
 pub async fn community_tier_list(pool: PgPool) {
-    rt::spawn(async move {
+    tokio::spawn(async move {
         let mut interval = time::interval(Duration::from_secs(60 * 5));
 
         loop {
@@ -105,6 +105,18 @@ async fn update(pool: &PgPool) -> Result<()> {
         };
 
         database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;
+    }
+
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!M2:M6")).await?.json().await?;
+
+    database::delete_community_tier_list_sextiles(pool).await?;
+
+    for row_data in &spreadsheet.sheets[0].data[0].row_data {
+        let value = row_data.values[0].effective_value.number_value;
+
+        let db_community_tier_list_sextile = database::DbCommunityTierListSextile { value };
+
+        database::set_community_tier_list_sextile(&db_community_tier_list_sextile, pool).await?;
     }
 
     Ok(())

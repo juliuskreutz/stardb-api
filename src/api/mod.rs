@@ -1,3 +1,4 @@
+mod achievement_series;
 mod achievements;
 mod characters;
 mod community_tier_list;
@@ -7,7 +8,6 @@ mod languages;
 mod mihomo;
 mod pages;
 mod scores;
-mod series;
 mod users;
 
 use std::env;
@@ -115,7 +115,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(mihomo::openapi());
     openapi.merge(pages::openapi());
     openapi.merge(scores::openapi());
-    openapi.merge(series::openapi());
+    openapi.merge(achievement_series::openapi());
     openapi.merge(users::openapi());
     openapi
 }
@@ -130,7 +130,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(mihomo::configure)
         .configure(pages::configure)
         .configure(scores::configure)
-        .configure(series::configure)
+        .configure(achievement_series::configure)
         .configure(users::configure);
 }
 

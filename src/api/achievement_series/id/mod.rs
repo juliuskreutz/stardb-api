@@ -3,12 +3,12 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{series::Series, ApiResult, LanguageParams},
+    api::{achievement_series::AchievementSeries, ApiResult, LanguageParams},
     database,
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "series/{id}")), paths(get_series))]
+#[openapi(tags((name = "achievement-series/{id}")), paths(get_achievement_series))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -16,25 +16,25 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_series);
+    cfg.service(get_achievement_series);
 }
 
 #[utoipa::path(
-    tag = "series/{id}",
+    tag = "achievement-series/{id}",
     get,
-    path = "/api/series/{id}",
+    path = "/api/achievement-series/{id}",
     params(LanguageParams),
     responses(
-        (status = 200, description = "Series", body = Series),
+        (status = 200, description = "AchievementSeries", body = AchievementSeries),
     )
 )]
-#[get("/api/series/{id}")]
-async fn get_series(
+#[get("/api/achievement-series/{id}")]
+async fn get_achievement_series(
     id: web::Path<i32>,
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series = Series::from(
+    let series = AchievementSeries::from(
         database::get_series_by_id(*id, &language_param.lang.to_string(), &pool).await?,
     );
 

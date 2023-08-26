@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievement_series(id, priority)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            priority = EXCLUDED.priority\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "550b4de9cb53f07b5f99d05f6171eaf61a7a263e0617454ef632dde1fcf98edb"
+}

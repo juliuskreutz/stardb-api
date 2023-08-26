@@ -5,3 +5,4 @@
 /.env
 /log.log
 /session_key
+/static

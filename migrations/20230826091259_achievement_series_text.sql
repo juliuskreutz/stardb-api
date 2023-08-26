@@ -1,0 +1,1 @@
+ALTER TABLE series_text RENAME TO achievement_series_text;

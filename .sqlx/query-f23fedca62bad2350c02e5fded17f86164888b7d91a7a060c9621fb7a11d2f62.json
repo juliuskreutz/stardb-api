@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            community_tier_list_sextiles(value)\n        VALUES\n            ($1)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f23fedca62bad2350c02e5fded17f86164888b7d91a7a060c9621fb7a11d2f62"
+}

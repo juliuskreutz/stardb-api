@@ -1,10 +1,11 @@
 use std::{collections::HashMap, env};
 
-use actix_web::{post, rt, web, HttpResponse, Responder};
+use actix_web::{post, web, HttpResponse, Responder};
 use futures::lock::Mutex;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::Deserialize;
 use sqlx::PgPool;
+use tokio::time;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
@@ -85,8 +86,8 @@ async fn request_token(
 
     tokens.lock().await.insert(token, user.username.clone());
 
-    rt::spawn(async move {
-        rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+    tokio::spawn(async move {
+        time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
         tokens.lock().await.remove(&token);
     });
