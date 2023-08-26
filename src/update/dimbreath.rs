@@ -99,7 +99,17 @@ struct LocalbookConfig {
 struct BookSeriesConfig {
     #[serde(rename = "BookSeriesID")]
     id: i32,
+    #[serde(rename = "BookSeriesWorld")]
+    world: i32,
     #[serde(rename = "BookSeries")]
+    name: TextHash,
+}
+
+#[derive(Deserialize)]
+struct BookSeriesWorld {
+    #[serde(rename = "BookSeriesWorld")]
+    id: i32,
+    #[serde(rename = "BookSeriesWorldTextmapID")]
     name: TextHash,
 }
 
@@ -198,6 +208,12 @@ async fn update(pool: &PgPool) -> Result<()> {
             .json()
             .await?;
 
+    let book_series_world: HashMap<String, BookSeriesWorld> =
+        reqwest::get(&format!("{url}ExcelOutput/BookSeriesWorld.json"))
+            .await?
+            .json()
+            .await?;
+
     for achievement_series in achievement_series.values() {
         let id = achievement_series.id;
 
@@ -266,12 +282,26 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_character(&db_character, pool).await?;
     }
 
+    for book_series_world in book_series_world.values() {
+        let id = book_series_world.id;
+
+        let db_series = database::DbBookSeriesWorld {
+            id,
+            name: String::new(),
+        };
+
+        database::set_book_series_world(&db_series, pool).await?;
+    }
+
     for book_series_config in book_series_config.values() {
         let id = book_series_config.id;
+        let world = book_series_config.world;
 
         let db_series = database::DbBookSeries {
             id,
+            world,
             name: String::new(),
+            world_name: String::new(),
         };
 
         database::set_book_series(&db_series, pool).await?;
@@ -286,6 +316,8 @@ async fn update(pool: &PgPool) -> Result<()> {
             id,
             series,
             series_name: String::new(),
+            series_world: 0,
+            series_world_name: String::new(),
             series_inside,
             name: String::new(),
             percent: 0.0,
@@ -426,6 +458,25 @@ async fn update(pool: &PgPool) -> Result<()> {
             };
 
             database::set_character_text(&db_character_text, pool).await?;
+        }
+
+        for book_series_world in book_series_world.values() {
+            let id = book_series_world.id;
+
+            let name = html_re
+                .replace_all(
+                    &text_map[&book_series_world.name.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
+
+            let db_book_series_world_text = database::DbBookSeriesWorldText {
+                id,
+                language: language.to_lowercase(),
+                name,
+            };
+
+            database::set_book_series_world_text(&db_book_series_world_text, pool).await?;
         }
 
         for book_series_config in book_series_config.values() {

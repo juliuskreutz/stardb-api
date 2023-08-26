@@ -11,28 +11,24 @@ use super::LanguageParams;
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "book-series")),
-    paths(get_book_seriess),
+    tags((name = "book-series-worlds")),
+    paths(get_book_series_worlds),
     components(schemas(
-        BookSeries
+        BookSeriesWorld
     ))
 )]
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
-struct BookSeries {
+struct BookSeriesWorld {
     id: i32,
-    world: i32,
-    world_name: String,
     name: String,
 }
 
-impl From<database::DbBookSeries> for BookSeries {
-    fn from(db_series: database::DbBookSeries) -> Self {
+impl From<database::DbBookSeriesWorld> for BookSeriesWorld {
+    fn from(db_series: database::DbBookSeriesWorld) -> Self {
         Self {
             id: db_series.id,
-            world: db_series.world,
-            world_name: db_series.world_name,
             name: db_series.name,
         }
     }
@@ -45,27 +41,27 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_book_seriess).configure(id::configure);
+    cfg.service(get_book_series_worlds).configure(id::configure);
 }
 
 #[utoipa::path(
-    tag = "book-series",
+    tag = "book-series-worlds",
     get,
-    path = "/api/book-series",
+    path = "/api/book-series-worlds",
     params(LanguageParams),
     responses(
-        (status = 200, description = "[BookSeries]", body = Vec<BookSeries>),
+        (status = 200, description = "[BookSeriesWorld]", body = Vec<BookSeriesWorld>),
     )
 )]
-#[get("/api/book-series")]
-async fn get_book_seriess(
+#[get("/api/book-series-worlds")]
+async fn get_book_series_worlds(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series: Vec<_> = database::get_book_series(&language_param.lang.to_string(), &pool)
+    let series: Vec<_> = database::get_book_series_worlds(&language_param.lang.to_string(), &pool)
         .await?
         .into_iter()
-        .map(BookSeries::from)
+        .map(BookSeriesWorld::from)
         .collect();
 
     Ok(HttpResponse::Ok().json(series))

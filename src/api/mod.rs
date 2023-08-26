@@ -1,6 +1,7 @@
 mod achievement_series;
 mod achievements;
 mod book_series;
+mod book_series_worlds;
 mod books;
 mod characters;
 mod community_tier_list;
@@ -111,6 +112,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(achievement_series::openapi());
     openapi.merge(achievements::openapi());
     openapi.merge(book_series::openapi());
+    openapi.merge(book_series_worlds::openapi());
     openapi.merge(books::openapi());
     openapi.merge(characters::openapi());
     openapi.merge(community_tier_list::openapi());
@@ -128,6 +130,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(achievement_series::configure)
         .configure(achievements::configure)
         .configure(book_series::configure)
+        .configure(book_series_worlds::configure)
         .configure(books::configure)
         .configure(characters::configure)
         .configure(community_tier_list::configure)
