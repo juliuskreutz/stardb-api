@@ -70,15 +70,15 @@ async fn import(
             continue;
         }
 
-        let db_complete = database::DbComplete {
+        let db_complete = database::DbUserAchievement {
             username: username.clone(),
             id: achievement.key,
         };
 
         if achievement.done == "TRUE" {
-            database::add_complete(&db_complete, &pool).await?;
+            database::add_user_achievement(&db_complete, &pool).await?;
         } else if achievement.done == "FALSE" {
-            database::delete_complete(&db_complete, &pool).await?;
+            database::delete_user_achievement(&db_complete, &pool).await?;
         }
     }
 

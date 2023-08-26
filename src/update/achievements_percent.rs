@@ -34,7 +34,7 @@ pub async fn achievements_percent(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let completed = database::get_completed(pool).await?;
+    let completed = database::get_users_achievements(pool).await?;
 
     let mut usernames_achievements: HashMap<String, Vec<i64>> = HashMap::new();
 

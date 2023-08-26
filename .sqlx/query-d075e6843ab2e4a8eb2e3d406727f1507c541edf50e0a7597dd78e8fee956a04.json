@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "DELETE FROM completed WHERE username = $1 AND id = $2",
+  "query": "DELETE FROM users_achievements WHERE username = $1 AND id = $2",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "08c597346cc2a0934ed12e2994e7dd38c2ebf3abf69dc43897fd7feb51decec2"
+  "hash": "d075e6843ab2e4a8eb2e3d406727f1507c541edf50e0a7597dd78e8fee956a04"
 }

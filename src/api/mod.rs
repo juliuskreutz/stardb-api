@@ -1,5 +1,7 @@
 mod achievement_series;
 mod achievements;
+mod book_series;
+mod books;
 mod characters;
 mod community_tier_list;
 mod free_jade_alert;
@@ -106,7 +108,10 @@ fn private(ctx: &guard::GuardContext) -> bool {
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
+    openapi.merge(achievement_series::openapi());
     openapi.merge(achievements::openapi());
+    openapi.merge(book_series::openapi());
+    openapi.merge(books::openapi());
     openapi.merge(characters::openapi());
     openapi.merge(community_tier_list::openapi());
     openapi.merge(free_jade_alert::openapi());
@@ -115,13 +120,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(mihomo::openapi());
     openapi.merge(pages::openapi());
     openapi.merge(scores::openapi());
-    openapi.merge(achievement_series::openapi());
     openapi.merge(users::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(achievements::configure)
+    cfg.configure(achievement_series::configure)
+        .configure(achievements::configure)
+        .configure(book_series::configure)
+        .configure(books::configure)
         .configure(characters::configure)
         .configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
@@ -130,7 +137,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(mihomo::configure)
         .configure(pages::configure)
         .configure(scores::configure)
-        .configure(achievement_series::configure)
         .configure(users::configure);
 }
 

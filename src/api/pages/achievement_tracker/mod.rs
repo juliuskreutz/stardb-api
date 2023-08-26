@@ -181,7 +181,7 @@ async fn update(
                 (a_count + ag.achievements.len(), j_count + ag.jade_count)
             });
 
-        let user_count = database::get_distinct_username_count(pool).await?;
+        let user_count = database::get_users_achievements_user_count(pool).await?;
         let mut versions: Vec<_> = versions.into_iter().collect();
         versions.sort();
 

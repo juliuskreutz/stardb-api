@@ -7,7 +7,7 @@ pub struct DbAchievementSeries {
     pub priority: i32,
 }
 
-pub async fn set_series(series: &DbAchievementSeries, pool: &PgPool) -> Result<()> {
+pub async fn set_achievement_series(series: &DbAchievementSeries, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
@@ -28,7 +28,10 @@ pub async fn set_series(series: &DbAchievementSeries, pool: &PgPool) -> Result<(
     Ok(())
 }
 
-pub async fn get_series(language: &str, pool: &PgPool) -> Result<Vec<DbAchievementSeries>> {
+pub async fn get_achievement_series(
+    language: &str,
+    pool: &PgPool,
+) -> Result<Vec<DbAchievementSeries>> {
     Ok(sqlx::query_as!(
         DbAchievementSeries,
         "
@@ -51,7 +54,7 @@ pub async fn get_series(language: &str, pool: &PgPool) -> Result<Vec<DbAchieveme
     .await?)
 }
 
-pub async fn get_series_by_id(
+pub async fn get_achievement_series_by_id(
     id: i32,
     language: &str,
     pool: &PgPool,

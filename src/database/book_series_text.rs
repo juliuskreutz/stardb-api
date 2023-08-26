@@ -1,20 +1,17 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-pub struct DbAchievementSeriesText {
+pub struct DbBookSeriesText {
     pub id: i32,
     pub language: String,
     pub name: String,
 }
 
-pub async fn set_achievement_series_text(
-    series_text: &DbAchievementSeriesText,
-    pool: &PgPool,
-) -> Result<()> {
+pub async fn set_book_series_text(series_text: &DbBookSeriesText, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            achievement_series_text(id, language, name)
+            book_series_text(id, language, name)
         VALUES
             ($1, $2, $3)
         ON CONFLICT

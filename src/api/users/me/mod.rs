@@ -1,4 +1,5 @@
 mod achievements;
+mod books;
 mod email;
 mod password;
 mod uids;
@@ -26,6 +27,7 @@ struct ApiDoc;
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
+    openapi.merge(books::openapi());
     openapi.merge(email::openapi());
     openapi.merge(password::openapi());
     openapi.merge(uids::openapi());
@@ -37,6 +39,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_me)
         .configure(achievements::configure)
+        .configure(books::configure)
         .configure(email::configure)
         .configure(password::configure)
         .configure(uids::configure)

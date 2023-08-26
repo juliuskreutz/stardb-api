@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            books.*,\n            books_text.name,\n            percent,\n            book_series_text.name series_name\n        FROM\n            books\n        NATURAL INNER JOIN\n            books_percent\n        INNER JOIN\n            books_text\n        ON\n            books.id = books_text.id AND books_text.language = $2\n        INNER JOIN\n            book_series\n        ON\n            series = book_series.id\n        INNER JOIN\n            book_series_text\n        ON\n            series = book_series_text.id AND book_series_text.language = $2\n        WHERE\n            books.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "series",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "series_inside",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "percent",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "series_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5774d5107b1569e00e9898a7080f4fe46e53c0ae516ea683bede40f4505d696c"
+}
