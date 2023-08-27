@@ -78,7 +78,7 @@ pub async fn get_user_achievements_by_username(
 
 pub async fn get_users_achievements_user_count(pool: &PgPool) -> Result<i64> {
     Ok(
-        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_achievements WHERE users_achievements.username = users.username) > 50")
+        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_achievements WHERE users_achievements.username = users.username) >= 50")
             .fetch_one(pool)
             .await?
             .count

@@ -48,7 +48,7 @@ pub async fn get_user_books_by_username(username: &str, pool: &PgPool) -> Result
 
 pub async fn get_users_books_user_count(pool: &PgPool) -> Result<i64> {
     Ok(
-        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_books WHERE users_books.username = users.username) > 50")
+        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_books WHERE users_books.username = users.username) >= 50")
             .fetch_one(pool)
             .await?
             .count
