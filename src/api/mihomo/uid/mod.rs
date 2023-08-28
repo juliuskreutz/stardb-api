@@ -122,5 +122,7 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
 
     database::set_score_achievement(&db_score_achievement, &pool).await?;
 
-    Ok(HttpResponse::Ok())
+    let json: Value = serde_json::from_reader(File::open(format!("mihomo/{uid}.json"))?)?;
+
+    Ok(HttpResponse::Ok().json(json))
 }

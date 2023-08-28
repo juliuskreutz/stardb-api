@@ -61,7 +61,16 @@ async fn update() -> Result<()> {
 
             fs::create_dir_all(new_path.parent().unwrap())?;
 
-            let png = image::load(BufReader::new(File::open(path)?), ImageFormat::Png)?;
+            let mut png = image::load(BufReader::new(File::open(&path)?), ImageFormat::Png)?;
+
+            if path.starts_with("static/StarRailRes/icon/character/") {
+                png = image::DynamicImage::ImageRgba8(image::imageops::resize(
+                    &png,
+                    128,
+                    128,
+                    image::imageops::FilterType::Lanczos3,
+                ));
+            }
 
             let encoder = Encoder::from_image(&png).map_err(|e| anyhow!("{e}"))?;
             let encoded_webp = encoder.encode_lossless();

@@ -146,6 +146,9 @@ pub async fn dimbreath(pool: PgPool) {
 async fn update(pool: &PgPool) -> Result<()> {
     let html_re = Regex::new(r"<[^>]*>")?;
     let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+    let layout_re = Regex::new(
+        r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
+    )?;
     let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
 
     let url = "https://raw.githubusercontent.com/Dimbreath/StarRailData/master/";
@@ -403,11 +406,22 @@ async fn update(pool: &PgPool) -> Result<()> {
                     },
                 )
                 .to_string();
-            let description = gender_re
+            let description = layout_re
                 .replace_all(
-                    &html_re.replace_all(&description, |_: &Captures| ""),
+                    &gender_re.replace_all(
+                        &html_re.replace_all(&description, |_: &Captures| ""),
+                        |c: &Captures| {
+                            c.get(1).unwrap().as_str().to_string()
+                                + "/"
+                                + c.get(2).unwrap().as_str()
+                        },
+                    ),
                     |c: &Captures| {
-                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                        c.get(1).unwrap().as_str().to_string()
+                            + "/"
+                            + c.get(2).unwrap().as_str()
+                            + "/"
+                            + c.get(3).unwrap().as_str()
                     },
                 )
                 .to_string();
