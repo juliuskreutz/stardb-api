@@ -1,7 +1,7 @@
 use std::{fs::File, path::PathBuf};
 
 use actix_web::{get, put, web, HttpResponse, Responder};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use regex::{Captures, Regex};
 use serde_json::Value;
 use sqlx::PgPool;
@@ -94,11 +94,11 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
             }
         })
         .unwrap_or(
-            now + match region.as_str() {
-                "na" => Duration::hours(-5),
-                "eu" => Duration::hours(1),
-                _ => Duration::hours(8),
-            },
+            now, // + match region.as_str() {
+                //     "na" => Duration::hours(-5),
+                //     "eu" => Duration::hours(1),
+                //     _ => Duration::hours(8),
+                // },
         );
 
     let db_mihomo = database::DbMihomo {
