@@ -42,7 +42,7 @@ async fn put_user_achievement(
 
     let id = *id;
 
-    let forbidden = [4082301, 4070910, 4070915, 4020203, 4070904, 4070916];
+    let forbidden = [4082301, 4070910, 4070915, 4020203, 4070904];
 
     if !forbidden.contains(&id) {
         let db_complete = database::DbUserAchievement { username, id };
