@@ -109,12 +109,11 @@ async fn update(pool: &PgPool) -> Result<()> {
 
     let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!M2:M6")).await?.json().await?;
 
-    database::delete_community_tier_list_sextiles(pool).await?;
-
-    for row_data in &spreadsheet.sheets[0].data[0].row_data {
+    for (i, row_data) in spreadsheet.sheets[0].data[0].row_data.iter().enumerate() {
+        let id = i as i32;
         let value = row_data.values[0].effective_value.number_value;
 
-        let db_community_tier_list_sextile = database::DbCommunityTierListSextile { value };
+        let db_community_tier_list_sextile = database::DbCommunityTierListSextile { id, value };
 
         database::set_community_tier_list_sextile(&db_community_tier_list_sextile, pool).await?;
     }
