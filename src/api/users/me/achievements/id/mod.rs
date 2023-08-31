@@ -42,18 +42,9 @@ async fn put_user_achievement(
 
     let id = *id;
 
-    let forbidden = [
-        4072605, 4072606, 4072607, 4092637, 4092621, 4092636, 4092638, 4092639, 4092640, 4092641,
-        4092633, 4092634, 4092601, 4092603, 4092604, 4092605, 4092606, 4092607, 4092608, 4092609,
-        4092610, 4092611, 4092612, 4092613, 4092614, 4092615, 4092616, 4092617, 4092618, 4092619,
-        4092620, 4092622, 4092623, 4092624, 4092625, 4092626, 4092627, 4092628, 4092629, 4092630,
-        4092631, 4092632, // Sim U
-        4052615, 4052616, // 1.3 Companion Missions
-        4072601, 4072611, 4072612, 4070904, 4070910, 4092602, 4070915, // Fu Xuan Banner
-        4020203, 4082301, // Not 1.3
-    ];
+    let db_achievement = database::get_achievement_by_id(id, "en", &pool).await?;
 
-    if !forbidden.contains(&id) {
+    if !db_achievement.impossible {
         let db_complete = database::DbUserAchievement { username, id };
 
         database::add_user_achievement(&db_complete, &pool).await?;

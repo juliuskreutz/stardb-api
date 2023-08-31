@@ -6,7 +6,6 @@ use std::{
 use anyhow::Result;
 use serde::Deserialize;
 use sqlx::PgPool;
-use tokio::time;
 
 use crate::database;
 
@@ -45,7 +44,7 @@ struct EffectiveValue {
 
 pub async fn community_tier_list(pool: PgPool) {
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60 * 5));
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 5));
 
         loop {
             interval.tick().await;
@@ -76,7 +75,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         .effective_value
         .number_value as i32;
 
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I31")).await?.json().await?;
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I32")).await?.json().await?;
 
     for row_data in &spreadsheet.sheets[0].data[0].row_data {
         let character = row_data.values[0].effective_value.number_value as i32;

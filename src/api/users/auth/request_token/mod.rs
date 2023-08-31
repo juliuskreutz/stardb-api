@@ -5,7 +5,6 @@ use futures::lock::Mutex;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::Deserialize;
 use sqlx::PgPool;
-use tokio::time;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
@@ -87,7 +86,7 @@ async fn request_token(
     tokens.lock().await.insert(token, user.username.clone());
 
     tokio::spawn(async move {
-        time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
         tokens.lock().await.remove(&token);
     });

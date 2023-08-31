@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name\n        FROM\n            achievements\n        NATURAL INNER JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $1\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $1\n        ORDER BY\n            achievement_series.priority DESC, series, priority DESC, id\n        ",
+  "query": "SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name\n        FROM\n            achievements\n        NATURAL INNER JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $2\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $2\n        WHERE\n            achievements.id = $1\n        AND NOT\n            (hidden AND impossible)\n        ",
   "describe": {
     "columns": [
       {
@@ -65,27 +65,33 @@
       },
       {
         "ordinal": 12,
+        "name": "impossible",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
         "name": "name",
         "type_info": "Text"
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "series_name",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
+        "Int8",
         "Text"
       ]
     },
@@ -105,8 +111,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "e1048d0c98e3dc2a91676bd4a7eec08de0dee3a0d583a7327c88dfe1d424ddae"
+  "hash": "96af038610d02b571c9e9645b48cca26ce6604c630442b4a9bf9c163ec6dd771"
 }

@@ -94,11 +94,11 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
             }
         })
         .unwrap_or(
-            now, // + match region.as_str() {
-                //     "na" => Duration::hours(-5),
-                //     "eu" => Duration::hours(1),
-                //     _ => Duration::hours(8),
-                // },
+            now + match region.as_str() {
+                "na" => chrono::Duration::hours(-5),
+                "eu" => chrono::Duration::hours(1),
+                _ => chrono::Duration::hours(8),
+            },
         );
 
     let db_mihomo = database::DbMihomo {

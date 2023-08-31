@@ -5,13 +5,12 @@ use std::{
 
 use anyhow::Result;
 use sqlx::PgPool;
-use tokio::time;
 
 use crate::database;
 
 pub async fn books_percent(pool: PgPool) {
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60));
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
 
         loop {
             interval.tick().await;

@@ -8,13 +8,13 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use image::{EncodableLayout, ImageFormat};
-use tokio::time;
+
 use walkdir::WalkDir;
 use webp::Encoder;
 
 pub async fn star_rail_res() {
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60 * 10));
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 10));
 
         loop {
             interval.tick().await;
@@ -77,6 +77,8 @@ async fn update() -> Result<()> {
 
             fs::write(new_path, encoded_webp.as_bytes())?;
         }
+
+        tokio::task::yield_now().await;
     }
 
     Ok(())

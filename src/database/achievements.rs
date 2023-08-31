@@ -17,6 +17,7 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub video: Option<String>,
     pub gacha: bool,
+    pub impossible: bool,
     pub set: Option<i32>,
     pub percent: f64,
 }
@@ -74,6 +75,8 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
             achievement_series_text
         ON
             series = achievement_series_text.id AND achievement_series_text.language = $1
+        WHERE NOT
+            (hidden AND impossible)
         ORDER BY
             achievement_series.priority DESC, series, priority DESC, id
         ",
@@ -145,6 +148,8 @@ pub async fn get_achievement_by_id(
             series = achievement_series_text.id AND achievement_series_text.language = $2
         WHERE
             achievements.id = $1
+        AND NOT
+            (hidden AND impossible)
         ",
         id,
         language,
@@ -206,6 +211,18 @@ pub async fn update_achievement_gacha(id: i64, gacha: bool, pool: &PgPool) -> Re
         "UPDATE achievements SET gacha = $2 WHERE id = $1",
         id,
         gacha,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn update_achievement_impossible(id: i64, impossible: bool, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "UPDATE achievements SET impossible = $2 WHERE id = $1",
+        id,
+        impossible,
     )
     .execute(pool)
     .await?;
