@@ -2,13 +2,12 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use sqlx::PgPool;
-use tokio::time;
 
 use crate::{database, mihomo};
 
 pub async fn verifications(pool: PgPool) {
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60 * 5));
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 5));
 
         loop {
             interval.tick().await;

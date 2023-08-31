@@ -7,7 +7,6 @@ use anyhow::Result;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
-use tokio::time;
 
 use crate::database;
 
@@ -121,7 +120,7 @@ struct TextHash {
 
 pub async fn dimbreath(pool: PgPool) {
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(60 * 10));
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 10));
 
         loop {
             interval.tick().await;
@@ -258,6 +257,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             difficulty: None,
             video: None,
             gacha: false,
+            impossible: false,
             set: None,
             percent: 0.0,
         };

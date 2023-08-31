@@ -1,6 +1,7 @@
 mod comment;
 mod difficulty;
 mod gacha;
+mod impossible;
 mod reference;
 mod version;
 mod video;
@@ -26,6 +27,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(comment::openapi());
     openapi.merge(difficulty::openapi());
     openapi.merge(gacha::openapi());
+    openapi.merge(impossible::openapi());
     openapi.merge(reference::openapi());
     openapi.merge(version::openapi());
     openapi.merge(video::openapi());
@@ -36,6 +38,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(comment::configure)
         .configure(difficulty::configure)
         .configure(gacha::configure)
+        .configure(impossible::configure)
         .configure(reference::configure)
         .configure(version::configure)
         .configure(video::configure)

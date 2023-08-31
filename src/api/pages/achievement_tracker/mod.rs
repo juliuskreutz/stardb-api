@@ -10,7 +10,6 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use sqlx::PgPool;
 use strum::{EnumString, IntoEnumIterator};
-use tokio::time;
 use utoipa::OpenApi;
 
 use crate::{
@@ -67,6 +66,7 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     difficulty: Option<Difficulty>,
     gacha: bool,
+    impossible: bool,
     percent: f64,
 }
 
@@ -95,6 +95,7 @@ impl From<database::DbAchievement> for Achievement {
                 .as_ref()
                 .map(|d| d.parse().unwrap()),
             gacha: db_achievement.gacha,
+            impossible: db_achievement.impossible,
             percent: db_achievement.percent,
         }
     }
@@ -107,7 +108,7 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
         tokio::spawn(async move {
-            let mut interval = time::interval(Duration::from_secs(60));
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
 
             loop {
                 interval.tick().await;
