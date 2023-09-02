@@ -47,7 +47,7 @@ pub async fn get_warp_standard_characters_by_uid(
         "
         SELECT
             warp_standard_characters.*,
-            characters_text.name name
+            characters_text.name
         FROM
             warp_standard_characters
         LEFT JOIN
@@ -77,7 +77,7 @@ pub async fn get_warp_standard_character_by_id_and_uid(
         "
         SELECT
             warp_standard_characters.*,
-            characters_text.name name
+            characters_text.name
         FROM
             warp_standard_characters
         LEFT JOIN
