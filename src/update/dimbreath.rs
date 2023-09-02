@@ -1,5 +1,8 @@
 use std::{
     collections::HashMap,
+    fs::File,
+    io::BufReader,
+    process::Command,
     time::{Duration, Instant},
 };
 
@@ -113,6 +116,14 @@ struct BookSeriesWorld {
 }
 
 #[derive(Deserialize)]
+struct ItemConfigEquipment {
+    #[serde(rename = "ID")]
+    id: i32,
+    #[serde(rename = "ItemName")]
+    name: TextHash,
+}
+
+#[derive(Deserialize)]
 struct TextHash {
     #[serde(rename = "Hash")]
     hash: i64,
@@ -143,6 +154,12 @@ pub async fn dimbreath(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
+    Command::new("git")
+        .arg("pull")
+        .current_dir("StarRailData")
+        .spawn()?
+        .wait()?;
+
     let html_re = Regex::new(r"<[^>]*>")?;
     let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
     let layout_re = Regex::new(
@@ -150,71 +167,56 @@ async fn update(pool: &PgPool) -> Result<()> {
     )?;
     let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
 
-    let url = "https://raw.githubusercontent.com/Dimbreath/StarRailData/master/";
-
     let languages = [
         "CHS", "CHT", "DE", "EN", "ES", "FR", "ID", "JP", "KR", "PT", "RU", "TH", "VI",
     ];
 
-    let achievement_data: HashMap<String, AchievementData> =
-        reqwest::get(&format!("{url}ExcelOutput/AchievementData.json"))
-            .await?
-            .json()
-            .await?;
+    let achievement_data: HashMap<String, AchievementData> = serde_json::from_reader(
+        BufReader::new(File::open("StarRailData/ExcelOutput/AchievementData.json")?),
+    )?;
 
     let achievement_series: HashMap<String, AchievementSeries> =
-        reqwest::get(&format!("{url}ExcelOutput/AchievementSeries.json"))
-            .await?
-            .json()
-            .await?;
+        serde_json::from_reader(BufReader::new(File::open(
+            "StarRailData/ExcelOutput/AchievementSeries.json",
+        )?))?;
 
-    let quest_data: HashMap<String, QuestData> =
-        reqwest::get(&format!("{url}ExcelOutput/QuestData.json"))
-            .await?
-            .json()
-            .await?;
+    let quest_data: HashMap<String, QuestData> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/QuestData.json")?,
+    ))?;
 
-    let reward_data: HashMap<String, RewardData> =
-        reqwest::get(&format!("{url}ExcelOutput/RewardData.json"))
-            .await?
-            .json()
-            .await?;
+    let reward_data: HashMap<String, RewardData> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/RewardData.json")?,
+    ))?;
 
-    let avatar_config: HashMap<String, AvatarConfig> =
-        reqwest::get(&format!("{url}ExcelOutput/AvatarConfig.json"))
-            .await?
-            .json()
-            .await?;
+    let avatar_config: HashMap<String, AvatarConfig> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/AvatarConfig.json")?,
+    ))?;
 
-    let avatar_base_type: HashMap<String, AvatarBaseType> =
-        reqwest::get(&format!("{url}ExcelOutput/AvatarBaseType.json"))
-            .await?
-            .json()
-            .await?;
+    let avatar_base_type: HashMap<String, AvatarBaseType> = serde_json::from_reader(
+        BufReader::new(File::open("StarRailData/ExcelOutput/AvatarBaseType.json")?),
+    )?;
 
-    let damage_type: HashMap<String, DamageType> =
-        reqwest::get(&format!("{url}ExcelOutput/DamageType.json"))
-            .await?
-            .json()
-            .await?;
+    let damage_type: HashMap<String, DamageType> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/DamageType.json")?,
+    ))?;
 
-    let localbook_config: HashMap<String, LocalbookConfig> =
-        reqwest::get(&format!("{url}ExcelOutput/LocalbookConfig.json"))
-            .await?
-            .json()
-            .await?;
+    let localbook_config: HashMap<String, LocalbookConfig> = serde_json::from_reader(
+        BufReader::new(File::open("StarRailData/ExcelOutput/LocalbookConfig.json")?),
+    )?;
 
     let book_series_config: HashMap<String, BookSeriesConfig> =
-        reqwest::get(&format!("{url}ExcelOutput/BookSeriesConfig.json"))
-            .await?
-            .json()
-            .await?;
+        serde_json::from_reader(BufReader::new(File::open(
+            "StarRailData/ExcelOutput/BookSeriesConfig.json",
+        )?))?;
 
-    let book_series_world: HashMap<String, BookSeriesWorld> =
-        reqwest::get(&format!("{url}ExcelOutput/BookSeriesWorld.json"))
-            .await?
-            .json()
-            .await?;
+    let book_series_world: HashMap<String, BookSeriesWorld> = serde_json::from_reader(
+        BufReader::new(File::open("StarRailData/ExcelOutput/BookSeriesWorld.json")?),
+    )?;
+
+    let item_config_equipment: HashMap<String, ItemConfigEquipment> =
+        serde_json::from_reader(BufReader::new(File::open(
+            "StarRailData/ExcelOutput/ItemConfigEquipment.json",
+        )?))?;
 
     for achievement_series in achievement_series.values() {
         let id = achievement_series.id;
@@ -329,12 +331,21 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_book(&db_book, pool).await?;
     }
 
+    for item_config_equipment in item_config_equipment.values() {
+        let id = item_config_equipment.id;
+
+        let db_light_cone = database::DbLightCone {
+            id,
+            name: String::new(),
+        };
+
+        database::set_light_cone(&db_light_cone, pool).await?;
+    }
+
     for language in languages {
-        let mut text_map: HashMap<String, String> =
-            reqwest::get(&format!("{url}TextMap/TextMap{language}.json"))
-                .await?
-                .json()
-                .await?;
+        let mut text_map: HashMap<String, String> = serde_json::from_reader(BufReader::new(
+            File::open(format!("StarRailData/TextMap/TextMap{language}.json"))?,
+        ))?;
 
         // -1976918066 = Dan Heng (Imbibitor Lunae)
         *text_map.get_mut("-1976918066").unwrap() = match language {
@@ -529,6 +540,19 @@ async fn update(pool: &PgPool) -> Result<()> {
             };
 
             database::set_book_text(&db_book_text, pool).await?;
+        }
+
+        for item_config_equipment in item_config_equipment.values() {
+            let id = item_config_equipment.id;
+            let name = text_map[&item_config_equipment.name.hash.to_string()].to_string();
+
+            let db_light_cone_text = database::DbLightConeText {
+                id,
+                language: language.to_lowercase(),
+                name,
+            };
+
+            database::set_light_cone_text(&db_light_cone_text, pool).await?;
         }
     }
 

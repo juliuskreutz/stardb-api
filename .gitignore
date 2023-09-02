@@ -5,4 +5,5 @@
 /.env
 /log.log
 /session_key
+/StarRailData
 /static

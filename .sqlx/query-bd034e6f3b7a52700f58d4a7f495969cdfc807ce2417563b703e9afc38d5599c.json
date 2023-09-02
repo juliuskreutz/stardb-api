@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            warp_standard_characters(id, uid, character, timestamp)\n        VALUES\n            ($1, $2, $3, $4)\n        ON CONFLICT\n            (id, uid)\n        DO UPDATE SET\n            character = EXCLUDED.character,\n            timestamp = EXCLUDED.timestamp\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bd034e6f3b7a52700f58d4a7f495969cdfc807ce2417563b703e9afc38d5599c"
+}

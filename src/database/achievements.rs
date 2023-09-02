@@ -22,6 +22,31 @@ pub struct DbAchievement {
     pub percent: f64,
 }
 
+pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "
+        INSERT INTO
+            users_achievements(username, id)
+        SELECT
+            $1, id
+        FROM
+            achievements
+        WHERE
+            set IS NULL
+        AND
+            NOT (impossible OR version = '1.3')
+        ON CONFLICT
+            (username, id)
+        DO NOTHING;
+        ",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn set_achievement(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
@@ -120,6 +145,7 @@ pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
 pub async fn get_achievement_by_id(
     id: i64,
     language: &str,
+    allow: bool,
     pool: &PgPool,
 ) -> Result<DbAchievement> {
     Ok(sqlx::query_as!(
@@ -150,9 +176,12 @@ pub async fn get_achievement_by_id(
             achievements.id = $1
         AND NOT
             (hidden AND impossible)
+        OR
+            $3
         ",
         id,
         language,
+        allow,
     )
     .fetch_one(pool)
     .await?)

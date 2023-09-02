@@ -8,10 +8,13 @@ mod community_tier_list;
 mod free_jade_alert;
 mod import;
 mod languages;
+mod light_cones;
 mod mihomo;
 mod pages;
 mod scores;
+mod select_all;
 mod users;
+mod warps;
 
 use std::env;
 
@@ -27,7 +30,7 @@ use utoipa::{
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 #[derive(OpenApi)]
-#[openapi(components(schemas(Language)), modifiers(&PrivateAddon))]
+#[openapi(tags((name = "pinned")), components(schemas(Language)), modifiers(&PrivateAddon))]
 struct ApiDoc;
 
 struct PrivateAddon;
@@ -119,10 +122,13 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import::openapi());
     openapi.merge(languages::openapi());
+    openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
     openapi.merge(pages::openapi());
     openapi.merge(scores::openapi());
+    openapi.merge(select_all::openapi());
     openapi.merge(users::openapi());
+    openapi.merge(warps::openapi());
     openapi
 }
 
@@ -137,10 +143,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(free_jade_alert::configure)
         .configure(import::configure)
         .configure(languages::configure)
+        .configure(light_cones::configure)
         .configure(mihomo::configure)
         .configure(pages::configure)
         .configure(scores::configure)
-        .configure(users::configure);
+        .configure(select_all::configure)
+        .configure(users::configure)
+        .configure(warps::configure);
 }
 
 pub fn cache_achievement_tracker(

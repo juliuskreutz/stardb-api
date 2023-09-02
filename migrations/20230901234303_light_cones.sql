@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS light_cones (
+    id INT4 PRIMARY KEY NOT NULL
+);
