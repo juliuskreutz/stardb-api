@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warp_special_light_cones.*,\n            light_cones_text.name name\n        FROM\n            warp_special_light_cones\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $2\n        WHERE\n            uid = $1\n        ORDER BY\n            timestamp\n        ",
+  "query": "\n        SELECT\n            warp_special_light_cones.*,\n            light_cones_text.name\n        FROM\n            warp_special_light_cones\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $2\n        WHERE\n            uid = $1\n        ORDER BY\n            timestamp\n        ",
   "describe": {
     "columns": [
       {
@@ -43,5 +43,5 @@
       false
     ]
   },
-  "hash": "41eb63c30ca8ef6dc6a83cb753604cfcbf59f830bf6bff92261f623c4bf543da"
+  "hash": "1bd9f0da63a4d5ab1dcd45011535ec4838f2aca469e4075493e03ad1ed5edeef"
 }

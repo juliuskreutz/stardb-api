@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warp_departure_characters.*,\n            characters_text.name name\n        FROM\n            warp_departure_characters\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        WHERE\n            warp_departure_characters.id = $1\n        AND\n            uid = $2\n        ",
+  "query": "\n        SELECT\n            warp_departure_characters.*,\n            characters_text.name\n        FROM\n            warp_departure_characters\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $2\n        WHERE\n            uid = $1\n        ORDER BY\n            timestamp\n        ",
   "describe": {
     "columns": [
       {
@@ -32,7 +32,6 @@
     "parameters": {
       "Left": [
         "Int8",
-        "Int8",
         "Text"
       ]
     },
@@ -44,5 +43,5 @@
       false
     ]
   },
-  "hash": "37e45541a032efe1f5987358ea32c7f7df0df77290337c8dfc8c342011280480"
+  "hash": "20086495f75618599d0285a5a7e10964b36dcbbf3330fd1e2be6cdd729e06b48"
 }

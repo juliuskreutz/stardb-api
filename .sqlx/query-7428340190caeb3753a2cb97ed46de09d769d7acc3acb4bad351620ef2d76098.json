@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warp_departure_characters.*,\n            characters_text.name name\n        FROM\n            warp_departure_characters\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $2\n        WHERE\n            uid = $1\n        ORDER BY\n            timestamp\n        ",
+  "query": "\n        SELECT\n            warp_departure_light_cones.*,\n            light_cones_text.name\n        FROM\n            warp_departure_light_cones\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $2\n        WHERE\n            uid = $1\n        ORDER BY\n            timestamp\n        ",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "character",
+        "name": "light_cone",
         "type_info": "Int4"
       },
       {
@@ -43,5 +43,5 @@
       false
     ]
   },
-  "hash": "9baed84b31153bb45d60430b2c52dbaddf7def89f61a2a07fe305470a7d05448"
+  "hash": "7428340190caeb3753a2cb97ed46de09d769d7acc3acb4bad351620ef2d76098"
 }
