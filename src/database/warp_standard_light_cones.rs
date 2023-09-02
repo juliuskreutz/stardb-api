@@ -47,7 +47,7 @@ pub async fn get_warp_standard_light_cones_by_uid(
         "
         SELECT
             warp_standard_light_cones.*,
-            light_cones_text.name name
+            light_cones_text.name
         FROM
             warp_standard_light_cones
         LEFT JOIN
@@ -77,7 +77,7 @@ pub async fn get_warp_standard_light_cone_by_id_and_uid(
         "
         SELECT
             warp_standard_light_cones.*,
-            light_cones_text.name name
+            light_cones_text.name
         FROM
             warp_standard_light_cones
         LEFT JOIN
