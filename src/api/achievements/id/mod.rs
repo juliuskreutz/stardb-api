@@ -61,7 +61,8 @@ async fn get_achievement(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_achievement =
-        database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
+        database::get_achievement_by_id(*id, &language_params.lang.to_string(), false, &pool)
+            .await?;
 
     let mut achievement = Achievement::from(db_achievement);
 

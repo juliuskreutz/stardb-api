@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            warp_standard_light_cones(id, uid, light_cone, timestamp)\n        VALUES\n            ($1, $2, $3, $4)\n        ON CONFLICT\n            (id, uid)\n        DO UPDATE SET\n            light_cone = EXCLUDED.light_cone,\n            timestamp = EXCLUDED.timestamp\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7b0f7e736692bfced818fea852c9420f12f76be6e6450a1fa6ad2dd00decc22"
+}
