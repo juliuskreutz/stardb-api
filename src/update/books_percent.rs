@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use sqlx::PgPool;
@@ -10,7 +7,7 @@ use crate::database;
 
 pub async fn books_percent(pool: PgPool) {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        let mut interval = tokio::time::interval(Duration::from_secs(5 * 60));
 
         loop {
             interval.tick().await;
@@ -33,33 +30,13 @@ pub async fn books_percent(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let completed = database::get_users_books(pool).await?;
+    let total_count = database::get_users_books_user_count(pool).await? as f64;
 
-    let mut usernames_books: HashMap<String, Vec<i64>> = HashMap::new();
+    let books_users_count = database::get_books_users_count(pool).await?;
 
-    for completed in &completed {
-        usernames_books
-            .entry(completed.username.clone())
-            .or_default()
-            .push(completed.id)
-    }
-
-    let mut books_count: HashMap<i64, usize> = HashMap::new();
-
-    for books in usernames_books.values().filter(|v| v.len() >= 50) {
-        for &book in books {
-            *books_count.entry(book).or_default() += 1;
-        }
-    }
-
-    let books_id = database::get_books_id(pool).await?;
-
-    for id in books_id {
-        let percent = if let Some(&count) = books_count.get(&id) {
-            count as f64 / usernames_books.len() as f64
-        } else {
-            0.0
-        };
+    for book_users_count in books_users_count {
+        let id = book_users_count.id;
+        let percent = book_users_count.count.unwrap_or_default() as f64 / total_count;
 
         let book_percent = database::DbBookPercent { id, percent };
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warp_special_light_cones.*,\n            light_cones_text.name\n        FROM\n            warp_special_light_cones\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            warp_special_light_cones.id = $1\n        AND\n            uid = $2\n        ",
+  "query": "\n        SELECT\n            warp_standard_light_cones.*,\n            light_cones_text.name\n        FROM\n            warp_standard_light_cones\n        INNER JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            warp_standard_light_cones.id = $1\n        AND\n            uid = $2\n        ",
   "describe": {
     "columns": [
       {
@@ -44,5 +44,5 @@
       false
     ]
   },
-  "hash": "5173e8c75c6182be86c0534b68bf146c569ae613801ad693a8e6ecbf867d5c5d"
+  "hash": "837d309b4882f2d9fb7673cbe5530ee6ac09324328bf284b086aaa4b3b4e3788"
 }

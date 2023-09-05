@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+const THRESHOLD: i64 = 50;
+
 pub struct DbUserAchievement {
     pub username: String,
     pub id: i64,
@@ -55,14 +57,6 @@ pub async fn delete_user_achievement(
     Ok(())
 }
 
-pub async fn get_users_achievements(pool: &PgPool) -> Result<Vec<DbUserAchievement>> {
-    Ok(
-        sqlx::query_as!(DbUserAchievement, "SELECT * FROM users_achievements")
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
 pub async fn get_user_achievements_by_username(
     username: &str,
     pool: &PgPool,
@@ -78,10 +72,37 @@ pub async fn get_user_achievements_by_username(
 
 pub async fn get_users_achievements_user_count(pool: &PgPool) -> Result<i64> {
     Ok(
-        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_achievements WHERE users_achievements.username = users.username) >= 50")
+        sqlx::query!("SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_achievements WHERE users_achievements.username = users.username) >= $1", THRESHOLD)
             .fetch_one(pool)
             .await?
             .count
             .unwrap_or_default(),
     )
+}
+
+pub struct DbAchievementUsersCount {
+    pub id: i64,
+    pub count: Option<i64>,
+}
+
+pub async fn get_achievements_users_count(pool: &PgPool) -> Result<Vec<DbAchievementUsersCount>> {
+    Ok(sqlx::query_as!(
+        DbAchievementUsersCount,
+        "
+        SELECT
+            id,
+            COUNT(*)
+        FROM
+            users_achievements
+        JOIN
+            (SELECT username FROM users_achievements GROUP BY username HAVING count(*) >= $1) counted_users
+        ON
+            users_achievements.username = counted_users.username
+        GROUP BY
+            id
+        ",
+        THRESHOLD,
+    )
+    .fetch_all(pool)
+    .await?)
 }
