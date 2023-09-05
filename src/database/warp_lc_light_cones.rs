@@ -50,7 +50,7 @@ pub async fn get_warp_lc_light_cones_by_uid(
             light_cones_text.name
         FROM
             warp_lc_light_cones
-        LEFT JOIN
+        INNER JOIN
             light_cones_text
         ON
             light_cones_text.id = light_cone AND light_cones_text.language = $2
@@ -80,7 +80,7 @@ pub async fn get_warp_lc_light_cone_by_id_and_uid(
             light_cones_text.name
         FROM
             warp_lc_light_cones
-        LEFT JOIN
+        INNER JOIN
             light_cones_text
         ON
             light_cones_text.id = light_cone AND light_cones_text.language = $3

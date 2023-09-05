@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM users WHERE (SELECT COUNT(*) FROM users_achievements WHERE users_achievements.username = users.username) >= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7069884fe3da47d4654155cdd59f1ae1d248eff419ec05490c181c8fe37aaf92"
+}

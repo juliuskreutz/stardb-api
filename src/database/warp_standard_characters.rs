@@ -50,7 +50,7 @@ pub async fn get_warp_standard_characters_by_uid(
             characters_text.name
         FROM
             warp_standard_characters
-        LEFT JOIN
+        INNER JOIN
             characters_text
         ON
             characters_text.id = character AND characters_text.language = $2
@@ -80,7 +80,7 @@ pub async fn get_warp_standard_character_by_id_and_uid(
             characters_text.name
         FROM
             warp_standard_characters
-        LEFT JOIN
+        INNER JOIN
             characters_text
         ON
             characters_text.id = character AND characters_text.language = $3

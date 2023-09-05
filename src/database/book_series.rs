@@ -46,7 +46,7 @@ pub async fn get_book_series(language: &str, pool: &PgPool) -> Result<Vec<DbBook
         INNER JOIN
             book_series_worlds_text
         ON
-            book_series_worlds_text.id = book_series.id AND book_series_worlds_text.language = $1
+            book_series_worlds_text.id = book_series.world AND book_series_worlds_text.language = $1
         ORDER BY
             id
         ",
@@ -73,7 +73,7 @@ pub async fn get_book_series_by_id(id: i32, language: &str, pool: &PgPool) -> Re
         INNER JOIN
             book_series_worlds_text
         ON
-            book_series_worlds_text.id = book_series.id AND book_series_worlds_text.language = $2
+            book_series_worlds_text.id = book_series.world AND book_series_worlds_text.language = $2
         WHERE
             book_series.id = $1
         ",

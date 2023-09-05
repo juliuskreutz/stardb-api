@@ -116,12 +116,3 @@ pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<Db
     .fetch_one(pool)
     .await?)
 }
-
-pub async fn get_books_id(pool: &PgPool) -> Result<Vec<i64>> {
-    Ok(sqlx::query!("SELECT id FROM books")
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(|r| r.id)
-        .collect())
-}
