@@ -26,8 +26,8 @@ use super::Language;
 struct ApiDoc;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Difficulty {
     Easy,
     Medium,

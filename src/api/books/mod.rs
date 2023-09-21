@@ -26,8 +26,8 @@ use super::Language;
 struct ApiDoc;
 
 #[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Difficulty {
     Easy,
     Medium,
@@ -43,11 +43,24 @@ struct Book {
     series_world_name: String,
     series_inside: i32,
     name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment: Option<String>,
+    images: Vec<String>,
     percent: f64,
 }
 
 impl From<database::DbBook> for Book {
     fn from(db_book: database::DbBook) -> Self {
+        let mut images = Vec::new();
+
+        if let Some(image) = db_book.image1 {
+            images.push(image);
+        }
+
+        if let Some(image) = db_book.image2 {
+            images.push(image);
+        }
+
         Book {
             id: db_book.id,
             series: db_book.series,
@@ -56,6 +69,8 @@ impl From<database::DbBook> for Book {
             series_world_name: db_book.series_world_name,
             series_inside: db_book.series_inside,
             name: db_book.name,
+            comment: db_book.comment,
+            images,
             percent: db_book.percent,
         }
     }

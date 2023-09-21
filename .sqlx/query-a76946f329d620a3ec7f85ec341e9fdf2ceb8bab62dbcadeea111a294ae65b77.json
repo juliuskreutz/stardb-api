@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            warps.*,\n            COALESCE(characters_text.name, light_cones_text.name) AS name\n        FROM\n            warps\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            warps.id = $1\n        AND\n            gacha_type = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "uid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "gacha_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "light_cone",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "timestamp",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "a76946f329d620a3ec7f85ec341e9fdf2ceb8bab62dbcadeea111a294ae65b77"
+}

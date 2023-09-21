@@ -9,27 +9,28 @@ use crate::{
     database,
 };
 
+use super::GachaType;
+
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps/{uid}")),
     paths(get_warps),
-    components(schemas(Warp, GachaType))
+    components(schemas(Warp))
 )]
 struct ApiDoc;
 
 #[derive(Serialize, ToSchema)]
 struct Warp {
-    name: String,
+    r#type: WarpType,
+    name: Option<String>,
     timestamp: NaiveDateTime,
 }
 
-#[derive(Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
-enum GachaType {
-    Standard,
-    Departure,
-    Special,
-    Lc,
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+enum WarpType {
+    Character,
+    LightCone,
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -37,74 +38,18 @@ struct WarpParams {
     gacha_type: GachaType,
 }
 
-impl From<database::DbWarpStandardCharacter> for Warp {
-    fn from(warp_character: database::DbWarpStandardCharacter) -> Self {
-        Self {
-            name: warp_character.name,
-            timestamp: warp_character.timestamp,
-        }
-    }
-}
+impl From<database::DbWarp> for Warp {
+    fn from(warp: database::DbWarp) -> Self {
+        let r#type = if warp.character.is_some() {
+            WarpType::Character
+        } else {
+            WarpType::LightCone
+        };
 
-impl From<database::DbWarpStandardLightCone> for Warp {
-    fn from(warp_light_cone: database::DbWarpStandardLightCone) -> Self {
         Self {
-            name: warp_light_cone.name,
-            timestamp: warp_light_cone.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpDepartureCharacter> for Warp {
-    fn from(warp_character: database::DbWarpDepartureCharacter) -> Self {
-        Self {
-            name: warp_character.name,
-            timestamp: warp_character.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpDepartureLightCone> for Warp {
-    fn from(warp_light_cone: database::DbWarpDepartureLightCone) -> Self {
-        Self {
-            name: warp_light_cone.name,
-            timestamp: warp_light_cone.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpSpecialCharacter> for Warp {
-    fn from(warp_character: database::DbWarpSpecialCharacter) -> Self {
-        Self {
-            name: warp_character.name,
-            timestamp: warp_character.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpSpecialLightCone> for Warp {
-    fn from(warp_light_cone: database::DbWarpSpecialLightCone) -> Self {
-        Self {
-            name: warp_light_cone.name,
-            timestamp: warp_light_cone.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpLcCharacter> for Warp {
-    fn from(warp_character: database::DbWarpLcCharacter) -> Self {
-        Self {
-            name: warp_character.name,
-            timestamp: warp_character.timestamp,
-        }
-    }
-}
-
-impl From<database::DbWarpLcLightCone> for Warp {
-    fn from(warp_light_cone: database::DbWarpLcLightCone) -> Self {
-        Self {
-            name: warp_light_cone.name,
-            timestamp: warp_light_cone.timestamp,
+            r#type,
+            name: warp.name,
+            timestamp: warp.timestamp,
         }
     }
 }
@@ -123,7 +68,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     path = "/api/warps/{uid}",
     params(LanguageParams, WarpParams),
     responses(
-        (status = 200, description = "[WarpSpecial]", body = Vec<WarpSpecial>),
+        (status = 200, description = "[Warp]", body = Vec<Warp>),
     )
 )]
 #[get("/api/warps/{uid}")]
@@ -133,126 +78,16 @@ async fn get_warps(
     warp_params: web::Query<WarpParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let (warp_characters, warp_light_cones) = match warp_params.gacha_type {
-        GachaType::Standard => {
-            let warp_standard_characters = database::get_warp_standard_characters_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            let warp_standard_light_cones = database::get_warp_standard_light_cones_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            (warp_standard_characters, warp_standard_light_cones)
-        }
-        GachaType::Departure => {
-            let warp_departure_characters = database::get_warp_departure_characters_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            let warp_departure_light_cones = database::get_warp_departure_light_cones_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            (warp_departure_characters, warp_departure_light_cones)
-        }
-        GachaType::Special => {
-            let warp_special_characters = database::get_warp_special_characters_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            let warp_special_light_cones = database::get_warp_special_light_cones_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            (warp_special_characters, warp_special_light_cones)
-        }
-        GachaType::Lc => {
-            let warp_lc_characters = database::get_warp_lc_characters_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            let warp_lc_light_cones = database::get_warp_lc_light_cones_by_uid(
-                *uid,
-                &language_params.lang.to_string(),
-                &pool,
-            )
-            .await?
-            .into_iter()
-            .map(Warp::from)
-            .collect::<Vec<_>>();
-
-            (warp_lc_characters, warp_lc_light_cones)
-        }
-    };
-
-    let mut warp_characters = warp_characters.into_iter().peekable();
-    let mut warp_light_cones = warp_light_cones.into_iter().peekable();
-
-    let mut warps = Vec::new();
-
-    loop {
-        let n = match (warp_characters.peek(), warp_light_cones.peek()) {
-            (Some(l), Some(r)) => {
-                if l.timestamp < r.timestamp {
-                    -1
-                } else {
-                    1
-                }
-            }
-            (Some(_), None) => -1,
-            (None, Some(_)) => 1,
-            (None, None) => 0,
-        };
-
-        match n {
-            -1 => warps.push(warp_characters.next().unwrap()),
-            1 => warps.push(warp_light_cones.next().unwrap()),
-            _ => break,
-        }
-    }
+    let warps: Vec<_> = database::get_warps_by_uid_and_gacha_type(
+        *uid,
+        &warp_params.gacha_type.to_string(),
+        &language_params.lang.to_string(),
+        &pool,
+    )
+    .await?
+    .into_iter()
+    .map(Warp::from)
+    .collect();
 
     Ok(HttpResponse::Ok().json(warps))
 }

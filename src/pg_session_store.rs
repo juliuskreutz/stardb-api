@@ -49,6 +49,10 @@ impl SessionStore for PgSessionStore {
         let username = &session_state["username"];
         let username = username[1..username.len() - 1].to_string();
 
+        database::delete_oldest_sessions_by_username(&username, &self.pool)
+            .await
+            .map_err(SaveError::Other)?;
+
         let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
 
         let db_session = database::DbSession {

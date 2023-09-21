@@ -111,6 +111,24 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
     .await?)
 }
 
+pub async fn get_achievements_id(pool: &PgPool) -> Result<Vec<i64>> {
+    Ok(sqlx::query!(
+        "
+        SELECT
+            id
+        FROM
+            achievements
+        WHERE NOT
+            (hidden AND impossible)
+        "
+    )
+    .fetch_all(pool)
+    .await?
+    .iter()
+    .map(|r| r.id)
+    .collect())
+}
+
 pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
     Ok(sqlx::query!(
         "

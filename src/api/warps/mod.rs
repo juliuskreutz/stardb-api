@@ -4,6 +4,7 @@ use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use serde::Deserialize;
 use sqlx::PgPool;
+use strum::Display;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{api::ApiResult, database};
@@ -12,9 +13,19 @@ use crate::{api::ApiResult, database};
 #[openapi(
     tags((name = "warps")),
     paths(post_warps),
-    components(schemas(WarpAuthKey))
+    components(schemas(WarpAuthKey, GachaType))
 )]
 struct ApiDoc;
+
+#[derive(Display, Deserialize, ToSchema)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum GachaType {
+    Standard,
+    Departure,
+    Special,
+    Lc,
+}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
@@ -85,48 +96,45 @@ async fn post_warps(
 
         for entry in gacha_log.data.list.iter() {
             let id = entry.id.parse()?;
+            let gacha_type = GachaType::Standard.to_string();
+
+            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
+                .await
+                .is_ok()
+            {
+                break 'outer;
+            }
+
             let uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
+            let item = entry.item_id.parse()?;
+
             if entry.item_type == "Character" {
-                if database::get_warp_standard_character_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let character = entry.item_id.parse()?;
-
-                let db_warp_standard_character = database::DbWarpStandardCharacter {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    character,
-                    name: String::new(),
+                    character: Some(item),
+                    light_cone: None,
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_standard_character(&db_warp_standard_character, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             } else if entry.item_type == "Light Cone" {
-                if database::get_warp_standard_light_cone_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let light_cone = entry.item_id.parse()?;
-
-                let db_warp_standard_light_cone = database::DbWarpStandardLightCone {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    light_cone,
-                    name: String::new(),
+                    character: None,
+                    light_cone: Some(item),
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_standard_light_cone(&db_warp_standard_light_cone, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             }
         }
 
@@ -155,49 +163,45 @@ async fn post_warps(
 
         for entry in gacha_log.data.list.iter() {
             let id = entry.id.parse()?;
+            let gacha_type = GachaType::Departure.to_string();
+
+            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
+                .await
+                .is_ok()
+            {
+                break 'outer;
+            }
+
             let uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
+            let item = entry.item_id.parse()?;
+
             if entry.item_type == "Character" {
-                if database::get_warp_departure_character_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let character = entry.item_id.parse()?;
-
-                let db_warp_departure_character = database::DbWarpDepartureCharacter {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    character,
-                    name: String::new(),
+                    character: Some(item),
+                    light_cone: None,
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_departure_character(&db_warp_departure_character, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             } else if entry.item_type == "Light Cone" {
-                if database::get_warp_departure_light_cone_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let light_cone = entry.item_id.parse()?;
-
-                let db_warp_departure_light_cone = database::DbWarpDepartureLightCone {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    light_cone,
-                    name: String::new(),
+                    character: None,
+                    light_cone: Some(item),
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_departure_light_cone(&db_warp_departure_light_cone, &pool)
-                    .await?;
+                database::set_warp(&db_warp, &pool).await?;
             }
         }
 
@@ -226,48 +230,45 @@ async fn post_warps(
 
         for entry in gacha_log.data.list.iter() {
             let id = entry.id.parse()?;
+            let gacha_type = GachaType::Special.to_string();
+
+            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
+                .await
+                .is_ok()
+            {
+                break 'outer;
+            }
+
             let uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
+            let item = entry.item_id.parse()?;
+
             if entry.item_type == "Character" {
-                if database::get_warp_special_character_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let character = entry.item_id.parse()?;
-
-                let db_warp_special_character = database::DbWarpSpecialCharacter {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    character,
-                    name: String::new(),
+                    character: Some(item),
+                    light_cone: None,
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_special_character(&db_warp_special_character, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             } else if entry.item_type == "Light Cone" {
-                if database::get_warp_special_light_cone_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let light_cone = entry.item_id.parse()?;
-
-                let db_warp_special_light_cone = database::DbWarpSpecialLightCone {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    light_cone,
-                    name: String::new(),
+                    character: None,
+                    light_cone: Some(item),
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_special_light_cone(&db_warp_special_light_cone, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             }
         }
 
@@ -296,48 +297,45 @@ async fn post_warps(
 
         for entry in gacha_log.data.list.iter() {
             let id = entry.id.parse()?;
+            let gacha_type = GachaType::Lc.to_string();
+
+            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
+                .await
+                .is_ok()
+            {
+                break 'outer;
+            }
+
             let uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
+            let item = entry.item_id.parse()?;
+
             if entry.item_type == "Character" {
-                if database::get_warp_lc_character_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let character = entry.item_id.parse()?;
-
-                let db_warp_lc_character = database::DbWarpLcCharacter {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    character,
-                    name: String::new(),
+                    character: Some(item),
+                    light_cone: None,
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_lc_character(&db_warp_lc_character, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             } else if entry.item_type == "Light Cone" {
-                if database::get_warp_lc_light_cone_by_id_and_uid(id, uid, "en", &pool)
-                    .await
-                    .is_ok()
-                {
-                    break 'outer;
-                }
-
-                let light_cone = entry.item_id.parse()?;
-
-                let db_warp_lc_light_cone = database::DbWarpLcLightCone {
+                let db_warp = database::DbWarp {
                     id,
                     uid,
-                    light_cone,
-                    name: String::new(),
+                    character: None,
+                    light_cone: Some(item),
+                    gacha_type,
+                    name: None,
                     timestamp,
                 };
 
-                database::set_warp_lc_light_cone(&db_warp_lc_light_cone, &pool).await?;
+                database::set_warp(&db_warp, &pool).await?;
             }
         }
 

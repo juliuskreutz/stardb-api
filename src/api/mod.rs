@@ -6,13 +6,15 @@ mod books;
 mod characters;
 mod community_tier_list;
 mod free_jade_alert;
-mod import;
+mod import_achievements;
+mod import_books;
 mod languages;
 mod light_cones;
 mod mihomo;
 mod pages;
 mod scores;
 mod select_all;
+mod sitemap;
 mod users;
 mod warps;
 
@@ -65,8 +67,8 @@ struct LanguageParams {
     Clone,
     Copy,
 )]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Language {
     Chs,
     Cht,
@@ -120,13 +122,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(characters::openapi());
     openapi.merge(community_tier_list::openapi());
     openapi.merge(free_jade_alert::openapi());
-    openapi.merge(import::openapi());
+    openapi.merge(import_achievements::openapi());
+    openapi.merge(import_books::openapi());
     openapi.merge(languages::openapi());
     openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
     openapi.merge(pages::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
+    openapi.merge(sitemap::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi
@@ -141,13 +145,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(characters::configure)
         .configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
-        .configure(import::configure)
+        .configure(import_achievements::configure)
+        .configure(import_books::configure)
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
         .configure(pages::configure)
         .configure(scores::configure)
         .configure(select_all::configure)
+        .configure(sitemap::configure)
         .configure(users::configure)
         .configure(warps::configure);
 }
@@ -156,4 +162,8 @@ pub fn cache_achievement_tracker(
     pool: PgPool,
 ) -> web::Data<pages::achievement_tracker::AchievementTrackerCache> {
     pages::cache_achievement_tracker(pool)
+}
+
+pub fn cache_book_tracker(pool: PgPool) -> web::Data<pages::book_tracker::BookTrackerCache> {
+    pages::cache_book_tracker(pool)
 }
