@@ -325,6 +325,9 @@ async fn update(pool: &PgPool) -> Result<()> {
             series_world_name: String::new(),
             series_inside,
             name: String::new(),
+            comment: None,
+            image1: None,
+            image2: None,
             percent: 0.0,
         };
 
@@ -360,6 +363,14 @@ async fn update(pool: &PgPool) -> Result<()> {
             _ => "Dan Heng (Imbibitor Lunae)",
         }
         .to_string();
+
+        if language == "EN" {
+            *text_map.get_mut("1279882444").unwrap() = "Use Basic ATK at least <unbreak>#1[i]</unbreak> times and win within a single battle in Simulated Universe".to_string();
+            *text_map.get_mut("1279882442").unwrap() =
+                "Unlock 1 Blessing(s) of Propagation in Simulated Universe".to_string();
+            *text_map.get_mut("1279882440").unwrap() =
+                "In Simulated Universe: Swarm Disaster, enter a Combat: Swarm, Occurrence: Swarm, or Boss: Swarm domain with a Path other than Propagation for a total of 15 times".to_string();
+        }
 
         for achievement_series in achievement_series.values() {
             let id = achievement_series.id;

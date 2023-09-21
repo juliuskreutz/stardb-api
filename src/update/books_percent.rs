@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use sqlx::PgPool;
@@ -34,10 +37,20 @@ async fn update(pool: &PgPool) -> Result<()> {
 
     let books_users_count = database::get_books_users_count(pool).await?;
 
+    let mut books_users_count_map = HashMap::new();
+
+    for id in database::get_books_id(pool).await? {
+        books_users_count_map.insert(id, 0.0);
+    }
+
     for book_users_count in books_users_count {
         let id = book_users_count.id;
         let percent = book_users_count.count.unwrap_or_default() as f64 / total_count;
 
+        books_users_count_map.insert(id, percent);
+    }
+
+    for (id, percent) in books_users_count_map {
         let book_percent = database::DbBookPercent { id, percent };
 
         database::set_book_percent(&book_percent, pool).await?;

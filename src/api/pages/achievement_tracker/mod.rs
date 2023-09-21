@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[derive(OpenApi)]
-#[openapi(paths(get_achievemenent_tracker))]
+#[openapi(paths(get_achievement_tracker))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -26,7 +26,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_achievemenent_tracker);
+    cfg.service(get_achievement_tracker);
 }
 
 #[derive(Default)]
@@ -71,8 +71,8 @@ struct Achievement {
 }
 
 #[derive(EnumString, Serialize)]
-#[strum(serialize_all = "lowercase")]
-#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum Difficulty {
     Easy,
     Medium,
@@ -217,7 +217,7 @@ async fn update(
     )
 )]
 #[get("/api/pages/achievement-tracker", guard = "private")]
-async fn get_achievemenent_tracker(
+async fn get_achievement_tracker(
     language_params: web::Query<LanguageParams>,
     achievement_tracker_cache: web::Data<AchievementTrackerCache>,
 ) -> ApiResult<impl Responder> {

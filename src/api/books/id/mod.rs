@@ -1,3 +1,7 @@
+mod comment;
+mod image1;
+mod image2;
+
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -15,11 +19,18 @@ use crate::{
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(comment::openapi());
+    openapi.merge(image1::openapi());
+    openapi.merge(image2::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_book);
+    cfg.service(get_book)
+        .configure(comment::configure)
+        .configure(image1::configure)
+        .configure(image2::configure);
 }
 
 #[utoipa::path(

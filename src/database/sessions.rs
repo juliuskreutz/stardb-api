@@ -32,6 +32,24 @@ pub async fn set_session(session: &DbSession, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn delete_oldest_sessions_by_username(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "
+        DELETE FROM
+            sessions
+        WHERE
+            uuid
+        IN
+            (SELECT uuid FROM sessions WHERE username = $1 ORDER BY expiry DESC OFFSET 9)
+        ",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_session_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<DbSession> {
     Ok(sqlx::query_as!(
         DbSession,

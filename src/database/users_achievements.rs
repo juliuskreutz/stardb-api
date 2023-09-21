@@ -13,7 +13,7 @@ pub async fn add_user_achievement(
     pool: &PgPool,
 ) -> Result<()> {
     sqlx::query!(
-        "INSERT INTO users_achievements(username, id) VALUES($1, $2)",
+        "INSERT INTO users_achievements(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
         user_achievement.username,
         user_achievement.id,
     )
