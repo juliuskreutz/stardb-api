@@ -54,7 +54,7 @@ async fn update() -> Result<()> {
                 }
             }
         })
-        .buffer_unordered(8)
+        .buffer_unordered(16)
         .collect::<Vec<_>>()
         .await;
 

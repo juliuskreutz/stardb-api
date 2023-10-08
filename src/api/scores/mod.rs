@@ -16,10 +16,10 @@ struct ApiDoc;
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum Region {
-    NA,
-    EU,
+    Na,
+    Eu,
     Asia,
-    CN,
+    Cn,
 }
 
 #[derive(Deserialize, IntoParams)]

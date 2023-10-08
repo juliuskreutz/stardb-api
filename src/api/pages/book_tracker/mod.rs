@@ -63,6 +63,8 @@ struct Book {
     series_name: String,
     series_world: i32,
     series_world_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<i32>,
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
@@ -77,6 +79,7 @@ impl From<database::DbBook> for Book {
             series_name: db_book.series_name.clone(),
             series_world: db_book.series_world,
             series_world_name: db_book.series_world_name,
+            icon: db_book.icon,
             name: db_book.name.clone(),
             comment: db_book.comment.clone(),
             percent: db_book.percent,

@@ -9,6 +9,7 @@ pub struct DbBook {
     pub series_world: i32,
     pub series_world_name: String,
     pub series_inside: i32,
+    pub icon: Option<i32>,
     pub name: String,
     pub comment: Option<String>,
     pub image1: Option<String>,
@@ -20,18 +21,20 @@ pub async fn set_book(book: &DbBook, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            books(id, series, series_inside)
+            books(id, series, series_inside, icon)
         VALUES
-            ($1, $2, $3)
+            ($1, $2, $3, $4)
         ON CONFLICT
             (id)
         DO UPDATE SET
             series = EXCLUDED.series,
-            series_inside = EXCLUDED.series_inside
+            series_inside = EXCLUDED.series_inside,
+            icon = EXCLUDED.icon
         ",
         book.id,
         book.series,
-        book.series_inside
+        book.series_inside,
+        book.icon,
     )
     .execute(pool)
     .await?;
@@ -70,6 +73,8 @@ pub async fn get_books(language: &str, pool: &PgPool) -> Result<Vec<DbBook>> {
             book_series_worlds_text
         ON
             book_series.world = book_series_worlds_text.id AND book_series_worlds_text.language = $1
+        WHERE
+            icon IS NOT NULL
         ORDER BY
             world, series, id
         ",
@@ -112,6 +117,8 @@ pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<Db
             book_series.world = book_series_worlds_text.id AND book_series_worlds_text.language = $2
         WHERE
             books.id = $1
+        AND
+            icon IS NOT NULL
         ",
         id,
         language,

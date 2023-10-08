@@ -116,9 +116,17 @@ struct BookSeriesWorld {
 }
 
 #[derive(Deserialize)]
+struct ItemConfig {
+    #[serde(rename = "ItemIconPath")]
+    icon_path: String,
+}
+
+#[derive(Deserialize)]
 struct ItemConfigEquipment {
     #[serde(rename = "ID")]
     id: i32,
+    #[serde(rename = "Rarity")]
+    rarity: String,
     #[serde(rename = "ItemName")]
     name: TextHash,
 }
@@ -213,6 +221,14 @@ async fn update(pool: &PgPool) -> Result<()> {
         BufReader::new(File::open("StarRailData/ExcelOutput/BookSeriesWorld.json")?),
     )?;
 
+    let item_config: HashMap<String, ItemConfig> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/ItemConfig.json")?,
+    ))?;
+
+    let item_config_book: HashMap<String, ItemConfig> = serde_json::from_reader(BufReader::new(
+        File::open("StarRailData/ExcelOutput/ItemConfigBook.json")?,
+    ))?;
+
     let item_config_equipment: HashMap<String, ItemConfigEquipment> =
         serde_json::from_reader(BufReader::new(File::open(
             "StarRailData/ExcelOutput/ItemConfigEquipment.json",
@@ -280,8 +296,10 @@ async fn update(pool: &PgPool) -> Result<()> {
             id,
             rarity,
             name: String::new(),
-            element: String::new(),
             path: String::new(),
+            element: String::new(),
+            path_id: String::new(),
+            element_id: String::new(),
         };
 
         database::set_character(&db_character, pool).await?;
@@ -317,6 +335,19 @@ async fn update(pool: &PgPool) -> Result<()> {
         let series = localbook_config.series;
         let series_inside = localbook_config.series_inside;
 
+        let icon = item_config
+            .get(&id.to_string())
+            .or_else(|| item_config_book.get(&id.to_string()))
+            .map(|ic| {
+                ic.icon_path
+                    .strip_prefix("SpriteOutput/ItemIcon/")
+                    .unwrap()
+                    .strip_suffix(".png")
+                    .unwrap()
+                    .parse()
+                    .unwrap()
+            });
+
         let db_book = database::DbBook {
             id,
             series,
@@ -324,6 +355,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             series_world: 0,
             series_world_name: String::new(),
             series_inside,
+            icon,
             name: String::new(),
             comment: None,
             image1: None,
@@ -337,9 +369,17 @@ async fn update(pool: &PgPool) -> Result<()> {
     for item_config_equipment in item_config_equipment.values() {
         let id = item_config_equipment.id;
 
+        let rarity = match item_config_equipment.rarity.as_str() {
+            "Rare" => 3,
+            "VeryRare" => 4,
+            "SuperRare" => 5,
+            _ => unreachable!(),
+        };
+
         let db_light_cone = database::DbLightCone {
             id,
             name: String::new(),
+            rarity,
         };
 
         database::set_light_cone(&db_light_cone, pool).await?;
@@ -489,8 +529,8 @@ async fn update(pool: &PgPool) -> Result<()> {
                 id,
                 language: language.to_lowercase(),
                 name,
-                element,
                 path,
+                element,
             };
 
             database::set_character_text(&db_character_text, pool).await?;

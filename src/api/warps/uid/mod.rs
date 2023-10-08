@@ -22,20 +22,9 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct Warp {
     r#type: WarpType,
-    name: Option<String>,
+    name: String,
+    rarity: i32,
     timestamp: NaiveDateTime,
-}
-
-#[derive(Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-enum WarpType {
-    Character,
-    LightCone,
-}
-
-#[derive(Deserialize, IntoParams)]
-struct WarpParams {
-    gacha_type: GachaType,
 }
 
 impl From<database::DbWarp> for Warp {
@@ -48,10 +37,23 @@ impl From<database::DbWarp> for Warp {
 
         Self {
             r#type,
-            name: warp.name,
+            name: warp.name.unwrap(),
+            rarity: warp.rarity.unwrap(),
             timestamp: warp.timestamp,
         }
     }
+}
+
+#[derive(Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+enum WarpType {
+    Character,
+    LightCone,
+}
+
+#[derive(Deserialize, IntoParams)]
+struct WarpParams {
+    gacha_type: GachaType,
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {

@@ -101,6 +101,8 @@ async fn update(pool: &PgPool) -> Result<()> {
             character_name: "".to_string(),
             character_path: "".to_string(),
             character_element: "".to_string(),
+            character_path_id: "".to_string(),
+            character_element_id: "".to_string(),
         };
 
         database::set_community_tier_list_entry(&db_community_tier_list_entry, pool).await?;

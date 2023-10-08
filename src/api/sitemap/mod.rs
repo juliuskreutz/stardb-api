@@ -1,9 +1,13 @@
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::{
+    api::{ApiResult, Language},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -21,14 +25,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 const ROUTES: &[&str] = &[
-    "https://stardb.gg",
-    "https://stardb.gg/login",
-    "https://stardb.gg/register",
-    "https://stardb.gg/leaderboard",
-    "https://stardb.gg/tier-list",
-    "https://stardb.gg/achievement-tracker",
-    "https://stardb.gg/profile-card-generator",
-    "https://stardb.gg/privacy-policy",
     "https://stardb.gg/articles/",
     "https://stardb.gg/articles/daily-farm-route/",
     "https://stardb.gg/articles/free-stellar-jade-alerts/",
@@ -57,11 +53,24 @@ const ROUTES: &[&str] = &[
     "https://stardb.gg/api/help/",
 ];
 
+const LOCALIZED_ROUTES: &[&str] = &[
+    "https://stardb.gg/%LANG%",
+    "https://stardb.gg/%LANG%/login",
+    "https://stardb.gg/%LANG%/register",
+    "https://stardb.gg/%LANG%/leaderboard",
+    "https://stardb.gg/%LANG%/tier-list",
+    "https://stardb.gg/%LANG%/achievement-tracker",
+    "https://stardb.gg/%LANG%/profile-card-generator",
+    "https://stardb.gg/%LANG%/privacy-policy",
+];
+
 #[derive(Serialize)]
-#[allow(non_camel_case_types)]
-struct urlset {
+#[serde(rename = "urlset")]
+struct Urlset {
     #[serde(rename = "@xmlns")]
     xmlns: String,
+    #[serde(rename = "@xmlns:xhtml")]
+    xhtml: String,
     url: Vec<Url>,
 }
 
@@ -69,6 +78,18 @@ struct urlset {
 struct Url {
     loc: String,
     lastmod: String,
+    #[serde(rename = "xhtml:link")]
+    links: Vec<Link>,
+}
+
+#[derive(Serialize)]
+struct Link {
+    #[serde(rename = "@rel")]
+    rel: String,
+    #[serde(rename = "@hreflang")]
+    hreflang: String,
+    #[serde(rename = "@href")]
+    href: String,
 }
 
 #[utoipa::path(
@@ -81,7 +102,7 @@ struct Url {
 )]
 #[get("/api/sitemap")]
 async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let lastmod = "2023-09-06";
+    let lastmod = "2023-09-24";
 
     let mut urls = Vec::new();
 
@@ -89,22 +110,57 @@ async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
         let url = Url {
             loc: route.to_string(),
             lastmod: lastmod.to_string(),
+            links: Vec::new(),
         };
 
         urls.push(url);
     }
 
-    for id in database::get_achievements_id(&pool).await? {
-        let url = Url {
-            loc: format!("https://stardb.gg/database/achievements/{id}"),
-            lastmod: lastmod.to_string(),
-        };
+    for language in Language::iter() {
+        for route in LOCALIZED_ROUTES {
+            let mut links = Vec::new();
 
-        urls.push(url);
+            for link_language in Language::iter() {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: route.replace("%LANG%", &link_language.to_string()),
+                });
+            }
+
+            let url = Url {
+                loc: route.replace("%LANG%", &language.to_string()),
+                lastmod: lastmod.to_string(),
+                links,
+            };
+
+            urls.push(url);
+        }
+
+        for id in database::get_achievements_id(&pool).await? {
+            let mut links = Vec::new();
+
+            for link_language in Language::iter() {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!("https://stardb.gg/{link_language}/database/achievements/{id}"),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/database/achievements/{id}"),
+                lastmod: lastmod.to_string(),
+                links,
+            };
+
+            urls.push(url);
+        }
     }
 
-    let urlset = urlset {
+    let urlset = Urlset {
         xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9".to_string(),
+        xhtml: "http://www.w3.org/1999/xhtml".to_string(),
         url: urls,
     };
 

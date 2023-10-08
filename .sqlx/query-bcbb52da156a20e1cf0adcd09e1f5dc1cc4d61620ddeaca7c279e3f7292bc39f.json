@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            books(id, series, series_inside, icon)\n        VALUES\n            ($1, $2, $3, $4)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            series = EXCLUDED.series,\n            series_inside = EXCLUDED.series_inside,\n            icon = EXCLUDED.icon\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bcbb52da156a20e1cf0adcd09e1f5dc1cc4d61620ddeaca7c279e3f7292bc39f"
+}

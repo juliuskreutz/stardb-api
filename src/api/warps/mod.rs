@@ -13,7 +13,7 @@ use crate::{api::ApiResult, database};
 #[openapi(
     tags((name = "warps")),
     paths(post_warps),
-    components(schemas(WarpAuthKey, GachaType))
+    components(schemas(WarpParameters, GachaType))
 )]
 struct ApiDoc;
 
@@ -57,28 +57,29 @@ struct Entry {
 }
 
 #[derive(Deserialize, ToSchema)]
-struct WarpAuthKey {
-    auth_key: String,
+struct WarpParameters {
+    parameters: String,
 }
 
 #[utoipa::path(
     tag = "warps",
     post,
     path = "/api/warps",
-    request_body = WarpAuthKey,
+    request_body = WarpParameters,
     responses(
-        (status = 200, description = "Success"),
+        (status = 200, description = "Uid", body = i64),
     )
 )]
 #[post("/api/warps")]
 async fn post_warps(
-    auth_key: web::Json<WarpAuthKey>,
+    parameters: web::Json<WarpParameters>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let auth_key = urlencoding::encode(&auth_key.auth_key).to_string();
-    let url = format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?authkey_ver=1&sign_type=2&lang=en&authkey={auth_key}&game_biz=hkrpg_global&size=20");
+    let parameters = urlencoding::encode(&parameters.parameters).to_string();
+    let url = format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?{parameters}&game_biz=hkrpg_global&size=20");
 
     let mut end_id = None;
+    let mut uid = 0;
 
     //Standard Warp
     'outer: loop {
@@ -105,7 +106,7 @@ async fn post_warps(
                 break 'outer;
             }
 
-            let uid = entry.uid.parse()?;
+            uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
@@ -119,6 +120,7 @@ async fn post_warps(
                     light_cone: None,
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -131,6 +133,7 @@ async fn post_warps(
                     light_cone: Some(item),
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -172,7 +175,7 @@ async fn post_warps(
                 break 'outer;
             }
 
-            let uid = entry.uid.parse()?;
+            uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
@@ -186,6 +189,7 @@ async fn post_warps(
                     light_cone: None,
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -198,6 +202,7 @@ async fn post_warps(
                     light_cone: Some(item),
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -239,7 +244,7 @@ async fn post_warps(
                 break 'outer;
             }
 
-            let uid = entry.uid.parse()?;
+            uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
@@ -253,6 +258,7 @@ async fn post_warps(
                     light_cone: None,
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -265,6 +271,7 @@ async fn post_warps(
                     light_cone: Some(item),
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -306,7 +313,7 @@ async fn post_warps(
                 break 'outer;
             }
 
-            let uid = entry.uid.parse()?;
+            uid = entry.uid.parse()?;
 
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
 
@@ -320,6 +327,7 @@ async fn post_warps(
                     light_cone: None,
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -332,6 +340,7 @@ async fn post_warps(
                     light_cone: Some(item),
                     gacha_type,
                     name: None,
+                    rarity: None,
                     timestamp,
                 };
 
@@ -346,5 +355,5 @@ async fn post_warps(
         );
     }
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(uid))
 }

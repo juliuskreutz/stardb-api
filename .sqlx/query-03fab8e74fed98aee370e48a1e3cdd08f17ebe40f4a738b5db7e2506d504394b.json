@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            light_cones(id, rarity)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            rarity = EXCLUDED.rarity\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "03fab8e74fed98aee370e48a1e3cdd08f17ebe40f4a738b5db7e2506d504394b"
+}
