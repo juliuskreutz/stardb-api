@@ -4,18 +4,23 @@ use sqlx::PgPool;
 pub struct DbLightCone {
     pub id: i32,
     pub name: String,
+    pub rarity: i32,
 }
 
 pub async fn set_light_cone(light_cone: &DbLightCone, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            light_cones(id)
+            light_cones(id, rarity)
         VALUES
-            ($1)
-        ON CONFLICT DO NOTHING
+            ($1, $2)
+        ON CONFLICT
+            (id)
+        DO UPDATE SET
+            rarity = EXCLUDED.rarity
         ",
         light_cone.id,
+        light_cone.rarity,
     )
     .execute(pool)
     .await?;
@@ -28,7 +33,7 @@ pub async fn get_light_cones(language: &str, pool: &PgPool) -> Result<Vec<DbLigh
         DbLightCone,
         "
         SELECT
-            light_cones.id,
+            light_cones.*,
             light_cones_text.name
         FROM
             light_cones
@@ -50,7 +55,7 @@ pub async fn get_light_cone_by_id(id: i32, language: &str, pool: &PgPool) -> Res
         DbLightCone,
         "
         SELECT
-            light_cones.id,
+            light_cones.*,
             light_cones_text.name
         FROM
             light_cones

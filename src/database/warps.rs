@@ -9,6 +9,7 @@ pub struct DbWarp {
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub name: Option<String>,
+    pub rarity: Option<i32>,
     pub timestamp: NaiveDateTime,
 }
 
@@ -41,9 +42,18 @@ pub async fn get_warps_by_uid(uid: i64, language: &str, pool: &PgPool) -> Result
         "
         SELECT
             warps.*,
-            COALESCE(characters_text.name, light_cones_text.name) AS name
+            COALESCE(characters_text.name, light_cones_text.name) AS name,
+            COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
             warps
+        LEFT JOIN
+            characters
+        ON
+            characters.id = character
+        LEFT JOIN
+            light_cones
+        ON
+            light_cones.id = light_cone
         LEFT JOIN
             characters_text
         ON
@@ -75,9 +85,18 @@ pub async fn get_warps_by_uid_and_gacha_type(
         "
         SELECT
             warps.*,
-            COALESCE(characters_text.name, light_cones_text.name) AS name
+            COALESCE(characters_text.name, light_cones_text.name) AS name,
+            COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
             warps
+        LEFT JOIN
+            characters
+        ON
+            characters.id = character
+        LEFT JOIN
+            light_cones
+        ON
+            light_cones.id = light_cone
         LEFT JOIN
             characters_text
         ON
@@ -112,9 +131,18 @@ pub async fn get_warp_by_id_and_gacha_type(
         "
         SELECT
             warps.*,
-            COALESCE(characters_text.name, light_cones_text.name) AS name
+            COALESCE(characters_text.name, light_cones_text.name) AS name,
+            COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
             warps
+        LEFT JOIN
+            characters
+        ON
+            characters.id = character
+        LEFT JOIN
+            light_cones
+        ON
+            light_cones.id = light_cone
         LEFT JOIN
             characters_text
         ON

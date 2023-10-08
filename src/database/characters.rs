@@ -5,8 +5,10 @@ pub struct DbCharacter {
     pub id: i32,
     pub rarity: i32,
     pub name: String,
-    pub element: String,
     pub path: String,
+    pub element: String,
+    pub path_id: String,
+    pub element_id: String,
 }
 
 pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()> {
@@ -37,14 +39,20 @@ pub async fn get_characters(language: &str, pool: &PgPool) -> Result<Vec<DbChara
         SELECT
             characters.*,
             characters_text.name,
+            characters_text.path,
             characters_text.element,
-            characters_text.path
+            characters_text_en.path path_id,
+            characters_text_en.element element_id
         FROM
             characters
         INNER JOIN
             characters_text
         ON
             characters.id = characters_text.id AND characters_text.language = $1
+        INNER JOIN
+            characters_text AS characters_text_en
+        ON
+            characters.id = characters_text_en.id AND characters_text_en.language = 'en'
         ",
         language,
     )
@@ -59,14 +67,20 @@ pub async fn get_character_by_id(id: i32, language: &str, pool: &PgPool) -> Resu
         SELECT
             characters.*,
             characters_text.name,
+            characters_text.path,
             characters_text.element,
-            characters_text.path
+            characters_text_en.path path_id,
+            characters_text_en.element element_id
         FROM
             characters
         INNER JOIN
             characters_text
         ON
             characters.id = characters_text.id AND characters_text.language = $2
+        INNER JOIN
+            characters_text AS characters_text_en
+        ON
+            characters.id = characters_text_en.id AND characters_text_en.language = 'en'
         WHERE
             characters.id = $1
         ",

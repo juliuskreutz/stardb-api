@@ -41,6 +41,8 @@ struct Entry {
     character_name: String,
     character_path: String,
     character_element: String,
+    character_path_id: String,
+    character_element_id: String,
 }
 
 impl From<database::DbCommunityTierListEntry> for Entry {
@@ -55,9 +57,11 @@ impl From<database::DbCommunityTierListEntry> for Entry {
             confidence_interval_95: db_entry.confidence_interval_95,
             votes: db_entry.votes,
             character_rarity: db_entry.character_rarity,
-            character_name: db_entry.character_name.clone(),
-            character_path: db_entry.character_path.clone(),
-            character_element: db_entry.character_element.clone(),
+            character_name: db_entry.character_name,
+            character_path: db_entry.character_path,
+            character_element: db_entry.character_element,
+            character_path_id: db_entry.character_path_id,
+            character_element_id: db_entry.character_element_id,
         }
     }
 }

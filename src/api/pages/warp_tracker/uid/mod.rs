@@ -24,7 +24,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Serialize)]
 struct Warp {
     r#type: WarpType,
-    name: Option<String>,
+    name: String,
+    rarity: i32,
     timestamp: NaiveDateTime,
 }
 
@@ -45,7 +46,8 @@ impl From<database::DbWarp> for Warp {
 
         Self {
             r#type,
-            name: warp.name,
+            name: warp.name.unwrap(),
+            rarity: warp.rarity.unwrap(),
             timestamp: warp.timestamp,
         }
     }

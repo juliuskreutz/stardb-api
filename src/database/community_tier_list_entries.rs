@@ -15,6 +15,8 @@ pub struct DbCommunityTierListEntry {
     pub character_name: String,
     pub character_path: String,
     pub character_element: String,
+    pub character_path_id: String,
+    pub character_element_id: String,
 }
 
 pub async fn set_community_tier_list_entry(
@@ -66,7 +68,9 @@ pub async fn get_community_tier_list_entries(
             characters.rarity character_rarity,
             characters_text.name character_name,
             characters_text.element character_element,
-            characters_text.path character_path
+            characters_text.path character_path,
+            characters_text_en.path character_path_id,
+            characters_text_en.element character_element_id
         FROM
             community_tier_list_entries
         INNER JOIN
@@ -76,7 +80,11 @@ pub async fn get_community_tier_list_entries(
         INNER JOIN
             characters_text
         ON
-            character = characters_text.id AND language = $1
+            character = characters_text.id AND characters_text.language = $1
+        INNER JOIN
+            characters_text AS characters_text_en
+        ON
+            character = characters_text_en.id AND characters_text_en.language = 'en'
         ORDER BY
             average DESC
         ",

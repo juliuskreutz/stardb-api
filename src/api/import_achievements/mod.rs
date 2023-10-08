@@ -92,49 +92,46 @@ async fn import_achievements(
     for achievement in reader.deserialize() {
         let achievement: Achievement = achievement?;
 
-        let mut ids = vec![achievement.key];
+        database::update_achievement_version(achievement.key, &achievement.version, &pool).await?;
 
-        let db_achievement = database::get_achievement_by_id(ids[0], "en", true, &pool).await?;
-
-        if let Some(set) = db_achievement.set {
-            for related in database::get_related(ids[0], set, &pool).await? {
-                ids.push(related);
-            }
+        if let Some(difficulty) = &achievement.difficulty {
+            database::update_achievement_difficulty(
+                achievement.key,
+                &difficulty.to_lowercase(),
+                &pool,
+            )
+            .await?
+        } else {
+            database::delete_achievement_difficulty(achievement.key, &pool).await?;
         }
 
-        for id in ids {
-            database::update_achievement_version(id, &achievement.version, &pool).await?;
-
-            if let Some(difficulty) = &achievement.difficulty {
-                database::update_achievement_difficulty(id, &difficulty.to_lowercase(), &pool)
-                    .await?
-            } else {
-                database::delete_achievement_difficulty(id, &pool).await?;
-            }
-
-            if let Some(comment) = &achievement.comment {
-                database::update_achievement_comment(id, comment, &pool).await?
-            } else {
-                database::delete_achievement_comment(id, &pool).await?;
-            }
-
-            if let Some(reference) = &achievement.reference {
-                database::update_achievement_reference(id, reference, &pool).await?
-            } else {
-                database::delete_achievement_reference(id, &pool).await?;
-            }
-
-            if let Some(video) = &achievement.video {
-                database::update_achievement_video(id, video, &pool).await?
-            } else {
-                database::delete_achievement_video(id, &pool).await?;
-            }
-
-            database::update_achievement_gacha(id, achievement.gacha.is_some(), &pool).await?;
-
-            database::update_achievement_impossible(id, achievement.impossible.is_some(), &pool)
-                .await?;
+        if let Some(comment) = &achievement.comment {
+            database::update_achievement_comment(achievement.key, comment, &pool).await?
+        } else {
+            database::delete_achievement_comment(achievement.key, &pool).await?;
         }
+
+        if let Some(reference) = &achievement.reference {
+            database::update_achievement_reference(achievement.key, reference, &pool).await?
+        } else {
+            database::delete_achievement_reference(achievement.key, &pool).await?;
+        }
+
+        if let Some(video) = &achievement.video {
+            database::update_achievement_video(achievement.key, video, &pool).await?
+        } else {
+            database::delete_achievement_video(achievement.key, &pool).await?;
+        }
+
+        database::update_achievement_gacha(achievement.key, achievement.gacha.is_some(), &pool)
+            .await?;
+
+        database::update_achievement_impossible(
+            achievement.key,
+            achievement.impossible.is_some(),
+            &pool,
+        )
+        .await?;
     }
 
     Ok(HttpResponse::Ok().finish())

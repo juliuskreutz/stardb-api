@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            characters.*,\n            characters_text.name,\n            characters_text.path,\n            characters_text.element,\n            characters_text_en.path path_id,\n            characters_text_en.element element_id\n        FROM\n            characters\n        INNER JOIN\n            characters_text\n        ON\n            characters.id = characters_text.id AND characters_text.language = $2\n        INNER JOIN\n            characters_text AS characters_text_en\n        ON\n            characters.id = characters_text_en.id AND characters_text_en.language = 'en'\n        WHERE\n            characters.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "element",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "path_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "element_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "035e495c14dcaa136833a636b89d7c71935249f507c6daca3634a7db9512fd6c"
+}
