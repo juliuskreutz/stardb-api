@@ -77,11 +77,11 @@ async fn post_warps(
 ) -> ApiResult<impl Responder> {
     let parameters: Vec<_> = parameters.parameters.split_whitespace().collect();
 
-    let auth_key = urlencoding::encode(parameters[0]);
+    let authkey = urlencoding::encode(parameters[0]);
     let authkey_ver = parameters[1];
     let sign_type = parameters[2];
 
-    let url = format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?auth_key={auth_key}&authkey_ver={authkey_ver}&sign_type={sign_type}&game_biz=hkrpg_global&size=20");
+    let url = format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?authkey={authkey}&authkey_ver={authkey_ver}&sign_type={sign_type}&lang=en&game_biz=hkrpg_global&size=20");
 
     let mut end_id = None;
     let mut uid = 0;
