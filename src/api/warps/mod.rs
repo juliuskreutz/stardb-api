@@ -5,6 +5,7 @@ use chrono::NaiveDateTime;
 use serde::Deserialize;
 use sqlx::PgPool;
 use strum::Display;
+use url::{Host, Origin, Url};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{api::ApiResult, database};
@@ -13,7 +14,7 @@ use crate::{api::ApiResult, database};
 #[openapi(
     tags((name = "warps")),
     paths(post_warps),
-    components(schemas(WarpParameters, GachaType))
+    components(schemas(WarpUrl, GachaType))
 )]
 struct ApiDoc;
 
@@ -57,31 +58,47 @@ struct Entry {
 }
 
 #[derive(Deserialize, ToSchema)]
-struct WarpParameters {
-    parameters: String,
+struct WarpUrl {
+    url: String,
 }
 
 #[utoipa::path(
     tag = "warps",
     post,
     path = "/api/warps",
-    request_body = WarpParameters,
+    request_body = WarpUrl,
     responses(
         (status = 200, description = "Uid", body = i64),
     )
 )]
 #[post("/api/warps")]
-async fn post_warps(
-    parameters: web::Json<WarpParameters>,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
-    let parameters: Vec<_> = parameters.parameters.split_whitespace().collect();
+async fn post_warps(url: web::Json<WarpUrl>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+    let url = Url::parse(&url.url)?;
 
-    let authkey = urlencoding::encode(parameters[0]);
-    let authkey_ver = parameters[1];
-    let sign_type = parameters[2];
+    if !(url.origin()
+        == Origin::Tuple(
+            "https".to_string(),
+            Host::Domain("api-os-takumi.mihoyo.com".to_string()),
+            443,
+        )
+        && url.path() == "/common/gacha_record/api/getGachaLog")
+    {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
 
-    let url = format!("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?authkey={authkey}&authkey_ver={authkey_ver}&sign_type={sign_type}&lang=en&game_biz=hkrpg_global&size=20");
+    let query = url.query_pairs().filter(|(name, _)| {
+        matches!(
+            name.to_string().as_str(),
+            "authkey" | "authkey_ver" | "sign_type"
+        )
+    });
+
+    let mut url = url.clone();
+    url.query_pairs_mut()
+        .clear()
+        .extend_pairs(query)
+        .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
+        .finish();
 
     let mut end_id = None;
     let mut uid = 0;
