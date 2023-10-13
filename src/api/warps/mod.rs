@@ -2,10 +2,10 @@ mod uid;
 
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::Display;
-use url::{Host, Origin, Url};
+use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{api::ApiResult, database};
@@ -14,7 +14,7 @@ use crate::{api::ApiResult, database};
 #[openapi(
     tags((name = "warps")),
     paths(post_warps),
-    components(schemas(WarpUrl, GachaType))
+    components(schemas(WarpParams, WarpImport, GachaType))
 )]
 struct ApiDoc;
 
@@ -58,33 +58,33 @@ struct Entry {
 }
 
 #[derive(Deserialize, ToSchema)]
-struct WarpUrl {
+struct WarpParams {
     url: String,
+    gacha_type: GachaType,
+    end_id: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct WarpImport {
+    count: usize,
+    end_id: Option<String>,
 }
 
 #[utoipa::path(
     tag = "warps",
     post,
     path = "/api/warps",
-    request_body = WarpUrl,
+    request_body = WarpImport,
     responses(
-        (status = 200, description = "Uid", body = i64),
+        (status = 200, description = "WarpImport", body = WarpImport),
     )
 )]
 #[post("/api/warps")]
-async fn post_warps(url: web::Json<WarpUrl>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let url = Url::parse(&url.url)?;
-
-    if !(url.origin()
-        == Origin::Tuple(
-            "https".to_string(),
-            Host::Domain("api-os-takumi.mihoyo.com".to_string()),
-            443,
-        )
-        && url.path() == "/common/gacha_record/api/getGachaLog")
-    {
-        return Ok(HttpResponse::BadRequest().finish());
-    }
+async fn post_warps(
+    params: web::Json<WarpParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let url = Url::parse(&params.url)?;
 
     let query = url.query_pairs().filter(|(name, _)| {
         matches!(
@@ -93,289 +93,82 @@ async fn post_warps(url: web::Json<WarpUrl>, pool: web::Data<PgPool>) -> ApiResu
         )
     });
 
-    let mut url = url.clone();
+    let mut url =
+        Url::parse("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog")?;
+
     url.query_pairs_mut()
-        .clear()
         .extend_pairs(query)
-        .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
+        .extend_pairs(&[
+            ("lang", "en"),
+            ("game_biz", "hkrpg_global"),
+            ("size", "20"),
+            (
+                "gacha_type",
+                match params.gacha_type {
+                    GachaType::Standard => "1",
+                    GachaType::Departure => "2",
+                    GachaType::Special => "11",
+                    GachaType::Lc => "12",
+                },
+            ),
+            ("end_id", params.end_id.as_deref().unwrap_or("0")),
+        ])
         .finish();
 
-    let mut end_id = None;
-    let mut uid = 0;
+    let gacha_log: GachaLog = reqwest::get(url).await?.json().await?;
 
-    //Standard Warp
-    'outer: loop {
-        let gacha_log: GachaLog = reqwest::get(format!(
-            "{url}{}&gacha_type=1",
-            end_id.map(|id| format!("&end_id={id}")).unwrap_or_default()
-        ))
-        .await?
-        .json()
-        .await?;
+    let mut warp_import = WarpImport {
+        count: 0,
+        end_id: None,
+    };
 
-        if gacha_log.data.list.is_empty() {
-            break;
+    for entry in gacha_log.data.list.iter() {
+        warp_import.end_id = Some(entry.id.clone());
+
+        let id = entry.id.parse()?;
+        let gacha_type = params.gacha_type.to_string();
+
+        if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
+            .await
+            .is_ok()
+        {
+            continue;
         }
 
-        for entry in gacha_log.data.list.iter() {
-            let id = entry.id.parse()?;
-            let gacha_type = GachaType::Standard.to_string();
+        let uid = entry.uid.parse()?;
+        let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
+        let item = entry.item_id.parse()?;
 
-            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
-                .await
-                .is_ok()
-            {
-                break 'outer;
-            }
+        if entry.item_type == "Character" {
+            let db_warp = database::DbWarp {
+                id,
+                uid,
+                character: Some(item),
+                light_cone: None,
+                gacha_type,
+                name: None,
+                rarity: None,
+                timestamp,
+            };
 
-            uid = entry.uid.parse()?;
+            database::set_warp(&db_warp, &pool).await?;
+        } else if entry.item_type == "Light Cone" {
+            let db_warp = database::DbWarp {
+                id,
+                uid,
+                character: None,
+                light_cone: Some(item),
+                gacha_type,
+                name: None,
+                rarity: None,
+                timestamp,
+            };
 
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
-
-            let item = entry.item_id.parse()?;
-
-            if entry.item_type == "Character" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: Some(item),
-                    light_cone: None,
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            } else if entry.item_type == "Light Cone" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: None,
-                    light_cone: Some(item),
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            }
+            database::set_warp(&db_warp, &pool).await?;
         }
 
-        end_id = Some(
-            gacha_log.data.list[gacha_log.data.list.len() - 1]
-                .id
-                .clone(),
-        );
+        warp_import.count += 1;
     }
 
-    end_id = None;
-
-    //Departure Warp
-    'outer: loop {
-        let gacha_log: GachaLog = reqwest::get(format!(
-            "{url}{}&gacha_type=2",
-            end_id.map(|id| format!("&end_id={id}")).unwrap_or_default()
-        ))
-        .await?
-        .json()
-        .await?;
-
-        if gacha_log.data.list.is_empty() {
-            break;
-        }
-
-        for entry in gacha_log.data.list.iter() {
-            let id = entry.id.parse()?;
-            let gacha_type = GachaType::Departure.to_string();
-
-            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
-                .await
-                .is_ok()
-            {
-                break 'outer;
-            }
-
-            uid = entry.uid.parse()?;
-
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
-
-            let item = entry.item_id.parse()?;
-
-            if entry.item_type == "Character" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: Some(item),
-                    light_cone: None,
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            } else if entry.item_type == "Light Cone" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: None,
-                    light_cone: Some(item),
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            }
-        }
-
-        end_id = Some(
-            gacha_log.data.list[gacha_log.data.list.len() - 1]
-                .id
-                .clone(),
-        );
-    }
-
-    end_id = None;
-
-    //Special Warp
-    'outer: loop {
-        let gacha_log: GachaLog = reqwest::get(format!(
-            "{url}{}&gacha_type=11",
-            end_id.map(|id| format!("&end_id={id}")).unwrap_or_default()
-        ))
-        .await?
-        .json()
-        .await?;
-
-        if gacha_log.data.list.is_empty() {
-            break;
-        }
-
-        for entry in gacha_log.data.list.iter() {
-            let id = entry.id.parse()?;
-            let gacha_type = GachaType::Special.to_string();
-
-            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
-                .await
-                .is_ok()
-            {
-                break 'outer;
-            }
-
-            uid = entry.uid.parse()?;
-
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
-
-            let item = entry.item_id.parse()?;
-
-            if entry.item_type == "Character" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: Some(item),
-                    light_cone: None,
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            } else if entry.item_type == "Light Cone" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: None,
-                    light_cone: Some(item),
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            }
-        }
-
-        end_id = Some(
-            gacha_log.data.list[gacha_log.data.list.len() - 1]
-                .id
-                .clone(),
-        );
-    }
-
-    end_id = None;
-
-    //Lc Warp
-    'outer: loop {
-        let gacha_log: GachaLog = reqwest::get(format!(
-            "{url}{}&gacha_type=12",
-            end_id.map(|id| format!("&end_id={id}")).unwrap_or_default()
-        ))
-        .await?
-        .json()
-        .await?;
-
-        if gacha_log.data.list.is_empty() {
-            break;
-        }
-
-        for entry in gacha_log.data.list.iter() {
-            let id = entry.id.parse()?;
-            let gacha_type = GachaType::Lc.to_string();
-
-            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", &pool)
-                .await
-                .is_ok()
-            {
-                break 'outer;
-            }
-
-            uid = entry.uid.parse()?;
-
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
-
-            let item = entry.item_id.parse()?;
-
-            if entry.item_type == "Character" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: Some(item),
-                    light_cone: None,
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            } else if entry.item_type == "Light Cone" {
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character: None,
-                    light_cone: Some(item),
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
-
-                database::set_warp(&db_warp, &pool).await?;
-            }
-        }
-
-        end_id = Some(
-            gacha_log.data.list[gacha_log.data.list.len() - 1]
-                .id
-                .clone(),
-        );
-    }
-
-    Ok(HttpResponse::Ok().json(uid))
+    Ok(HttpResponse::Ok().json(warp_import))
 }
