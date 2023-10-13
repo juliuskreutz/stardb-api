@@ -460,7 +460,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                     },
                 )
                 .to_string();
-            let description = layout_re
+            let mut description = layout_re
                 .replace_all(
                     &gender_re.replace_all(
                         &html_re.replace_all(&description, |_: &Captures| ""),
@@ -479,6 +479,10 @@ async fn update(pool: &PgPool) -> Result<()> {
                     },
                 )
                 .to_string();
+
+            if language == "EN" {
+                description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)")
+            }
 
             let db_achievement_text = database::DbAchievementText {
                 id,
