@@ -25,6 +25,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 const ROUTES: &[&str] = &[
+    "https://stardb.gg/warps/",
     "https://stardb.gg/articles/",
     "https://stardb.gg/articles/daily-farm-route/",
     "https://stardb.gg/articles/free-stellar-jade-alerts/",
@@ -102,7 +103,7 @@ struct Link {
 )]
 #[get("/api/sitemap")]
 async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let lastmod = "2023-09-24";
+    let lastmod = "2023-10-16";
 
     let mut urls = Vec::new();
 

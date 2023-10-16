@@ -67,6 +67,7 @@ struct WarpParams {
 #[derive(Serialize, ToSchema)]
 struct WarpImport {
     count: usize,
+    uid: Option<i64>,
     end_id: Option<String>,
 }
 
@@ -119,6 +120,7 @@ async fn post_warps(
 
     let mut warp_import = WarpImport {
         count: 0,
+        uid: None,
         end_id: None,
     };
 
@@ -167,6 +169,7 @@ async fn post_warps(
             database::set_warp(&db_warp, &pool).await?;
         }
 
+        warp_import.uid = Some(uid);
         warp_import.count += 1;
     }
 
