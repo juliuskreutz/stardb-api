@@ -24,6 +24,7 @@ struct Warp {
     r#type: WarpType,
     name: String,
     rarity: i32,
+    id: i32,
     timestamp: NaiveDateTime,
 }
 
@@ -39,6 +40,7 @@ impl From<database::DbWarp> for Warp {
             r#type,
             name: warp.name.unwrap(),
             rarity: warp.rarity.unwrap(),
+            id: warp.character.or(warp.light_cone).unwrap(),
             timestamp: warp.timestamp,
         }
     }
