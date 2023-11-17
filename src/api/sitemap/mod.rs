@@ -29,6 +29,7 @@ const ROUTES: &[&str] = &[
     "https://stardb.gg/articles/",
     "https://stardb.gg/articles/daily-farm-route/",
     "https://stardb.gg/articles/free-stellar-jade-alerts/",
+    "https://stardb.gg/articles/unit-builds/",
     "https://stardb.gg/articles/oneiric-shard-price/",
     "https://stardb.gg/articles/oneiric-shard-price-australia/",
     "https://stardb.gg/articles/oneiric-shard-price-brazil/",
@@ -103,7 +104,7 @@ struct Link {
 )]
 #[get("/api/sitemap")]
 async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let lastmod = "2023-10-16";
+    let lastmod = "2023-11-08";
 
     let mut urls = Vec::new();
 

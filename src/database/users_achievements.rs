@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-const THRESHOLD: i64 = 50;
+const THRESHOLD: i64 = 300;
 
 pub struct DbUserAchievement {
     pub username: String,

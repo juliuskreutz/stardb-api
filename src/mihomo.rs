@@ -33,7 +33,7 @@ pub struct SpaceInfo {
 }
 
 pub async fn get(uid: i64) -> Result<Mihomo> {
-    let url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang=en&version=v2");
+    let url = format!("https://mihomo.shuttleapp.rs/{uid}");
 
     let mut json: Value = reqwest::get(&url).await?.json().await?;
     if let Some(o) = json.as_object_mut() {

@@ -24,8 +24,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Serialize)]
 struct Warp {
     r#type: WarpType,
+    id: String,
     name: String,
     rarity: i32,
+    item_id: i32,
     timestamp: NaiveDateTime,
 }
 
@@ -46,8 +48,10 @@ impl From<database::DbWarp> for Warp {
 
         Self {
             r#type,
+            id: warp.id.to_string(),
             name: warp.name.unwrap(),
             rarity: warp.rarity.unwrap(),
+            item_id: warp.character.or(warp.light_cone).unwrap(),
             timestamp: warp.timestamp,
         }
     }
