@@ -47,18 +47,15 @@ async fn request_token(
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    let username = request_token.username.to_lowercase();
+
     {
-        if tokens
-            .lock()
-            .await
-            .values()
-            .any(|s| s == &request_token.username)
-        {
+        if tokens.lock().await.values().any(|s| s == &username) {
             return Ok(HttpResponse::BadRequest().finish());
         }
     }
 
-    let Ok(user) = database::get_user_by_username(&request_token.username, &pool).await else {
+    let Ok(user) = database::get_user_by_username(&username, &pool).await else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
@@ -83,7 +80,7 @@ async fn request_token(
 
     mailer.send(&email)?;
 
-    tokens.lock().await.insert(token, user.username.clone());
+    tokens.lock().await.insert(token, username.clone());
 
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;

@@ -2,6 +2,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use strum::Display;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
@@ -9,22 +10,31 @@ use crate::{
     database,
 };
 
-use super::GachaType;
-
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps/{uid}")),
     paths(get_warps),
-    components(schemas(Warp))
+    components(schemas(GachaType, Warp))
 )]
 struct ApiDoc;
+
+#[derive(Display, Deserialize, ToSchema)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum GachaType {
+    Standard,
+    Departure,
+    Special,
+    Lc,
+}
 
 #[derive(Serialize, ToSchema)]
 struct Warp {
     r#type: WarpType,
+    id: String,
     name: String,
     rarity: i32,
-    id: i32,
+    item_id: i32,
     timestamp: NaiveDateTime,
 }
 
@@ -38,9 +48,10 @@ impl From<database::DbWarp> for Warp {
 
         Self {
             r#type,
+            id: warp.id.to_string(),
             name: warp.name.unwrap(),
             rarity: warp.rarity.unwrap(),
-            id: warp.character.or(warp.light_cone).unwrap(),
+            item_id: warp.character.or(warp.light_cone).unwrap(),
             timestamp: warp.timestamp,
         }
     }

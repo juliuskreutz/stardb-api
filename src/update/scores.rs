@@ -1,7 +1,9 @@
-use std::{sync::Arc, time::Instant};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
-use futures::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -40,23 +42,38 @@ async fn update() -> Result<()> {
         .json()
         .await?;
 
-    futures::stream::iter(scores)
-        .map(|s| (client.clone(), s))
-        .map(|(client, score)| async move {
-            loop {
-                if client
-                    .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
-                    .send()
-                    .await
-                    .is_ok()
-                {
-                    break;
-                }
+    for score in scores {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            if client
+                .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
+                .send()
+                .await
+                .is_ok()
+            {
+                break;
             }
-        })
-        .buffer_unordered(16)
-        .collect::<Vec<_>>()
-        .await;
+        }
+    }
+
+    // futures::stream::iter(scores)
+    //     .map(|s| (client.clone(), s))
+    //     .map(|(client, score)| async move {
+    //         loop {
+    //             if client
+    //                 .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
+    //                 .send()
+    //                 .await
+    //                 .is_ok()
+    //             {
+    //                 break;
+    //             }
+    //         }
+    //     })
+    //     .buffer_unordered(16)
+    //     .collect::<Vec<_>>()
+    //     .await;
 
     Ok(())
 }

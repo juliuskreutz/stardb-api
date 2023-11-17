@@ -58,7 +58,7 @@ async fn register(
     user_register: web::Json<UserRegister>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let username = user_register.username.clone();
+    let username = user_register.username.to_lowercase();
     let password = user_register.password.clone();
     let email = user_register.email.clone();
 

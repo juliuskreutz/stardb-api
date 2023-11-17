@@ -17,6 +17,7 @@ mod select_all;
 mod sitemap;
 mod users;
 mod warps;
+mod warps_import;
 
 use std::env;
 
@@ -133,6 +134,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(sitemap::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
+    openapi.merge(warps_import::openapi());
     openapi
 }
 
@@ -155,7 +157,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(select_all::configure)
         .configure(sitemap::configure)
         .configure(users::configure)
-        .configure(warps::configure);
+        .configure(warps::configure)
+        .configure(warps_import::configure);
 }
 
 pub fn cache_achievement_tracker(
