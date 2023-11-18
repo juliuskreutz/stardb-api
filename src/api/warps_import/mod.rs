@@ -201,16 +201,20 @@ async fn import_warps(
         .finish();
 
     loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        let mut i = 0;
+        let gacha_log = loop {
+            let response = reqwest::get(format!("{url}&end_id={end_id}")).await?;
+            if let Ok(gacha_log) = response.json::<GachaLog>().await {
+                break gacha_log;
+            }
 
-        let response = reqwest::get(format!("{url}&end_id={end_id}")).await?;
+            if i > 2 {
+                return Err(anyhow::anyhow!("Unsure").into());
+            }
 
-        let json = response.json::<serde_json::Value>().await?;
+            tokio::time::sleep(Duration::from_secs(1)).await;
 
-        let Ok(gacha_log) = serde_json::from_value::<GachaLog>(json.clone()) else {
-            log::error!("{json}");
-
-            return Ok(());
+            i += 1;
         };
 
         if gacha_log.data.list.is_empty() {
