@@ -459,7 +459,8 @@ async fn update(pool: &PgPool) -> Result<()> {
                         }
                     },
                 )
-                .to_string();
+                // -2090701432 = Trailblazer
+                .replace("{NICKNAME}", &text_map["-2090701432"]);
             let mut description = layout_re
                 .replace_all(
                     &gender_re.replace_all(
