@@ -64,7 +64,7 @@ async fn import_books(
     let mut workbook = calamine::open_workbook_auto(&file.file.file)?;
 
     let mut images = HashMap::new();
-    if let Some(Ok(r)) = workbook.worksheet_formula("Bookshelf") {
+    if let Ok(r) = workbook.worksheet_formula("Bookshelf") {
         let (sy, _) = r.start().unwrap_or_default();
 
         let height = r.height();
@@ -83,8 +83,7 @@ async fn import_books(
     }
 
     for (y, row) in workbook
-        .worksheet_range("Bookshelf")
-        .unwrap()?
+        .worksheet_range("Bookshelf")?
         .rows()
         .enumerate()
         .skip(1)
