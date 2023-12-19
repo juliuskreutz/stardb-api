@@ -69,13 +69,13 @@ pub async fn community_tier_list(pool: PgPool) {
 async fn update(pool: &PgPool) -> Result<()> {
     let key = env::var("GOOGLE_API_KEY")?;
 
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!J2")).await?.json().await?;
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!J3")).await?.json().await?;
 
     let total_votes = spreadsheet.sheets[0].data[0].row_data[0].values[0]
         .effective_value
         .number_value as i32;
 
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I35")).await?.json().await?;
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I40")).await?.json().await?;
 
     for row_data in &spreadsheet.sheets[0].data[0].row_data {
         let character = row_data.values[0].effective_value.number_value as i32;
