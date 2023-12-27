@@ -241,30 +241,18 @@ async fn import_warps(
             {
                 let gacha_type = gacha_type.clone();
 
-                let db_warp = if entry.item_type == "Character" {
-                    database::DbWarp {
-                        id,
-                        uid,
-                        character: Some(item),
-                        light_cone: None,
-                        gacha_type,
-                        name: None,
-                        rarity: None,
-                        timestamp,
-                    }
-                } else if entry.item_type == "Light Cone" {
-                    database::DbWarp {
-                        id,
-                        uid,
-                        character: None,
-                        light_cone: Some(item),
-                        gacha_type,
-                        name: None,
-                        rarity: None,
-                        timestamp,
-                    }
-                } else {
-                    unreachable!()
+                let character = (entry.item_type == "Character").then_some(item);
+                let light_cone = (entry.item_type == "Light Cone").then_some(item);
+
+                let db_warp = database::DbWarp {
+                    id,
+                    uid,
+                    character,
+                    light_cone,
+                    gacha_type,
+                    name: None,
+                    rarity: None,
+                    timestamp,
                 };
 
                 database::set_warp(&db_warp, pool).await?;
