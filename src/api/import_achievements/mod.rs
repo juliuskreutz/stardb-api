@@ -49,7 +49,7 @@ struct Achievement {
     video: Option<String>,
     #[serde(rename = "Gacha Required")]
     gacha: Option<String>,
-    #[serde(rename = "Can't Get Yet")]
+    #[serde(rename = "Forbidden")]
     impossible: Option<String>,
 }
 
