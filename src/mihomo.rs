@@ -15,7 +15,6 @@ pub struct Mihomo {
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
-    pub uid: String,
     pub nickname: String,
     pub level: i32,
     pub avatar: Avatar,
@@ -33,18 +32,16 @@ pub struct SpaceInfo {
     pub achievement_count: i32,
 }
 
-pub async fn get(mut json: Value) -> Result<Mihomo> {
-    // let url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang=en&version=v2");
+pub async fn get(uid: i64) -> Result<Mihomo> {
+    let url = format!("http://207.246.91.91/{uid}");
 
-    // let mut json: Value = reqwest::get(&url).await?.json().await?;
+    let mut json: Value = reqwest::get(&url).await?.json().await?;
     if let Some(o) = json.as_object_mut() {
         o.insert(
             "updated_at".to_string(),
             serde_json::to_value(Utc::now().naive_utc())?,
         );
     }
-
-    let uid = json["player"]["uid"].as_str().unwrap();
 
     serde_json::to_writer(&mut File::create(format!("mihomo/{uid}.json"))?, &json)?;
 

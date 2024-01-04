@@ -47,8 +47,7 @@ async fn main() -> anyhow::Result<()> {
     update::community_tier_list(pool.clone()).await;
     update::dimbreath(pool.clone()).await;
     update::star_rail_res().await;
-    // update::verifications(pool.clone()).await;
-    // update::scores().await;
+    update::scores().await;
 
     let pool_data = Data::new(pool.clone());
     let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));

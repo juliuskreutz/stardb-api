@@ -49,24 +49,20 @@ async fn get_mihomo(uid: web::Path<i64>) -> ApiResult<impl Responder> {
 }
 
 #[utoipa::path(
-    tag = "pinned",
+    tag = "mihomo/{uid}",
     put,
-    path = "/api/mihomo",
-    request_body = serde_json::Value,
+    path = "/api/mihomo/{uid}",
     responses(
         (status = 200, description = "Updated"),
     )
 )]
-#[put("/api/mihomo")]
-async fn put_mihomo(
-    json: web::Json<serde_json::Value>,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
+#[put("/api/mihomo/{uid}")]
+async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let now = Utc::now().naive_utc();
 
-    let info = mihomo::get(json.clone()).await?;
+    let uid = *uid;
 
-    let uid = info.player.uid.parse::<i64>()?;
+    let info = mihomo::get(uid).await?;
 
     let re = Regex::new(r"<[^>]*>")?;
 
