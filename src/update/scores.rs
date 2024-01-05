@@ -14,7 +14,11 @@ struct Score {
 
 pub async fn scores() {
     tokio::spawn(async {
+        let mut interval = tokio::time::interval(Duration::from_secs(60 * 60 * 24));
+
         loop {
+            interval.tick().await;
+
             let start = Instant::now();
 
             if let Err(e) = update().await {
@@ -44,7 +48,7 @@ async fn update() -> Result<()> {
 
     for score in scores {
         loop {
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
             if client
                 .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
@@ -56,24 +60,6 @@ async fn update() -> Result<()> {
             }
         }
     }
-
-    // futures::stream::iter(scores)
-    //     .map(|s| (client.clone(), s))
-    //     .map(|(client, score)| async move {
-    //         loop {
-    //             if client
-    //                 .put(&format!("http://localhost:8000/api/mihomo/{}", score.uid))
-    //                 .send()
-    //                 .await
-    //                 .is_ok()
-    //             {
-    //                 break;
-    //             }
-    //         }
-    //     })
-    //     .buffer_unordered(16)
-    //     .collect::<Vec<_>>()
-    //     .await;
 
     Ok(())
 }
