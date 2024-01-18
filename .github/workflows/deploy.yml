@@ -31,7 +31,7 @@ jobs:
         run: mv target/x86_64-unknown-linux-gnu/release/stardb-api .
 
       - name: Delete Old File
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v0.1.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -39,7 +39,7 @@ jobs:
           script: rm stardb-api/stardb-api
 
       - name: Copy New File
-        uses: appleboy/scp-action@v0.1.4
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -48,7 +48,7 @@ jobs:
           target: /root/stardb-api/
 
       - name: Restart Service
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v0.1.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
