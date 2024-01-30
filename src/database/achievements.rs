@@ -34,7 +34,7 @@ pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {
         WHERE
             set IS NULL
         AND
-            NOT (impossible OR version = '1.3')
+            NOT impossible
         ON CONFLICT
             (username, id)
         DO NOTHING;
