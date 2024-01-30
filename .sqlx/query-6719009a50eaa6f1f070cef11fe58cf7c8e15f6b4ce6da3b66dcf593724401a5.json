@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            users_achievements(username, id)\n        SELECT\n            $1, id\n        FROM\n            achievements\n        WHERE\n            set IS NULL\n        AND\n            NOT impossible\n        ON CONFLICT\n            (username, id)\n        DO NOTHING;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6719009a50eaa6f1f070cef11fe58cf7c8e15f6b4ce6da3b66dcf593724401a5"
+}
