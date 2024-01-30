@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pool_data = Data::new(pool.clone());
     let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
-    //FIXME: This is ugly as hell
+    //FIX: This is ugly as hell
     let achievement_tracker_cache_data = api::cache_achievement_tracker(pool.clone());
     let book_tracker_cache_data = api::cache_book_tracker(pool.clone());
 
