@@ -52,12 +52,12 @@ pub async fn community_tier_list(pool: PgPool) {
             let start = Instant::now();
 
             if let Err(e) = update(&pool).await {
-                log::error!(
+                error!(
                     "Community Tier List update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Community Tier List update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );

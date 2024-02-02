@@ -15,12 +15,12 @@ pub async fn verifications(pool: PgPool) {
             let start = Instant::now();
 
             if let Err(e) = update(&pool).await {
-                log::error!(
+                error!(
                     "Verifications update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Verifications update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );

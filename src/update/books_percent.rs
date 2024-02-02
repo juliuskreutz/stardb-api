@@ -18,12 +18,12 @@ pub async fn books_percent(pool: PgPool) {
             let start = Instant::now();
 
             if let Err(e) = update(&pool).await {
-                log::error!(
+                error!(
                     "Books Percent update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Books Percent update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );

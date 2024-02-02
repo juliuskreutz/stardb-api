@@ -147,12 +147,12 @@ pub async fn dimbreath(pool: PgPool) {
             let start = Instant::now();
 
             if let Err(e) = update(&pool).await {
-                log::error!(
+                error!(
                     "Dimbreath update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Dimbreath update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );

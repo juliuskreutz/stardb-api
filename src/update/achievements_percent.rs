@@ -18,12 +18,12 @@ pub async fn achievements_percent(pool: PgPool) {
             let start = Instant::now();
 
             if let Err(e) = update(&pool).await {
-                log::error!(
+                error!(
                     "Achievements Percent update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Achievements Percent update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );
