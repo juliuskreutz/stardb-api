@@ -102,12 +102,12 @@ pub fn cache(pool: PgPool) -> web::Data<BookTrackerCache> {
                 let start = Instant::now();
 
                 if let Err(e) = update(&book_tracker_cache, &pool).await {
-                    log::error!(
+                    error!(
                         "Book Tracker update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
                     );
                 } else {
-                    log::info!(
+                    info!(
                         "Book Tracker update succeeded in {}s",
                         start.elapsed().as_secs_f64()
                     );

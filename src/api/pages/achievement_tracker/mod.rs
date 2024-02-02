@@ -116,12 +116,12 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
                 let start = Instant::now();
 
                 if let Err(e) = update(&achievement_tracker_cache, &pool).await {
-                    log::error!(
+                    error!(
                         "Achievement Tracker update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
                     );
                 } else {
-                    log::info!(
+                    info!(
                         "Achievement Tracker update succeeded in {}s",
                         start.elapsed().as_secs_f64()
                     );

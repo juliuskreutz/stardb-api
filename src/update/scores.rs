@@ -22,12 +22,12 @@ pub async fn scores() {
             let start = Instant::now();
 
             if let Err(e) = update().await {
-                log::error!(
+                error!(
                     "Scores update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "Scores update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );

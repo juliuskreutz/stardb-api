@@ -1,14 +1,13 @@
+#[macro_use]
+extern crate tracing;
+
 mod api;
 mod database;
 mod mihomo;
 mod pg_session_store;
 mod update;
 
-use std::{
-    collections::HashMap,
-    env,
-    fs::{self, File},
-};
+use std::{collections::HashMap, env, fs};
 
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
@@ -29,13 +28,9 @@ use pg_session_store::PgSessionStore;
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
 
-    env_logger::Builder::from_default_env()
-        .target(env_logger::Target::Pipe(Box::new(
-            File::options().append(true).create(true).open("log.log")?,
-        )))
-        .init();
+    tracing_subscriber::fmt::init();
 
-    log::info!("Starting api!");
+    info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
 

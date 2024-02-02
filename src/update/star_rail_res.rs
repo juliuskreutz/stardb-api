@@ -22,12 +22,12 @@ pub async fn star_rail_res() {
             let start = Instant::now();
 
             if let Err(e) = update().await {
-                log::error!(
+                error!(
                     "StarRailRes update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
-                log::info!(
+                info!(
                     "StarRailRes update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );
