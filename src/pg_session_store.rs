@@ -20,7 +20,6 @@ impl PgSessionStore {
 
 type SessionState = HashMap<String, String>;
 
-#[async_trait::async_trait(?Send)]
 impl SessionStore for PgSessionStore {
     async fn load(&self, session_key: &SessionKey) -> Result<Option<SessionState>, LoadError> {
         let uuid = Uuid::from_str(session_key.as_ref())
