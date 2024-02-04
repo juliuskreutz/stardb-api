@@ -162,11 +162,19 @@ pub async fn dimbreath(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    Command::new("git")
+    if Command::new("git")
         .arg("pull")
         .current_dir("StarRailData")
         .spawn()?
-        .wait()?;
+        .wait()
+        .is_err()
+    {
+        Command::new("git")
+            .arg("clone")
+            .arg("https://github.com/Dimbreath/StarRailData.git")
+            .spawn()?
+            .wait()?;
+    }
 
     let html_re = Regex::new(r"<[^>]*>")?;
     let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
