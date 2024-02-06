@@ -33,6 +33,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
+    let _ = fs::create_dir("static");
 
     let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
     sqlx::migrate!().run(&pool).await?;
