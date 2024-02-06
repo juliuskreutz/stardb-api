@@ -170,8 +170,12 @@ async fn update(pool: &PgPool) -> Result<()> {
         .is_err()
     {
         Command::new("git")
-            .arg("clone")
-            .arg("https://github.com/Dimbreath/StarRailData.git")
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/Dimbreath/StarRailData",
+            ])
             .spawn()?
             .wait()?;
     }
@@ -451,28 +455,13 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let param_re = Regex::new(r"#(\d+)\[i\](%?)")?;
-            let description = param_re
-                .replace_all(
-                    &text_map[&achievement_data.description.hash.to_string()],
-                    |c: &Captures| {
-                        let m = c.get(1).unwrap();
-                        let i: usize = m.as_str().parse().unwrap();
-
-                        if c.get(2).map_or(false, |m| !m.is_empty()) {
-                            ((achievement_data.param_list[i - 1].value * 100.0) as i32).to_string()
-                                + "%"
-                        } else {
-                            achievement_data.param_list[i - 1].value.to_string()
-                        }
-                    },
-                )
-                // -2090701432 = Trailblazer
-                .replace("{NICKNAME}", &text_map["-2090701432"]);
-            let mut description = layout_re
+            let description = layout_re
                 .replace_all(
                     &gender_re.replace_all(
-                        &html_re.replace_all(&description, |_: &Captures| ""),
+                        &html_re.replace_all(
+                            &text_map[&achievement_data.description.hash.to_string()],
+                            |_: &Captures| "",
+                        ),
                         |c: &Captures| {
                             c.get(1).unwrap().as_str().to_string()
                                 + "/"
@@ -488,6 +477,25 @@ async fn update(pool: &PgPool) -> Result<()> {
                     },
                 )
                 .to_string();
+
+            let param_re = Regex::new(r"#(\d+)(\[i\])?(%?)")?;
+            let mut description = param_re
+                .replace_all(&description, |c: &Captures| {
+                    let m = c.get(1).unwrap();
+                    let i: usize = m.as_str().parse().unwrap();
+
+                    if let Some(param) = achievement_data.param_list.get(i - 1) {
+                        if c.get(3).map_or(false, |m| !m.is_empty()) {
+                            ((param.value * 100.0) as i32).to_string() + "%"
+                        } else {
+                            param.value.to_string()
+                        }
+                    } else {
+                        c.get(0).unwrap().as_str().to_string()
+                    }
+                })
+                // -2090701432 = Trailblazer
+                .replace("{NICKNAME}", &text_map["-2090701432"]);
 
             if language == "EN" {
                 description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)")

@@ -37,11 +37,24 @@ pub async fn star_rail_res() {
 }
 
 async fn update() -> Result<()> {
-    Command::new("git")
+    if Command::new("git")
         .arg("pull")
         .current_dir("static/StarRailRes")
         .spawn()?
-        .wait()?;
+        .wait()
+        .is_err()
+    {
+        Command::new("git")
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                "https://github.com/Mar-7th/StarRailRes",
+            ])
+            .current_dir("static")
+            .spawn()?
+            .wait()?;
+    }
 
     for path in WalkDir::new("static/StarRailRes/icon")
         .into_iter()
