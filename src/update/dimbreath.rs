@@ -489,6 +489,8 @@ async fn update(pool: &PgPool) -> Result<()> {
                             && !c.get(3).map_or(false, |m| !m.is_empty())
                         {
                             ((param.value * 100.0) as i32).to_string() + "%"
+                        } else if !c.get(3).map_or(false, |m| !m.is_empty()) {
+                            param.value.to_string() + "%"
                         } else {
                             param.value.to_string()
                         }
