@@ -485,7 +485,9 @@ async fn update(pool: &PgPool) -> Result<()> {
                     let i: usize = m.as_str().parse().unwrap();
 
                     if let Some(param) = achievement_data.param_list.get(i - 1) {
-                        if !c.get(2).unwrap().is_empty() && !c.get(3).unwrap().is_empty() {
+                        if !c.get(2).map_or(false, |m| !m.is_empty())
+                            && !c.get(3).map_or(false, |m| !m.is_empty())
+                        {
                             ((param.value * 100.0) as i32).to_string() + "%"
                         } else {
                             param.value.to_string()
