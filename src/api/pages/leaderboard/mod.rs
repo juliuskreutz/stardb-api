@@ -2,7 +2,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use utoipa::OpenApi;
+use utoipa::{IntoParams, OpenApi};
 
 use crate::{
     api::{private, scores::Region, ApiResult},
@@ -46,8 +46,8 @@ struct Score {
     updated_at: NaiveDateTime,
 }
 
-#[derive(Deserialize)]
-struct LeadboardParams {
+#[derive(Deserialize, IntoParams)]
+struct LeaderboardParams {
     region: Option<Region>,
     query: Option<String>,
     limit: Option<i64>,
@@ -75,6 +75,7 @@ impl From<database::DbScoreAchievement> for Score {
     tag = "pages",
     get,
     path = "/api/pages/leaderboard",
+    params(LeaderboardParams),
     security(("api_key" = [])),
     responses(
         (status = 200, description = "Leaderboard"),
@@ -82,7 +83,7 @@ impl From<database::DbScoreAchievement> for Score {
 )]
 #[get("/api/pages/leaderboard", guard = "private")]
 async fn get_leaderboard(
-    leaderboard_params: web::Query<LeadboardParams>,
+    leaderboard_params: web::Query<LeaderboardParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =
