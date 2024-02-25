@@ -83,7 +83,7 @@ async fn import_achievements(
 
     let lines = BufReader::new(&file.file.file)
         .lines()
-        .flatten()
+        .map_while(Result::ok)
         .skip(1)
         .collect::<Vec<_>>()
         .join("\n");

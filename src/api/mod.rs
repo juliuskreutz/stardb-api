@@ -71,16 +71,22 @@ struct LanguageParams {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 enum Language {
+    #[serde(alias = "zh-cn")]
     Chs,
+    #[serde(alias = "zh-tw")]
     Cht,
     De,
     #[default]
     En,
+    #[serde(alias = "es-es")]
     Es,
     Fr,
     Id,
+    #[serde(alias = "ja")]
     Jp,
+    #[serde(alias = "ko")]
     Kr,
+    #[serde(alias = "pt-pt")]
     Pt,
     Ru,
     Th,

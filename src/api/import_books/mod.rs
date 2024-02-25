@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
-use calamine::{DataType, Reader};
+use calamine::{Data, Reader};
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
@@ -87,18 +87,18 @@ async fn import_books(
         .rows()
         .enumerate()
         .skip(1)
-        .filter(|(_, data)| data[7] != DataType::Empty)
+        .filter(|(_, data)| data[7] != Data::Empty)
     {
         let ids = match &row[7] {
-            &DataType::Int(id) => vec![id],
-            &DataType::Float(id) => vec![id as i64],
-            DataType::String(ids) => ids.lines().map(|id| id.parse().unwrap()).collect(),
+            &Data::Int(id) => vec![id],
+            &Data::Float(id) => vec![id as i64],
+            Data::String(ids) => ids.lines().map(|id| id.parse().unwrap()).collect(),
             _ => return Err(anyhow::anyhow!("Id in row {y} is in a wrong format").into()),
         };
 
         let comment = match &row[5] {
-            DataType::String(s) => s,
-            DataType::Empty => "",
+            Data::String(s) => s,
+            Data::Empty => "",
             _ => {
                 return Err(anyhow::anyhow!("How to obtain in row {y} is in a wrong format").into())
             }

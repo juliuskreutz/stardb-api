@@ -1,3 +1,5 @@
+mod uid;
+
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -14,11 +16,13 @@ use crate::{
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(uid::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_leaderboard);
+    cfg.service(get_leaderboard).configure(uid::configure);
 }
 
 #[derive(Serialize)]
