@@ -534,9 +534,9 @@ async fn update(pool: &PgPool) -> Result<()> {
                     c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
                 })
                 .to_string()
+                .replace("{RUBY_E#}", "")
                 .replace("{RUBY_B#", "")
-                .replace('}', "")
-                .replace("{RUBY_E#}", "");
+                .replace('}', "");
 
             let id = avatar_config.id;
             let path = text_map[&avatar_base_type[&avatar_config.base_type]
@@ -544,9 +544,9 @@ async fn update(pool: &PgPool) -> Result<()> {
                 .hash
                 .to_string()]
                 .clone()
+                .replace("{RUBY_E#}", "")
                 .replace("{RUBY_B#", "")
-                .replace('}', "")
-                .replace("{RUBY_E#}", "");
+                .replace('}', "");
 
             let db_character_text = database::DbCharacterText {
                 id,
