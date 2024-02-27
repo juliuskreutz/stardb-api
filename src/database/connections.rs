@@ -18,6 +18,18 @@ pub async fn set_connection(connection: &DbConnection, pool: &PgPool) -> Result<
     Ok(())
 }
 
+pub async fn delete_connection(connection: &DbConnection, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "DELETE FROM connections WHERE uid = $1 AND username = $2",
+        connection.uid,
+        connection.username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_connections_by_username(
     username: &str,
     pool: &PgPool,
