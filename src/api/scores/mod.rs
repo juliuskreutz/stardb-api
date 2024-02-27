@@ -1,9 +1,6 @@
-mod damage;
-mod heal;
-mod shield;
+mod achievements;
 
 use actix_web::web;
-mod achievements;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, OpenApi, ToSchema};
@@ -33,15 +30,9 @@ pub struct ScoresParams {
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
-    openapi.merge(damage::openapi());
-    openapi.merge(heal::openapi());
-    openapi.merge(shield::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(achievements::configure)
-        .configure(damage::configure)
-        .configure(heal::configure)
-        .configure(shield::configure);
+    cfg.configure(achievements::configure);
 }

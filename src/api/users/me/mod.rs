@@ -4,7 +4,6 @@ mod email;
 mod password;
 mod uids;
 mod username;
-mod verifications;
 
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -32,7 +31,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(password::openapi());
     openapi.merge(uids::openapi());
     openapi.merge(username::openapi());
-    openapi.merge(verifications::openapi());
     openapi
 }
 
@@ -43,14 +41,17 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(email::configure)
         .configure(password::configure)
         .configure(uids::configure)
-        .configure(username::configure)
-        .configure(verifications::configure);
+        .configure(username::configure);
 }
 
 #[derive(Serialize, ToSchema)]
 pub struct User {
     username: String,
     admin: bool,
+    email: Option<String>,
+    uids: Vec<i64>,
+    achievements: Vec<i64>,
+    books: Vec<i64>,
 }
 
 #[utoipa::path(
@@ -74,7 +75,36 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .await
         .is_ok();
 
-    let user = User { username, admin };
+    let user = database::get_user_by_username(&username, &pool).await?;
+
+    let email = user.email;
+
+    let uids = database::get_connections_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|c| c.uid)
+        .collect();
+
+    let books = database::get_user_books_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|b| b.id)
+        .collect();
+
+    let achievements = database::get_user_achievements_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|b| b.id)
+        .collect();
+
+    let user = User {
+        username,
+        admin,
+        email,
+        uids,
+        achievements,
+        books,
+    };
 
     Ok(HttpResponse::Ok().json(user))
 }

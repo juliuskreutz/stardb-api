@@ -1,3 +1,5 @@
+mod uid;
+
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
@@ -13,11 +15,13 @@ use crate::{api::ApiResult, database};
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(uid::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_user_uids);
+    cfg.service(get_user_uids).configure(uid::configure);
 }
 
 #[utoipa::path(
