@@ -533,14 +533,20 @@ async fn update(pool: &PgPool) -> Result<()> {
                 .replace_all(&name, |c: &Captures| {
                     c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
                 })
-                .to_string();
+                .to_string()
+                .replace("{RUBY_B#", "")
+                .replace('}', "")
+                .replace("{RUBY_E#}", "");
 
             let id = avatar_config.id;
             let path = text_map[&avatar_base_type[&avatar_config.base_type]
                 .text
                 .hash
                 .to_string()]
-                .clone();
+                .clone()
+                .replace("{RUBY_B#", "")
+                .replace('}', "")
+                .replace("{RUBY_E#}", "");
 
             let db_character_text = database::DbCharacterText {
                 id,
