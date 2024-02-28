@@ -618,7 +618,11 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         for item_config_equipment in item_config_equipment.values() {
             let id = item_config_equipment.id;
-            let name = text_map[&item_config_equipment.name.hash.to_string()].to_string();
+            let name = text_map[&item_config_equipment.name.hash.to_string()]
+                .to_string()
+                .replace("{RUBY_E#}", "")
+                .replace("{RUBY_B#", "")
+                .replace('}', "");
 
             let db_light_cone_text = database::DbLightConeText {
                 id,
