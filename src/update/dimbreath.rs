@@ -186,6 +186,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
     )?;
     let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
+    let ruby_re = Regex::new(r"\{RUBY_.#.*?\}")?;
 
     let languages = [
         "CHS", "CHT", "DE", "EN", "ES", "FR", "ID", "JP", "KR", "PT", "RU", "TH", "VI",
@@ -529,24 +530,25 @@ async fn update(pool: &PgPool) -> Result<()> {
                 _ => text_map[&avatar_config.name.hash.to_string()].clone(),
             };
 
-            let name = gender_re
-                .replace_all(&name, |c: &Captures| {
-                    c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
-                })
-                .to_string()
-                .replace("{RUBY_E#}", "")
-                .replace("{RUBY_B#", "")
-                .replace('}', "");
+            let name = ruby_re
+                .replace_all(
+                    &gender_re.replace_all(&name, |c: &Captures| {
+                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                    }),
+                    |_: &Captures| "",
+                )
+                .to_string();
 
             let id = avatar_config.id;
-            let path = text_map[&avatar_base_type[&avatar_config.base_type]
-                .text
-                .hash
-                .to_string()]
-                .clone()
-                .replace("{RUBY_E#}", "")
-                .replace("{RUBY_B#", "")
-                .replace('}', "");
+            let path = ruby_re
+                .replace_all(
+                    &text_map[&avatar_base_type[&avatar_config.base_type]
+                        .text
+                        .hash
+                        .to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
 
             let db_character_text = database::DbCharacterText {
                 id,
@@ -618,11 +620,12 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         for item_config_equipment in item_config_equipment.values() {
             let id = item_config_equipment.id;
-            let name = text_map[&item_config_equipment.name.hash.to_string()]
-                .to_string()
-                .replace("{RUBY_E#}", "")
-                .replace("{RUBY_B#", "")
-                .replace('}', "");
+            let name = ruby_re
+                .replace_all(
+                    &text_map[&item_config_equipment.name.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
 
             let db_light_cone_text = database::DbLightConeText {
                 id,
