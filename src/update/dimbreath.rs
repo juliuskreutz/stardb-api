@@ -69,8 +69,24 @@ struct AvatarConfig {
     name: TextHash,
     #[serde(rename = "DamageType")]
     element: String,
+    #[serde(rename = "SkillList")]
+    skills: Vec<i32>,
     #[serde(rename = "AvatarBaseType")]
     base_type: String,
+}
+
+#[derive(Deserialize)]
+struct AvatarSkillConfigWrapper {
+    #[serde(rename = "1")]
+    one: AvatarSkillConfig,
+}
+
+#[derive(Deserialize)]
+struct AvatarSkillConfig {
+    #[serde(rename = "SkillID")]
+    id: i32,
+    #[serde(rename = "SkillName")]
+    name: TextHash,
 }
 
 #[derive(Deserialize)]
@@ -213,6 +229,11 @@ async fn update(pool: &PgPool) -> Result<()> {
         File::open("StarRailData/ExcelOutput/AvatarConfig.json")?,
     ))?;
 
+    let avatar_skill_config: HashMap<String, AvatarSkillConfigWrapper> =
+        serde_json::from_reader(BufReader::new(File::open(
+            "StarRailData/ExcelOutput/AvatarSkillConfig.json",
+        )?))?;
+
     let avatar_base_type: HashMap<String, AvatarBaseType> = serde_json::from_reader(
         BufReader::new(File::open("StarRailData/ExcelOutput/AvatarBaseType.json")?),
     )?;
@@ -316,6 +337,20 @@ async fn update(pool: &PgPool) -> Result<()> {
         };
 
         database::set_character(&db_character, pool).await?;
+
+        for skill in avatar_config.skills.iter() {
+            let skill = &avatar_skill_config[&skill.to_string()].one;
+
+            let id = skill.id;
+
+            let db_skill = database::DbSkill {
+                id,
+                character: avatar_config.id,
+                name: String::new(),
+            };
+
+            database::set_skill(&db_skill, pool).await?;
+        }
     }
 
     for book_series_world in book_series_world.values() {
@@ -559,6 +594,24 @@ async fn update(pool: &PgPool) -> Result<()> {
             };
 
             database::set_character_text(&db_character_text, pool).await?;
+
+            for skill in avatar_config.skills.iter() {
+                let skill = &avatar_skill_config[&skill.to_string()].one;
+
+                let id = skill.id;
+
+                let name = ruby_re
+                    .replace_all(&text_map[&skill.name.hash.to_string()], |_: &Captures| "")
+                    .to_string();
+
+                let db_skill_text = database::DbSkillText {
+                    id,
+                    language: language.to_lowercase(),
+                    name,
+                };
+
+                database::set_skill_text(&db_skill_text, pool).await?;
+            }
         }
 
         for book_series_world in book_series_world.values() {

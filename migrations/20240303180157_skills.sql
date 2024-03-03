@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS skills (
+    id INT4 PRIMARY KEY NOT NULL,
+    character INT4 NOT NULL REFERENCES characters ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS skills_text (
+    id INT4 NOT NULL REFERENCES skills ON DELETE CASCADE,
+    language TEXT NOT NULL,
+    name TEXT NOT NULL,
+    PRIMARY KEY(id, language)
+);

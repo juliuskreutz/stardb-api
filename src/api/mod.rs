@@ -8,6 +8,7 @@ mod community_tier_list;
 mod free_jade_alert;
 mod import_achievements;
 mod import_books;
+mod index;
 mod languages;
 mod light_cones;
 mod mihomo;
@@ -15,6 +16,7 @@ mod pages;
 mod scores;
 mod select_all;
 mod sitemap;
+mod skills;
 mod users;
 mod warps;
 mod warps_import;
@@ -131,6 +133,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
+    openapi.merge(index::openapi());
     openapi.merge(languages::openapi());
     openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
@@ -138,6 +141,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
     openapi.merge(sitemap::openapi());
+    openapi.merge(skills::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi.merge(warps_import::openapi());
@@ -155,6 +159,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(free_jade_alert::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
+        .configure(index::configure)
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
@@ -162,6 +167,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(scores::configure)
         .configure(select_all::configure)
         .configure(sitemap::configure)
+        .configure(skills::configure)
         .configure(users::configure)
         .configure(warps::configure)
         .configure(warps_import::configure);
