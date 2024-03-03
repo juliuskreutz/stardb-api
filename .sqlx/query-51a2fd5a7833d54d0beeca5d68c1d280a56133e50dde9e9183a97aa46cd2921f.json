@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            skills(id, character)\n        VALUES\n            ($1, $2)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            character = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51a2fd5a7833d54d0beeca5d68c1d280a56133e50dde9e9183a97aa46cd2921f"
+}

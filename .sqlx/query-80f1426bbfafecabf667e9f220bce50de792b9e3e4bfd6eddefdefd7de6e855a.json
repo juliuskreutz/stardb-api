@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            skills.*,\n            skills_text.name\n        FROM\n            skills\n        INNER JOIN\n            skills_text\n        ON\n            skills.id = skills_text.id AND skills_text.language = $2\n        WHERE\n            skills.character = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "80f1426bbfafecabf667e9f220bce50de792b9e3e4bfd6eddefdefd7de6e855a"
+}
