@@ -14,6 +14,9 @@ pub struct DbWarp {
 }
 
 pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
+    // select * from (select rank() over(order by count desc), uid, count from (select uid, count(*) from warps group by uid)) where uid = 600094035;
+    // select avg(count) from (select count(*) from warps group by uid);
+
     sqlx::query!(
         "
         INSERT INTO

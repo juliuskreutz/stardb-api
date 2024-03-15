@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE achievements_percent",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "afd2896d3512b659812297540dc8e4a6443fc35fa7226b00e3f0f99801c13487"
+}

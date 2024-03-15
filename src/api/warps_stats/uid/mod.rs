@@ -34,8 +34,8 @@ struct WarpStats {}
 )]
 #[get("/api/warps_stats/{uid}")]
 async fn get_warps_stats(
-    uid: web::Path<i64>,
-    pool: web::Data<PgPool>,
+    _uid: web::Path<i64>,
+    _pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().finish())
 }
