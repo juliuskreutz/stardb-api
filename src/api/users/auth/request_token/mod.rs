@@ -49,10 +49,8 @@ async fn request_token(
 ) -> ApiResult<impl Responder> {
     let username = request_token.username.to_lowercase();
 
-    {
-        if tokens.lock().await.values().any(|s| s == &username) {
-            return Ok(HttpResponse::BadRequest().finish());
-        }
+    if tokens.lock().await.values().any(|s| s == &username) {
+        return Ok(HttpResponse::BadRequest().finish());
     }
 
     let Ok(user) = database::get_user_by_username(&username, &pool).await else {

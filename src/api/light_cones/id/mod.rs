@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "light-cones/{id}")), paths(get_light_cones))]
+#[openapi(tags((name = "light-cones/{id}")), paths(get_light_cone))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -16,7 +16,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_light_cones);
+    cfg.service(get_light_cone);
 }
 
 #[utoipa::path(
@@ -29,7 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/light-cones/{id}")]
-async fn get_light_cones(
+async fn get_light_cone(
     id: web::Path<i32>,
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,

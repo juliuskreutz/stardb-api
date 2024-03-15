@@ -13,7 +13,10 @@ use crate::{
     tags((name = "index")),
     paths(get_index),
     components(schemas(
-        Index
+        Index, 
+        CharacterEntry, 
+        LightConeEntry, 
+        SkillEntry
     ))
 )]
 struct ApiDoc;
@@ -33,16 +36,16 @@ struct Index {
 }
 
 #[derive(Serialize, ToSchema)]
-struct LightConeEntry {
-    id: i32,
-    name: String,
-}
-
-#[derive(Serialize, ToSchema)]
 struct CharacterEntry {
     id: i64,
     name: String,
     skills: Vec<SkillEntry>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct LightConeEntry {
+    id: i32,
+    name: String,
 }
 
 #[derive(Serialize, ToSchema)]

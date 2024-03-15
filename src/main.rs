@@ -26,6 +26,8 @@ use pg_session_store::PgSessionStore;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let x = 10;
+
     dotenv::dotenv()?;
 
     tracing_subscriber::fmt::init();

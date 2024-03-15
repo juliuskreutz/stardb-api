@@ -20,6 +20,7 @@ mod skills;
 mod users;
 mod warps;
 mod warps_import;
+mod warps_stats;
 
 use std::env;
 
@@ -145,6 +146,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi.merge(warps_import::openapi());
+    openapi.merge(warps_stats::openapi());
     openapi
 }
 
@@ -170,7 +172,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(skills::configure)
         .configure(users::configure)
         .configure(warps::configure)
-        .configure(warps_import::configure);
+        .configure(warps_import::configure)
+        .configure(warps_stats::configure);
 }
 
 pub fn cache_achievement_tracker(

@@ -14,7 +14,7 @@ use crate::{
 #[openapi(
     tags((name = "warps/{uid}")),
     paths(get_warps),
-    components(schemas(GachaType, Warp))
+    components(schemas(GachaType, Warp, WarpType))
 )]
 struct ApiDoc;
 
