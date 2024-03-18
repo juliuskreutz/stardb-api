@@ -5,7 +5,7 @@ use sqlx::PgPool;
 
 use crate::database;
 
-pub async fn warps_avg(pool: PgPool) {
+pub async fn warps_stats(pool: PgPool) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
 
@@ -16,12 +16,12 @@ pub async fn warps_avg(pool: PgPool) {
 
             if let Err(e) = update(&pool).await {
                 error!(
-                    "Warps avg update failed with {e} in {}s",
+                    "Warps stats update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
                 info!(
-                    "Warps avg update succeeded in {}s",
+                    "Warps stats update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );
             }
