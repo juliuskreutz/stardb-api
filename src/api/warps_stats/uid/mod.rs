@@ -30,9 +30,11 @@ struct WarpsStats {
 struct WarpsStatsGachaType {
     count: i64,
     avg: f64,
+    median: i64,
     sum: i64,
     rank_count: i64,
     rank_avg: i64,
+    rank_median: i64,
     rank_sum: i64,
     total: i64,
 }
@@ -120,36 +122,44 @@ async fn get_warps_stats(
     let departure_4 = departure_4.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: departure_total.unwrap_or(0),
     });
     let standard_4 = standard_4.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: standard_total.unwrap_or(0),
     });
     let special_4 = special_4.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: special_total.unwrap_or(0),
     });
     let lc_4 = lc_4.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: lc_total.unwrap_or(0),
     });
@@ -157,36 +167,44 @@ async fn get_warps_stats(
     let departure_5 = departure_5.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: departure_total.unwrap_or(0),
     });
     let standard_5 = standard_5.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: standard_total.unwrap_or(0),
     });
     let special_5 = special_5.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: special_total.unwrap_or(0),
     });
     let lc_5 = lc_5.map(|warps_stats| WarpsStatsGachaType {
         count: warps_stats.count,
         avg: warps_stats.avg,
+        median: warps_stats.median,
         sum: warps_stats.sum,
         rank_count: warps_stats.rank_count,
         rank_avg: warps_stats.rank_avg,
+        rank_median: warps_stats.rank_median,
         rank_sum: warps_stats.rank_sum,
         total: lc_total.unwrap_or(0),
     });

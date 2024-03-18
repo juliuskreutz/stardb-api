@@ -118,12 +118,16 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
             ),
             _ AS (
                 INSERT INTO
-                    warps_stats_4 (uid, gacha_type, COUNT, AVG, rank_count, rank_avg)
+                    warps_stats_4 (uid, gacha_type, COUNT, AVG, median, rank_count, rank_avg, rank_median)
                 SELECT
                     uid,
                     gacha_type,
                     count(*),
                     avg(COUNT),
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (
+                        ORDER BY
+                            COUNT
+                    ) median,
                     RANK() OVER (
                         PARTITION BY
                             gacha_type
@@ -135,26 +139,33 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
                             gacha_type
                         ORDER BY
                             avg(COUNT)
-                    ) rank_avg
+                    ) rank_avg,
+                    RANK() OVER (
+                        PARTITION BY
+                            gacha_type
+                        ORDER BY
+                            PERCENTILE_CONT(0.5) WITHIN GROUP (
+                                ORDER BY
+                                    COUNT
+                            )
+                    ) rank_median
                 FROM
                     warps_count_4
                 GROUP BY
                     uid,
                     gacha_type
-                HAVING
-                    CASE 
-                        WHEN gacha_type = 'departure' THEN TRUE
-                        WHEN gacha_type = 'standard' THEN count(*) >= 5
-                        ELSE count(*) >= 10
-                    END
             )
         INSERT INTO
-            warps_stats_5 (uid, gacha_type, COUNT, AVG, rank_count, rank_avg)
+            warps_stats_5 (uid, gacha_type, COUNT, AVG, median, rank_count, rank_avg, rank_median)
         SELECT
             uid,
             gacha_type,
             count(*),
             avg(COUNT),
+            PERCENTILE_CONT(0.5) WITHIN GROUP (
+                ORDER BY
+                    COUNT
+            ) median,
             RANK() OVER (
                 PARTITION BY
                     gacha_type
@@ -166,12 +177,27 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
                     gacha_type
                 ORDER BY
                     avg(COUNT)
-            ) rank_avg
+            ) rank_avg,
+            RANK() OVER (
+                PARTITION BY
+                    gacha_type
+                ORDER BY
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (
+                        ORDER BY
+                            COUNT
+                    )
+            ) rank_median
         FROM
             warps_count_5
         GROUP BY
             uid,
-            gacha_type;
+            gacha_type
+        HAVING
+            CASE 
+                WHEN gacha_type = 'departure' THEN TRUE
+                WHEN gacha_type = 'standard' THEN count(*) >= 5
+                ELSE count(*) >= 10
+            END
         "
     )
     .execute(&mut *transaction)
@@ -187,9 +213,11 @@ pub struct DbWarpsStatsUidGachaType {
     pub gacha_type: String,
     pub count: i64,
     pub avg: f64,
+    pub median: i64,
     pub sum: i64,
     pub rank_count: i64,
     pub rank_avg: i64,
+    pub rank_median: i64,
     pub rank_sum: i64,
 }
 

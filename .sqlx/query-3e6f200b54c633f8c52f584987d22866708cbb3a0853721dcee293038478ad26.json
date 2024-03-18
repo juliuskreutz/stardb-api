@@ -35,11 +35,21 @@
       },
       {
         "ordinal": 6,
-        "name": "sum",
+        "name": "median",
         "type_info": "Int4"
       },
       {
         "ordinal": 7,
+        "name": "rank_median",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "sum",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
         "name": "rank_sum",
         "type_info": "Int4"
       }
@@ -50,6 +60,8 @@
       ]
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false,
