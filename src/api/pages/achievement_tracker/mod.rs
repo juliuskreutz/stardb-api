@@ -49,7 +49,12 @@ struct Series {
     series: String,
     achievement_count: usize,
     jade_count: i32,
-    achievements: Vec<Vec<Achievement>>,
+    achievement_groups: Vec<AchievementGroup>,
+}
+
+#[derive(Serialize)]
+struct AchievementGroup {
+    achievements: Vec<Achievement>,
 }
 
 #[derive(Serialize)]
@@ -145,12 +150,12 @@ async fn update(
     for language in Language::iter() {
         let db_achievements = database::get_achievements(&language.to_string(), pool).await?;
 
-        let mut series: IndexMap<String, Vec<Vec<Achievement>>> = IndexMap::new();
+        let mut series: IndexMap<String, Vec<AchievementGroup>> = IndexMap::new();
         let mut groupings: HashMap<i32, usize> = HashMap::new();
         let mut versions: HashSet<String> = HashSet::new();
 
         for db_achievement in db_achievements {
-            let achievements = series
+            let achievement_groups = series
                 .entry(db_achievement.series_name.clone())
                 .or_default();
 
@@ -160,29 +165,39 @@ async fn update(
 
             if let Some(set) = db_achievement.set {
                 if let Some(&i) = groupings.get(&set) {
-                    achievements[i].push(Achievement::from(db_achievement));
+                    achievement_groups[i]
+                        .achievements
+                        .push(Achievement::from(db_achievement));
                     continue;
                 }
 
-                groupings.insert(set, achievements.len());
+                groupings.insert(set, achievement_groups.len());
             }
 
-            achievements.push(vec![Achievement::from(db_achievement)]);
+            achievement_groups.push(AchievementGroup {
+                achievements: vec![Achievement::from(db_achievement)],
+            });
         }
 
         let series = series
             .into_iter()
-            .map(|(series, achievements)| Series {
+            .map(|(series, achievement_groups)| Series {
                 series,
-                achievement_count: achievements.len(),
-                jade_count: achievements.iter().map(|a| a[0].jades).sum(),
-                achievements,
+                achievement_count: achievement_groups.len(),
+                jade_count: achievement_groups
+                    .iter()
+                    .map(|a| a.achievements[0].jades)
+                    .sum(),
+                achievement_groups,
             })
             .collect::<Vec<_>>();
 
         let (achievement_count, jade_count) =
             series.iter().fold((0, 0), |(a_count, j_count), ag| {
-                (a_count + ag.achievements.len(), j_count + ag.jade_count)
+                (
+                    a_count + ag.achievement_groups.len(),
+                    j_count + ag.jade_count,
+                )
             });
 
         let user_count = database::get_users_achievements_user_count(pool).await?;
