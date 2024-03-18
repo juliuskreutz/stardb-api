@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE warps_stats_4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "f531fb8dfe92d55c4f68689b37266eb12f038b22663c4f43b0e8caa7f6703460"
+}

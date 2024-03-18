@@ -27,6 +27,7 @@ mod users;
 mod users_achievements;
 mod users_books;
 mod warps;
+mod warps_stats;
 
 pub use achievement_scores::*;
 pub use achievement_series::*;
@@ -57,3 +58,4 @@ pub use users::*;
 pub use users_achievements::*;
 pub use users_books::*;
 pub use warps::*;
+pub use warps_stats::*;

@@ -52,7 +52,8 @@ impl SessionStore for PgSessionStore {
             .await
             .map_err(SaveError::Other)?;
 
-        let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
+        let expiry =
+            (Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap()).naive_utc();
 
         let db_session = database::DbSession {
             uuid,
@@ -83,7 +84,8 @@ impl SessionStore for PgSessionStore {
         let username = &session_state["username"];
         let username = username[1..username.len() - 1].to_string();
 
-        let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
+        let expiry =
+            (Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap()).naive_utc();
 
         let db_session = database::DbSession {
             uuid,
@@ -103,7 +105,8 @@ impl SessionStore for PgSessionStore {
             .map_err(anyhow::Error::new)
             .map_err(UpdateError::Other)?;
 
-        let expiry = (Utc::now() + chrono::Duration::seconds(ttl.whole_seconds())).naive_utc();
+        let expiry =
+            (Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap()).naive_utc();
 
         database::update_session_expiry(uuid, expiry, &self.pool).await
     }

@@ -95,9 +95,9 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
         })
         .unwrap_or(
             now + match region.as_str() {
-                "na" => chrono::Duration::hours(-5),
-                "eu" => chrono::Duration::hours(1),
-                _ => chrono::Duration::hours(8),
+                "na" => chrono::Duration::try_hours(-5).unwrap(),
+                "eu" => chrono::Duration::try_hours(1).unwrap(),
+                _ => chrono::Duration::try_hours(8).unwrap(),
             },
         );
 

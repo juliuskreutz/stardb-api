@@ -44,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
     update::dimbreath(pool.clone()).await;
     update::star_rail_res().await;
     update::scores().await;
+    update::warps_avg(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
     let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));

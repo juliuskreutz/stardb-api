@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            gacha_type,\n            count(distinct uid) total\n        FROM \n            warps_stats\n        GROUP BY\n            gacha_type\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gacha_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "total",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "7d60a7f30da532badac3935b5b3d8c8c2f9bd081746d9678616027eabac7c0eb"
+}
