@@ -195,7 +195,7 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
         HAVING
             CASE 
                 WHEN gacha_type = 'departure' THEN TRUE
-                WHEN gacha_type = 'standard' THEN count(*) >= 5
+                WHEN gacha_type = 'standard' OR gacha_type = 'lc' THEN count(*) >= 5
                 ELSE count(*) >= 10
             END
         "
