@@ -277,7 +277,7 @@ pub async fn get_warps_stats_by_uid(uid: i64, pool: &PgPool) -> Result<DbWarpsSt
                 warps_stats
             GROUP BY
                 uid
-        )
+        ) x
         WHERE
             uid = $1
         ",
