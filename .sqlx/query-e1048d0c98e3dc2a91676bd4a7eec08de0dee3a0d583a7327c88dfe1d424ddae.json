@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name\n        FROM\n            achievements\n        NATURAL INNER JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $2\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $2\n        WHERE\n            achievements.id = $1\n        AND NOT\n            (hidden AND impossible)\n        OR\n            $3\n        ",
+  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name\n        FROM\n            achievements\n        NATURAL INNER JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $1\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $1\n        ORDER BY\n            achievement_series.priority DESC, series, priority DESC, id\n        ",
   "describe": {
     "columns": [
       {
@@ -91,9 +91,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
-        "Text",
-        "Bool"
+        "Text"
       ]
     },
     "nullable": [
@@ -116,5 +114,5 @@
       false
     ]
   },
-  "hash": "f323d716c78d3a39feee7afc4f7c3a2d6cc3bd418fe63b66a39126855d107c5f"
+  "hash": "e1048d0c98e3dc2a91676bd4a7eec08de0dee3a0d583a7327c88dfe1d424ddae"
 }
