@@ -180,8 +180,6 @@ pub async fn get_achievement_by_id(
             series = achievement_series_text.id AND achievement_series_text.language = $2
         WHERE
             achievements.id = $1
-        AND NOT
-            (hidden AND impossible)
         ",
         id,
         language,
