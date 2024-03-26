@@ -6,6 +6,7 @@ mod reference;
 mod version;
 mod video;
 
+use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -56,13 +57,25 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/achievements/{id}")]
 async fn get_achievement(
+    session: Session,
     id: web::Path<i64>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    let admin = if let Ok(Some(username)) = session.get::<String>("username") {
+        database::get_admin_by_username(&username, &pool)
+            .await
+            .is_ok()
+    } else {
+        false
+    };
+
     let db_achievement =
-        database::get_achievement_by_id(*id, &language_params.lang.to_string(), false, &pool)
-            .await?;
+        database::get_achievement_by_id(*id, &language_params.lang.to_string(), &pool).await?;
+
+    if (db_achievement.impossible && db_achievement.hidden) && !admin {
+        return Ok(HttpResponse::NotFound().finish());
+    }
 
     let mut achievement = Achievement::from(db_achievement);
 

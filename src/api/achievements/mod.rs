@@ -1,5 +1,6 @@
 mod id;
 
+use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -110,11 +111,24 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/achievements")]
 async fn get_achievements(
+    session: Session,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_achievements =
+    let admin = if let Ok(Some(username)) = session.get::<String>("username") {
+        database::get_admin_by_username(&username, &pool)
+            .await
+            .is_ok()
+    } else {
+        false
+    };
+
+    let mut db_achievements =
         database::get_achievements(&language_params.lang.to_string(), &pool).await?;
+
+    if !admin {
+        db_achievements.retain(|a| !(a.hidden && a.impossible));
+    }
 
     let mut achievements = db_achievements
         .into_iter()

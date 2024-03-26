@@ -100,12 +100,10 @@ pub async fn get_achievements(language: &str, pool: &PgPool) -> Result<Vec<DbAch
             achievement_series_text
         ON
             series = achievement_series_text.id AND achievement_series_text.language = $1
-        WHERE NOT
-            (hidden AND impossible)
         ORDER BY
             achievement_series.priority DESC, series, priority DESC, id
         ",
-        language
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -154,7 +152,6 @@ pub async fn get_related(id: i64, set: i32, pool: &PgPool) -> Result<Vec<i64>> {
 pub async fn get_achievement_by_id(
     id: i64,
     language: &str,
-    allow: bool,
     pool: &PgPool,
 ) -> Result<DbAchievement> {
     Ok(sqlx::query_as!(
@@ -185,12 +182,9 @@ pub async fn get_achievement_by_id(
             achievements.id = $1
         AND NOT
             (hidden AND impossible)
-        OR
-            $3
         ",
         id,
         language,
-        allow,
     )
     .fetch_one(pool)
     .await?)
