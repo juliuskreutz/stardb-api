@@ -6,6 +6,7 @@ mod books;
 mod characters;
 mod community_tier_list;
 mod free_jade_alert;
+mod import;
 mod import_achievements;
 mod import_books;
 mod index;
@@ -132,6 +133,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(characters::openapi());
     openapi.merge(community_tier_list::openapi());
     openapi.merge(free_jade_alert::openapi());
+    openapi.merge(import::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
     openapi.merge(index::openapi());
@@ -159,6 +161,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(characters::configure)
         .configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
+        .configure(import::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
         .configure(index::configure)

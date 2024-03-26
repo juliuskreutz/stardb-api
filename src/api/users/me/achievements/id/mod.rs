@@ -41,14 +41,8 @@ async fn put_user_achievement(
     };
 
     let id = *id;
-
-    let db_achievement = database::get_achievement_by_id(id, "en", false, &pool).await?;
-
-    if !db_achievement.impossible {
-        let db_complete = database::DbUserAchievement { username, id };
-
-        database::add_user_achievement(&db_complete, &pool).await?;
-    }
+    let db_complete = database::DbUserAchievement { username, id };
+    database::add_user_achievement(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

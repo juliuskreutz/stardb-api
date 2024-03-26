@@ -10,6 +10,17 @@ pub async fn add_user_achievement(
     user_achievement: &DbUserAchievement,
     pool: &PgPool,
 ) -> Result<()> {
+    if sqlx::query!(
+        "SELECT impossible FROM achievements WHERE id = $1",
+        user_achievement.id
+    )
+    .fetch_one(pool)
+    .await?
+    .impossible
+    {
+        return Ok(());
+    }
+
     sqlx::query!(
         "INSERT INTO users_achievements(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
         user_achievement.username,
