@@ -164,7 +164,7 @@ pub async fn get_achievement_by_id(
             achievement_series_text.name series_name
         FROM
             achievements
-        NATURAL LEFT JOIN
+        NATURAL INNER JOIN
             achievements_percent
         INNER JOIN
             achievements_text
