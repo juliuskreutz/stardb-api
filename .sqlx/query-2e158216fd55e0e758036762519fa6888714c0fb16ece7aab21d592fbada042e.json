@@ -16,7 +16,7 @@
       {
         "ordinal": 2,
         "name": "expiry",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {

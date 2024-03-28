@@ -10,7 +10,7 @@
         "Text",
         "Int4",
         "Int4",
-        "Timestamp"
+        "Timestamptz"
       ]
     },
     "nullable": []

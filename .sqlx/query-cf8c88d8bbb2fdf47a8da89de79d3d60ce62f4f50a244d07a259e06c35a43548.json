@@ -21,7 +21,7 @@
       {
         "ordinal": 3,
         "name": "timestamp",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 4,
@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "updated_at",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
