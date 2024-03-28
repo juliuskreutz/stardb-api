@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 pub struct DbMihomo {
@@ -10,7 +10,7 @@ pub struct DbMihomo {
     pub signature: String,
     pub avatar_icon: String,
     pub achievement_count: i32,
-    pub updated_at: NaiveDateTime,
+    pub updated_at: DateTime<Utc>,
 }
 
 pub async fn set_mihomo(mihomo: &DbMihomo, pool: &PgPool) -> Result<DbMihomo> {

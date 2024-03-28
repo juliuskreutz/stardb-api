@@ -2,12 +2,12 @@ mod uid;
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use actix_web::{post, web, HttpResponse, Responder};
-use chrono::NaiveDateTime;
+use actix_web::{post, rt, web, HttpResponse, Responder};
+use chrono::{DateTime, Utc};
+use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::{Display, EnumIter, IntoEnumIterator};
-use tokio::sync::Mutex;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
@@ -150,7 +150,7 @@ async fn post_warps_import(
 
     warps_import_infos.lock().await.insert(uid, info.clone());
 
-    tokio::spawn(async move {
+    rt::spawn(async move {
         let mut error = false;
 
         for gacha_type in GachaType::iter() {
@@ -169,8 +169,8 @@ async fn post_warps_import(
             info.lock().await.status = Status::Finished;
         }
 
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(60)).await;
+        rt::spawn(async move {
+            rt::time::sleep(Duration::from_secs(60)).await;
 
             warps_import_infos.lock().await.remove(&uid);
         });
@@ -212,7 +212,7 @@ async fn import_warps(
                 return Err(anyhow::anyhow!("Unsure").into());
             }
 
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            rt::time::sleep(Duration::from_secs(1)).await;
 
             i += 1;
         };
@@ -235,7 +235,9 @@ async fn import_warps(
             }
 
             let uid = entry.uid.parse()?;
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?;
+            let timestamp =
+                DateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.with_timezone(&Utc);
+
             let item = entry.item_id.parse()?;
 
             {

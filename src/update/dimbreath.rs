@@ -6,6 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use actix_web::rt;
 use anyhow::Result;
 use regex::{Captures, Regex};
 use serde::Deserialize;
@@ -154,8 +155,8 @@ struct TextHash {
 }
 
 pub async fn dimbreath(pool: PgPool) {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60 * 10));
+    rt::spawn(async move {
+        let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
         loop {
             interval.tick().await;

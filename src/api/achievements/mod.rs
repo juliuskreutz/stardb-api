@@ -12,7 +12,7 @@ use crate::{
     database,
 };
 
-use super::Language;
+use crate::Language;
 
 #[derive(OpenApi)]
 #[openapi(

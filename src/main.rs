@@ -18,13 +18,76 @@ use actix_web::{
     App, HttpServer,
 };
 use futures::lock::Mutex;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use strum::{Display, EnumIter, EnumString};
+use utoipa::ToSchema;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
 use pg_session_store::PgSessionStore;
 
-#[tokio::main]
+#[derive(
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    EnumString,
+    EnumIter,
+    Serialize,
+    Deserialize,
+    ToSchema,
+    Clone,
+    Copy,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum Language {
+    #[serde(alias = "zh-cn")]
+    Chs,
+    #[serde(alias = "zh-tw")]
+    Cht,
+    De,
+    #[default]
+    En,
+    #[serde(alias = "es-es")]
+    Es,
+    Fr,
+    Id,
+    #[serde(alias = "ja")]
+    Jp,
+    #[serde(alias = "ko")]
+    Kr,
+    #[serde(alias = "pt-pt")]
+    Pt,
+    Ru,
+    Th,
+    Vi,
+}
+
+impl Language {
+    pub fn name(&self) -> String {
+        match self {
+            Language::Chs => "简体中文",
+            Language::Cht => "繁體中文",
+            Language::De => "Deutsch",
+            Language::En => "English",
+            Language::Es => "Español",
+            Language::Fr => "Français",
+            Language::Id => "Bahasa Indonesia",
+            Language::Jp => "日本語",
+            Language::Kr => "한국어",
+            Language::Pt => "Português",
+            Language::Ru => "Русский",
+            Language::Th => "ไทย",
+            Language::Vi => "Tiếng Việt",
+        }
+        .to_string()
+    }
+}
+
+#[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
 

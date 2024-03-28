@@ -1,23 +1,14 @@
 mod achievements;
 
 use actix_web::web;
-use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use serde::Deserialize;
+use utoipa::{IntoParams, OpenApi};
+
+use super::Region;
 
 #[derive(OpenApi)]
 #[openapi(components(schemas(Region)))]
 struct ApiDoc;
-
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema, Clone, Copy)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum Region {
-    Na,
-    Eu,
-    Asia,
-    Cn,
-}
 
 #[derive(Deserialize, IntoParams)]
 pub struct ScoresParams {

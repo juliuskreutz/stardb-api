@@ -57,7 +57,7 @@ async fn login(
 ) -> ApiResult<impl Responder> {
     let username = match &*user_login {
         UserLogin::UsernamePassword { username, password } => {
-            let username = username.to_lowercase();
+            let username = username.trim().to_lowercase();
 
             let Ok(user) = database::get_user_by_username(&username, &pool).await else {
                 return Ok(HttpResponse::BadRequest().finish());

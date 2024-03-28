@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 #[derive(Default)]
@@ -13,8 +13,8 @@ pub struct DbScoreAchievement {
     pub signature: String,
     pub avatar_icon: String,
     pub achievement_count: i32,
-    pub updated_at: NaiveDateTime,
-    pub timestamp: NaiveDateTime,
+    pub updated_at: DateTime<Utc>,
+    pub timestamp: DateTime<Utc>,
 }
 
 pub async fn set_score_achievement(

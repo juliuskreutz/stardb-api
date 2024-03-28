@@ -1,13 +1,13 @@
 use actix_web::{get, web, HttpResponse, Responder};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{private, ApiResult},
-    database,
+    api::{private, ApiResult, LanguageParams},
+    database, mihomo,
 };
 
 #[derive(OpenApi)]
@@ -28,7 +28,7 @@ struct Profile {
     rank_regional: i64,
     top_global: f64,
     top_regional: f64,
-    updated_at: NaiveDateTime,
+    updated_at: DateTime<Utc>,
     mihomo: Value,
 }
 
@@ -36,19 +36,19 @@ struct Profile {
     tag = "pages",
     get,
     path = "/api/pages/profiles/{uid}",
+    params(LanguageParams),
     security(("api_key" = [])),
     responses(
         (status = 200, description = "Profile"),
     )
 )]
 #[get("/api/pages/profiles/{uid}", guard = "private")]
-async fn get_profile(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let mihomo: Value = reqwest::Client::new()
-        .get(&format!("http://localhost:8000/api/mihomo/{uid}"))
-        .send()
-        .await?
-        .json()
-        .await?;
+async fn get_profile(
+    uid: web::Path<i64>,
+    language_params: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let mihomo = mihomo::get_whole(*uid, language_params.lang).await?;
 
     let score_achievement = database::get_score_achievement_by_uid(*uid, &pool).await?;
 
@@ -62,12 +62,14 @@ async fn get_profile(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<
     let top_global = rank_global as f64 / count_global as f64;
     let top_regional = rank_regional as f64 / count_regional as f64;
 
+    let updated_at = score_achievement.updated_at;
+
     let profile = Profile {
         rank_global,
         rank_regional,
         top_global,
         top_regional,
-        updated_at: score_achievement.updated_at,
+        updated_at,
         mihomo,
     };
 

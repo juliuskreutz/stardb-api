@@ -4,7 +4,7 @@ use utoipa::OpenApi;
 
 use super::Leaderboard;
 use crate::{
-    api::{private, scores::Region, ApiResult},
+    api::{private, ApiResult, Region},
     database,
 };
 

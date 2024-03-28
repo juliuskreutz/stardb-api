@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-use actix_web::{post, web, HttpResponse, Responder};
+use actix_web::{post, rt, web, HttpResponse, Responder};
 use futures::lock::Mutex;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::Deserialize;
@@ -47,7 +47,7 @@ async fn request_token(
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let username = request_token.username.to_lowercase();
+    let username = request_token.username.trim().to_lowercase();
 
     if tokens.lock().await.values().any(|s| s == &username) {
         return Ok(HttpResponse::BadRequest().finish());
@@ -80,8 +80,8 @@ async fn request_token(
 
     tokens.lock().await.insert(token, username.clone());
 
-    tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+    rt::spawn(async move {
+        rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
 
         tokens.lock().await.remove(&token);
     });

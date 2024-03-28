@@ -1,13 +1,13 @@
-use std::{fs::File, path::PathBuf};
-
 use actix_web::{get, put, web, HttpResponse, Responder};
 use chrono::Utc;
 use regex::{Captures, Regex};
-use serde_json::Value;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, mihomo};
+use crate::{
+    api::{ApiResult, LanguageParams},
+    database, mihomo,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -28,22 +28,17 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     tag = "mihomo/{uid}",
     get,
     path = "/api/mihomo/{uid}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Cached mihomo json"),
     )
 )]
 #[get("/api/mihomo/{uid}")]
-async fn get_mihomo(uid: web::Path<i64>) -> ApiResult<impl Responder> {
-    let path = format!("mihomo/{uid}.json");
-
-    if !PathBuf::from(&path).exists() {
-        reqwest::Client::new()
-            .put(&format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
-    }
-
-    let json: Value = serde_json::from_reader(File::open(&path)?)?;
+async fn get_mihomo(
+    uid: web::Path<i64>,
+    language_params: web::Query<LanguageParams>,
+) -> ApiResult<impl Responder> {
+    let json = mihomo::get_whole(*uid, language_params.lang).await?;
 
     Ok(HttpResponse::Ok().json(json))
 }
@@ -52,17 +47,22 @@ async fn get_mihomo(uid: web::Path<i64>) -> ApiResult<impl Responder> {
     tag = "mihomo/{uid}",
     put,
     path = "/api/mihomo/{uid}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "Updated"),
     )
 )]
 #[put("/api/mihomo/{uid}")]
-async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let now = Utc::now().naive_utc();
+async fn put_mihomo(
+    uid: web::Path<i64>,
+    language_params: web::Query<LanguageParams>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let now = Utc::now();
 
     let uid = *uid;
 
-    let info = mihomo::get(uid).await?;
+    let info = mihomo::update_and_get(uid, language_params.lang).await?;
 
     let re = Regex::new(r"<[^>]*>")?;
 
@@ -122,7 +122,7 @@ async fn put_mihomo(uid: web::Path<i64>, pool: web::Data<PgPool>) -> ApiResult<i
 
     database::set_score_achievement(&db_score_achievement, &pool).await?;
 
-    let json: Value = serde_json::from_reader(File::open(format!("mihomo/{uid}.json"))?)?;
+    let json = mihomo::get_whole(uid, language_params.lang).await?;
 
     Ok(HttpResponse::Ok().json(json))
 }

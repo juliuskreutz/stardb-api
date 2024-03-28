@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, rt, web, HttpResponse, Responder};
 use anyhow::Result;
 use async_rwlock::RwLock;
 use indexmap::IndexMap;
@@ -93,8 +93,8 @@ pub fn cache(pool: PgPool) -> web::Data<BookTrackerCache> {
     {
         let book_tracker_cache = book_tracker_cache.clone();
 
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
+        rt::spawn(async move {
+            let mut interval = rt::time::interval(Duration::from_secs(60));
 
             loop {
                 interval.tick().await;

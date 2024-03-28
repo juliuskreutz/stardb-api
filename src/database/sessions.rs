@@ -1,12 +1,12 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct DbSession {
     pub uuid: Uuid,
     pub username: String,
-    pub expiry: NaiveDateTime,
+    pub expiry: DateTime<Utc>,
 }
 
 pub async fn set_session(session: &DbSession, pool: &PgPool) -> Result<()> {
@@ -69,7 +69,7 @@ pub async fn get_session_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<DbSession>
     .await?)
 }
 
-pub async fn update_session_expiry(uuid: Uuid, expiry: NaiveDateTime, pool: &PgPool) -> Result<()> {
+pub async fn update_session_expiry(uuid: Uuid, expiry: DateTime<Utc>, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         UPDATE

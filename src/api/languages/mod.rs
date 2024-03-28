@@ -5,7 +5,7 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::api::ApiResult;
 
-use super::Language;
+use crate::Language;
 
 #[derive(OpenApi)]
 #[openapi(

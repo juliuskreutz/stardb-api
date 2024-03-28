@@ -2,7 +2,7 @@ use std::env;
 
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -76,7 +76,7 @@ struct Embed {
     fields: Vec<Field>,
     image: Option<Image>,
     footer: Footer,
-    timestamp: NaiveDateTime,
+    timestamp: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
@@ -175,7 +175,7 @@ impl From<FreeJadeAlert> for Webhook {
             text: "Published".to_string(),
         };
 
-        let timestamp = Utc::now().naive_utc();
+        let timestamp = Utc::now();
 
         Self {
             embeds: vec![Embed {

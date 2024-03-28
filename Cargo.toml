@@ -23,13 +23,12 @@ lettre = { version = "0.11.4", features = ["tokio1-native-tls"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.10.3"
-reqwest = { version = "0.11.26", features = ["json"] }
+reqwest = { version = "0.12.2", features = ["json"] }
 rust-argon2 = "2.1.0"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 sqlx = { version = "0.7.4", features = ["postgres", "chrono", "uuid", "runtime-tokio-native-tls"] }
 strum = { version = "0.26.2", features = ["derive"] }
-tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 url = "2.5.0"

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 pub struct DbWarp {
@@ -10,7 +10,7 @@ pub struct DbWarp {
     pub light_cone: Option<i32>,
     pub name: Option<String>,
     pub rarity: Option<i32>,
-    pub timestamp: NaiveDateTime,
+    pub timestamp: DateTime<Utc>,
 }
 
 pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {

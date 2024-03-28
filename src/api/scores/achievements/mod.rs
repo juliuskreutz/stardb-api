@@ -1,16 +1,13 @@
 mod uid;
 
 use actix_web::{get, web, HttpResponse, Responder};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{
-        scores::{Region, ScoresParams},
-        ApiResult,
-    },
+    api::{scores::ScoresParams, ApiResult, Region},
     database,
 };
 
@@ -35,7 +32,7 @@ struct ScoreAchievement {
     signature: String,
     avatar_icon: String,
     achievement_count: i32,
-    updated_at: NaiveDateTime,
+    updated_at: DateTime<Utc>,
 }
 
 impl From<database::DbScoreAchievement> for ScoreAchievement {
