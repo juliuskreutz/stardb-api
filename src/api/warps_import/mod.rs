@@ -3,7 +3,7 @@ mod uid;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix_web::{post, rt, web, HttpResponse, Responder};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
