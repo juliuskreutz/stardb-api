@@ -146,5 +146,7 @@ async fn main() -> anyhow::Result<()> {
     .run()
     .await?;
 
+    info!("Stopping api!");
+
     std::process::exit(0)
 }

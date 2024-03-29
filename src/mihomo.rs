@@ -58,10 +58,12 @@ pub async fn update_and_get_whole(uid: i64, language: Language) -> Result<Value>
         o.insert("updated_at".to_string(), serde_json::to_value(Utc::now())?);
     }
 
-    serde_json::to_writer(
-        &mut File::create(format!("mihomo/{language}_{uid}.json"))?,
-        &json,
-    )?;
+    if serde_json::from_value::<Mihomo>(json.clone()).is_ok() {
+        serde_json::to_writer(
+            &mut File::create(format!("mihomo/{language}_{uid}.json"))?,
+            &json,
+        )?;
+    }
 
     Ok(json)
 }

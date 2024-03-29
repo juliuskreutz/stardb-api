@@ -148,7 +148,9 @@ async fn update(
     let mut achievement_tracker_map = HashMap::new();
 
     for language in Language::iter() {
-        let db_achievements = database::get_achievements(&language.to_string(), pool).await?;
+        let mut db_achievements = database::get_achievements(&language.to_string(), pool).await?;
+
+        db_achievements.retain(|a| !(a.hidden && a.impossible));
 
         let mut series: IndexMap<String, Vec<AchievementGroup>> = IndexMap::new();
         let mut groupings: HashMap<i32, usize> = HashMap::new();

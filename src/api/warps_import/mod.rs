@@ -225,9 +225,10 @@ async fn import_warps(
             end_id = entry.id.clone();
 
             let id = entry.id.parse()?;
-            let gacha_type = gt.to_string();
+            let timestamp =
+                NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc();
 
-            if database::get_warp_by_id_and_gacha_type(id, &gacha_type, "en", pool)
+            if database::get_warp_by_id_and_timestamp(id, timestamp, "en", pool)
                 .await
                 .is_ok()
             {
@@ -235,9 +236,7 @@ async fn import_warps(
             }
 
             let uid = entry.uid.parse()?;
-            let timestamp =
-                NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc();
-
+            let gacha_type = gt.to_string();
             let item = entry.item_id.parse()?;
 
             {

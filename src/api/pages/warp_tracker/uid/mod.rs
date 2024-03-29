@@ -28,6 +28,7 @@ struct Warp {
     name: String,
     rarity: i32,
     item_id: i32,
+    pull: usize,
     timestamp: DateTime<Utc>,
 }
 
@@ -53,6 +54,7 @@ impl From<database::DbWarp> for Warp {
             rarity: warp.rarity.unwrap(),
             item_id: warp.character.or(warp.light_cone).unwrap(),
             timestamp: warp.timestamp,
+            pull: 0,
         }
     }
 }
@@ -60,6 +62,9 @@ impl From<database::DbWarp> for Warp {
 #[derive(Serialize)]
 struct WarpTracker {
     count: usize,
+    standard_probability: f64,
+    special_probability: f64,
+    lc_probability: f64,
     standard: Vec<Warp>,
     departure: Vec<Warp>,
     special: Vec<Warp>,
@@ -88,20 +93,90 @@ async fn get_warp_tracker(
     let mut special = Vec::new();
     let mut lc = Vec::new();
 
+    let mut standard_pull = 0;
+    let mut departure_pull = 0;
+    let mut special_pull = 0;
+    let mut lc_pull = 0;
+
     for warp in warps {
-        match warp.gacha_type.as_str() {
-            "standard" => standard.push(warp.into()),
-            "departure" => departure.push(warp.into()),
-            "special" => special.push(warp.into()),
-            "lc" => lc.push(warp.into()),
+        let gacha_type = warp.gacha_type.clone();
+
+        let mut warp: Warp = warp.into();
+
+        match gacha_type.as_str() {
+            "standard" => {
+                standard_pull += 1;
+
+                warp.pull = standard_pull;
+
+                if warp.rarity == 5 {
+                    standard_pull = 0;
+                }
+
+                standard.push(warp);
+            }
+            "departure" => {
+                departure_pull += 1;
+
+                warp.pull = departure_pull;
+
+                if warp.rarity == 5 {
+                    departure_pull = 0;
+                }
+
+                departure.push(warp);
+            }
+            "special" => {
+                special_pull += 1;
+
+                warp.pull = special_pull;
+
+                if warp.rarity == 5 {
+                    special_pull = 0;
+                }
+
+                special.push(warp);
+            }
+            "lc" => {
+                lc_pull += 1;
+
+                warp.pull = lc_pull;
+
+                if warp.rarity == 5 {
+                    lc_pull = 0;
+                }
+
+                lc.push(warp);
+            }
             _ => {}
         }
     }
+
+    let standard_probability = if standard_pull < 89 {
+        0.6 + 6.0 * standard_pull.saturating_sub(72) as f64
+    } else {
+        100.0
+    };
+
+    let special_probability = if special_pull < 89 {
+        0.6 + 6.0 * special_pull.saturating_sub(72) as f64
+    } else {
+        100.0
+    };
+
+    let lc_probability = if lc_pull < 79 {
+        0.8 + 7.0 * lc_pull.saturating_sub(64) as f64
+    } else {
+        100.0
+    };
 
     let count = standard.len() + departure.len() + special.len() + lc.len();
 
     let warp_tracker = WarpTracker {
         count,
+        standard_probability,
+        special_probability,
+        lc_probability,
         standard,
         departure,
         special,
