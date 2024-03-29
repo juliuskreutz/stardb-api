@@ -1,1 +1,0 @@
-ALTER TABLE book_series ADD COLUMN world INT4 NOT NULL REFERENCES book_series_worlds ON DELETE CASCADE;

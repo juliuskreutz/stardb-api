@@ -1,1 +1,0 @@
-ALTER TABLE light_cones ADD COLUMN rarity INT4 NOT NULL DEFAULT 0;

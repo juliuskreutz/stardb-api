@@ -1,1 +1,0 @@
-ALTER TABLE series RENAME TO achievement_series;

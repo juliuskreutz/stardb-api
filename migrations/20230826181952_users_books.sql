@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS users_books (
-    username TEXT NOT NULL REFERENCES users ON DELETE CASCADE,
-    id INT8 NOT NULL REFERENCES books ON DELETE CASCADE,
-    PRIMARY KEY (username, id)
-);
