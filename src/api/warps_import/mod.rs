@@ -3,7 +3,7 @@ mod uid;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix_web::{post, rt, web, HttpResponse, Responder};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -68,15 +68,15 @@ struct Entry {
 
 type WarpsImportInfos = Mutex<HashMap<i64, Arc<Mutex<WarpsImportInfo>>>>;
 
-#[derive(Serialize, ToSchema, Clone, Copy)]
+#[derive(Serialize, ToSchema, Clone)]
 #[serde(rename_all = "snake_case")]
 enum Status {
     Pending,
     Finished,
-    Error,
+    Error(String),
 }
 
-#[derive(Serialize, ToSchema, Clone, Copy)]
+#[derive(Serialize, ToSchema, Clone)]
 struct WarpsImportInfo {
     gacha_type: GachaType,
     standard: usize,
@@ -151,20 +151,20 @@ async fn post_warps_import(
     warps_import_infos.lock().await.insert(uid, info.clone());
 
     rt::spawn(async move {
-        let mut error = false;
+        let mut error = None;
 
         for gacha_type in GachaType::iter() {
             info.lock().await.gacha_type = gacha_type;
 
-            if import_warps(&url, gacha_type, &info, &pool).await.is_err() {
-                error = true;
+            if let Err(e) = import_warps(&url, gacha_type, &info, &pool).await {
+                error = Some(e.to_string());
 
                 break;
             }
         }
 
-        if error {
-            info.lock().await.status = Status::Error;
+        if let Some(e) = error {
+            info.lock().await.status = Status::Error(e);
         } else {
             info.lock().await.status = Status::Finished;
         }
@@ -236,7 +236,7 @@ async fn import_warps(
 
             let uid = entry.uid.parse()?;
             let timestamp =
-                DateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.with_timezone(&Utc);
+                NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc();
 
             let item = entry.item_id.parse()?;
 

@@ -35,7 +35,7 @@ async fn get_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let info = *info.lock().await;
+    let info = info.lock().await.clone();
 
     Ok(HttpResponse::Ok().json(info))
 }
