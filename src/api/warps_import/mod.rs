@@ -55,6 +55,7 @@ struct GachaLog {
 #[derive(Deserialize)]
 struct Data {
     list: Vec<Entry>,
+    region_time_zone: i64,
 }
 
 #[derive(Deserialize)]
@@ -221,12 +222,15 @@ async fn import_warps(
             break;
         }
 
+        let timestamp_offset = chrono::Duration::hours(gacha_log.data.region_time_zone);
+
         for entry in gacha_log.data.list {
             end_id = entry.id.clone();
 
             let id = entry.id.parse()?;
-            let timestamp =
-                NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc();
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
 
             if database::get_warp_by_id_and_timestamp(id, timestamp, "en", pool)
                 .await
