@@ -69,7 +69,7 @@ async fn register(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    if database::get_user_by_username(&username, &pool)
+    if database::users::get_by_username(&username, &pool)
         .await
         .is_ok()
     {
@@ -86,12 +86,12 @@ async fn register(
 
     {
         let username = username.clone();
-        let user = database::DbUser {
+        let user = database::users::DbUser {
             username,
             password,
             email,
         };
-        database::set_user(&user, &pool).await?;
+        database::users::set(&user, &pool).await?;
     }
 
     session.insert("username", username)?;

@@ -66,6 +66,17 @@ pub async fn delete_user_achievement(
     Ok(())
 }
 
+pub async fn delete_user_achievements(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "DELETE FROM users_achievements WHERE username = $1",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_user_achievements_by_username(
     username: &str,
     pool: &PgPool,

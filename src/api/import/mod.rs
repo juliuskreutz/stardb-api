@@ -60,6 +60,8 @@ async fn import(
 
     let import: Import = serde_json::from_reader(BufReader::new(&file.file.file))?;
 
+    database::delete_user_achievements(&username, &pool).await?;
+
     let mut complete = database::DbUserAchievement {
         username: username.clone(),
         id: 0,

@@ -75,7 +75,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .await
         .is_ok();
 
-    let user = database::get_user_by_username(&username, &pool).await?;
+    let user = database::users::get_by_username(&username, &pool).await?;
 
     let email = user.email;
 
