@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM\n            warps\n        WHERE\n            id = $1\n        AND\n            timestamp = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9ac32e63063689b95d28c53f1acdc4efd14d567e8c2861b6e1865a9ad81caa5d"
+}
