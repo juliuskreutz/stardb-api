@@ -128,12 +128,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(warps_stats::configure);
 }
 
-pub fn cache_achievement_tracker(
-    pool: PgPool,
-) -> web::Data<pages::achievement_tracker::AchievementTrackerCache> {
-    pages::cache_achievement_tracker(pool)
-}
-
 pub fn cache_book_tracker(pool: PgPool) -> web::Data<pages::book_tracker::BookTrackerCache> {
     pages::cache_book_tracker(pool)
 }

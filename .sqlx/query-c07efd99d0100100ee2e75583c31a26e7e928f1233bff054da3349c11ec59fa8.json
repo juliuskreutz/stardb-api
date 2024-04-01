@@ -1,0 +1,131 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name,\n            users_achievements_completed.id is not null completed,\n            users_achievements_favorites.id is not null favorite\n        FROM\n            achievements\n        INNER JOIN\n            achievements_percent\n        ON\n            achievements.id = achievements_percent.id\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $2\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $2\n        LEFT JOIN\n            users_achievements_completed\n        ON\n            achievements.id = users_achievements_completed.id AND users_achievements_completed.username = $1\n        LEFT JOIN\n            users_achievements_favorites\n        ON\n            achievements.id = users_achievements_favorites.id AND users_achievements_favorites.username = $1\n        ORDER BY\n            achievement_series.priority DESC, series, priority DESC, id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "series",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "jades",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "hidden",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "comment",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "reference",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "difficulty",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "gacha",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "set",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "priority",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "video",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "impossible",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "percent",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 16,
+        "name": "series_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "completed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 18,
+        "name": "favorite",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "c07efd99d0100100ee2e75583c31a26e7e928f1233bff054da3349c11ec59fa8"
+}

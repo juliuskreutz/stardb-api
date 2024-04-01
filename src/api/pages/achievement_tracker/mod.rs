@@ -1,15 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::{Duration, Instant},
-};
+use std::collections::HashSet;
 
-use actix_web::{get, rt, web, HttpResponse, Responder};
-use anyhow::Result;
-use async_rwlock::RwLock;
-use indexmap::IndexMap;
+use actix_session::Session;
+use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
 use sqlx::PgPool;
-use strum::{EnumString, IntoEnumIterator};
+use strum::EnumString;
 use utoipa::OpenApi;
 
 use crate::{
@@ -27,11 +22,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_achievement_tracker);
-}
-
-#[derive(Default)]
-pub struct AchievementTrackerCache {
-    achievement_tracker_map: RwLock<HashMap<Language, AchievementTracker>>,
 }
 
 #[derive(Default, Serialize)]
@@ -54,6 +44,8 @@ struct Series {
 
 #[derive(Serialize)]
 struct AchievementGroup {
+    completed: Option<i64>,
+    favorite: Option<i64>,
     achievements: Vec<Achievement>,
 }
 
@@ -86,8 +78,8 @@ enum Difficulty {
     Hard,
 }
 
-impl From<database::DbAchievement> for Achievement {
-    fn from(db_achievement: database::DbAchievement) -> Self {
+impl From<database::DbAchievementTracker> for Achievement {
+    fn from(db_achievement: database::DbAchievementTracker) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
@@ -109,123 +101,6 @@ impl From<database::DbAchievement> for Achievement {
     }
 }
 
-pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
-    let achievement_tracker_cache = web::Data::new(AchievementTrackerCache::default());
-
-    {
-        let achievement_tracker_cache = achievement_tracker_cache.clone();
-
-        rt::spawn(async move {
-            let mut interval = rt::time::interval(Duration::from_secs(60));
-
-            loop {
-                interval.tick().await;
-
-                let start = Instant::now();
-
-                if let Err(e) = update(&achievement_tracker_cache, &pool).await {
-                    error!(
-                        "Achievement Tracker update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Achievement Tracker update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-            }
-        });
-    }
-
-    achievement_tracker_cache
-}
-
-async fn update(
-    achievement_tracker_cache: &web::Data<AchievementTrackerCache>,
-    pool: &PgPool,
-) -> Result<()> {
-    let mut achievement_tracker_map = HashMap::new();
-
-    for language in Language::iter() {
-        let mut db_achievements = database::get_achievements(&language.to_string(), pool).await?;
-
-        db_achievements.retain(|a| !(a.hidden && a.impossible));
-
-        let mut series: IndexMap<String, Vec<AchievementGroup>> = IndexMap::new();
-        let mut groupings: HashMap<i32, usize> = HashMap::new();
-        let mut versions: HashSet<String> = HashSet::new();
-
-        for db_achievement in db_achievements {
-            let achievement_groups = series
-                .entry(db_achievement.series_name.clone())
-                .or_default();
-
-            if let Some(version) = &db_achievement.version {
-                versions.insert(version.clone());
-            }
-
-            if let Some(set) = db_achievement.set {
-                if let Some(&i) = groupings.get(&set) {
-                    achievement_groups[i]
-                        .achievements
-                        .push(Achievement::from(db_achievement));
-                    continue;
-                }
-
-                groupings.insert(set, achievement_groups.len());
-            }
-
-            achievement_groups.push(AchievementGroup {
-                achievements: vec![Achievement::from(db_achievement)],
-            });
-        }
-
-        let series = series
-            .into_iter()
-            .map(|(series, achievement_groups)| Series {
-                series,
-                achievement_count: achievement_groups.len(),
-                jade_count: achievement_groups
-                    .iter()
-                    .map(|a| a.achievements[0].jades)
-                    .sum(),
-                achievement_groups,
-            })
-            .collect::<Vec<_>>();
-
-        let (achievement_count, jade_count) =
-            series.iter().fold((0, 0), |(a_count, j_count), ag| {
-                (
-                    a_count + ag.achievement_groups.len(),
-                    j_count + ag.jade_count,
-                )
-            });
-
-        let user_count = database::get_users_achievements_completed_user_count(pool).await?;
-        let mut versions: Vec<_> = versions.into_iter().collect();
-        versions.sort();
-
-        let achievement_tracker = AchievementTracker {
-            achievement_count,
-            jade_count,
-            user_count,
-            language,
-            versions,
-            series,
-        };
-
-        achievement_tracker_map.insert(language, achievement_tracker);
-    }
-
-    *achievement_tracker_cache
-        .achievement_tracker_map
-        .write()
-        .await = achievement_tracker_map;
-
-    Ok(())
-}
-
 #[utoipa::path(
     tag = "pages",
     get,
@@ -238,13 +113,100 @@ async fn update(
 )]
 #[get("/api/pages/achievement-tracker", guard = "private")]
 async fn get_achievement_tracker(
+    session: Session,
     language_params: web::Query<LanguageParams>,
-    achievement_tracker_cache: web::Data<AchievementTrackerCache>,
+    pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    Ok(HttpResponse::Ok().json(
-        &achievement_tracker_cache
-            .achievement_tracker_map
-            .read()
-            .await[&language_params.lang],
-    ))
+    let language = language_params.lang;
+
+    let username = if let Ok(Some(username)) = session.get::<String>("username") {
+        Some(username)
+    } else {
+        None
+    };
+
+    let achievements =
+        database::get_achievement_tracker(&username.unwrap(), &language.to_string(), &pool).await?;
+
+    let achievement_count = achievements.len();
+    let jade_count = achievements.iter().map(|a| a.jades).sum();
+
+    let mut versions = HashSet::new();
+    let mut series = Vec::new();
+
+    let mut current_series = None;
+    let mut current_set = None;
+
+    for achievement in achievements
+        .into_iter()
+        .filter(|a| !(a.hidden && a.impossible))
+    {
+        versions.insert(achievement.version.clone().unwrap_or_default());
+
+        if current_series != Some(achievement.series_name.clone()) {
+            current_series = Some(achievement.series_name.clone());
+
+            series.push(Series {
+                series: achievement.series_name.clone(),
+                achievement_count: 0,
+                jade_count: 0,
+                achievement_groups: Vec::new(),
+            });
+        }
+
+        if achievement
+            .set
+            .map(|set| current_set == Some(set))
+            .unwrap_or(false)
+        {
+            let group = series
+                .last_mut()
+                .unwrap()
+                .achievement_groups
+                .last_mut()
+                .unwrap();
+
+            if Some(true) == achievement.completed {
+                group.completed = Some(achievement.id);
+            }
+
+            if Some(true) == achievement.favorite {
+                group.favorite = Some(achievement.id);
+            }
+
+            group.achievements.push(achievement.into());
+        } else {
+            current_set = achievement.set;
+
+            series
+                .last_mut()
+                .unwrap()
+                .achievement_groups
+                .push(AchievementGroup {
+                    completed: None,
+                    favorite: None,
+                    achievements: vec![achievement.into()],
+                });
+        }
+    }
+
+    for series in series.iter_mut() {
+        series.achievement_count = series.achievement_groups.len();
+        series.jade_count = series
+            .achievement_groups
+            .iter()
+            .map(|group| group.achievements[0].jades)
+            .sum();
+    }
+
+    let achievement_tracker = AchievementTracker {
+        achievement_count,
+        jade_count,
+        user_count: database::get_users_achievements_completed_user_count(&pool).await?,
+        language,
+        versions: versions.into_iter().collect(),
+        series,
+    };
+
+    Ok(HttpResponse::Ok().json(achievement_tracker))
 }
