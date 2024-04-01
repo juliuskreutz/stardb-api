@@ -232,6 +232,21 @@ async fn import_warps(
                 .and_utc()
                 - timestamp_offset;
 
+            // FIXME: Temp
+            database::delete_warp_by_id_and_timestamp(
+                id,
+                timestamp + chrono::Duration::hours(6),
+                pool,
+            )
+            .await?;
+            database::delete_warp_by_id_and_timestamp(
+                id,
+                timestamp + chrono::Duration::hours(13),
+                pool,
+            )
+            .await?;
+            // FIXME: Temp
+
             if database::get_warp_by_id_and_timestamp(id, timestamp, "en", pool)
                 .await
                 .is_ok()

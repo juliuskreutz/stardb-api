@@ -40,6 +40,29 @@ pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn delete_warp_by_id_and_timestamp(
+    id: i64,
+    timestamp: DateTime<Utc>,
+    pool: &PgPool,
+) -> Result<()> {
+    sqlx::query!(
+        "
+        DELETE FROM
+            warps
+        WHERE
+            id = $1
+        AND
+            timestamp = $2
+        ",
+        id,
+        timestamp,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_warps_by_uid(uid: i64, language: &str, pool: &PgPool) -> Result<Vec<DbWarp>> {
     Ok(sqlx::query_as!(
         DbWarp,

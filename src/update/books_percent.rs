@@ -34,7 +34,7 @@ pub async fn books_percent(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    let total_count = database::get_users_books_user_count(pool).await? as f64;
+    let total_count = database::get_users_books_completed_user_count(pool).await? as f64;
 
     let books_users_count = database::get_books_users_count(pool).await?;
 

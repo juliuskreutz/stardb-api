@@ -60,9 +60,9 @@ async fn import(
 
     let import: Import = serde_json::from_reader(BufReader::new(&file.file.file))?;
 
-    database::delete_user_achievements(&username, &pool).await?;
+    database::delete_user_achievements_completed(&username, &pool).await?;
 
-    let mut complete = database::DbUserAchievement {
+    let mut complete = database::DbUserAchievementCompleted {
         username: username.clone(),
         id: 0,
     };
@@ -70,7 +70,7 @@ async fn import(
     for achievement in import.achievements {
         complete.id = achievement;
 
-        database::add_user_achievement(&complete, &pool).await?;
+        database::add_user_achievement_completed(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())

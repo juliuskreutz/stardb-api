@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(OpenApi)]
-#[openapi(paths(get_profile))]
+#[openapi(paths(get_profile, update_profile))]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -19,7 +19,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_profile);
+    cfg.service(get_profile).service(update_profile);
 }
 
 #[derive(Serialize)]

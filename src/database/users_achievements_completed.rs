@@ -1,13 +1,13 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-pub struct DbUserAchievement {
+pub struct DbUserAchievementCompleted {
     pub username: String,
     pub id: i64,
 }
 
-pub async fn add_user_achievement(
-    user_achievement: &DbUserAchievement,
+pub async fn add_user_achievement_completed(
+    user_achievement: &DbUserAchievementCompleted,
     pool: &PgPool,
 ) -> Result<()> {
     if sqlx::query!(
@@ -22,7 +22,7 @@ pub async fn add_user_achievement(
     }
 
     sqlx::query!(
-        "INSERT INTO users_achievements(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
+        "INSERT INTO users_achievements_completed(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
         user_achievement.username,
         user_achievement.id,
     )
@@ -39,7 +39,7 @@ pub async fn add_user_achievement(
     {
         for related in super::get_related(user_achievement.id, set, pool).await? {
             sqlx::query!(
-                "DELETE FROM users_achievements WHERE username = $1 AND id = $2",
+                "DELETE FROM users_achievements_completed WHERE username = $1 AND id = $2",
                 user_achievement.username,
                 related,
             )
@@ -51,12 +51,12 @@ pub async fn add_user_achievement(
     Ok(())
 }
 
-pub async fn delete_user_achievement(
-    user_achievement: &DbUserAchievement,
+pub async fn delete_user_achievement_completed(
+    user_achievement: &DbUserAchievementCompleted,
     pool: &PgPool,
 ) -> Result<()> {
     sqlx::query!(
-        "DELETE FROM users_achievements WHERE username = $1 AND id = $2",
+        "DELETE FROM users_achievements_completed WHERE username = $1 AND id = $2",
         user_achievement.username,
         user_achievement.id,
     )
@@ -66,9 +66,9 @@ pub async fn delete_user_achievement(
     Ok(())
 }
 
-pub async fn delete_user_achievements(username: &str, pool: &PgPool) -> Result<()> {
+pub async fn delete_user_achievements_completed(username: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!(
-        "DELETE FROM users_achievements WHERE username = $1",
+        "DELETE FROM users_achievements_completed WHERE username = $1",
         username,
     )
     .execute(pool)
@@ -77,22 +77,22 @@ pub async fn delete_user_achievements(username: &str, pool: &PgPool) -> Result<(
     Ok(())
 }
 
-pub async fn get_user_achievements_by_username(
+pub async fn get_user_achievements_completed_by_username(
     username: &str,
     pool: &PgPool,
-) -> Result<Vec<DbUserAchievement>> {
+) -> Result<Vec<DbUserAchievementCompleted>> {
     Ok(sqlx::query_as!(
-        DbUserAchievement,
-        "SELECT * FROM users_achievements WHERE username = $1",
+        DbUserAchievementCompleted,
+        "SELECT * FROM users_achievements_completed WHERE username = $1",
         username
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn get_users_achievements_user_count(pool: &PgPool) -> Result<i64> {
+pub async fn get_users_achievements_completed_user_count(pool: &PgPool) -> Result<i64> {
     Ok(
-        sqlx::query!("SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM users_achievements WHERE users.username = users_achievements.username)")
+        sqlx::query!("SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM users_achievements_completed WHERE users.username = users_achievements_completed.username)")
             .fetch_one(pool)
             .await?
             .count

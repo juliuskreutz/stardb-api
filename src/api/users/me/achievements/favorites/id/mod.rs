@@ -7,8 +7,8 @@ use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "users/me/books/{id}")),
-    paths(put_user_book, delete_user_book)
+    tags((name = "users/me/achievements/favorites/{id}")),
+    paths(put_user_achievement_favorites, delete_user_achievement_favorites)
 )]
 struct ApiDoc;
 
@@ -17,20 +17,21 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(put_user_book).service(delete_user_book);
+    cfg.service(put_user_achievement_favorites)
+        .service(delete_user_achievement_favorites);
 }
 
 #[utoipa::path(
-    tag = "users/me/books/{id}",
+    tag = "users/me/achievements/favorites/{id}",
     put,
-    path = "/api/users/me/books/{id}",
+    path = "/api/users/me/achievements/favorites/{id}",
     responses(
-        (status = 200, description = "Successful add of the book"),
+        (status = 200, description = "Successful add of the achievement"),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[put("/api/users/me/books/{id}")]
-async fn put_user_book(
+#[put("/api/users/me/achievements/favorites/{id}")]
+async fn put_user_achievement_favorites(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
@@ -40,29 +41,23 @@ async fn put_user_book(
     };
 
     let id = *id;
-
-    let forbidden = [4082301, 4070910, 4070915, 4020203, 4070904, 4070916];
-
-    if !forbidden.contains(&id) {
-        let db_complete = database::DbUserBook { username, id };
-
-        database::add_user_book(&db_complete, &pool).await?;
-    }
+    let favorite = database::DbUserAchievementFavorite { username, id };
+    database::add_user_achievement_favorite(&favorite, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
-    tag = "users/me/books/{id}",
+    tag = "users/me/achievements/favorites/{id}",
     delete,
-    path = "/api/users/me/books/{id}",
+    path = "/api/users/me/achievements/favorites/{id}",
     responses(
-        (status = 200, description = "Successful delete of the book"),
+        (status = 200, description = "Successful delete of the achievement"),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[delete("/api/users/me/books/{id}")]
-async fn delete_user_book(
+#[delete("/api/users/me/achievements/favorites/{id}")]
+async fn delete_user_achievement_favorites(
     session: Session,
     id: web::Path<i64>,
     pool: web::Data<PgPool>,
@@ -73,9 +68,9 @@ async fn delete_user_book(
 
     let id = *id;
 
-    let db_complete = database::DbUserBook { username, id };
+    let favorite = database::DbUserAchievementFavorite { username, id };
 
-    database::delete_user_book(&db_complete, &pool).await?;
+    database::delete_user_achievement_favorite(&favorite, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -202,7 +202,7 @@ async fn update(
                 )
             });
 
-        let user_count = database::get_users_achievements_user_count(pool).await?;
+        let user_count = database::get_users_achievements_completed_user_count(pool).await?;
         let mut versions: Vec<_> = versions.into_iter().collect();
         versions.sort();
 

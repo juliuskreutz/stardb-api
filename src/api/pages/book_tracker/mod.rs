@@ -159,7 +159,7 @@ async fn update(book_tracker_cache: &web::Data<BookTrackerCache>, pool: &PgPool)
             .collect::<Vec<_>>();
 
         let book_count = worlds.iter().map(|bw| bw.book_count).sum();
-        let user_count = database::get_users_books_user_count(pool).await?;
+        let user_count = database::get_users_books_completed_user_count(pool).await?;
 
         let book_tracker = BookTracker {
             book_count,

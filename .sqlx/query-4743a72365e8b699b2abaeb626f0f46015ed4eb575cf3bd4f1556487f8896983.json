@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id,\n            COUNT(*)\n        FROM\n            users_books_completed\n        JOIN\n            (SELECT username FROM users_books_completed GROUP BY username HAVING count(*) >= $1) counted_users\n        ON\n            users_books_completed.username = counted_users.username\n        GROUP BY\n            id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "4743a72365e8b699b2abaeb626f0f46015ed4eb575cf3bd4f1556487f8896983"
+}

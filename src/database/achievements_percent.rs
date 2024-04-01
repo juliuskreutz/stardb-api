@@ -14,14 +14,14 @@ pub async fn update_achievements_percent(pool: &PgPool) -> Result<()> {
         "
         WITH threshholded_users_achievements AS (
             SELECT
-                users_achievements.username,
+                users_achievements_completed.username,
                 id
             FROM
-                users_achievements
+                users_achievements_completed
             JOIN
-                (SELECT username FROM users_achievements GROUP BY username HAVING count(*) >= $1) threshholded_users
+                (SELECT username FROM users_achievements_completed GROUP BY username HAVING count(*) >= $1) threshholded_users
             ON
-                users_achievements.username = threshholded_users.username
+                users_achievements_completed.username = threshholded_users.username
         ), achievements_percent AS (
             SELECT
                 id,

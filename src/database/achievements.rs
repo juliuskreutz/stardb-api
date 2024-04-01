@@ -26,7 +26,7 @@ pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            users_achievements(username, id)
+            users_achievements_completed(username, id)
         SELECT
             $1, id
         FROM

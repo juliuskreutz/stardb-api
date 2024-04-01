@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO users_books(username, id) VALUES($1, $2)",
+  "query": "DELETE FROM users_books_completed WHERE username = $1 AND id = $2",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "b4675fad576f4b28dbb2dc11f17c4bf4ef561758a783650a4ae80296d20d5126"
+  "hash": "7b791da9c5126f7eb644c188cabd0abd0c7605da560f105bc1ad02e3edfdc7e8"
 }

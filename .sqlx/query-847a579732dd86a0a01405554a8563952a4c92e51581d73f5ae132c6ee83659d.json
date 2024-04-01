@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM users_achievements WHERE users.username = users_achievements.username)",
+  "query": "SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM users_achievements_completed WHERE users.username = users_achievements_completed.username)",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       null
     ]
   },
-  "hash": "92e0e91c95ec8539b05b3749e096702e4ba5976cdc1a19eb2af1a2da28c11ee4"
+  "hash": "847a579732dd86a0a01405554a8563952a4c92e51581d73f5ae132c6ee83659d"
 }

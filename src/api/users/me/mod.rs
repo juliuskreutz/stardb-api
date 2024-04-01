@@ -88,13 +88,13 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .map(|c| c.uid)
         .collect();
 
-    let books = database::get_user_books_by_username(&username, &pool)
+    let books = database::get_user_books_completed_by_username(&username, &pool)
         .await?
         .into_iter()
         .map(|b| b.id)
         .collect();
 
-    let achievements = database::get_user_achievements_by_username(&username, &pool)
+    let achievements = database::get_user_achievements_completed_by_username(&username, &pool)
         .await?
         .into_iter()
         .map(|b| b.id)
