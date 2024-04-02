@@ -126,7 +126,8 @@ async fn get_achievement_tracker(
     };
 
     let achievements =
-        database::get_achievement_tracker(&username.unwrap(), &language.to_string(), &pool).await?;
+        database::get_achievement_tracker(username.as_deref(), &language.to_string(), &pool)
+            .await?;
 
     let achievement_count = achievements.len();
     let jade_count = achievements.iter().map(|a| a.jades).sum();
@@ -199,12 +200,15 @@ async fn get_achievement_tracker(
             .sum();
     }
 
+    let mut versions = versions.into_iter().collect::<Vec<_>>();
+    versions.sort_unstable();
+
     let achievement_tracker = AchievementTracker {
         achievement_count,
         jade_count,
         user_count: database::get_users_achievements_completed_user_count(&pool).await?,
         language,
-        versions: versions.into_iter().collect(),
+        versions,
         series,
     };
 

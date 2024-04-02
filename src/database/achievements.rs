@@ -133,7 +133,7 @@ pub struct DbAchievementTracker {
 }
 
 pub async fn get_achievement_tracker(
-    username: &str,
+    username: Option<&str>,
     language: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbAchievementTracker>> {
