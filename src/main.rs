@@ -110,8 +110,8 @@ async fn main() -> anyhow::Result<()> {
     update::warps_stats(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
-    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
     //FIX: This is ugly as hell
+    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
     let book_tracker_cache_data = api::cache_book_tracker(pool.clone());
 
     let key = Key::from(&std::fs::read("session_key")?);
@@ -136,9 +136,10 @@ async fn main() -> anyhow::Result<()> {
             })
             .service(Files::new("/static", "static").show_files_listing())
             .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
+                SwaggerUi::new("/api/swagger-ui/{_:.*}")
+                    .url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(api::configure)
+            .configure(|sc| api::configure(sc, pool.clone()))
     })
     .bind(("localhost", 8000))?
     .run()

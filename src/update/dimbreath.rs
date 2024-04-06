@@ -182,8 +182,7 @@ async fn update(pool: &PgPool) -> Result<()> {
     if Command::new("git")
         .arg("pull")
         .current_dir("StarRailData")
-        .spawn()?
-        .wait()
+        .spawn()
         .is_err()
     {
         Command::new("git")

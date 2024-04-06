@@ -102,7 +102,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
+pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.configure(achievement_series::configure)
         .configure(achievements::configure)
         .configure(book_series::configure)
@@ -117,7 +117,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
-        .configure(pages::configure)
+        .configure(|sc| pages::configure(sc, pool))
         .configure(scores::configure)
         .configure(select_all::configure)
         .configure(sitemap::configure)

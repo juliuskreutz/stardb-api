@@ -41,8 +41,7 @@ async fn update() -> Result<()> {
     if Command::new("git")
         .arg("pull")
         .current_dir("static/StarRailRes")
-        .spawn()?
-        .wait()
+        .spawn()
         .is_err()
     {
         Command::new("git")
