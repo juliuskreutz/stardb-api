@@ -35,6 +35,7 @@ impl SessionStore for PgSessionStore {
             "username".to_string(),
             format!("\"{}\"", db_session.username),
         );
+
         Ok(Some(session_state))
     }
 
