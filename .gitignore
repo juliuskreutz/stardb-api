@@ -1,7 +1,6 @@
 /target/
 /mihomo/
 
-/Cargo.lock
 /.env
 /log.log
 /session_key
