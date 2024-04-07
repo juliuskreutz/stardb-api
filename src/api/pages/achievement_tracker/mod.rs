@@ -47,6 +47,7 @@ pub struct AchievementTrackerCache {
 #[derive(Clone, Serialize)]
 struct AchievementTracker {
     achievement_count: usize,
+    achievement_count_current: usize,
     jade_count: i32,
     jade_count_current: i32,
     user_count: i64,
@@ -59,6 +60,7 @@ struct AchievementTracker {
 struct Series {
     series: String,
     achievement_count: usize,
+    achievement_count_current: usize,
     jade_count: i32,
     jade_count_current: i32,
     achievement_groups: Vec<AchievementGroup>,
@@ -184,6 +186,7 @@ async fn update(
                 series.push(Series {
                     series: achievement.series_name.clone(),
                     achievement_count: 0,
+                    achievement_count_current: 0,
                     jade_count: 0,
                     jade_count_current: 0,
                     achievement_groups: Vec::new(),
@@ -224,6 +227,9 @@ async fn update(
             }
         }
 
+        let mut achievement_count = 0;
+        let mut jade_count = 0;
+
         for series in series.iter_mut() {
             series.achievement_count = series.achievement_groups.len();
             series.jade_count = series
@@ -231,10 +237,11 @@ async fn update(
                 .iter()
                 .map(|group| group.achievements[0].jades)
                 .sum();
+
+            achievement_count += series.achievement_count;
+            jade_count += series.jade_count;
         }
 
-        let achievement_count = series.iter().map(|s| s.achievement_count).sum();
-        let jade_count = series.iter().map(|s| s.jade_count).sum();
         let user_count = database::get_users_achievements_completed_user_count(pool).await?;
 
         let mut versions = versions.into_iter().collect::<Vec<_>>();
@@ -242,6 +249,7 @@ async fn update(
 
         let achievement_tracker = AchievementTracker {
             achievement_count,
+            achievement_count_current: 0,
             jade_count,
             jade_count_current: 0,
             user_count,
@@ -296,7 +304,11 @@ async fn get_achievement_tracker(
             .map(|c| c.id)
             .collect::<HashSet<_>>();
 
+        let mut achievement_count_current_total = 0;
+        let mut jade_count_current_total = 0;
+
         for series in achievement_tracker.series.iter_mut() {
+            let mut achievement_count_current = 0;
             let mut jade_count_current = 0;
 
             for group in series.achievement_groups.iter_mut() {
@@ -316,6 +328,8 @@ async fn get_achievement_tracker(
                 group.favorite = favorite;
 
                 if let Some(complete) = complete {
+                    achievement_count_current += 1;
+
                     jade_count_current += group
                         .achievements
                         .iter()
@@ -325,14 +339,15 @@ async fn get_achievement_tracker(
                 }
             }
 
+            series.achievement_count_current = achievement_count_current;
             series.jade_count_current = jade_count_current;
+
+            achievement_count_current_total += achievement_count_current;
+            jade_count_current_total += jade_count_current;
         }
 
-        achievement_tracker.jade_count_current = achievement_tracker
-            .series
-            .iter()
-            .map(|s| s.jade_count_current)
-            .sum();
+        achievement_tracker.achievement_count_current = achievement_count_current_total;
+        achievement_tracker.jade_count_current = jade_count_current_total;
     }
 
     Ok(HttpResponse::Ok().json(achievement_tracker))
