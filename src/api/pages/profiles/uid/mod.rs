@@ -60,8 +60,10 @@ struct Character {
 #[derive(Serialize)]
 struct LightCone {
     id: i32,
-    name: String,
     rarity: i32,
+    name: String,
+    path: String,
+    path_id: String,
     count: i64,
 }
 
@@ -84,8 +86,10 @@ impl From<database::DbLightConeCount> for LightCone {
     fn from(db_light_cone: database::DbLightConeCount) -> Self {
         LightCone {
             id: db_light_cone.id,
-            name: db_light_cone.name,
             rarity: db_light_cone.rarity,
+            name: db_light_cone.name,
+            path: db_light_cone.path,
+            path_id: db_light_cone.path_id,
             count: db_light_cone.count.unwrap_or_default(),
         }
     }

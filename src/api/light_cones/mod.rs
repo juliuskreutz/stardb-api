@@ -23,6 +23,8 @@ struct ApiDoc;
 struct LightCone {
     id: i32,
     name: String,
+    path: String,
+    path_id: String,
 }
 
 impl From<database::DbLightCone> for LightCone {
@@ -30,6 +32,8 @@ impl From<database::DbLightCone> for LightCone {
         Self {
             id: db_light_cone.id,
             name: db_light_cone.name,
+            path: db_light_cone.path,
+            path_id: db_light_cone.path_id,
         }
     }
 }

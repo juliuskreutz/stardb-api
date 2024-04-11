@@ -139,13 +139,15 @@ struct ItemConfig {
 }
 
 #[derive(Deserialize)]
-struct ItemConfigEquipment {
-    #[serde(rename = "ID")]
+struct EquipmentConfig {
+    #[serde(rename = "EquipmentID")]
     id: i32,
     #[serde(rename = "Rarity")]
     rarity: String,
-    #[serde(rename = "ItemName")]
+    #[serde(rename = "EquipmentName")]
     name: TextHash,
+    #[serde(rename = "AvatarBaseType")]
+    base_type: String,
 }
 
 #[derive(Deserialize)]
@@ -263,10 +265,9 @@ async fn update(pool: &PgPool) -> Result<()> {
         File::open("StarRailData/ExcelOutput/ItemConfigBook.json")?,
     ))?;
 
-    let item_config_equipment: HashMap<String, ItemConfigEquipment> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "StarRailData/ExcelOutput/ItemConfigEquipment.json",
-        )?))?;
+    let equipment_config: HashMap<String, EquipmentConfig> = serde_json::from_reader(
+        BufReader::new(File::open("StarRailData/ExcelOutput/EquipmentConfig.json")?),
+    )?;
 
     for achievement_series in achievement_series.values() {
         let id = achievement_series.id;
@@ -414,20 +415,22 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_book(&db_book, pool).await?;
     }
 
-    for item_config_equipment in item_config_equipment.values() {
+    for item_config_equipment in equipment_config.values() {
         let id = item_config_equipment.id;
 
         let rarity = match item_config_equipment.rarity.as_str() {
-            "Rare" => 3,
-            "VeryRare" => 4,
-            "SuperRare" => 5,
+            "CombatPowerLightconeRarity3" => 3,
+            "CombatPowerLightconeRarity4" => 4,
+            "CombatPowerLightconeRarity5" => 5,
             _ => unreachable!(),
         };
 
         let db_light_cone = database::DbLightCone {
             id,
-            name: String::new(),
             rarity,
+            name: String::new(),
+            path: String::new(),
+            path_id: String::new(),
         };
 
         database::set_light_cone(&db_light_cone, pool).await?;
@@ -671,11 +674,20 @@ async fn update(pool: &PgPool) -> Result<()> {
             database::set_book_text(&db_book_text, pool).await?;
         }
 
-        for item_config_equipment in item_config_equipment.values() {
-            let id = item_config_equipment.id;
+        for equipment_config in equipment_config.values() {
+            let id = equipment_config.id;
             let name = ruby_re
                 .replace_all(
-                    &text_map[&item_config_equipment.name.hash.to_string()],
+                    &text_map[&equipment_config.name.hash.to_string()],
+                    |_: &Captures| "",
+                )
+                .to_string();
+            let path = ruby_re
+                .replace_all(
+                    &text_map[&avatar_base_type[&equipment_config.base_type]
+                        .text
+                        .hash
+                        .to_string()],
                     |_: &Captures| "",
                 )
                 .to_string();
@@ -684,6 +696,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 id,
                 language: language.to_lowercase(),
                 name,
+                path,
             };
 
             database::set_light_cone_text(&db_light_cone_text, pool).await?;

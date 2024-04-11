@@ -285,6 +285,8 @@ pub struct DbLightConeCount {
     pub id: i32,
     pub rarity: i32,
     pub name: String,
+    pub path: String,
+    pub path_id: String,
     pub count: Option<i64>,
 }
 
@@ -300,6 +302,8 @@ pub async fn get_light_cones_count_by_uid(
             light_cones.id,
             light_cones.rarity,
             light_cones_text.name,
+            light_cones_text.path,
+            light_cones_text_en.path as path_id,
             COUNT(*)
         FROM
             warps
@@ -311,6 +315,10 @@ pub async fn get_light_cones_count_by_uid(
             light_cones_text
         ON
             light_cones_text.id = light_cone AND light_cones_text.language = $2
+        LEFT JOIN
+            light_cones_text AS light_cones_text_en
+        ON
+            light_cones_text_en.id = light_cone AND light_cones_text_en.language = 'en'
         WHERE
             uid = $1
         AND
@@ -318,7 +326,9 @@ pub async fn get_light_cones_count_by_uid(
         GROUP BY
             light_cones.id,
             light_cones.rarity,
-            light_cones_text.name
+            light_cones_text.name,
+            light_cones_text.path,
+            light_cones_text_en.path
         ORDER BY 
             rarity DESC, id DESC
         ",
