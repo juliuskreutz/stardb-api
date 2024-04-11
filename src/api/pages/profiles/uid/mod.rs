@@ -31,6 +31,64 @@ struct Profile {
     region: Region,
     updated_at: DateTime<Utc>,
     mihomo: Value,
+    collection: Collection,
+}
+
+#[derive(Serialize)]
+struct Collection {
+    total: i64,
+    departure: i64,
+    standard: i64,
+    special: i64,
+    lc: i64,
+    characters: Vec<Character>,
+    light_cones: Vec<LightCone>,
+}
+
+#[derive(Serialize)]
+struct Character {
+    id: i32,
+    rarity: i32,
+    name: String,
+    path: String,
+    element: String,
+    path_id: String,
+    element_id: String,
+    count: i64,
+}
+
+#[derive(Serialize)]
+struct LightCone {
+    id: i32,
+    name: String,
+    rarity: i32,
+    count: i64,
+}
+
+impl From<database::DbCharacterCount> for Character {
+    fn from(db_character: database::DbCharacterCount) -> Self {
+        Character {
+            id: db_character.id,
+            rarity: db_character.rarity,
+            name: db_character.name,
+            path: db_character.path,
+            element: db_character.element,
+            path_id: db_character.path_id,
+            element_id: db_character.element_id,
+            count: db_character.count.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<database::DbLightConeCount> for LightCone {
+    fn from(db_light_cone: database::DbLightConeCount) -> Self {
+        LightCone {
+            id: db_light_cone.id,
+            name: db_light_cone.name,
+            rarity: db_light_cone.rarity,
+            count: db_light_cone.count.unwrap_or_default(),
+        }
+    }
 }
 
 #[utoipa::path(
@@ -99,6 +157,30 @@ async fn get_profile_json(uid: i64, lang: Language, pool: &PgPool) -> ApiResult<
 
     let updated_at = score_achievement.updated_at;
 
+    let warps_count = database::get_warps_count_by_uid(uid, pool).await?;
+    let character_counts =
+        database::get_characters_count_by_uid(uid, &lang.to_string(), pool).await?;
+    let light_cones_counts =
+        database::get_light_cones_count_by_uid(uid, &lang.to_string(), pool).await?;
+
+    let total = warps_count.total.unwrap_or_default();
+    let departure = warps_count.departure.unwrap_or_default();
+    let standard = warps_count.standard.unwrap_or_default();
+    let special = warps_count.special.unwrap_or_default();
+    let lc = warps_count.lc.unwrap_or_default();
+    let characters = character_counts.into_iter().map(From::from).collect();
+    let light_cones = light_cones_counts.into_iter().map(From::from).collect();
+
+    let collection = Collection {
+        total,
+        departure,
+        standard,
+        special,
+        lc,
+        characters,
+        light_cones,
+    };
+
     let profile = Profile {
         rank_global,
         rank_regional,
@@ -107,6 +189,7 @@ async fn get_profile_json(uid: i64, lang: Language, pool: &PgPool) -> ApiResult<
         updated_at,
         region,
         mihomo,
+        collection,
     };
 
     Ok(profile)

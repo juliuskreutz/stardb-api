@@ -14,10 +14,6 @@ pub struct DbWarp {
 }
 
 pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
-    // select * from (select rank() over(order by count desc), uid, count from (select uid, count(*) from warps group by uid)) where uid = 600094035;
-    // select avg(count) from (select count(*) from warps group by uid);
-    // with warps_rarity as (select warps.*, coalesce(characters.rarity, light_cones.rarity) as rarity from warps left join characters on characters.id = character left join light_cones on light_cones.id = light_cone where uid = 600094035 and gacha_type = 'departure' order by id) select * from warps_rarity;
-
     sqlx::query!(
         "
         INSERT INTO
@@ -188,5 +184,147 @@ pub async fn get_warp_by_id_and_timestamp(
         language,
     )
     .fetch_one(pool)
+    .await?)
+}
+
+pub struct DbWarpsCount {
+    pub total: Option<i64>,
+    pub departure: Option<i64>,
+    pub standard: Option<i64>,
+    pub special: Option<i64>,
+    pub lc: Option<i64>,
+}
+
+pub async fn get_warps_count_by_uid(uid: i64, pool: &PgPool) -> Result<DbWarpsCount> {
+    // FIXME: Use groupby
+    Ok(sqlx::query_as!(
+        DbWarpsCount,
+        "
+        SELECT
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE gacha_type = 'departure') AS departure,
+            COUNT(*) FILTER (WHERE gacha_type = 'standard') AS standard,
+            COUNT(*) FILTER (WHERE gacha_type = 'special') AS special,
+            COUNT(*) FILTER (WHERE gacha_type = 'lc') AS lc
+        FROM
+            warps
+        WHERE
+            uid = $1
+        ",
+        uid,
+    )
+    .fetch_one(pool)
+    .await?)
+}
+
+pub struct DbCharacterCount {
+    pub id: i32,
+    pub rarity: i32,
+    pub name: String,
+    pub path: String,
+    pub element: String,
+    pub path_id: String,
+    pub element_id: String,
+    pub count: Option<i64>,
+}
+
+pub async fn get_characters_count_by_uid(
+    uid: i64,
+    language: &str,
+    pool: &PgPool,
+) -> Result<Vec<DbCharacterCount>> {
+    Ok(sqlx::query_as!(
+        DbCharacterCount,
+        "
+        SELECT
+            characters.id,
+            characters.rarity,
+            characters_text.name,
+            characters_text.path,
+            characters_text.element,
+            characters_text_en.path path_id,
+            characters_text_en.element element_id,
+            COUNT(*)
+        FROM
+            warps
+        LEFT JOIN
+            characters
+        ON
+            characters.id = character
+        LEFT JOIN
+            characters_text
+        ON
+            characters_text.id = character AND characters_text.language = $2
+        LEFT JOIN
+            characters_text AS characters_text_en
+        ON
+            characters_text_en.id = character AND characters_text_en.language = 'en'
+        WHERE
+            uid = $1
+        AND
+            character IS NOT NULL
+        GROUP BY
+            characters.id,
+            characters.rarity,
+            characters_text.name,
+            characters_text.path,
+            characters_text.element,
+            characters_text_en.path,
+            characters_text_en.element
+        ORDER BY 
+            rarity, id
+        ",
+        uid,
+        language,
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
+pub struct DbLightConeCount {
+    pub id: i32,
+    pub rarity: i32,
+    pub name: String,
+    pub count: Option<i64>,
+}
+
+pub async fn get_light_cones_count_by_uid(
+    uid: i64,
+    language: &str,
+    pool: &PgPool,
+) -> Result<Vec<DbLightConeCount>> {
+    Ok(sqlx::query_as!(
+        DbLightConeCount,
+        "
+        SELECT
+            light_cones.id,
+            light_cones.rarity,
+            light_cones_text.name,
+            COUNT(*)
+        FROM
+            warps
+        LEFT JOIN
+            light_cones
+        ON
+            light_cones.id = light_cone
+        LEFT JOIN
+            light_cones_text
+        ON
+            light_cones_text.id = character AND light_cones_text.language = $2
+        WHERE
+            uid = $1
+        AND
+            light_cones IS NOT NULL
+        GROUP BY
+            light_cones.id,
+            light_cones.rarity,
+            light_cones_text.name
+        ORDER BY 
+            rarity, id
+        ",
+        uid,
+        language,
+    )
+    .fetch_all(pool)
     .await?)
 }
