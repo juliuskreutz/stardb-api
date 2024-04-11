@@ -272,7 +272,7 @@ pub async fn get_characters_count_by_uid(
             characters_text_en.path,
             characters_text_en.element
         ORDER BY 
-            rarity, id
+            rarity DESC, id DESC
         ",
         uid,
         language,
@@ -320,7 +320,7 @@ pub async fn get_light_cones_count_by_uid(
             light_cones.rarity,
             light_cones_text.name
         ORDER BY 
-            rarity, id
+            rarity DESC, id DESC
         ",
         uid,
         language,

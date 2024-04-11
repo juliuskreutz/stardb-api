@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            light_cones.id,\n            light_cones.rarity,\n            light_cones_text.name,\n            COUNT(*)\n        FROM\n            warps\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $2\n        WHERE\n            uid = $1\n        AND\n            light_cone IS NOT NULL\n        GROUP BY\n            light_cones.id,\n            light_cones.rarity,\n            light_cones_text.name\n        ORDER BY \n            rarity DESC, id DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "e67fc689716475c94132a99f763fdbd73e0d39f181e75b7b6edeb4ba1bc7c79f"
+}
