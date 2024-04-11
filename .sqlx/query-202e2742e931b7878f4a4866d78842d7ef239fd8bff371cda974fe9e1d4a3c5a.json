@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            light_cones_text(id, language, name, path)\n        VALUES\n            ($1, $2, $3, $4)\n        ON CONFLICT\n            (id, language)\n        DO UPDATE SET\n            name = EXCLUDED.name,\n            path = EXCLUDED.path\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "202e2742e931b7878f4a4866d78842d7ef239fd8bff371cda974fe9e1d4a3c5a"
+}

@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            light_cones.id,\n            light_cones.rarity,\n            light_cones_text.name,\n            light_cones_text.path,\n            light_cones_text_en.path as path_id,\n            COUNT(*)\n        FROM\n            warps\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $2\n        LEFT JOIN\n            light_cones_text AS light_cones_text_en\n        ON\n            light_cones_text_en.id = light_cone AND light_cones_text_en.language = 'en'\n        WHERE\n            uid = $1\n        AND\n            light_cone IS NOT NULL\n        GROUP BY\n            light_cones.id,\n            light_cones.rarity,\n            light_cones_text.name,\n            light_cones_text.path,\n            light_cones_text_en.path\n        ORDER BY \n            rarity DESC, id DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "path_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "3c4350259a87c798278c262ae9aab319057850b8a42f2b9cd641f60b45f15f88"
+}
