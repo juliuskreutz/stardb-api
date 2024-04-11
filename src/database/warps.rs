@@ -314,7 +314,7 @@ pub async fn get_light_cones_count_by_uid(
         WHERE
             uid = $1
         AND
-            light_cones IS NOT NULL
+            light_cone IS NOT NULL
         GROUP BY
             light_cones.id,
             light_cones.rarity,
