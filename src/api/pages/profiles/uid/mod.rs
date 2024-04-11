@@ -161,18 +161,31 @@ async fn get_profile_json(uid: i64, lang: Language, pool: &PgPool) -> ApiResult<
 
     let updated_at = score_achievement.updated_at;
 
-    let warps_count = database::get_warps_count_by_uid(uid, pool).await?;
+    let warps_count = database::get_warp_counts_by_uid(uid, pool).await?;
     let character_counts =
         database::get_characters_count_by_uid(uid, &lang.to_string(), pool).await?;
     let light_cones_counts =
         database::get_light_cones_count_by_uid(uid, &lang.to_string(), pool).await?;
 
-    let total = warps_count.total.unwrap_or_default();
-    let departure = warps_count.departure.unwrap_or_default();
-    let standard = warps_count.standard.unwrap_or_default();
-    let special = warps_count.special.unwrap_or_default();
-    let lc = warps_count.lc.unwrap_or_default();
+    let mut total = 0;
+    let mut departure = 0;
+    let mut standard = 0;
+    let mut special = 0;
+    let mut lc = 0;
+    for wc in &warps_count {
+        let count = wc.count.unwrap_or_default();
+        total += count;
+        match wc.gacha_type.as_str() {
+            "departure" => departure = count,
+            "standard" => standard = count,
+            "special" => special = count,
+            "lc" => lc = count,
+            _ => {}
+        }
+    }
+
     let characters = character_counts.into_iter().map(From::from).collect();
+
     let light_cones = light_cones_counts.into_iter().map(From::from).collect();
 
     let collection = Collection {

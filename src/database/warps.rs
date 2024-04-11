@@ -187,33 +187,28 @@ pub async fn get_warp_by_id_and_timestamp(
     .await?)
 }
 
-pub struct DbWarpsCount {
-    pub total: Option<i64>,
-    pub departure: Option<i64>,
-    pub standard: Option<i64>,
-    pub special: Option<i64>,
-    pub lc: Option<i64>,
+pub struct DbWarpCount {
+    pub gacha_type: String,
+    pub count: Option<i64>,
 }
 
-pub async fn get_warps_count_by_uid(uid: i64, pool: &PgPool) -> Result<DbWarpsCount> {
-    // FIXME: Use groupby
+pub async fn get_warp_counts_by_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbWarpCount>> {
     Ok(sqlx::query_as!(
-        DbWarpsCount,
+        DbWarpCount,
         "
         SELECT
-            COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE gacha_type = 'departure') AS departure,
-            COUNT(*) FILTER (WHERE gacha_type = 'standard') AS standard,
-            COUNT(*) FILTER (WHERE gacha_type = 'special') AS special,
-            COUNT(*) FILTER (WHERE gacha_type = 'lc') AS lc
+            gacha_type, 
+            count(*)
         FROM
             warps
         WHERE
             uid = $1
+        GROUP BY
+            gacha_type
         ",
         uid,
     )
-    .fetch_one(pool)
+    .fetch_all(pool)
     .await?)
 }
 
