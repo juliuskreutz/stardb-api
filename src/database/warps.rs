@@ -310,7 +310,7 @@ pub async fn get_light_cones_count_by_uid(
         LEFT JOIN
             light_cones_text
         ON
-            light_cones_text.id = character AND light_cones_text.language = $2
+            light_cones_text.id = light_cone AND light_cones_text.language = $2
         WHERE
             uid = $1
         AND
