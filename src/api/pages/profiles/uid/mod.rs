@@ -107,7 +107,7 @@ impl From<database::DbLightConeCount> for LightCone {
 )]
 #[get("/api/pages/profiles/{uid}", guard = "private")]
 async fn get_profile(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -128,7 +128,7 @@ async fn get_profile(
 )]
 #[put("/api/pages/profiles/{uid}", guard = "private")]
 async fn update_profile(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -142,7 +142,7 @@ async fn update_profile(
     Ok(HttpResponse::Ok().json(profile))
 }
 
-async fn get_profile_json(uid: i64, lang: Language, pool: &PgPool) -> ApiResult<Profile> {
+async fn get_profile_json(uid: i32, lang: Language, pool: &PgPool) -> ApiResult<Profile> {
     let mihomo = mihomo::get_whole(uid, lang).await?;
 
     let score_achievement = database::get_score_achievement_by_uid(uid, pool).await?;

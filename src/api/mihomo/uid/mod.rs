@@ -35,7 +35,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/mihomo/{uid}")]
 async fn get_mihomo(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
 ) -> ApiResult<impl Responder> {
     let json = mihomo::get_whole(*uid, language_params.lang).await?;
@@ -54,7 +54,7 @@ async fn get_mihomo(
 )]
 #[put("/api/mihomo/{uid}")]
 async fn put_mihomo(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {

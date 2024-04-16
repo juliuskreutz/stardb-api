@@ -52,9 +52,9 @@ pub struct User {
     username: String,
     admin: bool,
     email: Option<String>,
-    uids: Vec<i64>,
-    achievements: Vec<i64>,
-    books: Vec<i64>,
+    uids: Vec<i32>,
+    achievements: Vec<i32>,
+    books: Vec<i32>,
 }
 
 #[utoipa::path(
@@ -78,7 +78,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .await
         .is_ok();
 
-    let user = database::users::get_by_username(&username, &pool).await?;
+    let user = database::users::get_one_by_username(&username, &pool).await?;
 
     let email = user.email;
 

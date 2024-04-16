@@ -53,7 +53,7 @@ async fn request_token(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    let Ok(user) = database::users::get_by_username(&username, &pool).await else {
+    let Ok(user) = database::users::get_one_by_username(&username, &pool).await else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 

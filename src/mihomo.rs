@@ -34,7 +34,7 @@ pub struct SpaceInfo {
     pub achievement_count: i32,
 }
 
-pub async fn get_whole(uid: i64, language: Language) -> Result<Value> {
+pub async fn get_whole(uid: i32, language: Language) -> Result<Value> {
     let path = format!("mihomo/{language}_{uid}.json");
 
     if PathBuf::from(&path).exists() {
@@ -44,13 +44,13 @@ pub async fn get_whole(uid: i64, language: Language) -> Result<Value> {
     }
 }
 
-pub async fn update_and_get(uid: i64, language: Language) -> Result<Mihomo> {
+pub async fn update_and_get(uid: i32, language: Language) -> Result<Mihomo> {
     Ok(serde_json::from_value(
         update_and_get_whole(uid, language).await?,
     )?)
 }
 
-pub async fn update_and_get_whole(uid: i64, language: Language) -> Result<Value> {
+pub async fn update_and_get_whole(uid: i32, language: Language) -> Result<Value> {
     let url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang={language}&version=v2");
 
     let mut json: Value = reqwest::get(&url).await?.json().await?;

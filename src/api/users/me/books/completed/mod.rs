@@ -66,7 +66,7 @@ async fn get_user_books_completed(
 #[put("/api/users/me/books/completed")]
 async fn put_user_books_completed(
     session: Session,
-    ids: web::Json<Vec<i64>>,
+    ids: web::Json<Vec<i32>>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

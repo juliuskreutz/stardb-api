@@ -28,7 +28,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/warps-import/{uid}")]
 async fn get_warps_import(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     warps_import_infos: web::Data<WarpsImportInfos>,
 ) -> ApiResult<impl Responder> {
     let Some(info) = warps_import_infos.lock().await.get(&*uid).cloned() else {

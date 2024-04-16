@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 
 pub struct DbBookPercent {
-    pub id: i64,
+    pub id: i32,
     pub percent: f64,
 }
 

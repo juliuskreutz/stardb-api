@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 pub struct DbUserBookFavorite {
     pub username: String,
-    pub id: i64,
+    pub id: i32,
 }
 
 pub async fn add_user_book_favorite(user_book: &DbUserBookFavorite, pool: &PgPool) -> Result<()> {

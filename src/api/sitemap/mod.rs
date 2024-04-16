@@ -64,6 +64,8 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/warp-tracker",
     "https://stardb.gg/%LANG%/profile-card-generator",
     "https://stardb.gg/%LANG%/privacy-policy",
+    "https://stardb.gg/%LANG%/zzz/achievement-tracker",
+    "https://stardb.gg/%LANG%/zzz/warp-tracker",
 ];
 
 #[derive(Serialize)]
@@ -104,7 +106,7 @@ struct Link {
 )]
 #[get("/api/sitemap")]
 async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let lastmod = "2024-01-05";
+    let lastmod = "2024-04-16";
 
     let mut urls = Vec::new();
 

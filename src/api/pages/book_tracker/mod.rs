@@ -58,7 +58,7 @@ struct Series {
 
 #[derive(Serialize)]
 struct Book {
-    id: i64,
+    id: i32,
     series: i32,
     series_name: String,
     series_world: i32,

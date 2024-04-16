@@ -37,7 +37,7 @@ struct Index {
 
 #[derive(Serialize, ToSchema)]
 struct CharacterEntry {
-    id: i64,
+    id: i32,
     name: String,
     skills: Vec<SkillEntry>,
 }
@@ -87,7 +87,7 @@ async fn get_index(
         }
 
         character_entries.push(CharacterEntry {
-            id: character.id as i64,
+            id: character.id,
             name: character.name,
             skills: skill_entries,
         });

@@ -32,7 +32,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/users/me/uids/{uid}")]
 async fn put_user_uid(
     session: Session,
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -61,7 +61,7 @@ async fn put_user_uid(
 #[delete("/api/users/me/uids/{uid}")]
 async fn delete_user_uid(
     session: Session,
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

@@ -33,7 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/scores/achievements/{uid}")]
 async fn get_score_achievement(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
@@ -53,7 +53,7 @@ async fn get_score_achievement(
 )]
 #[put("/api/scores/achievements/{uid}")]
 async fn put_score_achievement(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     reqwest::Client::new()

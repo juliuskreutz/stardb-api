@@ -38,7 +38,7 @@ struct Achievement {
     #[serde(rename = "Ver")]
     version: String,
     #[serde(rename = "Key")]
-    key: i64,
+    key: i32,
     #[serde(rename = "Meow Comments")]
     comment: Option<String>,
     #[serde(rename = "Pop Cultural References")]

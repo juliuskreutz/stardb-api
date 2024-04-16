@@ -17,7 +17,7 @@ use crate::database;
 #[derive(Deserialize)]
 struct AchievementData {
     #[serde(rename = "AchievementID")]
-    id: i64,
+    id: i32,
     #[serde(rename = "SeriesID")]
     series: i32,
     #[serde(rename = "AchievementTitle")]
@@ -105,7 +105,7 @@ struct DamageType {
 #[derive(Deserialize)]
 struct LocalbookConfig {
     #[serde(rename = "BookID")]
-    id: i64,
+    id: i32,
     #[serde(rename = "BookSeriesID")]
     series: i32,
     #[serde(rename = "BookSeriesInsideID")]

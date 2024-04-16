@@ -5,7 +5,7 @@ const THRESHOLD: i64 = 50;
 
 pub struct DbUserBookCompleted {
     pub username: String,
-    pub id: i64,
+    pub id: i32,
 }
 
 pub async fn add_user_book_completed(user_book: &DbUserBookCompleted, pool: &PgPool) -> Result<()> {
@@ -59,7 +59,7 @@ pub async fn get_users_books_completed_user_count(pool: &PgPool) -> Result<i64> 
 }
 
 pub struct DbBookUsersCount {
-    pub id: i64,
+    pub id: i32,
     pub count: Option<i64>,
 }
 

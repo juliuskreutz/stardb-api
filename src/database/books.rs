@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct DbBook {
-    pub id: i64,
+    pub id: i32,
     pub series: i32,
     pub series_name: String,
     pub series_world: i32,
@@ -84,7 +84,7 @@ pub async fn get_books(language: &str, pool: &PgPool) -> Result<Vec<DbBook>> {
     .await?)
 }
 
-pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<DbBook> {
+pub async fn get_book_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbBook> {
     Ok(sqlx::query_as!(
         DbBook,
         "
@@ -127,7 +127,7 @@ pub async fn get_book_by_id(id: i64, language: &str, pool: &PgPool) -> Result<Db
     .await?)
 }
 
-pub async fn get_books_id(pool: &PgPool) -> Result<Vec<i64>> {
+pub async fn get_books_id(pool: &PgPool) -> Result<Vec<i32>> {
     Ok(sqlx::query!(
         "
         SELECT
@@ -143,7 +143,7 @@ pub async fn get_books_id(pool: &PgPool) -> Result<Vec<i64>> {
     .collect())
 }
 
-pub async fn update_book_comment(id: i64, comment: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_book_comment(id: i32, comment: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET comment = $2 WHERE id = $1", id, comment,)
         .execute(pool)
         .await?;
@@ -151,7 +151,7 @@ pub async fn update_book_comment(id: i64, comment: &str, pool: &PgPool) -> Resul
     Ok(())
 }
 
-pub async fn update_book_image1(id: i64, image1: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_book_image1(id: i32, image1: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET image1 = $2 WHERE id = $1", id, image1,)
         .execute(pool)
         .await?;
@@ -159,7 +159,7 @@ pub async fn update_book_image1(id: i64, image1: &str, pool: &PgPool) -> Result<
     Ok(())
 }
 
-pub async fn update_book_image2(id: i64, image2: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_book_image2(id: i32, image2: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET image2 = $2 WHERE id = $1", id, image2,)
         .execute(pool)
         .await?;
@@ -167,7 +167,7 @@ pub async fn update_book_image2(id: i64, image2: &str, pool: &PgPool) -> Result<
     Ok(())
 }
 
-pub async fn delete_book_comment(id: i64, pool: &PgPool) -> Result<()> {
+pub async fn delete_book_comment(id: i32, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET comment = NULL WHERE id = $1", id)
         .execute(pool)
         .await?;
@@ -175,7 +175,7 @@ pub async fn delete_book_comment(id: i64, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn delete_book_image1(id: i64, pool: &PgPool) -> Result<()> {
+pub async fn delete_book_image1(id: i32, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET image1 = NULL WHERE id = $1", id)
         .execute(pool)
         .await?;
@@ -183,7 +183,7 @@ pub async fn delete_book_image1(id: i64, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn delete_book_image2(id: i64, pool: &PgPool) -> Result<()> {
+pub async fn delete_book_image2(id: i32, pool: &PgPool) -> Result<()> {
     sqlx::query!("UPDATE books SET image2 = NULL WHERE id = $1", id)
         .execute(pool)
         .await?;

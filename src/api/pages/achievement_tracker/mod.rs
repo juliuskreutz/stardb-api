@@ -68,14 +68,14 @@ struct Series {
 
 #[derive(Clone, Serialize)]
 struct AchievementGroup {
-    complete: Option<i64>,
-    favorite: Option<i64>,
+    complete: Option<i32>,
+    favorite: Option<i32>,
     achievements: Vec<Achievement>,
 }
 
 #[derive(Clone, Serialize)]
 struct Achievement {
-    id: i64,
+    id: i32,
     series: i32,
     series_name: String,
     series_index: usize,

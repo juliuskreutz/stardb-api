@@ -35,7 +35,7 @@ struct File {
 
 #[derive(Deserialize)]
 struct Import {
-    achievements: Vec<i64>,
+    achievements: Vec<i32>,
 }
 
 #[utoipa::path(

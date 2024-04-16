@@ -16,7 +16,7 @@
       {
         "ordinal": 2,
         "name": "uid",
-        "type_info": "Int8"
+        "type_info": "Int4"
       },
       {
         "ordinal": 3,

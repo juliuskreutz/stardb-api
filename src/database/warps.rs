@@ -4,7 +4,7 @@ use sqlx::PgPool;
 
 pub struct DbWarp {
     pub id: i64,
-    pub uid: i64,
+    pub uid: i32,
     pub gacha_type: String,
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
@@ -59,7 +59,7 @@ pub async fn delete_warp_by_id_and_timestamp(
     Ok(())
 }
 
-pub async fn get_warps_by_uid(uid: i64, language: &str, pool: &PgPool) -> Result<Vec<DbWarp>> {
+pub async fn get_warps_by_uid(uid: i32, language: &str, pool: &PgPool) -> Result<Vec<DbWarp>> {
     Ok(sqlx::query_as!(
         DbWarp,
         "
@@ -98,7 +98,7 @@ pub async fn get_warps_by_uid(uid: i64, language: &str, pool: &PgPool) -> Result
 }
 
 pub async fn get_warps_by_uid_and_gacha_type(
-    uid: i64,
+    uid: i32,
     gacha_type: &str,
     language: &str,
     pool: &PgPool,
@@ -192,7 +192,7 @@ pub struct DbWarpCount {
     pub count: Option<i64>,
 }
 
-pub async fn get_warp_counts_by_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbWarpCount>> {
+pub async fn get_warp_counts_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbWarpCount>> {
     Ok(sqlx::query_as!(
         DbWarpCount,
         "
@@ -224,7 +224,7 @@ pub struct DbCharacterCount {
 }
 
 pub async fn get_characters_count_by_uid(
-    uid: i64,
+    uid: i32,
     language: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbCharacterCount>> {
@@ -286,7 +286,7 @@ pub struct DbLightConeCount {
 }
 
 pub async fn get_light_cones_count_by_uid(
-    uid: i64,
+    uid: i32,
     language: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbLightConeCount>> {

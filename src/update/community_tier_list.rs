@@ -76,7 +76,7 @@ async fn update(pool: &PgPool) -> Result<()> {
         .effective_value
         .number_value as i32;
 
-    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I46")).await?.json().await?;
+    let spreadsheet: Spreadsheet = reqwest::get(format!("https://sheets.googleapis.com/v4/spreadsheets/1Ghi-Ryxr0AaKo2CA4xdCOkTh7gOE5dzheNSGEK2n2ZM?key={key}&includeGridData=true&ranges=Stats!B2:I48")).await?.json().await?;
 
     for row_data in &spreadsheet.sheets[0].data[0].row_data {
         let character = row_data.values[0].effective_value.number_value as i32;

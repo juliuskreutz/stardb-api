@@ -6,7 +6,7 @@ use sqlx::PgPool;
 pub struct DbScoreAchievement {
     pub global_rank: Option<i64>,
     pub regional_rank: Option<i64>,
-    pub uid: i64,
+    pub uid: i32,
     pub region: String,
     pub name: String,
     pub level: i32,
@@ -101,7 +101,7 @@ pub async fn count_scores_achievement(
     .unwrap())
 }
 
-pub async fn get_score_achievement_by_uid(uid: i64, pool: &PgPool) -> Result<DbScoreAchievement> {
+pub async fn get_score_achievement_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievement> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "

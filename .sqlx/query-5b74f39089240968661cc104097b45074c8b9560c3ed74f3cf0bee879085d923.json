@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    users\nSET\n    email = NULL\nWHERE\n    username = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b74f39089240968661cc104097b45074c8b9560c3ed74f3cf0bee879085d923"
+}

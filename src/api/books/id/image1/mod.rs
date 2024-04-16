@@ -41,7 +41,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/books/{id}/image1")]
 async fn put_book_image1(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     image1_update: web::Json<Image1Update>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -74,7 +74,7 @@ async fn put_book_image1(
 #[delete("/api/books/{id}/image1")]
 async fn delete_book_image1(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

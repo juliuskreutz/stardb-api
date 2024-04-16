@@ -67,7 +67,7 @@ struct Entry {
     time: String,
 }
 
-type WarpsImportInfos = Mutex<HashMap<i64, Arc<Mutex<WarpsImportInfo>>>>;
+type WarpsImportInfos = Mutex<HashMap<i32, Arc<Mutex<WarpsImportInfo>>>>;
 
 #[derive(Serialize, ToSchema, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -94,7 +94,7 @@ struct WarpsImportParams {
 
 #[derive(Serialize, ToSchema)]
 struct WarpsImport {
-    uid: i64,
+    uid: i32,
 }
 
 #[utoipa::path(

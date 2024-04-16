@@ -209,7 +209,7 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
 }
 
 pub struct DbWarpsStatsUidGachaType {
-    pub uid: i64,
+    pub uid: i32,
     pub gacha_type: String,
     pub count: i64,
     pub avg: f64,
@@ -222,7 +222,7 @@ pub struct DbWarpsStatsUidGachaType {
 }
 
 pub async fn get_warps_stats_4_by_uid(
-    uid: i64,
+    uid: i32,
     pool: &PgPool,
 ) -> Result<Vec<DbWarpsStatsUidGachaType>> {
     let warps_stats = sqlx::query_as!(
@@ -252,7 +252,7 @@ pub async fn get_warps_stats_4_by_uid(
 }
 
 pub async fn get_warps_stats_5_by_uid(
-    uid: i64,
+    uid: i32,
     pool: &PgPool,
 ) -> Result<Vec<DbWarpsStatsUidGachaType>> {
     let warps_stats = sqlx::query_as!(
@@ -282,12 +282,12 @@ pub async fn get_warps_stats_5_by_uid(
 }
 
 pub struct DbWarpsStatsUid {
-    pub uid: i64,
+    pub uid: i32,
     pub sum: Option<i64>,
     pub rank: Option<i64>,
 }
 
-pub async fn get_warps_stats_by_uid(uid: i64, pool: &PgPool) -> Result<DbWarpsStatsUid> {
+pub async fn get_warps_stats_by_uid(uid: i32, pool: &PgPool) -> Result<DbWarpsStatsUid> {
     let warps_stats = sqlx::query_as!(
         DbWarpsStatsUid,
         "

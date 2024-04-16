@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 pub struct DbUserAchievementCompleted {
     pub username: String,
-    pub id: i64,
+    pub id: i32,
 }
 
 pub async fn add_user_achievement_completed(

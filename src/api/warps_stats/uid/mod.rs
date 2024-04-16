@@ -64,7 +64,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/warps-stats/{uid}")]
 async fn get_warps_stats(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let warps_stats_gacha_type_4 = database::get_warps_stats_4_by_uid(*uid, &pool).await?;

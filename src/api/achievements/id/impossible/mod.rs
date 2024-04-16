@@ -34,7 +34,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/impossible")]
 async fn put_achievement_impossible(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -66,7 +66,7 @@ async fn put_achievement_impossible(
 #[delete("/api/achievements/{id}/impossible")]
 async fn delete_achievement_impossible(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

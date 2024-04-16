@@ -42,7 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/version")]
 async fn put_achievement_version(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     version_update: web::Json<VersionUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -75,7 +75,7 @@ async fn put_achievement_version(
 #[delete("/api/achievements/{id}/version")]
 async fn delete_achievement_version(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

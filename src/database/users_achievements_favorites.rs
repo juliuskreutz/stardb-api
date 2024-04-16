@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 pub struct DbUserAchievementFavorite {
     pub username: String,
-    pub id: i64,
+    pub id: i32,
 }
 
 pub async fn add_user_achievement_favorite(

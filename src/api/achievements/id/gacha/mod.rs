@@ -34,7 +34,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/gacha")]
 async fn put_achievement_gacha(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -66,7 +66,7 @@ async fn put_achievement_gacha(
 #[delete("/api/achievements/{id}/gacha")]
 async fn delete_achievement_gacha(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

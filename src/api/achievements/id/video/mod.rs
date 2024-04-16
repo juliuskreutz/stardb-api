@@ -42,7 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/video")]
 async fn put_achievement_video(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     video_update: web::Json<VideoUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -75,7 +75,7 @@ async fn put_achievement_video(
 #[delete("/api/achievements/{id}/video")]
 async fn delete_achievement_video(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

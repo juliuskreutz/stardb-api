@@ -90,8 +90,8 @@ async fn import_books(
         .filter(|(_, data)| data[7] != Data::Empty)
     {
         let ids = match &row[7] {
-            &Data::Int(id) => vec![id],
-            &Data::Float(id) => vec![id as i64],
+            &Data::Int(id) => vec![id as i32],
+            &Data::Float(id) => vec![id as i32],
             Data::String(ids) => ids.lines().map(|id| id.parse().unwrap()).collect(),
             _ => return Err(anyhow::anyhow!("Id in row {y} is in a wrong format").into()),
         };

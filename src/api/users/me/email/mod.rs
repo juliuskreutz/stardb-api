@@ -41,7 +41,7 @@ async fn get_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl 
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let user = database::users::get_by_username(&username, &pool).await?;
+    let user = database::users::get_one_by_username(&username, &pool).await?;
 
     Ok(HttpResponse::Ok().json(user.email))
 }
@@ -71,7 +71,7 @@ async fn put_email(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    database::users::update_email(&username, &email_update.email, &pool).await?;
+    database::users::update_email_by_username(&username, &email_update.email, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -91,7 +91,7 @@ async fn delete_email(session: Session, pool: web::Data<PgPool>) -> ApiResult<im
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    database::users::delete_email(&username, &pool).await?;
+    database::users::delete_email_by_username(&username, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -40,7 +40,7 @@ struct Leaderboard {
 struct Score {
     global_rank: i64,
     regional_rank: i64,
-    uid: i64,
+    uid: i32,
     region: Region,
     name: String,
     level: i32,

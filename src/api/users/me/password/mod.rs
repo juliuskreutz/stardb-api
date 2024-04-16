@@ -58,7 +58,7 @@ async fn put_password(
         &Config::rfc9106_low_mem(),
     )?;
 
-    database::users::update_password(&username, &password, &pool).await?;
+    database::users::update_password_by_username(&username, &password, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

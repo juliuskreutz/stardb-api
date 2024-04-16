@@ -8,8 +8,8 @@ pub struct DbUser {
 }
 
 pub async fn set(user: &DbUser, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "INSERT INTO users(username, password, email) VALUES($1, $2, $3)",
+    sqlx::query_file!(
+        "sql/users/set.sql",
         user.username,
         user.password,
         user.email,
@@ -20,29 +20,29 @@ pub async fn set(user: &DbUser, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_by_username(username: &str, pool: &PgPool) -> Result<DbUser> {
+pub async fn get_one_by_username(username: &str, pool: &PgPool) -> Result<DbUser> {
     Ok(
-        sqlx::query_as!(DbUser, "SELECT * FROM users WHERE username = $1", username)
+        sqlx::query_file_as!(DbUser, "sql/users/get_one_by_username.sql", username)
             .fetch_one(pool)
             .await?,
     )
 }
 
-pub async fn update_email(username: &str, email: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "UPDATE users SET email = $2 WHERE username = $1",
-        username,
-        email,
-    )
-    .execute(pool)
-    .await?;
+pub async fn update_email_by_username(username: &str, email: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query_file!("sql/users/update_email_by_username.sql", username, email,)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
 
-pub async fn update_password(username: &str, password: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "UPDATE users SET password = $2 WHERE username = $1",
+pub async fn update_password_by_username(
+    username: &str,
+    password: &str,
+    pool: &PgPool,
+) -> Result<()> {
+    sqlx::query_file!(
+        "sql/users/update_password_by_username.sql",
         username,
         password,
     )
@@ -52,13 +52,10 @@ pub async fn update_password(username: &str, password: &str, pool: &PgPool) -> R
     Ok(())
 }
 
-pub async fn delete_email(username: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "UPDATE users SET email = NULL WHERE username = $1",
-        username
-    )
-    .execute(pool)
-    .await?;
+pub async fn delete_email_by_username(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query_file!("sql/users/delete_email_by_username.sql", username)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

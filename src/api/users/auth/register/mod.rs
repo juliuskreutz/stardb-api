@@ -69,7 +69,7 @@ async fn register(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    if database::users::get_by_username(&username, &pool)
+    if database::users::get_one_by_username(&username, &pool)
         .await
         .is_ok()
     {

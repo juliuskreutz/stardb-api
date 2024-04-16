@@ -58,7 +58,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[get("/api/achievements/{id}")]
 async fn get_achievement(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE users SET password = $2 WHERE username = $1",
+  "query": "UPDATE\n    users\nSET\n    email = $2\nWHERE\n    username = $1;\n\n",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "dbe276ab8bc38c1b2ac0d99fd9efc3ffafc5a547229b840035f38dcfd587befe"
+  "hash": "6f13840d435ef27d4843f044b0240fd7c00f9b0c3a740cd63830817522272488"
 }

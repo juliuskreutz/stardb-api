@@ -88,7 +88,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/warps/{uid}")]
 async fn get_warps(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     warp_params: web::Query<WarpParams>,
     pool: web::Data<PgPool>,

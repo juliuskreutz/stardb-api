@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 
 pub struct DbConnection {
-    pub uid: i64,
+    pub uid: i32,
     pub username: String,
 }
 

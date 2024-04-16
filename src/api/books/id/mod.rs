@@ -44,7 +44,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/books/{id}")]
 async fn get_book(
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {

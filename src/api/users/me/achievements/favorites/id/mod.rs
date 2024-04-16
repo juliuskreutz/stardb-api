@@ -33,7 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/users/me/achievements/favorites/{id}")]
 async fn put_user_achievement_favorites(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -59,7 +59,7 @@ async fn put_user_achievement_favorites(
 #[delete("/api/users/me/achievements/favorites/{id}")]
 async fn delete_user_achievement_favorites(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 struct Score {
-    uid: i64,
+    uid: i32,
 }
 
 pub async fn scores() {

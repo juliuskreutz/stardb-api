@@ -25,7 +25,7 @@ struct ApiDoc;
 struct ScoreAchievement {
     global_rank: i64,
     regional_rank: i64,
-    uid: i64,
+    uid: i32,
     region: Region,
     name: String,
     level: i32,

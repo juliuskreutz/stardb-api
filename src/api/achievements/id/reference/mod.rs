@@ -42,7 +42,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/reference")]
 async fn put_achievement_reference(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     reference_update: web::Json<ReferenceUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -75,7 +75,7 @@ async fn put_achievement_reference(
 #[delete("/api/achievements/{id}/reference")]
 async fn delete_achievement_reference(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

@@ -37,7 +37,7 @@ enum Difficulty {
 
 #[derive(Serialize, ToSchema)]
 struct Achievement {
-    id: i64,
+    id: i32,
     series: i32,
     series_name: String,
     name: String,
@@ -59,7 +59,7 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     set: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    related: Option<Vec<i64>>,
+    related: Option<Vec<i32>>,
     percent: f64,
 }
 

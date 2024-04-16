@@ -2,7 +2,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 
 pub struct DbAchievementText {
-    pub id: i64,
+    pub id: i32,
     pub language: String,
     pub name: String,
     pub description: String,

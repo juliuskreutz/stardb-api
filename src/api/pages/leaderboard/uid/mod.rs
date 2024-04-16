@@ -31,7 +31,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/pages/leaderboard/{uid}", guard = "private")]
 async fn get_leaderboard_entry(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =

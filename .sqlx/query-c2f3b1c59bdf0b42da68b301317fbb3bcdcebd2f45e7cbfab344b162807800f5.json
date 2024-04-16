@@ -11,7 +11,7 @@
       {
         "ordinal": 1,
         "name": "uid",
-        "type_info": "Int8"
+        "type_info": "Int4"
       },
       {
         "ordinal": 2,
@@ -46,7 +46,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
+        "Int4",
         "Text"
       ]
     },

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 pub struct DbMihomo {
-    pub uid: i64,
+    pub uid: i32,
     pub region: String,
     pub name: String,
     pub level: i32,
@@ -46,7 +46,7 @@ pub async fn set_mihomo(mihomo: &DbMihomo, pool: &PgPool) -> Result<DbMihomo> {
     get_mihomo_by_uid(mihomo.uid, pool).await
 }
 
-pub async fn get_mihomo_by_uid(uid: i64, pool: &PgPool) -> Result<DbMihomo> {
+pub async fn get_mihomo_by_uid(uid: i32, pool: &PgPool) -> Result<DbMihomo> {
     Ok(sqlx::query_as!(
         DbMihomo,
         "

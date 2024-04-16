@@ -45,7 +45,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[put("/api/achievements/{id}/difficulty")]
 async fn put_achievement_difficulty(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     difficulty_update: web::Json<DifficultyUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
@@ -79,7 +79,7 @@ async fn put_achievement_difficulty(
 #[delete("/api/achievements/{id}/difficulty")]
 async fn delete_achievement_difficulty(
     session: Session,
-    id: web::Path<i64>,
+    id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {

@@ -29,6 +29,8 @@ struct Warp {
     rarity: i32,
     item_id: i32,
     pull: usize,
+    pull_4: usize,
+    pull_5: usize,
     timestamp: DateTime<Utc>,
 }
 
@@ -55,20 +57,28 @@ impl From<database::DbWarp> for Warp {
             item_id: warp.character.or(warp.light_cone).unwrap(),
             timestamp: warp.timestamp,
             pull: 0,
+            pull_4: 0,
+            pull_5: 0,
         }
     }
 }
 
 #[derive(Serialize)]
 struct WarpTracker {
+    standard: Warps,
+    departure: Warps,
+    special: Warps,
+    lc: Warps,
     count: usize,
-    standard_probability: f64,
-    special_probability: f64,
-    lc_probability: f64,
-    standard: Vec<Warp>,
-    departure: Vec<Warp>,
-    special: Vec<Warp>,
-    lc: Vec<Warp>,
+    jades: usize,
+}
+
+#[derive(Default, Serialize)]
+struct Warps {
+    warps: Vec<Warp>,
+    probability: f64,
+    count: usize,
+    jades: usize,
 }
 
 #[utoipa::path(
@@ -82,21 +92,31 @@ struct WarpTracker {
 )]
 #[get("/api/pages/warp-tracker/{uid}", guard = "private")]
 async fn get_warp_tracker(
-    uid: web::Path<i64>,
+    uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let warps = database::get_warps_by_uid(*uid, &language_params.lang.to_string(), &pool).await?;
 
-    let mut standard = Vec::new();
-    let mut departure = Vec::new();
-    let mut special = Vec::new();
-    let mut lc = Vec::new();
+    let mut standard = Warps::default();
+    let mut departure = Warps::default();
+    let mut special = Warps::default();
+    let mut lc = Warps::default();
 
     let mut standard_pull = 0;
     let mut departure_pull = 0;
     let mut special_pull = 0;
     let mut lc_pull = 0;
+
+    let mut standard_pull_4 = 0;
+    let mut departure_pull_4 = 0;
+    let mut special_pull_4 = 0;
+    let mut lc_pull_4 = 0;
+
+    let mut standard_pull_5 = 0;
+    let mut departure_pull_5 = 0;
+    let mut special_pull_5 = 0;
+    let mut lc_pull_5 = 0;
 
     for warp in warps {
         let gacha_type = warp.gacha_type.clone();
@@ -106,81 +126,114 @@ async fn get_warp_tracker(
         match gacha_type.as_str() {
             "standard" => {
                 standard_pull += 1;
+                standard_pull_4 += 1;
+                standard_pull_5 += 1;
 
                 warp.pull = standard_pull;
+                warp.pull_4 = standard_pull_4;
+                warp.pull_5 = standard_pull_5;
 
-                if warp.rarity == 5 {
-                    standard_pull = 0;
+                match warp.rarity {
+                    4 => standard_pull_4 = 0,
+                    5 => standard_pull_5 = 0,
+                    _ => {}
                 }
 
-                standard.push(warp);
+                standard.warps.push(warp);
             }
             "departure" => {
                 departure_pull += 1;
+                departure_pull_4 += 1;
+                departure_pull_5 += 1;
 
                 warp.pull = departure_pull;
+                warp.pull_4 = departure_pull_4;
+                warp.pull_5 = departure_pull_5;
 
-                if warp.rarity == 5 {
-                    departure_pull = 0;
+                match warp.rarity {
+                    4 => departure_pull_4 = 0,
+                    5 => departure_pull_5 = 0,
+                    _ => {}
                 }
 
-                departure.push(warp);
+                departure.warps.push(warp);
             }
             "special" => {
                 special_pull += 1;
+                special_pull_4 += 1;
+                special_pull_5 += 1;
 
                 warp.pull = special_pull;
+                warp.pull_4 = special_pull_4;
+                warp.pull_5 = special_pull_5;
 
-                if warp.rarity == 5 {
-                    special_pull = 0;
+                match warp.rarity {
+                    4 => special_pull_4 = 0,
+                    5 => special_pull_5 = 0,
+                    _ => {}
                 }
 
-                special.push(warp);
+                special.warps.push(warp);
             }
             "lc" => {
                 lc_pull += 1;
+                lc_pull_4 += 1;
+                lc_pull_5 += 1;
 
                 warp.pull = lc_pull;
+                warp.pull_4 = lc_pull_4;
+                warp.pull_5 = lc_pull_5;
 
-                if warp.rarity == 5 {
-                    lc_pull = 0;
+                match warp.rarity {
+                    4 => lc_pull_4 = 0,
+                    5 => lc_pull_5 = 0,
+                    _ => {}
                 }
 
-                lc.push(warp);
+                lc.warps.push(warp);
             }
             _ => {}
         }
     }
 
-    let standard_probability = if standard_pull < 89 {
-        0.6 + 6.0 * standard_pull.saturating_sub(72) as f64
+    standard.probability = if standard_pull_5 < 89 {
+        0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
 
-    let special_probability = if special_pull < 89 {
-        0.6 + 6.0 * special_pull.saturating_sub(72) as f64
+    special.probability = if special_pull_5 < 89 {
+        0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
 
-    let lc_probability = if lc_pull < 79 {
-        0.8 + 7.0 * lc_pull.saturating_sub(64) as f64
+    lc.probability = if lc_pull_5 < 79 {
+        0.8 + 7.0 * lc_pull_5.saturating_sub(64) as f64
     } else {
         100.0
     };
 
-    let count = standard.len() + departure.len() + special.len() + lc.len();
+    departure.count = departure.warps.len();
+    standard.count = standard.warps.len();
+    special.count = special.warps.len();
+    lc.count = lc.warps.len();
+
+    departure.jades = departure.count * 160;
+    standard.jades = standard.count * 160;
+    special.jades = special.count * 160;
+    lc.jades = lc.count * 160;
+
+    let count = standard.count + departure.count + special.count + lc.count;
+    let jades = standard.jades + departure.jades + special.jades + lc.jades;
 
     let warp_tracker = WarpTracker {
-        count,
-        standard_probability,
-        special_probability,
-        lc_probability,
         standard,
         departure,
         special,
         lc,
+        count,
+        jades,
     };
 
     Ok(HttpResponse::Ok().json(warp_tracker))
