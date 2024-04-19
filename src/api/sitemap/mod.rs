@@ -65,7 +65,7 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/profile-card-generator",
     "https://stardb.gg/%LANG%/privacy-policy",
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
-    "https://stardb.gg/%LANG%/zzz/warp-tracker",
+    "https://stardb.gg/%LANG%/zzz/signal-tracker",
 ];
 
 #[derive(Serialize)]

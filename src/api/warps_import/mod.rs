@@ -129,12 +129,34 @@ async fn post_warps_import(
         .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
         .finish();
 
-    let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type=11&end_id=0"))
-        .await?
-        .json()
-        .await?;
+    let mut uid = 0;
 
-    let uid = gacha_log.data.list[0].uid.parse()?;
+    for gacha_type in [1, 2, 11, 12] {
+        let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0"))
+            .await?
+            .json()
+            .await?;
+
+        if let Some(entry) = gacha_log.data.list.first() {
+            uid = entry.uid.parse()?;
+            break;
+        }
+    }
+
+    if uid == 0 {
+        let info = Arc::new(Mutex::new(WarpsImportInfo {
+            gacha_type: GachaType::Standard,
+            standard: 0,
+            departure: 0,
+            special: 0,
+            lc: 0,
+            status: Status::Error("No data".to_string()),
+        }));
+
+        warps_import_infos.lock().await.insert(uid, info.clone());
+
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
+    }
 
     if warps_import_infos.lock().await.contains_key(&uid) {
         return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
