@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            achievements.*,\n            achievements_text.name,\n            achievements_text.description,\n            percent,\n            achievement_series_text.name series_name\n        FROM\n            achievements\n        NATURAL INNER JOIN\n            achievements_percent\n        INNER JOIN\n            achievements_text\n        ON\n            achievements.id = achievements_text.id AND achievements_text.language = $1\n        INNER JOIN\n            achievement_series\n        ON\n            series = achievement_series.id\n        INNER JOIN\n            achievement_series_text\n        ON\n            series = achievement_series_text.id AND achievement_series_text.language = $1\n        ORDER BY\n            achievement_series.priority DESC, series, priority DESC, id\n        ",
+  "query": "SELECT\n    achievements.*,\n    achievements_text.name,\n    achievements_text.description,\n    percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $1\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $1\n    ORDER BY\n        achievement_series.priority DESC,\n        series,\n        priority DESC,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -114,5 +114,5 @@
       false
     ]
   },
-  "hash": "e1048d0c98e3dc2a91676bd4a7eec08de0dee3a0d583a7327c88dfe1d424ddae"
+  "hash": "926ae6bc09cb399ff5cdb2961ae243222f9071d39588f107cd3cc9a69f0768e6"
 }

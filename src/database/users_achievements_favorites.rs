@@ -26,7 +26,7 @@ pub async fn add_user_achievement_favorite(
     .await?
     .set
     {
-        for related in super::get_related(user_achievement.id, set, pool).await? {
+        for related in super::achievements::get_all_related_ids(user_achievement.id, set, pool).await? {
             sqlx::query!(
                 "DELETE FROM users_achievements_favorites WHERE username = $1 AND id = $2",
                 user_achievement.username,

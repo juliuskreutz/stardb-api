@@ -57,7 +57,7 @@ async fn put_achievement_comment(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_comment(*id, &comment_update.comment, &pool).await?;
+    database::achievements::update_comment_by_id(*id, &comment_update.comment, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -89,7 +89,7 @@ async fn delete_achievement_comment(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_comment(*id, &pool).await?;
+    database::achievements::delete_comment_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

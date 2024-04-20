@@ -63,8 +63,8 @@ struct Achievement {
     percent: f64,
 }
 
-impl From<database::DbAchievement> for Achievement {
-    fn from(db_achievement: database::DbAchievement) -> Self {
+impl From<database::achievements::DbAchievement> for Achievement {
+    fn from(db_achievement: database::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
@@ -124,7 +124,7 @@ async fn get_achievements(
     };
 
     let mut db_achievements =
-        database::get_achievements(&language_params.lang.to_string(), &pool).await?;
+        database::achievements::get_all(&language_params.lang.to_string(), &pool).await?;
 
     if !admin {
         db_achievements.retain(|a| !(a.hidden && a.impossible));
@@ -137,7 +137,9 @@ async fn get_achievements(
 
     for achievement in &mut achievements {
         if let Some(set) = achievement.set {
-            achievement.related = Some(database::get_related(achievement.id, set, &pool).await?);
+            achievement.related = Some(
+                database::achievements::get_all_related_ids(achievement.id, set, &pool).await?,
+            );
         }
     }
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id\n        FROM\n            achievements\n        WHERE NOT\n            (hidden AND impossible)\n        ",
+  "query": "SELECT\n    id\nFROM\n    achievements\nWHERE\n    NOT (hidden\n        AND impossible);\n\n",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "66ed9fb3be98ee285372e71233b807ec8ec8679ffea7e8e56829e05ebac89854"
+  "hash": "6ae9dd1e4a475a560616df67f4263f1f65ff399115e424be7660f39ae19dd8e9"
 }

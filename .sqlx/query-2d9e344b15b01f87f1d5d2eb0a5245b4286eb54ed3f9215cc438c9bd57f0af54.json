@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE achievements SET difficulty = $2 WHERE id = $1",
+  "query": "UPDATE\n    achievements\nSET\n    comment = $2\nWHERE\n    id = $1;\n\n",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "b09d5f05a04ad97a239cd123afbc969e0ed4b18de89ba33f55a1626e23791794"
+  "hash": "2d9e344b15b01f87f1d5d2eb0a5245b4286eb54ed3f9215cc438c9bd57f0af54"
 }

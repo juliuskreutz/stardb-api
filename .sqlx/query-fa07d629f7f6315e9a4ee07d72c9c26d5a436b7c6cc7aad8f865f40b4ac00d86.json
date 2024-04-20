@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE achievements SET impossible = $2 WHERE id = $1",
+  "query": "UPDATE\n    achievements\nSET\n    gacha = $2\nWHERE\n    id = $1;\n\n",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "4b91833d87e0a4c5f3414d13eddd11ed2f6fe173229fb8bdd12493763af9ef89"
+  "hash": "fa07d629f7f6315e9a4ee07d72c9c26d5a436b7c6cc7aad8f865f40b4ac00d86"
 }

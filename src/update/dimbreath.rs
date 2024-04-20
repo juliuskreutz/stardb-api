@@ -295,7 +295,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
         let priority = achievement_data.priority;
 
-        let db_achievement = database::DbAchievement {
+        let db_achievement = database::achievements::DbAchievement {
             id,
             series,
             series_name: String::new(),
@@ -315,7 +315,7 @@ async fn update(pool: &PgPool) -> Result<()> {
             percent: 0.0,
         };
 
-        database::set_achievement(&db_achievement, pool).await?;
+        database::achievements::set(&db_achievement, pool).await?;
     }
 
     for avatar_config in avatar_config.values() {

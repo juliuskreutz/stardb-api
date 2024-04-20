@@ -57,7 +57,7 @@ async fn put_achievement_version(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_version(*id, &version_update.version, &pool).await?;
+    database::achievements::update_version_by_id(*id, &version_update.version, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -89,7 +89,7 @@ async fn delete_achievement_version(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_version(*id, &pool).await?;
+    database::achievements::delete_version_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

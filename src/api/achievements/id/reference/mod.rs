@@ -57,7 +57,7 @@ async fn put_achievement_reference(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_reference(*id, &reference_update.reference, &pool).await?;
+    database::achievements::update_reference_by_id(*id, &reference_update.reference, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -89,7 +89,7 @@ async fn delete_achievement_reference(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_reference(*id, &pool).await?;
+    database::achievements::delete_reference_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

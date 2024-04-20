@@ -1,7 +1,7 @@
 mod achievement_scores;
 mod achievement_series;
 mod achievement_series_text;
-mod achievements;
+pub mod achievements;
 mod achievements_percent;
 mod achievements_text;
 mod admins;
@@ -34,7 +34,6 @@ mod warps_stats;
 pub use achievement_scores::*;
 pub use achievement_series::*;
 pub use achievement_series_text::*;
-pub use achievements::*;
 pub use achievements_percent::*;
 pub use achievements_text::*;
 pub use admins::*;

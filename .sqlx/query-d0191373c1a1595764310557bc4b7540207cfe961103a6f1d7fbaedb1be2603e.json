@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE achievements SET version = $2 WHERE id = $1",
+  "query": "UPDATE\n    achievements\nSET\n    version = $2\nWHERE\n    id = $1;\n\n",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "3b7391d68f7c8b36517fa1177b489dd0d67d99f9d84c3ff085810748489b47ea"
+  "hash": "d0191373c1a1595764310557bc4b7540207cfe961103a6f1d7fbaedb1be2603e"
 }

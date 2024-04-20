@@ -103,8 +103,8 @@ enum Difficulty {
     Hard,
 }
 
-impl From<database::DbAchievement> for Achievement {
-    fn from(db_achievement: database::DbAchievement) -> Self {
+impl From<database::achievements::DbAchievement> for Achievement {
+    fn from(db_achievement: database::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
@@ -166,7 +166,7 @@ async fn update(
     let mut achievement_tracker_map = HashMap::new();
 
     for language in Language::iter() {
-        let achievements = database::get_achievements(&language.to_string(), pool).await?;
+        let achievements = database::achievements::get_all(&language.to_string(), pool).await?;
 
         let mut versions = HashSet::new();
         let mut series = Vec::new();

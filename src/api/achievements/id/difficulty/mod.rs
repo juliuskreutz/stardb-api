@@ -60,8 +60,12 @@ async fn put_achievement_difficulty(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_difficulty(*id, &difficulty_update.difficulty.to_string(), &pool)
-        .await?;
+    database::achievements::update_difficulty_by_id(
+        *id,
+        &difficulty_update.difficulty.to_string(),
+        &pool,
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -93,7 +97,7 @@ async fn delete_achievement_difficulty(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_difficulty(*id, &pool).await?;
+    database::achievements::delete_difficulty_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

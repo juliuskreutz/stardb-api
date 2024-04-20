@@ -57,7 +57,7 @@ async fn select_all(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::select_all(&username_json.username, &pool).await?;
+    database::achievements::select_all(&username_json.username, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

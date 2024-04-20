@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE achievements SET video = $2 WHERE id = $1",
+  "query": "UPDATE\n    achievements\nSET\n    video = $2\nWHERE\n    id = $1;\n\n",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "e74ec9cf9274e4631d6cf80c12ac33e9998b9743f8e93db5b5dba1552f550573"
+  "hash": "0fd3e4851b07e303227266d18061ff9a0037bbe07b9d72a9664796a5b2f658af"
 }

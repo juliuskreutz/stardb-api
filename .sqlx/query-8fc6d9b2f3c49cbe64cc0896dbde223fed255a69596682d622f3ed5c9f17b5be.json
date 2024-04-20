@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id\n        FROM\n            achievements\n        WHERE\n            id != $1\n        AND\n            set = $2\n        ",
+  "query": "SELECT\n    id\nFROM\n    achievements\nWHERE\n    id != $1\n    AND SET = $2;\n\n",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       false
     ]
   },
-  "hash": "510eed7d5e68850c292f629382f6b0d8d5d3906e6b8452be0ac91e8f4bbf11f2"
+  "hash": "8fc6d9b2f3c49cbe64cc0896dbde223fed255a69596682d622f3ed5c9f17b5be"
 }

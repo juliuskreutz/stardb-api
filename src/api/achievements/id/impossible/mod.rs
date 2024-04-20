@@ -48,7 +48,7 @@ async fn put_achievement_impossible(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_impossible(*id, true, &pool).await?;
+    database::achievements::update_impossible_by_id(*id, true, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -80,7 +80,7 @@ async fn delete_achievement_impossible(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_impossible(*id, false, &pool).await?;
+    database::achievements::update_impossible_by_id(*id, false, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

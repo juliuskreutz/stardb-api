@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    achievements\nSET\n    reference = NULL\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a1b73528c51ffbc0c9975c78dd8a7babc43fc6e9e6b7f848fc6bc8eb6e7282d0"
+}

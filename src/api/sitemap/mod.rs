@@ -141,7 +141,7 @@ async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
             urls.push(url);
         }
 
-        for id in database::get_achievements_id(&pool).await? {
+        for id in database::achievements::get_all_ids_shown(&pool).await? {
             let mut links = Vec::new();
 
             for link_language in Language::iter() {

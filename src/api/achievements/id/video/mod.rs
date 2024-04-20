@@ -57,7 +57,7 @@ async fn put_achievement_video(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::update_achievement_video(*id, &video_update.video, &pool).await?;
+    database::achievements::update_video_by_id(*id, &video_update.video, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -89,7 +89,7 @@ async fn delete_achievement_video(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::delete_achievement_video(*id, &pool).await?;
+    database::achievements::delete_video_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
