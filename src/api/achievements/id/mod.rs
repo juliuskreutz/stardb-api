@@ -63,7 +63,7 @@ async fn get_achievement(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let admin = if let Ok(Some(username)) = session.get::<String>("username") {
-        database::get_admin_by_username(&username, &pool)
+        database::admins::get_one_by_username(&username, &pool)
             .await
             .is_ok()
     } else {

@@ -74,7 +74,7 @@ async fn import_achievements(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::get_admin_by_username(&username, &pool)
+    if database::admins::get_one_by_username(&username, &pool)
         .await
         .is_err()
     {

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            *\n        FROM\n            mihomo\n        WHERE\n            uid = $1\n        ",
+  "query": "SELECT\n    *\nFROM\n    mihomo\nWHERE\n    uid = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "29406f239693eb6f267e135d3d1ba0ea15b6e9b562e5a03edd1f11bc07fb40c3"
+  "hash": "5ce51ccda1b9edad6cd1a0d0bf60e62868ab602c6603892488acf750c64025ac"
 }

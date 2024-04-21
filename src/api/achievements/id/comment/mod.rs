@@ -50,7 +50,7 @@ async fn put_achievement_comment(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::get_admin_by_username(&username, &pool)
+    if database::admins::get_one_by_username(&username, &pool)
         .await
         .is_err()
     {
@@ -82,7 +82,7 @@ async fn delete_achievement_comment(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::get_admin_by_username(&username, &pool)
+    if database::admins::get_one_by_username(&username, &pool)
         .await
         .is_err()
     {

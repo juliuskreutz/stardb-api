@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mihomo (uid, region, name, level, signature, avatar_icon, achievement_count, updated_at)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nON CONFLICT (uid)\n    DO UPDATE SET\n        name = EXCLUDED.name, level = EXCLUDED.level, signature = EXCLUDED.signature, avatar_icon = EXCLUDED.avatar_icon, achievement_count = EXCLUDED.achievement_count, updated_at = EXCLUDED.updated_at;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d260af2b46093d1c6e148a7e0c83332c7ee7ff66e79faa0a72374430b0c2f2e6"
+}

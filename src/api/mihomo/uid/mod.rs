@@ -101,7 +101,7 @@ async fn put_mihomo(
             },
         );
 
-    let db_mihomo = database::DbMihomo {
+    let db_mihomo = database::mihomo::DbMihomo {
         uid,
         region,
         name,
@@ -112,7 +112,7 @@ async fn put_mihomo(
         updated_at,
     };
 
-    database::set_mihomo(&db_mihomo, &pool).await?;
+    database::mihomo::set(&db_mihomo, &pool).await?;
 
     let db_score_achievement = database::DbScoreAchievement {
         uid,
