@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    sessions\nSET\n    expiry = $2\nWHERE\n    uuid = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fcd9cc905c6b1481a4c40eed1fb5673bfebb4b476c9e21e071b26b197011047f"
+}

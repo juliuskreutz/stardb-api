@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM sessions\nWHERE uuid IN (\n        SELECT\n            uuid\n        FROM\n            sessions\n        WHERE\n            username = $1\n        ORDER BY\n            expiry DESC OFFSET 9);\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "00d3afa655e8b905fd4b6f58eec72054b5a3170cd696fbb14582001d1326b3dc"
+}

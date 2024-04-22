@@ -31,7 +31,7 @@ pub async fn achievements_percent(pool: PgPool) {
 }
 
 async fn update(pool: &PgPool) -> Result<()> {
-    database::update_achievements_percent(pool).await?;
+    database::achievements_percent::update(pool).await?;
 
     Ok(())
 }

@@ -26,7 +26,7 @@ impl SessionStore for PgSessionStore {
             .map_err(anyhow::Error::new)
             .map_err(LoadError::Other)?;
 
-        let db_session = database::get_session_by_uuid(uuid, &self.pool)
+        let db_session = database::sessions::get_one_by_uuid(uuid, &self.pool)
             .await
             .map_err(LoadError::Deserialization)?;
 
@@ -49,19 +49,19 @@ impl SessionStore for PgSessionStore {
         let username = &session_state["username"];
         let username = username[1..username.len() - 1].to_string();
 
-        database::delete_oldest_sessions_by_username(&username, &self.pool)
+        database::sessions::delete_oldest_by_username(&username, &self.pool)
             .await
             .map_err(SaveError::Other)?;
 
         let expiry = Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap();
 
-        let db_session = database::DbSession {
+        let db_session = database::sessions::DbSession {
             uuid,
             username,
             expiry,
         };
 
-        database::set_session(&db_session, &self.pool)
+        database::sessions::set(&db_session, &self.pool)
             .await
             .map_err(SaveError::Other)?;
 
@@ -86,13 +86,13 @@ impl SessionStore for PgSessionStore {
 
         let expiry = Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap();
 
-        let db_session = database::DbSession {
+        let db_session = database::sessions::DbSession {
             uuid,
             username,
             expiry,
         };
 
-        database::set_session(&db_session, &self.pool)
+        database::sessions::set(&db_session, &self.pool)
             .await
             .map_err(UpdateError::Other)?;
 
@@ -106,12 +106,12 @@ impl SessionStore for PgSessionStore {
 
         let expiry = Utc::now() + chrono::Duration::try_seconds(ttl.whole_seconds()).unwrap();
 
-        database::update_session_expiry(uuid, expiry, &self.pool).await
+        database::sessions::update_expiry_by_uuid(uuid, expiry, &self.pool).await
     }
 
     async fn delete(&self, session_key: &SessionKey) -> anyhow::Result<()> {
         let uuid = Uuid::from_str(session_key.as_ref())?;
 
-        database::delete_session_by_uuid(uuid, &self.pool).await
+        database::sessions::delete_by_uuid(uuid, &self.pool).await
     }
 }
