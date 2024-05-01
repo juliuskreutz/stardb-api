@@ -37,7 +37,7 @@ async fn get_skill(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let skill: Skill = database::get_skill_by_id(*id, &language_params.lang.to_string(), &pool)
+    let skill: Skill = database::get_skill_by_id(*id, language_params.lang, &pool)
         .await?
         .into();
 

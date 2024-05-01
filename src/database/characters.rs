@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbCharacter {
     pub id: i32,
     pub rarity: i32,
@@ -32,7 +34,7 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
     Ok(())
 }
 
-pub async fn get_characters(language: &str, pool: &PgPool) -> Result<Vec<DbCharacter>> {
+pub async fn get_characters(language: Language, pool: &PgPool) -> Result<Vec<DbCharacter>> {
     Ok(sqlx::query_as!(
         DbCharacter,
         "
@@ -54,13 +56,17 @@ pub async fn get_characters(language: &str, pool: &PgPool) -> Result<Vec<DbChara
         ON
             characters.id = characters_text_en.id AND characters_text_en.language = 'en'
         ",
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn get_character_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbCharacter> {
+pub async fn get_character_by_id(
+    id: i32,
+    language: Language,
+    pool: &PgPool,
+) -> Result<DbCharacter> {
     Ok(sqlx::query_as!(
         DbCharacter,
         "
@@ -85,7 +91,7 @@ pub async fn get_character_by_id(id: i32, language: &str, pool: &PgPool) -> Resu
             characters.id = $1
         ",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)

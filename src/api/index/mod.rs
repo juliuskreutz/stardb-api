@@ -13,10 +13,10 @@ use crate::{
     tags((name = "index")),
     paths(get_index),
     components(schemas(
-        Index, 
-        CharacterEntry, 
-        LightConeEntry, 
-        SkillEntry
+        Index,
+        CharacterEntry,
+        LightConeEntry,
+        SkillEntry,
     ))
 )]
 struct ApiDoc;
@@ -68,14 +68,14 @@ async fn get_index(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let language = language_params.lang.to_string();
+    let language = language_params.lang;
 
-    let characters = database::get_characters(&language, &pool).await?;
+    let characters = database::get_characters(language, &pool).await?;
 
     let mut character_entries = Vec::new();
 
     for character in characters {
-        let skills = database::get_skills_by_character(character.id, &language, &pool).await?;
+        let skills = database::get_skills_by_character(character.id, language, &pool).await?;
 
         let mut skill_entries = Vec::new();
 
@@ -93,7 +93,7 @@ async fn get_index(
         });
     }
 
-    let light_cones = database::get_light_cones(&language, &pool).await?;
+    let light_cones = database::get_light_cones(language, &pool).await?;
 
     let light_cone_entries = light_cones
         .into_iter()

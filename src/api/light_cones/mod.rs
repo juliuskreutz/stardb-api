@@ -62,7 +62,7 @@ async fn get_light_cones(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let light_cones: Vec<_> = database::get_light_cones(&language_param.lang.to_string(), &pool)
+    let light_cones: Vec<_> = database::get_light_cones(language_param.lang, &pool)
         .await?
         .into_iter()
         .map(LightCone::from)

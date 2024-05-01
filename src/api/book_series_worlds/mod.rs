@@ -58,7 +58,7 @@ async fn get_book_series_worlds(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series: Vec<_> = database::get_book_series_worlds(&language_param.lang.to_string(), &pool)
+    let series: Vec<_> = database::get_book_series_worlds(language_param.lang, &pool)
         .await?
         .into_iter()
         .map(BookSeriesWorld::from)

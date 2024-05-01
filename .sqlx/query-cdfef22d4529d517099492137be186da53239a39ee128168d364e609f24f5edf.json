@@ -6,7 +6,28 @@
     "parameters": {
       "Left": [
         "Int4",
-        "Text",
+        {
+          "Custom": {
+            "name": "language",
+            "kind": {
+              "Enum": [
+                "chs",
+                "cht",
+                "de",
+                "en",
+                "es",
+                "fr",
+                "id",
+                "jp",
+                "kr",
+                "pt",
+                "ru",
+                "th",
+                "vi"
+              ]
+            }
+          }
+        },
         "Text"
       ]
     },

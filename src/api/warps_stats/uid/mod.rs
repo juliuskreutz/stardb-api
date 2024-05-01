@@ -3,7 +3,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database};
+use crate::{api::ApiResult, database, GachaType};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -80,12 +80,11 @@ async fn get_warps_stats(
     let mut lc_4 = None;
 
     for warps_stats in warps_stats_gacha_type_4 {
-        match warps_stats.gacha_type.as_str() {
-            "departure" => departure_4 = Some(warps_stats),
-            "standard" => standard_4 = Some(warps_stats),
-            "special" => special_4 = Some(warps_stats),
-            "lc" => lc_4 = Some(warps_stats),
-            _ => {}
+        match warps_stats.gacha_type {
+            GachaType::Departure => departure_4 = Some(warps_stats),
+            GachaType::Standard => standard_4 = Some(warps_stats),
+            GachaType::Special => special_4 = Some(warps_stats),
+            GachaType::Lc => lc_4 = Some(warps_stats),
         }
     }
 
@@ -95,12 +94,11 @@ async fn get_warps_stats(
     let mut lc_5 = None;
 
     for warps_stats in warps_stats_gacha_type_5 {
-        match warps_stats.gacha_type.as_str() {
-            "departure" => departure_5 = Some(warps_stats),
-            "standard" => standard_5 = Some(warps_stats),
-            "special" => special_5 = Some(warps_stats),
-            "lc" => lc_5 = Some(warps_stats),
-            _ => {}
+        match warps_stats.gacha_type {
+            GachaType::Departure => departure_5 = Some(warps_stats),
+            GachaType::Standard => standard_5 = Some(warps_stats),
+            GachaType::Special => special_5 = Some(warps_stats),
+            GachaType::Lc => lc_5 = Some(warps_stats),
         }
     }
 
@@ -110,12 +108,11 @@ async fn get_warps_stats(
     let mut lc_total = None;
 
     for warps_stats in warps_stats_gacha_type {
-        match warps_stats.gacha_type.as_str() {
-            "departure" => departure_total = Some(warps_stats.total.unwrap_or(0)),
-            "standard" => standard_total = Some(warps_stats.total.unwrap_or(0)),
-            "special" => special_total = Some(warps_stats.total.unwrap_or(0)),
-            "lc" => lc_total = Some(warps_stats.total.unwrap_or(0)),
-            _ => {}
+        match warps_stats.gacha_type {
+            GachaType::Departure => departure_total = Some(warps_stats.total.unwrap_or(0)),
+            GachaType::Standard => standard_total = Some(warps_stats.total.unwrap_or(0)),
+            GachaType::Special => special_total = Some(warps_stats.total.unwrap_or(0)),
+            GachaType::Lc => lc_total = Some(warps_stats.total.unwrap_or(0)),
         }
     }
 

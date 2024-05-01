@@ -6,7 +6,7 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, LanguageParams},
-    database,
+    database, GachaType,
 };
 
 #[derive(OpenApi)]
@@ -96,7 +96,7 @@ async fn get_warp_tracker(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let warps = database::get_warps_by_uid(*uid, &language_params.lang.to_string(), &pool).await?;
+    let warps = database::get_warps_by_uid(*uid, language_params.lang, &pool).await?;
 
     let mut standard = Warps::default();
     let mut departure = Warps::default();
@@ -119,29 +119,12 @@ async fn get_warp_tracker(
     let mut lc_pull_5 = 0;
 
     for warp in warps {
-        let gacha_type = warp.gacha_type.clone();
+        let gacha_type = warp.gacha_type;
 
         let mut warp: Warp = warp.into();
 
-        match gacha_type.as_str() {
-            "standard" => {
-                standard_pull += 1;
-                standard_pull_4 += 1;
-                standard_pull_5 += 1;
-
-                warp.pull = standard_pull;
-                warp.pull_4 = standard_pull_4;
-                warp.pull_5 = standard_pull_5;
-
-                match warp.rarity {
-                    4 => standard_pull_4 = 0,
-                    5 => standard_pull_5 = 0,
-                    _ => {}
-                }
-
-                standard.warps.push(warp);
-            }
-            "departure" => {
+        match gacha_type {
+            GachaType::Departure => {
                 departure_pull += 1;
                 departure_pull_4 += 1;
                 departure_pull_5 += 1;
@@ -158,7 +141,24 @@ async fn get_warp_tracker(
 
                 departure.warps.push(warp);
             }
-            "special" => {
+            GachaType::Standard => {
+                standard_pull += 1;
+                standard_pull_4 += 1;
+                standard_pull_5 += 1;
+
+                warp.pull = standard_pull;
+                warp.pull_4 = standard_pull_4;
+                warp.pull_5 = standard_pull_5;
+
+                match warp.rarity {
+                    4 => standard_pull_4 = 0,
+                    5 => standard_pull_5 = 0,
+                    _ => {}
+                }
+
+                standard.warps.push(warp);
+            }
+            GachaType::Special => {
                 special_pull += 1;
                 special_pull_4 += 1;
                 special_pull_5 += 1;
@@ -175,7 +175,7 @@ async fn get_warp_tracker(
 
                 special.warps.push(warp);
             }
-            "lc" => {
+            GachaType::Lc => {
                 lc_pull += 1;
                 lc_pull_4 += 1;
                 lc_pull_5 += 1;
@@ -192,7 +192,6 @@ async fn get_warp_tracker(
 
                 lc.warps.push(warp);
             }
-            _ => {}
         }
     }
 

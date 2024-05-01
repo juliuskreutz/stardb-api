@@ -113,7 +113,8 @@ async fn import_achievements(
         }
 
         if let Some(reference) = &achievement.reference {
-            database::achievements::update_reference_by_id(achievement.key, reference, &pool).await?
+            database::achievements::update_reference_by_id(achievement.key, reference, &pool)
+                .await?
         } else {
             database::achievements::delete_reference_by_id(achievement.key, &pool).await?;
         }
@@ -124,8 +125,12 @@ async fn import_achievements(
             database::achievements::delete_video_by_id(achievement.key, &pool).await?;
         }
 
-        database::achievements::update_gacha_by_id(achievement.key, achievement.gacha.is_some(), &pool)
-            .await?;
+        database::achievements::update_gacha_by_id(
+            achievement.key,
+            achievement.gacha.is_some(),
+            &pool,
+        )
+        .await?;
 
         database::achievements::update_impossible_by_id(
             achievement.key,

@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 #[derive(Clone)]
 pub struct DbSkill {
     pub id: i32,
@@ -29,7 +31,7 @@ pub async fn set_skill(skill: &DbSkill, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_skills(language: &str, pool: &PgPool) -> Result<Vec<DbSkill>> {
+pub async fn get_skills(language: Language, pool: &PgPool) -> Result<Vec<DbSkill>> {
     Ok(sqlx::query_as!(
         DbSkill,
         "
@@ -45,13 +47,13 @@ pub async fn get_skills(language: &str, pool: &PgPool) -> Result<Vec<DbSkill>> {
         ORDER BY
             id
         ",
-        language
+        language as Language
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn get_skill_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbSkill> {
+pub async fn get_skill_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbSkill> {
     Ok(sqlx::query_as!(
         DbSkill,
         "
@@ -68,7 +70,7 @@ pub async fn get_skill_by_id(id: i32, language: &str, pool: &PgPool) -> Result<D
             skills.id = $1
         ",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)
@@ -76,7 +78,7 @@ pub async fn get_skill_by_id(id: i32, language: &str, pool: &PgPool) -> Result<D
 
 pub async fn get_skills_by_character(
     character: i32,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbSkill>> {
     Ok(sqlx::query_as!(
@@ -95,7 +97,7 @@ pub async fn get_skills_by_character(
             skills.character = $1
         ",
         character,
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)

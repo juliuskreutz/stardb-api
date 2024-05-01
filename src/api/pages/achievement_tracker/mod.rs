@@ -166,7 +166,7 @@ async fn update(
     let mut achievement_tracker_map = HashMap::new();
 
     for language in Language::iter() {
-        let achievements = database::achievements::get_all(&language.to_string(), pool).await?;
+        let achievements = database::achievements::get_all(language, pool).await?;
 
         let mut versions = HashSet::new();
         let mut series = Vec::new();

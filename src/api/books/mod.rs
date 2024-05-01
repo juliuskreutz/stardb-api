@@ -103,7 +103,7 @@ async fn get_books(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_books = database::get_books(&language_params.lang.to_string(), &pool).await?;
+    let db_books = database::get_books(language_params.lang, &pool).await?;
 
     let books = db_books.into_iter().map(Book::from).collect::<Vec<_>>();
 

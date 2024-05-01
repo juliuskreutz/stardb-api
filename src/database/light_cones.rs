@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbLightCone {
     pub id: i32,
     pub name: String,
@@ -30,7 +32,7 @@ pub async fn set_light_cone(light_cone: &DbLightCone, pool: &PgPool) -> Result<(
     Ok(())
 }
 
-pub async fn get_light_cones(language: &str, pool: &PgPool) -> Result<Vec<DbLightCone>> {
+pub async fn get_light_cones(language: Language, pool: &PgPool) -> Result<Vec<DbLightCone>> {
     Ok(sqlx::query_as!(
         DbLightCone,
         "
@@ -52,13 +54,17 @@ pub async fn get_light_cones(language: &str, pool: &PgPool) -> Result<Vec<DbLigh
         ORDER BY
             id
         ",
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn get_light_cone_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbLightCone> {
+pub async fn get_light_cone_by_id(
+    id: i32,
+    language: Language,
+    pool: &PgPool,
+) -> Result<DbLightCone> {
     Ok(sqlx::query_as!(
         DbLightCone,
         "
@@ -81,7 +87,7 @@ pub async fn get_light_cone_by_id(id: i32, language: &str, pool: &PgPool) -> Res
             light_cones.id = $1
         ",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)

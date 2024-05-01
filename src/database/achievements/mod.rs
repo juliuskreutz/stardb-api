@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 #[derive(Clone)]
 pub struct DbAchievement {
     pub id: i32,
@@ -45,9 +47,9 @@ pub async fn set(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_all(language: &str, pool: &PgPool) -> Result<Vec<DbAchievement>> {
+pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievement>> {
     Ok(
-        sqlx::query_file_as!(DbAchievement, "sql/achievements/get_all.sql", language)
+        sqlx::query_file_as!(DbAchievement, "sql/achievements/get_all.sql", language as Language)
             .fetch_all(pool)
             .await?,
     )
@@ -73,12 +75,12 @@ pub async fn get_all_related_ids(id: i32, set: i32, pool: &PgPool) -> Result<Vec
     )
 }
 
-pub async fn get_one_by_id(id: i32, language: &str, pool: &PgPool) -> Result<DbAchievement> {
+pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievement> {
     Ok(sqlx::query_file_as!(
         DbAchievement,
         "sql/achievements/get_one_by_id.sql",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)

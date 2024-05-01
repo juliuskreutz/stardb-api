@@ -38,7 +38,7 @@ async fn get_character(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let character: Character =
-        database::get_character_by_id(*id, &language_params.lang.to_string(), &pool)
+        database::get_character_by_id(*id, language_params.lang, &pool)
             .await?
             .into();
 

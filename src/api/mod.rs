@@ -33,12 +33,12 @@ use utoipa::{
     IntoParams, Modify, OpenApi, ToSchema,
 };
 
-use crate::Language;
+use crate::{GachaType, Language};
 
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "pinned")), components(schemas(Language)), modifiers(&PrivateAddon))]
+#[openapi(tags((name = "pinned")), components(schemas(Language, GachaType)), modifiers(&PrivateAddon))]
 struct ApiDoc;
 
 struct PrivateAddon;

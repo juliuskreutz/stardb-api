@@ -1,9 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbLightConeText {
     pub id: i32,
-    pub language: String,
+    pub language: Language,
     pub name: String,
     pub path: String,
 }
@@ -22,7 +24,7 @@ pub async fn set_light_cone_text(light_cone_text: &DbLightConeText, pool: &PgPoo
             path = EXCLUDED.path
         ",
         light_cone_text.id,
-        light_cone_text.language,
+        light_cone_text.language as Language,
         light_cone_text.name,
         light_cone_text.path,
     )

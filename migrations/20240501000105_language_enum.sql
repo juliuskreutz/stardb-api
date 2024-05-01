@@ -1,0 +1,58 @@
+CREATE TYPE
+LANGUAGE AS
+ENUM (
+    'chs',
+    'cht',
+    'de',
+    'en',
+    'es',
+    'fr',
+    'id',
+    'jp',
+    'kr',
+    'pt',
+    'ru',
+    'th',
+    'vi'
+);
+
+ALTER TABLE achievements_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE achievement_series_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE books_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE book_series_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE book_series_worlds_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE characters_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE light_cones_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+
+ALTER TABLE skills_text
+    ALTER COLUMN LANGUAGE TYPE
+    LANGUAGE
+    USING LANGUAGE::LANGUAGE;
+

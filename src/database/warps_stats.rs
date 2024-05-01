@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::GachaType;
+
 pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
     let mut transaction = pool.begin().await?;
 
@@ -210,7 +212,7 @@ pub async fn update_warps_avg(pool: &PgPool) -> Result<()> {
 
 pub struct DbWarpsStatsUidGachaType {
     pub uid: i32,
-    pub gacha_type: String,
+    pub gacha_type: GachaType,
     pub count: i64,
     pub avg: f64,
     pub median: i64,
@@ -229,7 +231,14 @@ pub async fn get_warps_stats_4_by_uid(
         DbWarpsStatsUidGachaType,
         "
         SELECT
-            warps_stats_4.*,
+            warps_stats_4.uid,
+            warps_stats_4.gacha_type AS \"gacha_type: GachaType\",
+            warps_stats_4.count,
+            warps_stats_4.avg,
+            warps_stats_4.median,
+            warps_stats_4.rank_count,
+            warps_stats_4.rank_avg,
+            warps_stats_4.rank_median,
             warps_stats.count sum,
             warps_stats.rank rank_sum
         FROM
@@ -259,7 +268,14 @@ pub async fn get_warps_stats_5_by_uid(
         DbWarpsStatsUidGachaType,
         "
         SELECT
-            warps_stats_5.*,
+            warps_stats_5.uid,
+            warps_stats_5.gacha_type AS \"gacha_type: GachaType\",
+            warps_stats_5.count,
+            warps_stats_5.avg,
+            warps_stats_5.median,
+            warps_stats_5.rank_count,
+            warps_stats_5.rank_avg,
+            warps_stats_5.rank_median,
             warps_stats.count sum,
             warps_stats.rank rank_sum
         FROM
@@ -318,7 +334,7 @@ pub async fn get_warps_stats_by_uid(uid: i32, pool: &PgPool) -> Result<DbWarpsSt
 }
 
 pub struct DbWarpsStatsGachaType {
-    pub gacha_type: String,
+    pub gacha_type: GachaType,
     pub total: Option<i64>,
 }
 
@@ -327,7 +343,7 @@ pub async fn get_warps_stats_gacha_type(pool: &PgPool) -> Result<Vec<DbWarpsStat
         DbWarpsStatsGachaType,
         "
         SELECT
-            gacha_type,
+            gacha_type AS \"gacha_type: GachaType\",
             count(distinct uid) total
         FROM 
             warps_stats

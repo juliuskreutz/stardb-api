@@ -1,9 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbBookSeriesWorldText {
     pub id: i32,
-    pub language: String,
+    pub language: Language,
     pub name: String,
 }
 
@@ -23,7 +25,7 @@ pub async fn set_book_series_world_text(
             name = EXCLUDED.name
         ",
         series_text.id,
-        series_text.language,
+        series_text.language as Language,
         series_text.name,
     )
     .execute(pool)

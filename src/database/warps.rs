@@ -2,10 +2,12 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
+use crate::{GachaType, Language};
+
 pub struct DbWarp {
     pub id: i64,
     pub uid: i32,
-    pub gacha_type: String,
+    pub gacha_type: GachaType,
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub name: Option<String>,
@@ -25,7 +27,7 @@ pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
         ",
         warp.id,
         warp.uid,
-        warp.gacha_type,
+        warp.gacha_type as GachaType,
         warp.character,
         warp.light_cone,
         warp.timestamp,
@@ -59,12 +61,17 @@ pub async fn delete_warp_by_id_and_timestamp(
     Ok(())
 }
 
-pub async fn get_warps_by_uid(uid: i32, language: &str, pool: &PgPool) -> Result<Vec<DbWarp>> {
+pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Result<Vec<DbWarp>> {
     Ok(sqlx::query_as!(
         DbWarp,
         "
         SELECT
-            warps.*,
+            warps.id,
+            warps.uid,
+            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.character,
+            warps.light_cone,
+            warps.timestamp,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
@@ -91,7 +98,7 @@ pub async fn get_warps_by_uid(uid: i32, language: &str, pool: &PgPool) -> Result
             id
         ",
         uid,
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
@@ -99,15 +106,20 @@ pub async fn get_warps_by_uid(uid: i32, language: &str, pool: &PgPool) -> Result
 
 pub async fn get_warps_by_uid_and_gacha_type(
     uid: i32,
-    gacha_type: &str,
-    language: &str,
+    gacha_type: GachaType,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbWarp>> {
     Ok(sqlx::query_as!(
         DbWarp,
         "
         SELECT
-            warps.*,
+            warps.id,
+            warps.uid,
+            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.character,
+            warps.light_cone,
+            warps.timestamp,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
@@ -136,8 +148,8 @@ pub async fn get_warps_by_uid_and_gacha_type(
             id
         ",
         uid,
-        gacha_type,
-        language,
+        gacha_type as GachaType,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
@@ -146,14 +158,19 @@ pub async fn get_warps_by_uid_and_gacha_type(
 pub async fn get_warp_by_id_and_timestamp(
     id: i64,
     timestamp: DateTime<Utc>,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<DbWarp> {
     Ok(sqlx::query_as!(
         DbWarp,
         "
         SELECT
-            warps.*,
+            warps.id,
+            warps.uid,
+            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.character,
+            warps.light_cone,
+            warps.timestamp,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
@@ -181,14 +198,14 @@ pub async fn get_warp_by_id_and_timestamp(
         ",
         id,
         timestamp,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)
 }
 
 pub struct DbWarpCount {
-    pub gacha_type: String,
+    pub gacha_type: GachaType,
     pub count: Option<i64>,
 }
 
@@ -197,7 +214,7 @@ pub async fn get_warp_counts_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbWar
         DbWarpCount,
         "
         SELECT
-            gacha_type, 
+            gacha_type AS \"gacha_type: GachaType\",
             count(*)
         FROM
             warps
@@ -225,7 +242,7 @@ pub struct DbCharacterCount {
 
 pub async fn get_characters_count_by_uid(
     uid: i32,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbCharacterCount>> {
     Ok(sqlx::query_as!(
@@ -270,7 +287,7 @@ pub async fn get_characters_count_by_uid(
             rarity DESC, id DESC
         ",
         uid,
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
@@ -287,7 +304,7 @@ pub struct DbLightConeCount {
 
 pub async fn get_light_cones_count_by_uid(
     uid: i32,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbLightConeCount>> {
     Ok(sqlx::query_as!(
@@ -328,7 +345,7 @@ pub async fn get_light_cones_count_by_uid(
             rarity DESC, id DESC
         ",
         uid,
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)

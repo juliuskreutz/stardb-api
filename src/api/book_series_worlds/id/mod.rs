@@ -35,7 +35,7 @@ async fn get_book_series_world(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let series = BookSeriesWorld::from(
-        database::get_book_series_world_by_id(*id, &language_param.lang.to_string(), &pool).await?,
+        database::get_book_series_world_by_id(*id, language_param.lang, &pool).await?,
     );
 
     Ok(HttpResponse::Ok().json(series))

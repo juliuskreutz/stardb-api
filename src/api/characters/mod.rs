@@ -69,7 +69,7 @@ async fn get_characters(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_characters = database::get_characters(&language_params.lang.to_string(), &pool).await?;
+    let db_characters = database::get_characters(language_params.lang, &pool).await?;
 
     let characters: Vec<_> = db_characters.into_iter().map(Character::from).collect();
 

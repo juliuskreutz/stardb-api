@@ -59,7 +59,7 @@ async fn get_achievement_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series: Vec<_> = database::get_achievement_series(&language_param.lang.to_string(), &pool)
+    let series: Vec<_> = database::get_achievement_series(language_param.lang, &pool)
         .await?
         .into_iter()
         .map(AchievementSeries::from)

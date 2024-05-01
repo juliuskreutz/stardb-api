@@ -82,7 +82,7 @@ async fn get_community_tier_list(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let db_entries =
-        database::get_community_tier_list_entries(&language_params.lang.to_string(), &pool).await?;
+        database::get_community_tier_list_entries(language_params.lang, &pool).await?;
 
     let total_votes = db_entries[0].total_votes;
     let entries: Vec<_> = db_entries.into_iter().map(Entry::from).collect();

@@ -48,7 +48,7 @@ async fn get_book(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_book = database::get_book_by_id(*id, &language_params.lang.to_string(), &pool).await?;
+    let db_book = database::get_book_by_id(*id, language_params.lang, &pool).await?;
 
     let book = Book::from(db_book);
 

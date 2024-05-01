@@ -37,7 +37,9 @@ pub async fn add_user_achievement_completed(
     .await?
     .set
     {
-        for related in super::achievements::get_all_related_ids(user_achievement.id, set, pool).await? {
+        for related in
+            super::achievements::get_all_related_ids(user_achievement.id, set, pool).await?
+        {
             sqlx::query!(
                 "DELETE FROM users_achievements_completed WHERE username = $1 AND id = $2",
                 user_achievement.username,

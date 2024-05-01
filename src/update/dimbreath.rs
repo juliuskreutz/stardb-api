@@ -11,8 +11,9 @@ use anyhow::Result;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 
-use crate::database;
+use crate::{database, Language};
 
 #[derive(Deserialize)]
 struct AchievementData {
@@ -205,10 +206,6 @@ async fn update(pool: &PgPool) -> Result<()> {
     )?;
     let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
     let ruby_re = Regex::new(r"\{RUBY_.#.*?\}")?;
-
-    let languages = [
-        "CHS", "CHT", "DE", "EN", "ES", "FR", "ID", "JP", "KR", "PT", "RU", "TH", "VI",
-    ];
 
     let achievement_data: HashMap<String, AchievementData> = serde_json::from_reader(
         BufReader::new(File::open("StarRailData/ExcelOutput/AchievementData.json")?),
@@ -436,21 +433,23 @@ async fn update(pool: &PgPool) -> Result<()> {
         database::set_light_cone(&db_light_cone, pool).await?;
     }
 
-    for language in languages {
-        let mut text_map: HashMap<String, String> = serde_json::from_reader(BufReader::new(
-            File::open(format!("StarRailData/TextMap/TextMap{language}.json"))?,
-        ))?;
+    for language in Language::iter() {
+        let mut text_map: HashMap<String, String> =
+            serde_json::from_reader(BufReader::new(File::open(format!(
+                "StarRailData/TextMap/TextMap{}.json",
+                language.to_string().to_uppercase()
+            ))?))?;
 
         // -1976918066 = Dan Heng (Imbibitor Lunae)
         *text_map.get_mut("-1976918066").unwrap() = match language {
-            "CHS" => "丹恒 (饮月)",
-            "CHT" => "丹恆 (飲月)",
-            "JP" => "丹恒 (飲月)",
-            "KR" => "단항 (음월)",
-            "PT" => "Dan Heng (Embebidor Lunae)",
-            "RU" => "Дань Хэн (Пожиратель Луны)",
-            "TH" => "Dan Heng (จ้าวยลจันทรา)",
-            "VI" => "Dan Heng (Ẩm Nguyệt)",
+            Language::Chs => "丹恒 (饮月)",
+            Language::Cht => "丹恆 (飲月)",
+            Language::Jp => "丹恒 (飲月)",
+            Language::Kr => "단항 (음월)",
+            Language::Pt => "Dan Heng (Embebidor Lunae)",
+            Language::Ru => "Дань Хэн (Пожиратель Луны)",
+            Language::Th => "Dan Heng (จ้าวยลจันทรา)",
+            Language::Vi => "Dan Heng (Ẩm Nguyệt)",
             _ => "Dan Heng (Imbibitor Lunae)",
         }
         .to_string();
@@ -470,11 +469,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_series_text = database::DbAchievementSeriesText {
-                id,
-                language: language.to_lowercase(),
-                name,
-            };
+            let db_series_text = database::DbAchievementSeriesText { id, language, name };
 
             database::set_achievement_series_text(&db_series_text, pool).await?;
         }
@@ -540,13 +535,13 @@ async fn update(pool: &PgPool) -> Result<()> {
                 // -2090701432 = Trailblazer
                 .replace("{NICKNAME}", &text_map["-2090701432"]);
 
-            if language == "EN" {
+            if language == Language::En {
                 description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)")
             }
 
             let db_achievement_text = database::DbAchievementText {
                 id,
-                language: language.to_lowercase(),
+                language,
                 name,
                 description,
             };
@@ -590,7 +585,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
             let db_character_text = database::DbCharacterText {
                 id,
-                language: language.to_lowercase(),
+                language,
                 name,
                 path,
                 element,
@@ -607,11 +602,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                     .replace_all(&text_map[&skill.name.hash.to_string()], |_: &Captures| "")
                     .to_string();
 
-                let db_skill_text = database::DbSkillText {
-                    id,
-                    language: language.to_lowercase(),
-                    name,
-                };
+                let db_skill_text = database::DbSkillText { id, language, name };
 
                 database::set_skill_text(&db_skill_text, pool).await?;
             }
@@ -627,11 +618,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_book_series_world_text = database::DbBookSeriesWorldText {
-                id,
-                language: language.to_lowercase(),
-                name,
-            };
+            let db_book_series_world_text = database::DbBookSeriesWorldText { id, language, name };
 
             database::set_book_series_world_text(&db_book_series_world_text, pool).await?;
         }
@@ -646,11 +633,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_book_series_text = database::DbBookSeriesText {
-                id,
-                language: language.to_lowercase(),
-                name,
-            };
+            let db_book_series_text = database::DbBookSeriesText { id, language, name };
 
             database::set_book_series_text(&db_book_series_text, pool).await?;
         }
@@ -665,11 +648,7 @@ async fn update(pool: &PgPool) -> Result<()> {
                 )
                 .to_string();
 
-            let db_book_text = database::DbBookText {
-                id,
-                language: language.to_lowercase(),
-                name,
-            };
+            let db_book_text = database::DbBookText { id, language, name };
 
             database::set_book_text(&db_book_text, pool).await?;
         }
@@ -694,7 +673,7 @@ async fn update(pool: &PgPool) -> Result<()> {
 
             let db_light_cone_text = database::DbLightConeText {
                 id,
-                language: language.to_lowercase(),
+                language,
                 name,
                 path,
             };

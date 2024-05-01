@@ -18,10 +18,7 @@ use actix_web::{
     App, HttpServer,
 };
 use futures::lock::Mutex;
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::{Display, EnumIter, EnumString};
-use utoipa::ToSchema;
 use utoipa_swagger_ui::SwaggerUi;
 use uuid::Uuid;
 
@@ -32,17 +29,19 @@ use pg_session_store::PgSessionStore;
     PartialEq,
     Eq,
     Hash,
-    Display,
-    EnumString,
-    EnumIter,
-    Serialize,
-    Deserialize,
-    ToSchema,
     Clone,
     Copy,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    sqlx::Type,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "language", rename_all = "snake_case")]
 enum Language {
     #[serde(alias = "zh-cn")]
     Chs,
@@ -85,6 +84,26 @@ impl Language {
         }
         .to_string()
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    strum::Display,
+    strum::EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    sqlx::Type,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "gacha_type", rename_all = "snake_case")]
+enum GachaType {
+    Standard,
+    Departure,
+    Special,
+    Lc,
 }
 
 #[actix_web::main]

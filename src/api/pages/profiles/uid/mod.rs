@@ -7,7 +7,7 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, LanguageParams, Region},
-    database, mihomo, Language,
+    database, mihomo, GachaType, Language,
 };
 
 #[derive(OpenApi)]
@@ -162,10 +162,8 @@ async fn get_profile_json(uid: i32, lang: Language, pool: &PgPool) -> ApiResult<
     let updated_at = score_achievement.updated_at;
 
     let warps_count = database::get_warp_counts_by_uid(uid, pool).await?;
-    let character_counts =
-        database::get_characters_count_by_uid(uid, &lang.to_string(), pool).await?;
-    let light_cones_counts =
-        database::get_light_cones_count_by_uid(uid, &lang.to_string(), pool).await?;
+    let character_counts = database::get_characters_count_by_uid(uid, lang, pool).await?;
+    let light_cones_counts = database::get_light_cones_count_by_uid(uid, lang, pool).await?;
 
     let mut total = 0;
     let mut departure = 0;
@@ -175,12 +173,11 @@ async fn get_profile_json(uid: i32, lang: Language, pool: &PgPool) -> ApiResult<
     for wc in &warps_count {
         let count = wc.count.unwrap_or_default();
         total += count;
-        match wc.gacha_type.as_str() {
-            "departure" => departure = count,
-            "standard" => standard = count,
-            "special" => special = count,
-            "lc" => lc = count,
-            _ => {}
+        match wc.gacha_type {
+            GachaType::Departure => departure = count,
+            GachaType::Standard => standard = count,
+            GachaType::Special => special = count,
+            GachaType::Lc => lc = count,
         }
     }
 

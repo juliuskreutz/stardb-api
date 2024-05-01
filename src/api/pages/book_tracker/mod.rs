@@ -123,7 +123,7 @@ async fn update(book_tracker_cache: &web::Data<BookTrackerCache>, pool: &PgPool)
     let mut book_tracker_map = HashMap::new();
 
     for language in Language::iter() {
-        let db_books = database::get_books(&language.to_string(), pool).await?;
+        let db_books = database::get_books(language, pool).await?;
 
         let mut worlds: IndexMap<String, IndexMap<String, Vec<Book>>> = IndexMap::new();
 

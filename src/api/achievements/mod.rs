@@ -123,8 +123,7 @@ async fn get_achievements(
         false
     };
 
-    let mut db_achievements =
-        database::achievements::get_all(&language_params.lang.to_string(), &pool).await?;
+    let mut db_achievements = database::achievements::get_all(language_params.lang, &pool).await?;
 
     if !admin {
         db_achievements.retain(|a| !(a.hidden && a.impossible));

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            gacha_type AS \"gacha_type: GachaType\",\n            count(*)\n        FROM\n            warps\n        WHERE\n            uid = $1\n        GROUP BY\n            gacha_type\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "gacha_type: GachaType",
+        "type_info": {
+          "Custom": {
+            "name": "gacha_type",
+            "kind": {
+              "Enum": [
+                "departure",
+                "standard",
+                "special",
+                "lc"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "de15e2ce8766fbc0c6a8b1a140739e8971990c8578d42549130560cf2bcc40d3"
+}

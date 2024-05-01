@@ -7,7 +7,19 @@
       "Left": [
         "Int8",
         "Int4",
-        "Text",
+        {
+          "Custom": {
+            "name": "gacha_type",
+            "kind": {
+              "Enum": [
+                "departure",
+                "standard",
+                "special",
+                "lc"
+              ]
+            }
+          }
+        },
         "Int4",
         "Int4",
         "Timestamptz"

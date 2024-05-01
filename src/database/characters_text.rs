@@ -1,9 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbCharacterText {
     pub id: i32,
-    pub language: String,
+    pub language: Language,
     pub name: String,
     pub path: String,
     pub element: String,
@@ -24,7 +26,7 @@ pub async fn set_character_text(character_text: &DbCharacterText, pool: &PgPool)
             element = EXCLUDED.element
         ",
         character_text.id,
-        character_text.language,
+        character_text.language as Language,
         character_text.name,
         character_text.path,
         character_text.element,

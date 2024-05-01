@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbBookSeriesWorld {
     pub id: i32,
     pub name: String,
@@ -24,7 +26,7 @@ pub async fn set_book_series_world(series: &DbBookSeriesWorld, pool: &PgPool) ->
 }
 
 pub async fn get_book_series_worlds(
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbBookSeriesWorld>> {
     Ok(sqlx::query_as!(
@@ -42,7 +44,7 @@ pub async fn get_book_series_worlds(
         ORDER BY
             id
         ",
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
@@ -50,7 +52,7 @@ pub async fn get_book_series_worlds(
 
 pub async fn get_book_series_world_by_id(
     id: i32,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<DbBookSeriesWorld> {
     Ok(sqlx::query_as!(
@@ -69,7 +71,7 @@ pub async fn get_book_series_world_by_id(
             book_series_worlds.id = $1
         ",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)

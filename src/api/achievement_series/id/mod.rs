@@ -35,8 +35,7 @@ async fn get_achievement_series(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let series = AchievementSeries::from(
-        database::get_achievement_series_by_id(*id, &language_param.lang.to_string(), &pool)
-            .await?,
+        database::get_achievement_series_by_id(*id, language_param.lang, &pool).await?,
     );
 
     Ok(HttpResponse::Ok().json(series))

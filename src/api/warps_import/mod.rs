@@ -7,29 +7,19 @@ use chrono::NaiveDateTime;
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::{Display, EnumIter, IntoEnumIterator};
+use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database};
+use crate::{api::ApiResult, database, GachaType, Language};
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps-import")),
     paths(post_warps_import),
-    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, GachaType, Status))
+    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, Status))
 )]
 struct ApiDoc;
-
-#[derive(Display, EnumIter, Serialize, Deserialize, ToSchema, Clone, Copy)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum GachaType {
-    Standard,
-    Departure,
-    Special,
-    Lc,
-}
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
@@ -204,7 +194,7 @@ async fn post_warps_import(
 
 async fn import_warps(
     url: &Url,
-    gt: GachaType,
+    gacha_type: GachaType,
     info: &Arc<Mutex<WarpsImportInfo>>,
     pool: &PgPool,
 ) -> ApiResult<()> {
@@ -214,7 +204,7 @@ async fn import_warps(
     url.query_pairs_mut()
         .extend_pairs(&[(
             "gacha_type",
-            match gt {
+            match gacha_type {
                 GachaType::Standard => "1",
                 GachaType::Departure => "2",
                 GachaType::Special => "11",
@@ -257,6 +247,12 @@ async fn import_warps(
             // FIXME: Temp
             database::delete_warp_by_id_and_timestamp(
                 id,
+                timestamp + chrono::Duration::hours(5),
+                pool,
+            )
+            .await?;
+            database::delete_warp_by_id_and_timestamp(
+                id,
                 timestamp + chrono::Duration::hours(6),
                 pool,
             )
@@ -269,7 +265,7 @@ async fn import_warps(
             .await?;
             // FIXME: Temp
 
-            if database::get_warp_by_id_and_timestamp(id, timestamp, "en", pool)
+            if database::get_warp_by_id_and_timestamp(id, timestamp, Language::En, pool)
                 .await
                 .is_ok()
             {
@@ -277,12 +273,9 @@ async fn import_warps(
             }
 
             let uid = entry.uid.parse()?;
-            let gacha_type = gt.to_string();
             let item = entry.item_id.parse()?;
 
             {
-                let gacha_type = gacha_type.clone();
-
                 let character = (entry.item_type == "Character").then_some(item);
                 let light_cone = (entry.item_type == "Light Cone").then_some(item);
 
@@ -300,7 +293,7 @@ async fn import_warps(
                 database::set_warp(&db_warp, pool).await?;
             }
 
-            match gt {
+            match gacha_type {
                 GachaType::Standard => info.lock().await.standard += 1,
                 GachaType::Departure => info.lock().await.departure += 1,
                 GachaType::Special => info.lock().await.special += 1,

@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbAchievementSeries {
     pub id: i32,
     pub name: String,
@@ -29,7 +31,7 @@ pub async fn set_achievement_series(series: &DbAchievementSeries, pool: &PgPool)
 }
 
 pub async fn get_achievement_series(
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbAchievementSeries>> {
     Ok(sqlx::query_as!(
@@ -48,7 +50,7 @@ pub async fn get_achievement_series(
         ORDER BY
             priority DESC, achievement_series.id
         ",
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)
@@ -56,7 +58,7 @@ pub async fn get_achievement_series(
 
 pub async fn get_achievement_series_by_id(
     id: i32,
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<DbAchievementSeries> {
     Ok(sqlx::query_as!(
@@ -76,7 +78,7 @@ pub async fn get_achievement_series_by_id(
             achievement_series.id = $1
         ",
         id,
-        language,
+        language as Language,
     )
     .fetch_one(pool)
     .await?)

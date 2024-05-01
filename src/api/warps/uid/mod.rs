@@ -2,31 +2,20 @@ use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::Display;
 use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{
     api::{ApiResult, LanguageParams},
-    database,
+    database, GachaType,
 };
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps/{uid}")),
     paths(get_warps),
-    components(schemas(GachaType, Warp, WarpType))
+    components(schemas(Warp, WarpType))
 )]
 struct ApiDoc;
-
-#[derive(Display, Deserialize, ToSchema)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum GachaType {
-    Standard,
-    Departure,
-    Special,
-    Lc,
-}
 
 #[derive(Serialize, ToSchema)]
 struct Warp {
@@ -95,8 +84,8 @@ async fn get_warps(
 ) -> ApiResult<impl Responder> {
     let warps: Vec<_> = database::get_warps_by_uid_and_gacha_type(
         *uid,
-        &warp_params.gacha_type.to_string(),
-        &language_params.lang.to_string(),
+        warp_params.gacha_type,
+        language_params.lang,
         &pool,
     )
     .await?

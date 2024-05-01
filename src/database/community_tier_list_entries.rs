@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbCommunityTierListEntry {
     pub character: i32,
     pub eidolon: i32,
@@ -57,7 +59,7 @@ pub async fn set_community_tier_list_entry(
 }
 
 pub async fn get_community_tier_list_entries(
-    language: &str,
+    language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbCommunityTierListEntry>> {
     Ok(sqlx::query_as!(
@@ -88,7 +90,7 @@ pub async fn get_community_tier_list_entries(
         ORDER BY
             average DESC
         ",
-        language,
+        language as Language,
     )
     .fetch_all(pool)
     .await?)

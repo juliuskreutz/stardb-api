@@ -71,7 +71,7 @@ async fn get_achievement(
     };
 
     let db_achievement =
-        database::achievements::get_one_by_id(*id, &language_params.lang.to_string(), &pool).await?;
+        database::achievements::get_one_by_id(*id, language_params.lang, &pool).await?;
 
     if (db_achievement.impossible && db_achievement.hidden) && !admin {
         return Ok(HttpResponse::NotFound().finish());
@@ -80,7 +80,8 @@ async fn get_achievement(
     let mut achievement = Achievement::from(db_achievement);
 
     if let Some(set) = achievement.set {
-        achievement.related = Some(database::achievements::get_all_related_ids(achievement.id, set, &pool).await?);
+        achievement.related =
+            Some(database::achievements::get_all_related_ids(achievement.id, set, &pool).await?);
     }
 
     Ok(HttpResponse::Ok().json(achievement))

@@ -1,9 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbAchievementText {
     pub id: i32,
-    pub language: String,
+    pub language: Language,
     pub name: String,
     pub description: String,
 }
@@ -25,7 +27,7 @@ pub async fn set_achievement_text(
             description = EXCLUDED.description
         ",
         achievement_text.id,
-        achievement_text.language,
+        achievement_text.language as Language,
         achievement_text.name,
         achievement_text.description,
     )

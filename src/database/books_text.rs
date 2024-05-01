@@ -1,9 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::Language;
+
 pub struct DbBookText {
     pub id: i32,
-    pub language: String,
+    pub language: Language,
     pub name: String,
 }
 
@@ -20,7 +22,7 @@ pub async fn set_book_text(book_text: &DbBookText, pool: &PgPool) -> Result<()> 
             name = EXCLUDED.name
         ",
         book_text.id,
-        book_text.language,
+        book_text.language as Language,
         book_text.name,
     )
     .execute(pool)
