@@ -126,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     update::dimbreath(pool.clone()).await;
     update::star_rail_res().await;
     update::scores().await;
-    update::warps_stats(pool.clone()).await;
+    // update::warps_stats(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
     //FIX: This is ugly as hell

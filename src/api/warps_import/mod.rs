@@ -237,7 +237,7 @@ async fn import_warps(
         let timestamp_offset = chrono::Duration::hours(gacha_log.data.region_time_zone);
 
         for entry in gacha_log.data.list {
-            end_id = entry.id.clone();
+            end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?

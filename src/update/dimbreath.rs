@@ -2,12 +2,13 @@ use std::{
     collections::HashMap,
     fs::File,
     io::BufReader,
-    process::Command,
+    path::Path,
     time::{Duration, Instant},
 };
 
 use actix_web::rt;
 use anyhow::Result;
+use async_process::Command;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -161,12 +162,14 @@ pub async fn dimbreath(pool: PgPool) {
     rt::spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
+        let mut up_to_date = false;
+
         loop {
             interval.tick().await;
 
             let start = Instant::now();
 
-            if let Err(e) = update(&pool).await {
+            if let Err(e) = update(&mut up_to_date, &pool).await {
                 error!(
                     "Dimbreath update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
@@ -181,13 +184,8 @@ pub async fn dimbreath(pool: PgPool) {
     });
 }
 
-async fn update(pool: &PgPool) -> Result<()> {
-    if Command::new("git")
-        .arg("pull")
-        .current_dir("StarRailData")
-        .spawn()
-        .is_err()
-    {
+async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
+    if !Path::new("StarRailData").exists() {
         Command::new("git")
             .args([
                 "clone",
@@ -195,8 +193,27 @@ async fn update(pool: &PgPool) -> Result<()> {
                 "1",
                 "https://github.com/Dimbreath/StarRailData",
             ])
-            .spawn()?
-            .wait()?;
+            .output()
+            .await?;
+
+        *up_to_date = false;
+    }
+
+    let output = String::from_utf8(
+        Command::new("git")
+            .arg("pull")
+            .current_dir("StarRailData")
+            .output()
+            .await?
+            .stdout,
+    )?;
+
+    if !output.contains("Already up to date.") {
+        *up_to_date = false;
+    }
+
+    if *up_to_date {
+        return Ok(());
     }
 
     let html_re = Regex::new(r"<[^>]*>")?;
@@ -681,6 +698,8 @@ async fn update(pool: &PgPool) -> Result<()> {
             database::set_light_cone_text(&db_light_cone_text, pool).await?;
         }
     }
+
+    *up_to_date = true;
 
     Ok(())
 }

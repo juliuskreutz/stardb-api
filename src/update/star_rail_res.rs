@@ -1,13 +1,13 @@
 use std::{
     fs::{self, File},
     io::BufReader,
-    path::PathBuf,
-    process::Command,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
 use actix_web::rt;
 use anyhow::{anyhow, Result};
+use async_process::Command;
 use image::{EncodableLayout, ImageFormat};
 
 use walkdir::WalkDir;
@@ -17,12 +17,14 @@ pub async fn star_rail_res() {
     rt::spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
+        let mut up_to_date = false;
+
         loop {
             interval.tick().await;
 
             let start = Instant::now();
 
-            if let Err(e) = update().await {
+            if let Err(e) = update(&mut up_to_date).await {
                 error!(
                     "StarRailRes update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
@@ -37,13 +39,8 @@ pub async fn star_rail_res() {
     });
 }
 
-async fn update() -> Result<()> {
-    if Command::new("git")
-        .arg("pull")
-        .current_dir("static/StarRailRes")
-        .spawn()
-        .is_err()
-    {
+async fn update(up_to_date: &mut bool) -> Result<()> {
+    if !Path::new("static/StarRailRes").exists() {
         Command::new("git")
             .args([
                 "clone",
@@ -52,8 +49,27 @@ async fn update() -> Result<()> {
                 "https://github.com/Mar-7th/StarRailRes",
             ])
             .current_dir("static")
-            .spawn()?
-            .wait()?;
+            .output()
+            .await?;
+
+        *up_to_date = false;
+    }
+
+    let output = String::from_utf8(
+        Command::new("git")
+            .arg("pull")
+            .current_dir("static/StarRailRes")
+            .output()
+            .await?
+            .stdout,
+    )?;
+
+    if !output.contains("Already up to date.") {
+        *up_to_date = false;
+    }
+
+    if *up_to_date {
+        return Ok(());
     }
 
     for path in WalkDir::new("static/StarRailRes/icon")
@@ -93,6 +109,8 @@ async fn update() -> Result<()> {
 
         rt::task::yield_now().await;
     }
+
+    *up_to_date = true;
 
     Ok(())
 }
