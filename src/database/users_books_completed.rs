@@ -35,6 +35,17 @@ pub async fn delete_user_book_completed(
     Ok(())
 }
 
+pub async fn delete_user_books_completed(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "DELETE FROM users_books_completed WHERE username = $1",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_user_books_completed_by_username(
     username: &str,
     pool: &PgPool,

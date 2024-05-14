@@ -1,6 +1,3 @@
-use std::io::BufReader;
-
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_session::Session;
 use actix_web::{put, web, HttpResponse, Responder};
 use serde::Deserialize;
@@ -14,7 +11,7 @@ use crate::{api::ApiResult, database};
     tags((name = "users/me/import")),
     paths(import),
     components(schemas(
-        File,
+        Import,
     ))
 )]
 struct ApiDoc;
@@ -27,22 +24,17 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import);
 }
 
-#[derive(MultipartForm, ToSchema)]
-struct File {
-    #[schema(value_type = String, format = Binary)]
-    file: TempFile,
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct Import {
     achievements: Vec<i32>,
+    books: Vec<i32>,
 }
 
 #[utoipa::path(
     tag = "users/me/import",
     put,
     path = "/api/users/me/import",
-    request_body(content = File, content_type = "multipart/form-data"),
+    request_body = Import,
     responses(
         (status = 200, description = "Successfully imported"),
         (status = 400, description = "Not logged in"),
@@ -51,26 +43,33 @@ struct Import {
 #[put("/api/users/me/import")]
 async fn import(
     session: Session,
-    file: MultipartForm<File>,
+    import: web::Json<Import>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let import: Import = serde_json::from_reader(BufReader::new(&file.file.file))?;
-
     database::delete_user_achievements_completed(&username, &pool).await?;
-
-    let mut complete = database::DbUserAchievementCompleted {
+    let mut achievement_completed = database::DbUserAchievementCompleted {
         username: username.clone(),
         id: 0,
     };
+    for &achievement in &import.achievements {
+        achievement_completed.id = achievement;
 
-    for achievement in import.achievements {
-        complete.id = achievement;
+        database::add_user_achievement_completed(&achievement_completed, &pool).await?;
+    }
 
-        database::add_user_achievement_completed(&complete, &pool).await?;
+    database::delete_user_books_completed(&username, &pool).await?;
+    let mut book_completed = database::DbUserBookCompleted {
+        username: username.clone(),
+        id: 0,
+    };
+    for &book in &import.books {
+        book_completed.id = book;
+
+        database::add_user_book_completed(&book_completed, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())
