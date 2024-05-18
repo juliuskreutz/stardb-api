@@ -7,7 +7,7 @@ mod mihomo;
 mod pg_session_store;
 mod update;
 
-use std::{collections::HashMap, env, fs};
+use std::{env, fs};
 
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
@@ -17,12 +17,9 @@ use actix_web::{
     web::Data,
     App, HttpServer,
 };
-use futures::lock::Mutex;
+use pg_session_store::PgSessionStore;
 use sqlx::PgPool;
 use utoipa_swagger_ui::SwaggerUi;
-use uuid::Uuid;
-
-use pg_session_store::PgSessionStore;
 
 #[derive(
     Default,

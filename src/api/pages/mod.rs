@@ -32,7 +32,3 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(profiles::configure)
         .configure(warp_tracker::configure);
 }
-
-pub fn cache_book_tracker(pool: PgPool) -> web::Data<book_tracker::BookTrackerCache> {
-    book_tracker::cache(pool)
-}
