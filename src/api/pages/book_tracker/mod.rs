@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -17,6 +18,10 @@ use crate::{
     database,
 };
 
+lazy_static::lazy_static! {
+    static ref CACHE: Mutex<Option<web::Data<BookTrackerCache>>> = Mutex::new(None);
+}
+
 #[derive(OpenApi)]
 #[openapi(paths(get_book_tracker))]
 struct ApiDoc;
@@ -25,8 +30,14 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_book_tracker);
+pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+    let data = CACHE
+        .lock()
+        .unwrap()
+        .get_or_insert_with(|| cache(pool))
+        .clone();
+
+    cfg.service(get_book_tracker).app_data(data);
 }
 
 #[derive(Default)]

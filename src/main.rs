@@ -129,9 +129,6 @@ async fn main() -> anyhow::Result<()> {
     // update::warps_stats(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
-    //FIX: This is ugly as hell
-    let tokens_data = Data::new(Mutex::new(HashMap::<Uuid, String>::new()));
-    let book_tracker_cache_data = api::cache_book_tracker(pool.clone());
 
     let key = Key::from(&std::fs::read("session_key")?);
 
@@ -139,9 +136,7 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(tokens_data.clone())
             .app_data(pool_data.clone())
-            .app_data(book_tracker_cache_data.clone())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())

@@ -25,8 +25,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    cfg.configure(|sc| achievement_tracker::configure(sc, pool))
-        .configure(book_tracker::configure)
+    cfg.configure(|sc| achievement_tracker::configure(sc, pool.clone()))
+        .configure(|sc| book_tracker::configure(sc, pool.clone()))
         .configure(community_tier_list::configure)
         .configure(leaderboard::configure)
         .configure(profiles::configure)

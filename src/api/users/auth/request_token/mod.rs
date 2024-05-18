@@ -1,7 +1,6 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, sync::Mutex};
 
 use actix_web::{post, rt, web, HttpResponse, Responder};
-use futures::lock::Mutex;
 use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -9,6 +8,10 @@ use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
 use crate::{api::ApiResult, database};
+
+lazy_static::lazy_static! {
+    static ref CACHE: Mutex<Option<web::Data<futures::lock::Mutex<HashMap<Uuid, String>>>>> = Mutex::new(None);
+}
 
 #[derive(OpenApi)]
 #[openapi(
@@ -23,7 +26,13 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(request_token);
+    let data = CACHE
+        .lock()
+        .unwrap()
+        .get_or_insert_with(|| web::Data::default())
+        .clone();
+
+    cfg.service(request_token).app_data(data);
 }
 
 #[derive(Deserialize, ToSchema)]
