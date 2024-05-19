@@ -124,6 +124,8 @@ struct BookSeriesConfig {
     world: i32,
     #[serde(rename = "BookSeries")]
     name: TextHash,
+    #[serde(rename = "IsShowInBookshelf")]
+    bookshelf: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -382,10 +384,12 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
     for book_series_config in book_series_config.values() {
         let id = book_series_config.id;
         let world = book_series_config.world;
+        let bookshelf = book_series_config.bookshelf.unwrap_or_default();
 
         let db_series = database::DbBookSeries {
             id,
             world,
+            bookshelf,
             name: String::new(),
             world_name: String::new(),
         };

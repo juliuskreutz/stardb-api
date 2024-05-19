@@ -6,6 +6,7 @@ use crate::Language;
 pub struct DbBookSeries {
     pub id: i32,
     pub world: i32,
+    pub bookshelf: bool,
     pub world_name: String,
     pub name: String,
 }
@@ -14,16 +15,18 @@ pub async fn set_book_series(series: &DbBookSeries, pool: &PgPool) -> Result<()>
     sqlx::query!(
         "
         INSERT INTO
-            book_series(id, world)
+            book_series(id, world, bookshelf)
         VALUES
-            ($1, $2)
+            ($1, $2, $3)
         ON CONFLICT
             (id)
         DO UPDATE SET
-            world = EXCLUDED.world
+            world = EXCLUDED.world,
+            bookshelf = EXCLUDED.bookshelf
         ",
         series.id,
         series.world,
+        series.bookshelf,
     )
     .execute(pool)
     .await?;

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            book_series(id, world, bookshelf)\n        VALUES\n            ($1, $2, $3)\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            world = EXCLUDED.world,\n            bookshelf = EXCLUDED.bookshelf\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e4f5a67be2a36e26a0f0d3a36de66bde81806fcd532979162902037fe4e7bbca"
+}

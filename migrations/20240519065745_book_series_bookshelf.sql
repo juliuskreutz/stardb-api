@@ -1,0 +1,2 @@
+ALTER TABLE book_series
+    ADD COLUMN bookshelf BOOLEAN NOT NULL DEFAULT FALSE

@@ -135,10 +135,20 @@ async fn update(book_tracker_cache: &web::Data<BookTrackerCache>, pool: &PgPool)
 
     for language in Language::iter() {
         let db_books = database::get_books(language, pool).await?;
+        let db_book_series = database::get_book_series(language, pool).await?;
 
         let mut worlds: IndexMap<String, IndexMap<String, Vec<Book>>> = IndexMap::new();
 
         for db_book in db_books {
+            if !db_book_series
+                .iter()
+                .find(|s| s.id == db_book.series)
+                .unwrap()
+                .bookshelf
+            {
+                continue;
+            }
+
             worlds
                 .entry(db_book.series_world_name.clone())
                 .or_default()

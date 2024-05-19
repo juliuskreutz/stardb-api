@@ -23,6 +23,7 @@ struct ApiDoc;
 struct BookSeries {
     id: i32,
     world: i32,
+    bookshelf: bool,
     world_name: String,
     name: String,
 }
@@ -32,6 +33,7 @@ impl From<database::DbBookSeries> for BookSeries {
         Self {
             id: db_series.id,
             world: db_series.world,
+            bookshelf: db_series.bookshelf,
             world_name: db_series.world_name,
             name: db_series.name,
         }
