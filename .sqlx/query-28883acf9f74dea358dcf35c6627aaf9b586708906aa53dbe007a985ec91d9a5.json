@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            book_series.*,\n            book_series_text.name,\n            book_series_worlds_text.name world_name\n        FROM\n            book_series\n        INNER JOIN\n            book_series_text\n        ON\n            book_series_text.id = book_series.id AND book_series_text.language = $1\n        INNER JOIN\n            book_series_worlds_text\n        ON\n            book_series_worlds_text.id = book_series.world AND book_series_worlds_text.language = $1\n        ORDER BY\n            id\n        ",
+  "query": "\n        SELECT\n            book_series.*,\n            book_series_text.name,\n            book_series_worlds_text.name world_name\n        FROM\n            book_series\n        INNER JOIN\n            book_series_text\n        ON\n            book_series_text.id = book_series.id AND book_series_text.language = $1\n        INNER JOIN\n            book_series_worlds_text\n        ON\n            book_series_worlds_text.id = book_series.world AND book_series_worlds_text.language = $1\n        ORDER BY\n            world, id\n        ",
   "describe": {
     "columns": [
       {
@@ -63,5 +63,5 @@
       false
     ]
   },
-  "hash": "17d21503a5f3ddc2c566bcf45dca6cf1dc3696ab0c2ad93b00040254c235c062"
+  "hash": "28883acf9f74dea358dcf35c6627aaf9b586708906aa53dbe007a985ec91d9a5"
 }

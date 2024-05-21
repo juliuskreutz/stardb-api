@@ -78,7 +78,7 @@ pub async fn get_books(language: Language, pool: &PgPool) -> Result<Vec<DbBook>>
         WHERE
             icon IS NOT NULL
         ORDER BY
-            world, series, id
+            world, series, series_inside, id
         ",
         language as Language,
     )

@@ -48,11 +48,13 @@ pub async fn set(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievement>> {
-    Ok(
-        sqlx::query_file_as!(DbAchievement, "sql/achievements/get_all.sql", language as Language)
-            .fetch_all(pool)
-            .await?,
+    Ok(sqlx::query_file_as!(
+        DbAchievement,
+        "sql/achievements/get_all.sql",
+        language as Language
     )
+    .fetch_all(pool)
+    .await?)
 }
 
 pub async fn get_all_ids_shown(pool: &PgPool) -> Result<Vec<i32>> {

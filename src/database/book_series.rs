@@ -53,7 +53,7 @@ pub async fn get_book_series(language: Language, pool: &PgPool) -> Result<Vec<Db
         ON
             book_series_worlds_text.id = book_series.world AND book_series_worlds_text.language = $1
         ORDER BY
-            id
+            world, id
         ",
         language as Language,
     )
