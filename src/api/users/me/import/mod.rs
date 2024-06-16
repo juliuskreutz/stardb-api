@@ -1,13 +1,16 @@
 use std::io::BufReader;
 
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
+use actix_multipart::form::MultipartForm;
 use actix_session::Session;
 use actix_web::{put, web, HttpResponse, Responder};
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database};
+use crate::{
+    api::{ApiResult, File},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -15,7 +18,6 @@ use crate::{api::ApiResult, database};
     paths(import, import_file),
     components(schemas(
         ImportData,
-        File,
     ))
 )]
 struct ApiDoc;
@@ -34,17 +36,11 @@ struct ImportData {
     books: Option<Vec<i32>>,
 }
 
-#[derive(MultipartForm, ToSchema)]
-struct File {
-    #[schema(value_type = String, format = Binary)]
-    file: TempFile,
-}
-
 #[utoipa::path(
     tag = "users/me/import",
     put,
     path = "/api/users/me/import",
-    request_body = Import,
+    request_body = ImportData,
     responses(
         (status = 200, description = "Successfully imported"),
         (status = 400, description = "Not logged in"),

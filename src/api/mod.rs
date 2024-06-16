@@ -17,6 +17,7 @@ mod scores;
 mod select_all;
 mod sitemap;
 mod skills;
+mod srs_warps_import;
 mod users;
 mod warps;
 mod warps_import;
@@ -24,6 +25,7 @@ mod warps_import;
 
 use std::env;
 
+use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{guard, web};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -38,7 +40,7 @@ use crate::{GachaType, Language};
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 #[derive(OpenApi)]
-#[openapi(tags((name = "pinned")), components(schemas(Language, GachaType)), modifiers(&PrivateAddon))]
+#[openapi(tags((name = "pinned")), components(schemas(Language, GachaType, File)), modifiers(&PrivateAddon))]
 struct ApiDoc;
 
 struct PrivateAddon;
@@ -69,6 +71,12 @@ pub enum Region {
     Cn,
 }
 
+#[derive(MultipartForm, ToSchema)]
+struct File {
+    #[schema(value_type = String, format = Binary)]
+    file: TempFile,
+}
+
 fn private(ctx: &guard::GuardContext) -> bool {
     Some(env::var("API_KEY").unwrap().as_bytes())
         == ctx.head().headers().get("x-api-key").map(|h| h.as_bytes())
@@ -94,6 +102,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
     openapi.merge(sitemap::openapi());
+    openapi.merge(srs_warps_import::openapi());
     openapi.merge(skills::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
@@ -122,6 +131,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(select_all::configure)
         .configure(sitemap::configure)
         .configure(skills::configure)
+        .configure(srs_warps_import::configure)
         .configure(users::configure)
         .configure(warps::configure)
         .configure(warps_import::configure);

@@ -275,23 +275,22 @@ async fn import_warps(
             let uid = entry.uid.parse()?;
             let item = entry.item_id.parse()?;
 
-            {
-                let character = (entry.item_type == "Character").then_some(item);
-                let light_cone = (entry.item_type == "Light Cone").then_some(item);
+            let character = (entry.item_type == "Character").then_some(item);
+            let light_cone = (entry.item_type == "Light Cone").then_some(item);
 
-                let db_warp = database::DbWarp {
-                    id,
-                    uid,
-                    character,
-                    light_cone,
-                    gacha_type,
-                    name: None,
-                    rarity: None,
-                    timestamp,
-                };
+            let db_warp = database::DbWarp {
+                id,
+                uid,
+                character,
+                light_cone,
+                gacha_type,
+                name: None,
+                rarity: None,
+                timestamp,
+                official: true,
+            };
 
-                database::set_warp(&db_warp, pool).await?;
-            }
+            database::set_warp(&db_warp, pool).await?;
 
             match gacha_type {
                 GachaType::Standard => info.lock().await.standard += 1,

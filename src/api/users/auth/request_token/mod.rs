@@ -80,7 +80,9 @@ async fn request_token(
         .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
         .to(to)
         .subject("StarDB.GG Emergency Login")
-        .body(format!("Use the following link to login:\nhttps://stardb.gg/login?token={token}\nAfter this you should be able set your password at:\nhttps://stardb.gg/account"))?;
+        .body(format!(
+            "Use the following link to login:\nhttps://stardb.gg/login?token={token}"
+        ))?;
 
     let credentials = Credentials::new(env::var("SMTP_USERNAME")?, env::var("SMTP_PASSWORD")?);
 

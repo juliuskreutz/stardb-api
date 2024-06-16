@@ -13,15 +13,16 @@ pub struct DbWarp {
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
+    pub official: bool,
 }
 
 pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
-            warps(id, uid, gacha_type, character, light_cone, timestamp)
+            warps(id, uid, gacha_type, character, light_cone, timestamp, official)
         VALUES
-            ($1, $2, $3, $4, $5, $6)
+            ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT
             DO NOTHING
         ",
@@ -31,6 +32,7 @@ pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
         warp.character,
         warp.light_cone,
         warp.timestamp,
+        warp.official,
     )
     .execute(pool)
     .await?;
@@ -72,6 +74,7 @@ pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Re
             warps.character,
             warps.light_cone,
             warps.timestamp,
+            warps.official,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
@@ -120,6 +123,7 @@ pub async fn get_warps_by_uid_and_gacha_type(
             warps.character,
             warps.light_cone,
             warps.timestamp,
+            warps.official,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
@@ -171,6 +175,7 @@ pub async fn get_warp_by_id_and_timestamp(
             warps.character,
             warps.light_cone,
             warps.timestamp,
+            warps.official,
             COALESCE(characters_text.name, light_cones_text.name) AS name,
             COALESCE(characters.rarity, light_cones.rarity) AS rarity
         FROM
