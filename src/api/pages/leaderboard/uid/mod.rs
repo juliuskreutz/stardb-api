@@ -34,6 +34,11 @@ async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    reqwest::Client::new()
+        .put(format!("http://localhost:8000/api/mihomo/{uid}"))
+        .send()
+        .await?;
+
     let count_na =
         database::count_scores_achievement(Some(&Region::Na.to_string()), None, &pool).await?;
     let count_eu =
