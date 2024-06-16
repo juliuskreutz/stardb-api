@@ -39,7 +39,7 @@ struct Data {
 
 #[derive(serde::Deserialize)]
 struct Stores {
-    #[serde(rename = "1-warp-v2")]
+    #[serde(rename = "1_warp-v2")]
     warps: Warps,
 }
 
