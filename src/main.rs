@@ -145,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .build()
             })
-            .service(Files::new("/static", "static").show_files_listing())
+            .service(Files::new("/api/static", "static").show_files_listing())
             .service(
                 SwaggerUi::new("/api/swagger-ui/{_:.*}")
                     .url("/api-doc/openapi.json", openapi.clone()),
