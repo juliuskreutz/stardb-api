@@ -34,10 +34,18 @@ async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    reqwest::Client::new()
-        .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-        .send()
-        .await?;
+    let score = if let Ok(db_score) = database::get_score_achievement_by_uid(*uid, &pool).await {
+        db_score.into()
+    } else {
+        reqwest::Client::new()
+            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
+            .send()
+            .await?;
+
+        database::get_score_achievement_by_uid(*uid, &pool)
+            .await?
+            .into()
+    };
 
     let count_na =
         database::count_scores_achievement(Some(&Region::Na.to_string()), None, &pool).await?;
@@ -51,11 +59,7 @@ async fn get_leaderboard_entry(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_score = database::get_score_achievement_by_uid(*uid, &pool)
-        .await?
-        .into();
-
-    let scores = vec![db_score];
+    let scores = vec![score];
 
     let leaderboard = Leaderboard {
         count,
