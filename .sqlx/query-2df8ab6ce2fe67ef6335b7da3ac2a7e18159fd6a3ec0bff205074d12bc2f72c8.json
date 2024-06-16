@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO\n            warps(id, uid, gacha_type, character, light_cone, timestamp)\n        VALUES\n            ($1, $2, $3, $4, $5, $6)\n        ON CONFLICT\n            DO NOTHING\n        ",
+  "query": "\n        INSERT INTO\n            warps(id, uid, gacha_type, character, light_cone, timestamp, official)\n        VALUES\n            ($1, $2, $3, $4, $5, $6, $7)\n        ON CONFLICT\n            DO NOTHING\n        ",
   "describe": {
     "columns": [],
     "parameters": {
@@ -22,10 +22,11 @@
         },
         "Int4",
         "Int4",
-        "Timestamptz"
+        "Timestamptz",
+        "Bool"
       ]
     },
     "nullable": []
   },
-  "hash": "400a696954c28d46593ac0211cf6a4740e284a2ee28fe316663ea56cb1e9c67c"
+  "hash": "2df8ab6ce2fe67ef6335b7da3ac2a7e18159fd6a3ec0bff205074d12bc2f72c8"
 }

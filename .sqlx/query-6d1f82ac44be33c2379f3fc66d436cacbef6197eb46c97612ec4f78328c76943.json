@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warps.id,\n            warps.uid,\n            warps.gacha_type as \"gacha_type: GachaType\",\n            warps.character,\n            warps.light_cone,\n            warps.timestamp,\n            COALESCE(characters_text.name, light_cones_text.name) AS name,\n            COALESCE(characters.rarity, light_cones.rarity) AS rarity\n        FROM\n            warps\n        LEFT JOIN\n            characters\n        ON\n            characters.id = character\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            uid = $1\n        AND\n            gacha_type = $2\n        ORDER BY\n            id\n        ",
+  "query": "\n        SELECT\n            warps.id,\n            warps.uid,\n            warps.gacha_type as \"gacha_type: GachaType\",\n            warps.character,\n            warps.light_cone,\n            warps.timestamp,\n            warps.official,\n            COALESCE(characters_text.name, light_cones_text.name) AS name,\n            COALESCE(characters.rarity, light_cones.rarity) AS rarity\n        FROM\n            warps\n        LEFT JOIN\n            characters\n        ON\n            characters.id = character\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            uid = $1\n        AND\n            gacha_type = $2\n        ORDER BY\n            id\n        ",
   "describe": {
     "columns": [
       {
@@ -47,11 +47,16 @@
       },
       {
         "ordinal": 6,
+        "name": "official",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
         "name": "name",
         "type_info": "Text"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "rarity",
         "type_info": "Int4"
       }
@@ -103,9 +108,10 @@
       true,
       true,
       false,
+      false,
       null,
       null
     ]
   },
-  "hash": "b5f6ddca2ef48151c6d5e2f66168c98318e4936737fa08206ac42182092942d3"
+  "hash": "6d1f82ac44be33c2379f3fc66d436cacbef6197eb46c97612ec4f78328c76943"
 }
