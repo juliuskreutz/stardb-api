@@ -74,7 +74,7 @@ struct Warp {
     ),
     security(("admin" = []))
 )]
-#[post("/api/srs-warps-import")]
+#[post("/api/srs-warps-import/{uid}")]
 async fn post_srs_warps_import(
     session: Session,
     uid: web::Path<i32>,
