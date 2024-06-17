@@ -1,21 +1,18 @@
-use std::io::BufReader;
+use std::collections::HashMap;
 
-use actix_multipart::form::MultipartForm;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::DateTime;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{
-    api::{ApiResult, File},
-    database, GachaType,
-};
+use crate::{api::ApiResult, database, GachaType};
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "srs-warps-import/{uid}")),
-    paths(post_srs_warps_import)
+    paths(post_srs_warps_import),
+    components(schemas(SrsWarpsImportParams)),
 )]
 struct ApiDoc;
 
@@ -27,6 +24,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_srs_warps_import);
 }
 
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+struct SrsWarpsImportParams {
+    data: String,
+    profile: i32,
+}
+
 #[derive(serde::Deserialize)]
 struct Srs {
     data: Data,
@@ -34,13 +37,7 @@ struct Srs {
 
 #[derive(serde::Deserialize)]
 struct Data {
-    stores: Stores,
-}
-
-#[derive(serde::Deserialize)]
-struct Stores {
-    #[serde(rename = "1_warp-v2")]
-    warps: Warps,
+    stores: HashMap<String, Warps>,
 }
 
 #[derive(serde::Deserialize)]
@@ -67,7 +64,7 @@ struct Warp {
     tag = "srs-warps-import/{uid}",
     post,
     path = "/api/srs-warps-import/{uid}",
-    request_body(content = File, content_type = "multipart/form-data"),
+    request_body = SrsWarpsImportParams,
     responses(
         (status = 200, description = "Warps imported"),
         (status = 403, description = "Not an admin"),
@@ -78,7 +75,7 @@ struct Warp {
 async fn post_srs_warps_import(
     session: Session,
     uid: web::Path<i32>,
-    file: MultipartForm<File>,
+    params: web::Json<SrsWarpsImportParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -92,30 +89,15 @@ async fn post_srs_warps_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let srs: Srs = serde_json::from_reader(BufReader::new(&file.file.file))?;
+    let srs: Srs = serde_json::from_str(&params.data)?;
 
-    import_warps(
-        *uid,
-        &srs.data.stores.warps.standard,
-        GachaType::Standard,
-        &pool,
-    )
-    .await?;
-    import_warps(
-        *uid,
-        &srs.data.stores.warps.departure,
-        GachaType::Departure,
-        &pool,
-    )
-    .await?;
-    import_warps(
-        *uid,
-        &srs.data.stores.warps.special,
-        GachaType::Special,
-        &pool,
-    )
-    .await?;
-    import_warps(*uid, &srs.data.stores.warps.lc, GachaType::Lc, &pool).await?;
+    let profile = params.profile;
+    let warps = &srs.data.stores[&format!("{profile}_warp-v2")];
+
+    import_warps(*uid, &warps.standard, GachaType::Standard, &pool).await?;
+    import_warps(*uid, &warps.departure, GachaType::Departure, &pool).await?;
+    import_warps(*uid, &warps.special, GachaType::Special, &pool).await?;
+    import_warps(*uid, &warps.lc, GachaType::Lc, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

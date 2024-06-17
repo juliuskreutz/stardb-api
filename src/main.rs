@@ -105,7 +105,7 @@ enum GachaType {
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv()?;
+    //dotenv::dotenv()?;
 
     tracing_subscriber::fmt::init();
 
@@ -127,7 +127,8 @@ async fn main() -> anyhow::Result<()> {
 
     let pool_data = Data::new(pool.clone());
 
-    let key = Key::from(&std::fs::read("session_key")?);
+    //let key = Key::from(&std::fs::read("session_key")?);
+    let key = Key::generate();
 
     let openapi = api::openapi();
 
