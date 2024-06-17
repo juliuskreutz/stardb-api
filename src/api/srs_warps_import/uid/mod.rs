@@ -37,7 +37,7 @@ struct Srs {
 
 #[derive(serde::Deserialize)]
 struct Data {
-    stores: HashMap<String, Warps>,
+    stores: HashMap<String, serde_json::Value>,
 }
 
 #[derive(serde::Deserialize)]
@@ -92,7 +92,8 @@ async fn post_srs_warps_import(
     let srs: Srs = serde_json::from_str(&params.data)?;
 
     let profile = params.profile;
-    let warps = &srs.data.stores[&format!("{profile}_warp-v2")];
+    let warps: Warps =
+        serde_json::from_value(srs.data.stores[&format!("{profile}_warp-v2")].clone())?;
 
     import_warps(*uid, &warps.standard, GachaType::Standard, &pool).await?;
     import_warps(*uid, &warps.departure, GachaType::Departure, &pool).await?;
