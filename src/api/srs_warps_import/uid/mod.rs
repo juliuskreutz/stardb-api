@@ -89,6 +89,13 @@ async fn post_srs_warps_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    if database::mihomo::get_one_by_uid(*uid, &pool).await.is_err() {
+        reqwest::Client::new()
+            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
+            .send()
+            .await?;
+    }
+
     let srs: Srs = serde_json::from_str(&params.data)?;
 
     let profile = params.profile;
