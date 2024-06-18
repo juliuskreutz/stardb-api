@@ -76,7 +76,8 @@ struct WarpTracker {
 #[derive(Default, Serialize)]
 struct Warps {
     warps: Vec<Warp>,
-    probability: f64,
+    probability_4: f64,
+    probability_5: f64,
     count: usize,
     jades: usize,
 }
@@ -195,19 +196,21 @@ async fn get_warp_tracker(
         }
     }
 
-    standard.probability = if standard_pull_5 < 89 {
+    standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
+    special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
+    lc.probability_4 = if lc_pull_4 < 10 { 5.1 } else { 100.0 };
+
+    standard.probability_5 = if standard_pull_5 < 89 {
         0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
-
-    special.probability = if special_pull_5 < 89 {
+    special.probability_5 = if special_pull_5 < 89 {
         0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
-
-    lc.probability = if lc_pull_5 < 79 {
+    lc.probability_5 = if lc_pull_5 < 79 {
         0.8 + 7.0 * lc_pull_5.saturating_sub(64) as f64
     } else {
         100.0
