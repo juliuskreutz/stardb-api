@@ -13,6 +13,7 @@ mod languages;
 mod light_cones;
 mod mihomo;
 mod pages;
+mod pom_warps_import;
 mod scores;
 mod select_all;
 mod sitemap;
@@ -99,6 +100,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
     openapi.merge(pages::openapi());
+    openapi.merge(pom_warps_import::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
     openapi.merge(sitemap::openapi());
@@ -127,6 +129,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(light_cones::configure)
         .configure(mihomo::configure)
         .configure(|sc| pages::configure(sc, pool))
+        .configure(pom_warps_import::configure)
         .configure(scores::configure)
         .configure(select_all::configure)
         .configure(sitemap::configure)
