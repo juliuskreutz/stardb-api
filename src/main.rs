@@ -9,6 +9,7 @@ mod update;
 
 use std::{env, fs};
 
+use actix_cors::Cors;
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
@@ -134,6 +135,7 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(pool_data.clone())
+            .wrap(Cors::default().allowed_origin("https://old.stardb.gg"))
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
