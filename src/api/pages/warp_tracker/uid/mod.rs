@@ -198,7 +198,7 @@ async fn get_warp_tracker(
 
     standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
     special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
-    lc.probability_4 = if lc_pull_4 < 10 { 5.1 } else { 100.0 };
+    lc.probability_4 = if lc_pull_4 < 10 { 6.6 } else { 100.0 };
 
     standard.probability_5 = if standard_pull_5 < 89 {
         0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
