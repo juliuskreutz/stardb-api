@@ -1,11 +1,4 @@
 services:
-  debug:
-    depends_on: [db]
-    profiles: [debug]
-    build:
-      context: .
-      dockerfile: Debug.Dockerfile
-
   db:
     image: postgres
     restart: always

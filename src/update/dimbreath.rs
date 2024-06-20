@@ -219,7 +219,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
     }
 
     let html_re = Regex::new(r"<[^>]*>")?;
-    let gender_re = Regex::new(r"\{M#([^}]*)\}\{F#([^}]*)\}")?;
+    let gender_re = Regex::new(r"\{(M|F)#([^}]*)\}\{(F|M)#([^}]*)\}")?;
     let layout_re = Regex::new(
         r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
     )?;
@@ -285,6 +285,10 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         BufReader::new(File::open("StarRailData/ExcelOutput/EquipmentConfig.json")?),
     )?;
 
+    info!("Parsed all json");
+
+    info!("Starting achievement_series");
+
     for achievement_series in achievement_series.values() {
         let id = achievement_series.id;
 
@@ -297,6 +301,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         };
         database::set_achievement_series(&db_series, pool).await?;
     }
+
+    info!("Starting achievements");
 
     for achievement_data in achievement_data.values() {
         let id = achievement_data.id;
@@ -334,6 +340,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         database::achievements::set(&db_achievement, pool).await?;
     }
 
+    info!("Starting avatars");
+
     for avatar_config in avatar_config.values() {
         let id = avatar_config.id;
 
@@ -370,6 +378,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         }
     }
 
+    info!("Starting book series worlds");
+
     for book_series_world in book_series_world.values() {
         let id = book_series_world.id;
 
@@ -380,6 +390,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
         database::set_book_series_world(&db_series, pool).await?;
     }
+
+    info!("Starting book series");
 
     for book_series_config in book_series_config.values() {
         let id = book_series_config.id;
@@ -396,6 +408,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
         database::set_book_series(&db_series, pool).await?;
     }
+
+    info!("Starting books");
 
     for localbook_config in localbook_config.values() {
         let id = localbook_config.id;
@@ -433,6 +447,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         database::set_book(&db_book, pool).await?;
     }
 
+    info!("Starting light cones");
+
     for item_config_equipment in equipment_config.values() {
         let id = item_config_equipment.id;
 
@@ -454,7 +470,11 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         database::set_light_cone(&db_light_cone, pool).await?;
     }
 
+    info!("Starting texts");
+
     for language in Language::iter() {
+        info!("Starting {}", language);
+
         let mut text_map: HashMap<String, String> =
             serde_json::from_reader(BufReader::new(File::open(format!(
                 "StarRailData/TextMap/TextMap{}.json",
@@ -475,6 +495,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
         }
         .to_string();
 
+        info!("Starting {} achievement series", language);
+
         for achievement_series in achievement_series.values() {
             let id = achievement_series.id;
 
@@ -485,7 +507,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                         |_: &Captures| "",
                     ),
                     |c: &Captures| {
-                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                        c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
                     },
                 )
                 .to_string();
@@ -494,6 +516,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             database::set_achievement_series_text(&db_series_text, pool).await?;
         }
+
+        info!("Starting {} achievements", language);
 
         for achievement_data in achievement_data.values() {
             let id = achievement_data.id;
@@ -505,7 +529,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                         |_: &Captures| "",
                     ),
                     |c: &Captures| {
-                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                        c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
                     },
                 )
                 .to_string();
@@ -518,9 +542,9 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                             |_: &Captures| "",
                         ),
                         |c: &Captures| {
-                            c.get(1).unwrap().as_str().to_string()
+                            c.get(2).unwrap().as_str().to_string()
                                 + "/"
-                                + c.get(2).unwrap().as_str()
+                                + c.get(4).unwrap().as_str()
                         },
                     ),
                     |c: &Captures| {
@@ -557,7 +581,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                 .replace("{NICKNAME}", &text_map["-2090701432"]);
 
             if language == Language::En {
-                description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)")
+                description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)");
+                description = description.replace("{TEXTJOIN#87}", "The Radiant Feldspar");
             }
 
             let db_achievement_text = database::DbAchievementText {
@@ -569,6 +594,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             database::set_achievement_text(&db_achievement_text, pool).await?;
         }
+
+        info!("Starting {} avatars", language);
 
         for avatar_config in avatar_config.values() {
             let element =
@@ -587,7 +614,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             let name = ruby_re
                 .replace_all(
                     &gender_re.replace_all(&name, |c: &Captures| {
-                        c.get(1).unwrap().as_str().to_string() + "/" + c.get(2).unwrap().as_str()
+                        c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
                     }),
                     |_: &Captures| "",
                 )
@@ -629,6 +656,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             }
         }
 
+        info!("Starting {} book series worlds", language);
+
         for book_series_world in book_series_world.values() {
             let id = book_series_world.id;
 
@@ -643,6 +672,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             database::set_book_series_world_text(&db_book_series_world_text, pool).await?;
         }
+
+        info!("Starting {} book series", language);
 
         for book_series_config in book_series_config.values() {
             let id = book_series_config.id;
@@ -659,6 +690,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             database::set_book_series_text(&db_book_series_text, pool).await?;
         }
 
+        info!("Starting {} books", language);
+
         for localbook_config in localbook_config.values() {
             let id = localbook_config.id;
 
@@ -673,6 +706,8 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             database::set_book_text(&db_book_text, pool).await?;
         }
+
+        info!("Starting {} light cones", language);
 
         for equipment_config in equipment_config.values() {
             let id = equipment_config.id;

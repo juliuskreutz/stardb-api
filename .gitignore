@@ -1,11 +1,10 @@
 /target/
 /mihomo/
 /.direnv/
-/.direnv/
 
 /.env
 /log.log
 /session_key
-/StarRailData
 /static
+/StarRailData
 
