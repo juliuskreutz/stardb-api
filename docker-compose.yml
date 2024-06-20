@@ -1,0 +1,23 @@
+services:
+  debug:
+    depends_on: [db]
+    profiles: [debug]
+    build:
+      context: .
+      dockerfile: Debug.Dockerfile
+
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=stardb
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_DB=stardb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+
