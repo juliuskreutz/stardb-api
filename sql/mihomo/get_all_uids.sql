@@ -1,0 +1,5 @@
+SELECT
+    uid
+FROM
+    mihomo;
+

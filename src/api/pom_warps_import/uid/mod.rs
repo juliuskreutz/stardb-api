@@ -50,7 +50,6 @@ struct Warp {
     #[serde(rename = "itemId")]
     item_id: String,
     time: String,
-    r#type: String,
 }
 
 #[utoipa::path(

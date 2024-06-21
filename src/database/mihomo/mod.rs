@@ -38,3 +38,12 @@ pub async fn get_one_by_uid(uid: i32, pool: &PgPool) -> Result<DbMihomo> {
             .await?,
     )
 }
+
+pub async fn get_all_uids(pool: &PgPool) -> Result<Vec<i32>> {
+    Ok(sqlx::query_file!("sql/mihomo/get_all_uids.sql")
+        .fetch_all(pool)
+        .await?
+        .iter()
+        .map(|r| r.uid)
+        .collect())
+}

@@ -24,46 +24,18 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(sitemap);
 }
 
-const ROUTES: &[&str] = &[
-    "https://stardb.gg/articles/",
-    "https://stardb.gg/articles/daily-farm-route/",
-    "https://stardb.gg/articles/free-stellar-jade-alerts/",
-    "https://stardb.gg/articles/unit-builds/",
-    "https://stardb.gg/articles/oneiric-shard-price/",
-    "https://stardb.gg/articles/oneiric-shard-price-australia/",
-    "https://stardb.gg/articles/oneiric-shard-price-brazil/",
-    "https://stardb.gg/articles/oneiric-shard-price-canada/",
-    "https://stardb.gg/articles/oneiric-shard-price-china/",
-    "https://stardb.gg/articles/oneiric-shard-price-eu/",
-    "https://stardb.gg/articles/oneiric-shard-price-india/",
-    "https://stardb.gg/articles/oneiric-shard-price-indonesia/",
-    "https://stardb.gg/articles/oneiric-shard-price-japan/",
-    "https://stardb.gg/articles/oneiric-shard-price-kazakhstan/",
-    "https://stardb.gg/articles/oneiric-shard-price-korea/",
-    "https://stardb.gg/articles/oneiric-shard-price-malaysia/",
-    "https://stardb.gg/articles/oneiric-shard-price-mexico/",
-    "https://stardb.gg/articles/oneiric-shard-price-paraguay/",
-    "https://stardb.gg/articles/oneiric-shard-price-phillipines/",
-    "https://stardb.gg/articles/oneiric-shard-price-russia/",
-    "https://stardb.gg/articles/oneiric-shard-price-singapore/",
-    "https://stardb.gg/articles/oneiric-shard-price-taiwan/",
-    "https://stardb.gg/articles/oneiric-shard-price-thailand/",
-    "https://stardb.gg/articles/oneiric-shard-price-uk/",
-    "https://stardb.gg/articles/oneiric-shard-price-us/",
-    "https://stardb.gg/articles/oneiric-shard-price-vietnam/",
-    "https://stardb.gg/api/help/",
-];
-
 const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%",
-    "https://stardb.gg/%LANG%/login",
-    "https://stardb.gg/%LANG%/register",
-    "https://stardb.gg/%LANG%/leaderboard",
-    "https://stardb.gg/%LANG%/tier-list",
     "https://stardb.gg/%LANG%/achievement-tracker",
-    "https://stardb.gg/%LANG%/warp-tracker",
-    "https://stardb.gg/%LANG%/profile-card-generator",
+    "https://stardb.gg/%LANG%/book-tracker",
+    "https://stardb.gg/%LANG%/free-stellar-jades",
+    "https://stardb.gg/%LANG%/import",
+    "https://stardb.gg/%LANG%/leaderboard",
+    "https://stardb.gg/%LANG%/login",
     "https://stardb.gg/%LANG%/privacy-policy",
+    "https://stardb.gg/%LANG%/register",
+    "https://stardb.gg/%LANG%/request-token",
+    "https://stardb.gg/%LANG%/warp-import",
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
 ];
@@ -106,19 +78,9 @@ struct Link {
 )]
 #[get("/api/sitemap")]
 async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let lastmod = "2024-04-16";
+    let lastmod = "2024-06-21";
 
     let mut urls = Vec::new();
-
-    for route in ROUTES {
-        let url = Url {
-            loc: route.to_string(),
-            lastmod: lastmod.to_string(),
-            links: Vec::new(),
-        };
-
-        urls.push(url);
-    }
 
     for language in Language::iter() {
         for route in LOCALIZED_ROUTES {
@@ -159,6 +121,28 @@ async fn sitemap(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
             };
 
             urls.push(url);
+        }
+
+        for uid in database::mihomo::get_all_uids(&pool).await? {
+            for path in ["overview", "characters", "collection"] {
+                let mut links = Vec::new();
+
+                for link_language in Language::iter() {
+                    links.push(Link {
+                        rel: "alternate".to_string(),
+                        hreflang: link_language.to_string(),
+                        href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
+                    });
+                }
+
+                let url = Url {
+                    loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
+                    lastmod: lastmod.to_string(),
+                    links,
+                };
+
+                urls.push(url);
+            }
         }
     }
 
