@@ -119,10 +119,17 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!().run(&pool).await?;
 
     update::achievements_percent(pool.clone()).await;
-    update::books_percent(pool.clone()).await;
-    update::community_tier_list(pool.clone()).await;
-    update::dimbreath(pool.clone()).await;
-    update::star_rail_res().await;
+    //update::books_percent(pool.clone()).await;
+    //update::community_tier_list(pool.clone()).await;
+    {
+        let pool = pool.clone();
+
+        actix_web::rt::spawn(async move {
+            actix_web::rt::time::sleep(std::time::Duration::from_secs(60)).await;
+            update::dimbreath(pool.clone()).await;
+        });
+    }
+    //update::star_rail_res().await;
     update::scores().await;
     // update::warps_stats(pool.clone()).await;
 

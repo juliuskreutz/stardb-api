@@ -6,13 +6,9 @@ use std::{
 use actix_web::{get, rt, web, HttpResponse, Responder};
 use serde::Serialize;
 use sqlx::PgPool;
-use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
-use crate::{
-    api::{ApiResult, Language},
-    database,
-};
+use crate::{api::ApiResult, database};
 
 lazy_static::lazy_static! {
     static ref CACHE: Mutex<Option<web::Data<SitemapCache>>> = Mutex::new(None);
@@ -97,12 +93,14 @@ pub fn cache(pool: PgPool) -> web::Data<SitemapCache> {
         rt::spawn(async move {
             let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
 
+            rt::time::sleep(Duration::from_secs(60)).await;
+
             loop {
                 interval.tick().await;
 
                 let start = Instant::now();
 
-                if let Err(e) = update(&sitemap_cache, &pool).await {
+                if let Err(e) = update(&sitemap_cache, pool.clone()).await {
                     error!(
                         "Sitemap update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
@@ -120,25 +118,36 @@ pub fn cache(pool: PgPool) -> web::Data<SitemapCache> {
     sitemap_data
 }
 
-async fn update(sitemap_cache: &web::Data<SitemapCache>, pool: &PgPool) -> anyhow::Result<()> {
+async fn update(sitemap_cache: &web::Data<SitemapCache>, pool: PgPool) -> anyhow::Result<()> {
     let lastmod = "2024-06-21";
 
     let mut urls = Vec::new();
 
-    for language in Language::iter() {
+    let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
+    //let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
+
+    let languages = [
+        "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
+    ];
+
+    for language in &languages {
+        rt::task::yield_now().await;
+
+        info!("{}", language);
+
         for route in LOCALIZED_ROUTES {
             let mut links = Vec::new();
 
-            for link_language in Language::iter() {
+            for &link_language in &languages {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
-                    href: route.replace("%LANG%", &link_language.to_string()),
+                    href: route.replace("%LANG%", link_language),
                 });
             }
 
             let url = Url {
-                loc: route.replace("%LANG%", &language.to_string()),
+                loc: route.replace("%LANG%", language),
                 lastmod: lastmod.to_string(),
                 links,
             };
@@ -146,10 +155,10 @@ async fn update(sitemap_cache: &web::Data<SitemapCache>, pool: &PgPool) -> anyho
             urls.push(url);
         }
 
-        for id in database::achievements::get_all_ids_shown(pool).await? {
+        for id in &achievement_ids {
             let mut links = Vec::new();
 
-            for link_language in Language::iter() {
+            for link_language in &languages {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
@@ -166,27 +175,27 @@ async fn update(sitemap_cache: &web::Data<SitemapCache>, pool: &PgPool) -> anyho
             urls.push(url);
         }
 
-        for uid in database::mihomo::get_all_uids(pool).await? {
-            for path in ["overview", "characters", "collection"] {
-                let mut links = Vec::new();
-
-                for link_language in Language::iter() {
-                    links.push(Link {
-                        rel: "alternate".to_string(),
-                        hreflang: link_language.to_string(),
-                        href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
-                    });
-                }
-
-                let url = Url {
-                    loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
-                    lastmod: lastmod.to_string(),
-                    links,
-                };
-
-                urls.push(url);
-            }
-        }
+        //for uid in &mihomo_uids {
+        //    for path in ["overview", "characters", "collection"] {
+        //        let mut links = Vec::new();
+        //
+        //        for link_language in &languages {
+        //            links.push(Link {
+        //                rel: "alternate".to_string(),
+        //                hreflang: link_language.to_string(),
+        //                href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
+        //            });
+        //        }
+        //
+        //        let url = Url {
+        //            loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
+        //            lastmod: lastmod.to_string(),
+        //            links,
+        //        };
+        //
+        //        urls.push(url);
+        //    }
+        //}
     }
 
     let urlset = Urlset {
@@ -215,3 +224,4 @@ async fn sitemap(sitemap_cache: web::Data<SitemapCache>) -> ApiResult<impl Respo
         .content_type("application/xml")
         .body(sitemap_cache.sitemap.lock().await.clone()))
 }
+
