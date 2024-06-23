@@ -72,8 +72,6 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    session.renew();
-
     let admin = database::admins::get_one_by_username(&username, &pool)
         .await
         .is_ok();
