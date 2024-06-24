@@ -1,5 +1,5 @@
 use std::{
-    fs::OpenOptions,
+    fs::{File, OpenOptions},
     io::{BufWriter, Write},
     sync::Mutex,
     time::{Duration, Instant},
@@ -31,6 +31,10 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
 
     cfg.service(sitemap);
 }
+
+const LANGUAGES: &[&str] = &[
+    "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
+];
 
 const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%",
@@ -72,42 +76,60 @@ pub fn cache(pool: PgPool) {
     });
 }
 
-async fn update(pool: PgPool) -> anyhow::Result<()> {
-    if std::path::Path::new("sitemap.xml").exists() {
-        std::fs::remove_file("sitemap.xml")?;
+fn file_writer(file_name: &str) -> anyhow::Result<BufWriter<File>> {
+    if std::path::Path::new(file_name).exists() {
+        std::fs::remove_file(file_name)?;
     }
 
-    let file = OpenOptions::new()
-        .append(true)
-        .create_new(true)
-        .open("sitemap.xml")?;
+    Ok(BufWriter::new(
+        OpenOptions::new()
+            .append(true)
+            .create_new(true)
+            .open(file_name)?,
+    ))
+}
 
-    let mut writer = BufWriter::new(file);
+async fn update(pool: PgPool) -> anyhow::Result<()> {
+    let _ = std::fs::remove_dir_all("sitemap");
+    std::fs::create_dir("sitemap")?;
+
+    let mut writer = file_writer("sitemap/index.xml")?;
 
     write!(writer, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
     write!(
         writer,
-        r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">"#
+        r#"<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#
     )?;
+    for language in LANGUAGES {
+        write!(writer, "<sitemap>")?;
+        write!(
+            writer,
+            "<loc>https://stardb.gg/api/sitemap/{language}</loc>"
+        )?;
+        write!(writer, "</sitemap>")?;
+    }
+    write!(writer, "</sitemapindex>")?;
 
     let lastmod = "2024-06-24";
 
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
 
-    let languages = [
-        "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
-    ];
+    for language in LANGUAGES {
+        let mut writer = file_writer(&format!("sitemap/{language}.xml"))?;
 
-    for language in languages {
-        info!("{}", language);
+        write!(writer, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
+        write!(
+            writer,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">"#
+        )?;
 
         for route in LOCALIZED_ROUTES {
             write!(writer, "<url>")?;
             write!(writer, "<loc>{}</loc>", route.replace("%LANG%", language))?;
             write!(writer, "<lastmod>{lastmod}</lastmod>")?;
 
-            for &link_language in &languages {
+            for &link_language in LANGUAGES {
                 write!(
                     writer,
                     r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="{}" />"#,
@@ -126,7 +148,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
             )?;
             write!(writer, "<lastmod>{lastmod}</lastmod>")?;
 
-            for link_language in &languages {
+            for link_language in LANGUAGES {
                 write!(
                     writer,
                     r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="https://stardb.gg/{link_language}/database/achievements/{id}" />"#,
@@ -145,7 +167,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
                 )?;
                 write!(writer, "<lastmod>{lastmod}</lastmod>")?;
 
-                for link_language in &languages {
+                for link_language in LANGUAGES {
                     write!(
                         writer,
                         r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="https://stardb.gg/{language}/profile/{uid}/{path}" />"#,
@@ -155,22 +177,22 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
                 write!(writer, "</url>")?;
             }
         }
-    }
 
-    write!(writer, "</urlset>")?;
+        write!(writer, "</urlset>")?;
+    }
 
     Ok(())
 }
 
 #[utoipa::path(
-    tag = "sitemap.xml",
+    tag = "sitemap",
     get,
-    path = "/api/sitemap.xml",
+    path = "/api/sitemap/{path}",
     responses(
-        (status = 200, description = "sitemap.xml"),
+        (status = 200, description = "sitemap"),
     )
 )]
-#[get("/api/sitemap.xml")]
-async fn sitemap() -> ApiResult<impl Responder> {
-    Ok(actix_files::NamedFile::open("sitemap.xml")?)
+#[get("/api/sitemap/{path}")]
+async fn sitemap(path: web::Path<String>) -> ApiResult<impl Responder> {
+    Ok(actix_files::NamedFile::open(format!("sitemap/{path}.xml"))?)
 }
