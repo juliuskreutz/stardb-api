@@ -19,7 +19,7 @@ use actix_web::{
     App, HttpServer,
 };
 use pg_session_store::PgSessionStore;
-use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(
@@ -104,6 +104,23 @@ enum GachaType {
     Lc,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    strum::Display,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum Difficulty {
+    Easy,
+    Medium,
+    Hard,
+}
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
@@ -115,21 +132,17 @@ async fn main() -> anyhow::Result<()> {
     let _ = fs::create_dir("mihomo");
     let _ = fs::create_dir("static");
 
-    let pool = PgPool::connect(&env::var("DATABASE_URL")?).await?;
+    let pool = PgPoolOptions::new()
+        .max_connections(100)
+        .connect(&env::var("DATABASE_URL")?)
+        .await?;
     sqlx::migrate!().run(&pool).await?;
 
     update::achievements_percent(pool.clone()).await;
     //update::books_percent(pool.clone()).await;
     //update::community_tier_list(pool.clone()).await;
-    {
-        let pool = pool.clone();
-
-        actix_web::rt::spawn(async move {
-            actix_web::rt::time::sleep(std::time::Duration::from_secs(60)).await;
-            update::dimbreath(pool.clone()).await;
-        });
-    }
-    //update::star_rail_res().await;
+    update::dimbreath(pool.clone()).await;
+    update::star_rail_res().await;
     update::scores().await;
     // update::warps_stats(pool.clone()).await;
 

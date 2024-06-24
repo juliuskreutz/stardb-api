@@ -9,12 +9,12 @@ use actix_web::{get, rt, web, HttpResponse, Responder};
 use async_rwlock::RwLock;
 use serde::Serialize;
 use sqlx::PgPool;
-use strum::{EnumString, IntoEnumIterator};
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, Language, LanguageParams},
-    database,
+    database, Difficulty,
 };
 
 lazy_static::lazy_static! {
@@ -92,15 +92,6 @@ struct Achievement {
     gacha: bool,
     impossible: bool,
     percent: f64,
-}
-
-#[derive(Clone, EnumString, Serialize)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum Difficulty {
-    Easy,
-    Medium,
-    Hard,
 }
 
 impl From<database::achievements::DbAchievement> for Achievement {

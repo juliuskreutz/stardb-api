@@ -16,7 +16,7 @@ mod pages;
 mod pom_warps_import;
 mod scores;
 mod select_all;
-//mod sitemap;
+mod sitemap;
 mod skills;
 mod srs_warps_import;
 mod users;
@@ -103,7 +103,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(pom_warps_import::openapi());
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
-    //openapi.merge(sitemap::openapi());
+    openapi.merge(sitemap::openapi());
     openapi.merge(srs_warps_import::openapi());
     openapi.merge(skills::openapi());
     openapi.merge(users::openapi());
@@ -132,7 +132,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(pom_warps_import::configure)
         .configure(scores::configure)
         .configure(select_all::configure)
-        //.configure(|sc| sitemap::configure(sc, pool.clone()))
+        .configure(|sc| sitemap::configure(sc, pool.clone()))
         .configure(skills::configure)
         .configure(srs_warps_import::configure)
         .configure(users::configure)

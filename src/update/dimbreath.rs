@@ -171,7 +171,7 @@ pub async fn dimbreath(pool: PgPool) {
 
             let start = Instant::now();
 
-            if let Err(e) = update(&mut up_to_date, &pool).await {
+            if let Err(e) = update(&mut up_to_date, pool.clone()).await {
                 error!(
                     "Dimbreath update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
@@ -186,7 +186,7 @@ pub async fn dimbreath(pool: PgPool) {
     });
 }
 
-async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
+async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     if !Path::new("StarRailData").exists() {
         Command::new("git")
             .args([
@@ -299,7 +299,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             priority,
             name: String::new(),
         };
-        database::set_achievement_series(&db_series, pool).await?;
+        database::set_achievement_series(&db_series, &pool).await?;
     }
 
     info!("Starting achievements");
@@ -337,7 +337,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             percent: 0.0,
         };
 
-        database::achievements::set(&db_achievement, pool).await?;
+        database::achievements::set(&db_achievement, &pool).await?;
     }
 
     info!("Starting avatars");
@@ -361,7 +361,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             element_id: String::new(),
         };
 
-        database::set_character(&db_character, pool).await?;
+        database::set_character(&db_character, &pool).await?;
 
         for skill in avatar_config.skills.iter() {
             let skill = &avatar_skill_config[&skill.to_string()].one;
@@ -374,7 +374,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                 name: String::new(),
             };
 
-            database::set_skill(&db_skill, pool).await?;
+            database::set_skill(&db_skill, &pool).await?;
         }
     }
 
@@ -388,7 +388,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             name: String::new(),
         };
 
-        database::set_book_series_world(&db_series, pool).await?;
+        database::set_book_series_world(&db_series, &pool).await?;
     }
 
     info!("Starting book series");
@@ -406,7 +406,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             world_name: String::new(),
         };
 
-        database::set_book_series(&db_series, pool).await?;
+        database::set_book_series(&db_series, &pool).await?;
     }
 
     info!("Starting books");
@@ -444,7 +444,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             percent: 0.0,
         };
 
-        database::set_book(&db_book, pool).await?;
+        database::set_book(&db_book, &pool).await?;
     }
 
     info!("Starting light cones");
@@ -467,7 +467,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
             path_id: String::new(),
         };
 
-        database::set_light_cone(&db_light_cone, pool).await?;
+        database::set_light_cone(&db_light_cone, &pool).await?;
     }
 
     info!("Starting texts");
@@ -514,7 +514,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             let db_series_text = database::DbAchievementSeriesText { id, language, name };
 
-            database::set_achievement_series_text(&db_series_text, pool).await?;
+            database::set_achievement_series_text(&db_series_text, &pool).await?;
         }
 
         info!("Starting {} achievements", language);
@@ -592,7 +592,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                 description,
             };
 
-            database::set_achievement_text(&db_achievement_text, pool).await?;
+            database::set_achievement_text(&db_achievement_text, &pool).await?;
         }
 
         info!("Starting {} avatars", language);
@@ -639,7 +639,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                 element,
             };
 
-            database::set_character_text(&db_character_text, pool).await?;
+            database::set_character_text(&db_character_text, &pool).await?;
 
             for skill in avatar_config.skills.iter() {
                 let skill = &avatar_skill_config[&skill.to_string()].one;
@@ -652,7 +652,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
                 let db_skill_text = database::DbSkillText { id, language, name };
 
-                database::set_skill_text(&db_skill_text, pool).await?;
+                database::set_skill_text(&db_skill_text, &pool).await?;
             }
         }
 
@@ -670,7 +670,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             let db_book_series_world_text = database::DbBookSeriesWorldText { id, language, name };
 
-            database::set_book_series_world_text(&db_book_series_world_text, pool).await?;
+            database::set_book_series_world_text(&db_book_series_world_text, &pool).await?;
         }
 
         info!("Starting {} book series", language);
@@ -687,7 +687,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             let db_book_series_text = database::DbBookSeriesText { id, language, name };
 
-            database::set_book_series_text(&db_book_series_text, pool).await?;
+            database::set_book_series_text(&db_book_series_text, &pool).await?;
         }
 
         info!("Starting {} books", language);
@@ -704,7 +704,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
 
             let db_book_text = database::DbBookText { id, language, name };
 
-            database::set_book_text(&db_book_text, pool).await?;
+            database::set_book_text(&db_book_text, &pool).await?;
         }
 
         info!("Starting {} light cones", language);
@@ -734,7 +734,7 @@ async fn update(up_to_date: &mut bool, pool: &PgPool) -> Result<()> {
                 path,
             };
 
-            database::set_light_cone_text(&db_light_cone_text, pool).await?;
+            database::set_light_cone_text(&db_light_cone_text, &pool).await?;
         }
     }
 

@@ -1,9 +1,8 @@
 mod id;
 
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sqlx::PgPool;
-use strum::{Display, EnumString};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
@@ -18,21 +17,11 @@ use crate::Language;
     tags((name = "books")),
     paths(get_books),
     components(schemas(
-        Difficulty,
         Language,
         Book
     ))
 )]
 struct ApiDoc;
-
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum Difficulty {
-    Easy,
-    Medium,
-    Hard,
-}
 
 #[derive(Serialize, ToSchema)]
 struct Book {

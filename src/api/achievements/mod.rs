@@ -2,14 +2,13 @@ mod id;
 
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sqlx::PgPool;
-use strum::{Display, EnumString};
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::{ApiResult, LanguageParams},
-    database,
+    database, Difficulty,
 };
 
 use crate::Language;
@@ -19,21 +18,11 @@ use crate::Language;
     tags((name = "achievements")),
     paths(get_achievements),
     components(schemas(
-        Difficulty,
         Language,
         Achievement
     ))
 )]
 struct ApiDoc;
-
-#[derive(Display, EnumString, Serialize, Deserialize, ToSchema)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-enum Difficulty {
-    Easy,
-    Medium,
-    Hard,
-}
 
 #[derive(Serialize, ToSchema)]
 struct Achievement {
