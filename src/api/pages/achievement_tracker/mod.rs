@@ -1,5 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs::File,
+    io::BufReader,
     sync::Mutex,
     time::{Duration, Instant},
 };
@@ -7,7 +9,7 @@ use std::{
 use actix_session::Session;
 use actix_web::{get, rt, web, HttpResponse, Responder};
 use async_rwlock::RwLock;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::IntoEnumIterator;
 use utoipa::OpenApi;
@@ -44,7 +46,7 @@ pub struct AchievementTrackerCache {
     achievement_tracker_map: RwLock<HashMap<Language, AchievementTracker>>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct AchievementTracker {
     achievement_count: usize,
     achievement_count_current: usize,
@@ -56,7 +58,7 @@ struct AchievementTracker {
     series: Vec<Series>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Series {
     series: String,
     achievement_count: usize,
@@ -66,14 +68,14 @@ struct Series {
     achievement_groups: Vec<AchievementGroup>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct AchievementGroup {
     complete: Option<i32>,
     favorite: Option<i32>,
     achievements: Vec<Achievement>,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Achievement {
     id: i32,
     series: i32,
@@ -119,7 +121,25 @@ impl From<database::achievements::DbAchievement> for Achievement {
 }
 
 pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
-    let achievement_tracker_cache = web::Data::new(AchievementTrackerCache::default());
+    let achievement_tracker_map = RwLock::new(
+        if let Ok(file) = File::open("cache/achievement_tracker_map.json") {
+            if let Ok(achievement_tracker_map) = serde_json::from_reader::<
+                _,
+                HashMap<Language, AchievementTracker>,
+            >(BufReader::new(file))
+            {
+                achievement_tracker_map
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        },
+    );
+
+    let achievement_tracker_cache = web::Data::new(AchievementTrackerCache {
+        achievement_tracker_map,
+    });
 
     {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
@@ -251,6 +271,11 @@ async fn update(
 
         achievement_tracker_map.insert(language, achievement_tracker);
     }
+
+    std::fs::write(
+        "cache/achievement_tracker_map.json",
+        serde_json::to_vec(&achievement_tracker_map)?,
+    )?;
 
     *achievement_tracker_cache
         .achievement_tracker_map

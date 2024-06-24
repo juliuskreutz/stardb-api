@@ -1,6 +1,4 @@
 use std::{
-    fs::{File, OpenOptions},
-    io::{BufWriter, Write},
     sync::Mutex,
     time::{Duration, Instant},
 };
@@ -17,8 +15,8 @@ lazy_static::lazy_static! {
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "sitemap.xml")),
-    paths(sitemap)
+    tags((name = "sitemaps")),
+    paths(sitemaps)
 )]
 struct ApiDoc;
 
@@ -29,7 +27,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     CACHE.lock().unwrap().get_or_insert_with(|| cache(pool));
 
-    cfg.service(sitemap);
+    cfg.service(sitemaps);
 }
 
 const LANGUAGES: &[&str] = &[
@@ -51,6 +49,47 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
 ];
+
+#[derive(serde::Serialize)]
+#[serde(rename = "urlset")]
+struct Urlset {
+    #[serde(rename = "@xmlns")]
+    xmlns: String,
+    #[serde(rename = "@xmlns:xhtml")]
+    xhtml: String,
+    url: Vec<Url>,
+}
+
+#[derive(serde::Serialize)]
+struct Url {
+    loc: String,
+    lastmod: String,
+    #[serde(rename = "xhtml:link")]
+    links: Vec<Link>,
+}
+
+#[derive(serde::Serialize)]
+struct Link {
+    #[serde(rename = "@rel")]
+    rel: String,
+    #[serde(rename = "@hreflang")]
+    hreflang: String,
+    #[serde(rename = "@href")]
+    href: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename = "sitemapindex")]
+struct SitemapIndex {
+    #[serde(rename = "@xmlns")]
+    xmlns: String,
+    sitemap: Vec<Sitemap>,
+}
+
+#[derive(serde::Serialize)]
+struct Sitemap {
+    loc: String,
+}
 
 pub fn cache(pool: PgPool) {
     rt::spawn(async move {
@@ -76,123 +115,161 @@ pub fn cache(pool: PgPool) {
     });
 }
 
-fn file_writer(file_name: &str) -> anyhow::Result<BufWriter<File>> {
-    if std::path::Path::new(file_name).exists() {
-        std::fs::remove_file(file_name)?;
+fn write_urls(count: usize, urls: Vec<Url>) -> anyhow::Result<()> {
+    let file_name = format!("sitemaps/{count}.xml");
+
+    let mut writer = r#"<?xml version="1.0" encoding="UTF-8"?>"#.to_string();
+
+    let urlset = Urlset {
+        xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9".to_string(),
+        xhtml: "http://www.w3.org/1999/xhtml".to_string(),
+        url: urls,
+    };
+
+    quick_xml::se::to_writer(&mut writer, &urlset)?;
+
+    std::fs::write(file_name, writer)?;
+
+    Ok(())
+}
+
+fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
+    let file_name = "sitemaps/index.xml";
+
+    let mut writer = r#"<?xml version="1.0" encoding="UTF-8"?>"#.to_string();
+
+    let mut sitemap = Vec::new();
+    for i in 0..count {
+        sitemap.push(Sitemap {
+            loc: format!("https://stardb.gg/api/sitemap/{i}"),
+        })
     }
 
-    Ok(BufWriter::new(
-        OpenOptions::new()
-            .append(true)
-            .create_new(true)
-            .open(file_name)?,
-    ))
+    let sitemap_index = SitemapIndex {
+        xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9".to_string(),
+        sitemap,
+    };
+
+    quick_xml::se::to_writer(&mut writer, &sitemap_index)?;
+
+    std::fs::write(file_name, writer)?;
+
+    Ok(())
 }
 
 async fn update(pool: PgPool) -> anyhow::Result<()> {
-    let _ = std::fs::remove_dir_all("sitemap");
-    std::fs::create_dir("sitemap")?;
-
-    let mut writer = file_writer("sitemap/index.xml")?;
-
-    write!(writer, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-    write!(
-        writer,
-        r#"<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#
-    )?;
-    for language in LANGUAGES {
-        write!(writer, "<sitemap>")?;
-        write!(
-            writer,
-            "<loc>https://stardb.gg/api/sitemap/{language}</loc>"
-        )?;
-        write!(writer, "</sitemap>")?;
-    }
-    write!(writer, "</sitemapindex>")?;
-
     let lastmod = "2024-06-24";
 
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
 
+    let mut count = 0;
+
+    let mut urls = Vec::new();
+
     for language in LANGUAGES {
-        let mut writer = file_writer(&format!("sitemap/{language}.xml"))?;
-
-        write!(writer, r#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-        write!(
-            writer,
-            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">"#
-        )?;
-
         for route in LOCALIZED_ROUTES {
-            write!(writer, "<url>")?;
-            write!(writer, "<loc>{}</loc>", route.replace("%LANG%", language))?;
-            write!(writer, "<lastmod>{lastmod}</lastmod>")?;
+            let mut links = Vec::new();
 
             for &link_language in LANGUAGES {
-                write!(
-                    writer,
-                    r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="{}" />"#,
-                    route.replace("%LANG%", link_language)
-                )?;
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: route.replace("%LANG%", link_language),
+                });
             }
 
-            write!(writer, "</url>")?;
+            let url = Url {
+                loc: route.replace("%LANG%", language),
+                lastmod: lastmod.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= 3000 {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
         }
 
         for id in &achievement_ids {
-            write!(writer, "<url>")?;
-            write!(
-                writer,
-                "<loc>https://stardb.gg/{language}/database/achievements/{id}</loc>"
-            )?;
-            write!(writer, "<lastmod>{lastmod}</lastmod>")?;
+            let mut links = Vec::new();
 
             for link_language in LANGUAGES {
-                write!(
-                    writer,
-                    r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="https://stardb.gg/{link_language}/database/achievements/{id}" />"#,
-                )?;
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!("https://stardb.gg/{link_language}/database/achievements/{id}"),
+                });
             }
 
-            write!(writer, "</url>")?;
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/database/achievements/{id}"),
+                lastmod: lastmod.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= 3000 {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
         }
 
         for uid in &mihomo_uids {
             for path in ["overview", "characters", "collection"] {
-                write!(writer, "<url>")?;
-                write!(
-                    writer,
-                    "<loc>https://stardb.gg/{language}/profile/{uid}/{path}</loc>"
-                )?;
-                write!(writer, "<lastmod>{lastmod}</lastmod>")?;
+                let mut links = Vec::new();
 
                 for link_language in LANGUAGES {
-                    write!(
-                        writer,
-                        r#"<xhtml:link rel="alternate" hreflang="{link_language}" href="https://stardb.gg/{language}/profile/{uid}/{path}" />"#,
-                    )?;
+                    links.push(Link {
+                        rel: "alternate".to_string(),
+                        hreflang: link_language.to_string(),
+                        href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
+                    });
                 }
 
-                write!(writer, "</url>")?;
+                let url = Url {
+                    loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
+                    lastmod: lastmod.to_string(),
+                    links,
+                };
+
+                urls.push(url);
+
+                if urls.len() >= 3000 {
+                    write_urls(count, urls)?;
+                    count += 1;
+                    urls = Vec::new();
+                }
             }
         }
-
-        write!(writer, "</urlset>")?;
     }
+
+    if !urls.is_empty() {
+        write_urls(count, urls)?;
+        count += 1;
+    }
+
+    write_sitemap_index(count)?;
 
     Ok(())
 }
 
 #[utoipa::path(
-    tag = "sitemap",
+    tag = "sitemaps",
     get,
-    path = "/api/sitemap/{path}",
+    path = "/api/sitemaps/{path}",
     responses(
-        (status = 200, description = "sitemap"),
+        (status = 200, description = "sitemaps"),
     )
 )]
-#[get("/api/sitemap/{path}")]
-async fn sitemap(path: web::Path<String>) -> ApiResult<impl Responder> {
-    Ok(actix_files::NamedFile::open(format!("sitemap/{path}.xml"))?)
+#[get("/api/sitemaps/{path}")]
+async fn sitemaps(path: web::Path<String>) -> ApiResult<impl Responder> {
+    Ok(actix_files::NamedFile::open(format!(
+        "sitemaps/{path}.xml"
+    ))?)
 }

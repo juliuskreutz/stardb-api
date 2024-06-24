@@ -131,6 +131,8 @@ async fn main() -> anyhow::Result<()> {
 
     let _ = fs::create_dir("mihomo");
     let _ = fs::create_dir("static");
+    let _ = fs::create_dir("cache");
+    let _ = fs::create_dir("sitemaps");
 
     let pool = PgPoolOptions::new()
         .max_connections(100)

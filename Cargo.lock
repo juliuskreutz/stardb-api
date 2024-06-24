@@ -764,7 +764,7 @@ dependencies = [
  "codepage",
  "encoding_rs",
  "log",
- "quick-xml",
+ "quick-xml 0.31.0",
  "serde",
  "zip",
 ]
@@ -2605,6 +2605,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ca7dd09b5f4a9029c35e323b086d0a68acdc673317b9c4d002c6f1d4a7278c6"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3514,6 +3524,7 @@ dependencies = [
  "indexmap",
  "lazy_static",
  "lettre",
+ "quick-xml 0.33.0",
  "rand",
  "regex",
  "reqwest",
