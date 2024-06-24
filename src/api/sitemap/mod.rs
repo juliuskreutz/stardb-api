@@ -33,6 +33,8 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
 const LANGUAGES: &[&str] = &[
     "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
 ];
+const LASTMOD: &str = "2024-06-25";
+const MAX_URLS: usize = 20000;
 
 const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%",
@@ -89,6 +91,7 @@ struct SitemapIndex {
 #[derive(serde::Serialize)]
 struct Sitemap {
     loc: String,
+    lastmod: String,
 }
 
 pub fn cache(pool: PgPool) {
@@ -142,6 +145,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
     for i in 0..count {
         sitemap.push(Sitemap {
             loc: format!("https://stardb.gg/api/sitemaps/{i}"),
+            lastmod: LASTMOD.to_string(),
         })
     }
 
@@ -158,9 +162,6 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 }
 
 async fn update(pool: PgPool) -> anyhow::Result<()> {
-    let lastmod = "2024-06-24";
-    let max_urls = 20000;
-
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
 
@@ -182,13 +183,13 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             let url = Url {
                 loc: route.replace("%LANG%", language),
-                lastmod: lastmod.to_string(),
+                lastmod: LASTMOD.to_string(),
                 links,
             };
 
             urls.push(url);
 
-            if urls.len() >= max_urls {
+            if urls.len() >= MAX_URLS {
                 write_urls(count, urls)?;
                 count += 1;
                 urls = Vec::new();
@@ -208,13 +209,13 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             let url = Url {
                 loc: format!("https://stardb.gg/{language}/database/achievements/{id}"),
-                lastmod: lastmod.to_string(),
+                lastmod: LASTMOD.to_string(),
                 links,
             };
 
             urls.push(url);
 
-            if urls.len() >= max_urls {
+            if urls.len() >= MAX_URLS {
                 write_urls(count, urls)?;
                 count += 1;
                 urls = Vec::new();
@@ -235,13 +236,13 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
                 let url = Url {
                     loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
-                    lastmod: lastmod.to_string(),
+                    lastmod: LASTMOD.to_string(),
                     links,
                 };
 
                 urls.push(url);
 
-                if urls.len() >= max_urls {
+                if urls.len() >= MAX_URLS {
                     write_urls(count, urls)?;
                     count += 1;
                     urls = Vec::new();
