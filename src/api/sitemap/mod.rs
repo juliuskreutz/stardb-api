@@ -159,6 +159,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 
 async fn update(pool: PgPool) -> anyhow::Result<()> {
     let lastmod = "2024-06-24";
+    let max_urls = 20000;
 
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
@@ -187,7 +188,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             urls.push(url);
 
-            if urls.len() >= 3000 {
+            if urls.len() >= max_urls {
                 write_urls(count, urls)?;
                 count += 1;
                 urls = Vec::new();
@@ -213,7 +214,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             urls.push(url);
 
-            if urls.len() >= 3000 {
+            if urls.len() >= max_urls {
                 write_urls(count, urls)?;
                 count += 1;
                 urls = Vec::new();
@@ -240,7 +241,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
                 urls.push(url);
 
-                if urls.len() >= 3000 {
+                if urls.len() >= max_urls {
                     write_urls(count, urls)?;
                     count += 1;
                     urls = Vec::new();
