@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{get, rt, web, HttpResponse, Responder};
+use actix_web::{get, rt, web, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -17,7 +17,7 @@ lazy_static::lazy_static! {
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "sitemap")),
+    tags((name = "sitemap.xml")),
     paths(sitemap)
 )]
 struct ApiDoc;
@@ -163,16 +163,14 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 }
 
 #[utoipa::path(
-    tag = "sitemap",
+    tag = "sitemap.xml",
     get,
-    path = "/api/sitemap",
+    path = "/api/sitemap.xml",
     responses(
-        (status = 200, description = "Sitemap"),
+        (status = 200, description = "sitemap.xml"),
     )
 )]
-#[get("/api/sitemap")]
+#[get("/api/sitemap.xml")]
 async fn sitemap() -> ApiResult<impl Responder> {
-    Ok(HttpResponse::Ok()
-        .content_type("application/xml")
-        .body(std::fs::read("sitemap.xml")?))
+    Ok(actix_files::NamedFile::open("sitemap.xml")?)
 }
