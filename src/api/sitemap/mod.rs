@@ -141,7 +141,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
     let mut sitemap = Vec::new();
     for i in 0..count {
         sitemap.push(Sitemap {
-            loc: format!("https://stardb.gg/api/sitemap/{i}"),
+            loc: format!("https://stardb.gg/api/sitemaps/{i}"),
         })
     }
 
