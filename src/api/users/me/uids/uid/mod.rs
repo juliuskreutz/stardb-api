@@ -44,7 +44,14 @@ async fn put_user_uid(
         uid: *uid,
     };
 
-    database::set_connection(&connection, &pool).await?;
+    if database::set_connection(&connection, &pool).await.is_err() {
+        reqwest::Client::new()
+            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
+            .send()
+            .await?;
+
+        database::set_connection(&connection, &pool).await?;
+    }
 
     Ok(HttpResponse::Ok().finish())
 }
