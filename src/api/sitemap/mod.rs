@@ -33,7 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
 const LANGUAGES: &[&str] = &[
     "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
 ];
-const LASTMOD: &str = "2024-06-25";
+const LASTMOD: &str = "2024-06-26";
 const MAX_URLS: usize = 20000;
 
 const LOCALIZED_ROUTES: &[&str] = &[
@@ -48,6 +48,7 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/register",
     "https://stardb.gg/%LANG%/request-token",
     "https://stardb.gg/%LANG%/warp-import",
+    "https://stardb.gg/%LANG%/warp-tracker",
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
 ];
@@ -164,6 +165,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 async fn update(pool: PgPool) -> anyhow::Result<()> {
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
+    let warp_uids = database::get_warp_uids(&pool).await?;
 
     let mut count = 0;
 
@@ -247,6 +249,32 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
                     count += 1;
                     urls = Vec::new();
                 }
+            }
+        }
+
+        for uid in &warp_uids {
+            let mut links = Vec::new();
+
+            for link_language in LANGUAGES {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!("https://stardb.gg/{link_language}/warp-tracker/{uid}"),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/warp-tracker/{uid}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
             }
         }
     }

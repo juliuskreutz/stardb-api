@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use futures::FutureExt;
 use sqlx::PgPool;
 
 use crate::{GachaType, Language};
@@ -61,6 +62,15 @@ pub async fn delete_warp_by_id_and_timestamp(
     .await?;
 
     Ok(())
+}
+
+pub async fn get_warp_uids(pool: &PgPool) -> Result<Vec<i32>> {
+    Ok(sqlx::query!("SELECT DISTINCT uid FROM warps")
+        .fetch_all(pool)
+        .await?
+        .iter()
+        .map(|r| r.uid)
+        .collect())
 }
 
 pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Result<Vec<DbWarp>> {
