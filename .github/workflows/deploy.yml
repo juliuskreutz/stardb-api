@@ -32,7 +32,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
-          script: rm stardb-api/stardb-api
+          script: mv stardb-api/stardb-api stardb-api/stardb-api-old
 
       - name: Copy New File
         uses: appleboy/scp-action@v0.1.7
