@@ -9,7 +9,6 @@ mod update;
 
 use std::{env, fs};
 
-use actix_cors::Cors;
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
@@ -141,12 +140,13 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements_percent(pool.clone()).await;
+    update::achievements_percent::spawn(pool.clone()).await;
     //update::books_percent(pool.clone()).await;
     //update::community_tier_list(pool.clone()).await;
-    update::dimbreath(pool.clone()).await;
-    update::star_rail_res().await;
-    update::scores().await;
+    update::dimbreath::spawn(pool.clone()).await;
+    update::star_rail_res::spawn().await;
+    update::scores::spawn(pool.clone()).await;
+    //update::character_averages::spawn(pool.clone()).await;
     // update::warps_stats(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
@@ -156,15 +156,8 @@ async fn main() -> anyhow::Result<()> {
     let openapi = api::openapi();
 
     HttpServer::new(move || {
-        let cors = Cors::default()
-            .allowed_origin("https://old.stardb.gg")
-            .allow_any_method()
-            .allow_any_header()
-            .max_age(3600);
-
         App::new()
             .app_data(pool_data.clone())
-            .wrap(cors)
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())

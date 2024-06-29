@@ -111,16 +111,7 @@ async fn get_profile(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let profile = if let Ok(profile) = get_profile_json(*uid, language_params.lang, &pool).await {
-        profile
-    } else {
-        reqwest::Client::new()
-            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
-
-        get_profile_json(*uid, language_params.lang, &pool).await?
-    };
+    let profile = get_profile_json(false, *uid, language_params.lang, &pool).await?;
 
     Ok(HttpResponse::Ok().json(profile))
 }
@@ -141,18 +132,22 @@ async fn update_profile(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    reqwest::Client::new()
-        .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-        .send()
-        .await?;
-
-    let profile = get_profile_json(*uid, language_params.lang, &pool).await?;
+    let profile = get_profile_json(true, *uid, language_params.lang, &pool).await?;
 
     Ok(HttpResponse::Ok().json(profile))
 }
 
-async fn get_profile_json(uid: i32, lang: Language, pool: &PgPool) -> ApiResult<Profile> {
-    let mihomo = mihomo::get_whole(uid, lang).await?;
+async fn get_profile_json(
+    update: bool,
+    uid: i32,
+    lang: Language,
+    pool: &PgPool,
+) -> ApiResult<Profile> {
+    let mihomo = if update {
+        mihomo::update_and_get(uid, lang, pool).await?
+    } else {
+        mihomo::get(uid, lang, pool).await?
+    };
 
     let score_achievement = database::get_score_achievement_by_uid(uid, pool).await?;
 

@@ -4,7 +4,7 @@ use chrono::{NaiveDateTime, TimeDelta};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, GachaType};
+use crate::{api::ApiResult, database, mihomo, GachaType, Language};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -81,12 +81,8 @@ async fn post_pom_warps_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    if database::mihomo::get_one_by_uid(*uid, &pool).await.is_err() {
-        reqwest::Client::new()
-            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
-    }
+    // Wacky way to update the database in case the uid isn't in there
+    mihomo::get(*uid, Language::En, &pool).await?;
 
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,

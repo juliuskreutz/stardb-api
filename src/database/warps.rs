@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use futures::FutureExt;
 use sqlx::PgPool;
 
 use crate::{GachaType, Language};

@@ -6,7 +6,7 @@ use chrono::DateTime;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, GachaType};
+use crate::{api::ApiResult, database, mihomo, GachaType, Language};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -89,12 +89,8 @@ async fn post_srs_warps_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    if database::mihomo::get_one_by_uid(*uid, &pool).await.is_err() {
-        reqwest::Client::new()
-            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
-    }
+    // Wacky way to update the database in case the uid isn't in there
+    mihomo::get(*uid, Language::En, &pool).await?;
 
     let srs: Srs = serde_json::from_str(&params.data)?;
 

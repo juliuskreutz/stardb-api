@@ -13,7 +13,7 @@ use image::{EncodableLayout, ImageFormat};
 use walkdir::WalkDir;
 use webp::Encoder;
 
-pub async fn star_rail_res() {
+pub async fn spawn() {
     rt::spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 

@@ -3,8 +3,8 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{scores::achievements::ScoreAchievement, ApiResult},
-    database,
+    api::{scores::achievements::ScoreAchievement, ApiResult, LanguageParams},
+    database, mihomo,
 };
 
 #[derive(OpenApi)]
@@ -47,6 +47,7 @@ async fn get_score_achievement(
     tag = "scores/achievements/{uid}",
     put,
     path = "/api/scores/achievements/{uid}",
+    params(LanguageParams),
     responses(
         (status = 200, description = "ScoreAchievement", body = ScoreAchievement),
     )
@@ -54,12 +55,10 @@ async fn get_score_achievement(
 #[put("/api/scores/achievements/{uid}")]
 async fn put_score_achievement(
     uid: web::Path<i32>,
+    language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    reqwest::Client::new()
-        .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-        .send()
-        .await?;
+    mihomo::update_and_get(*uid, language_param.lang, &pool).await?;
 
     let score: ScoreAchievement = database::get_score_achievement_by_uid(*uid, &pool)
         .await?

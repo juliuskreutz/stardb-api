@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use super::Leaderboard;
 use crate::{
     api::{private, ApiResult, Region},
-    database,
+    database, mihomo, Language,
 };
 
 #[derive(OpenApi)]
@@ -34,18 +34,12 @@ async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let score = if let Ok(db_score) = database::get_score_achievement_by_uid(*uid, &pool).await {
-        db_score.into()
-    } else {
-        reqwest::Client::new()
-            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
+    // Wacky way to update the database in case the uid isn't in there
+    mihomo::get(*uid, Language::En, &pool).await?;
 
-        database::get_score_achievement_by_uid(*uid, &pool)
-            .await?
-            .into()
-    };
+    let score = database::get_score_achievement_by_uid(*uid, &pool)
+        .await?
+        .into();
 
     let count_na =
         database::count_scores_achievement(Some(&Region::Na.to_string()), None, &pool).await?;

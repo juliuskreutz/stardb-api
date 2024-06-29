@@ -15,14 +15,14 @@ pub async fn spawn(pool: PgPool) {
 
             let start = Instant::now();
 
-            if let Err(e) = update(pool.clone()).await {
+            if let Err(e) = update(&pool).await {
                 error!(
-                    "Achievements Percent update failed with {e} in {}s",
+                    "Character Averages update failed with {e} in {}s",
                     start.elapsed().as_secs_f64()
                 );
             } else {
                 info!(
-                    "Achievements Percent update succeeded in {}s",
+                    "Character Averages update succeeded in {}s",
                     start.elapsed().as_secs_f64()
                 );
             }
@@ -30,8 +30,6 @@ pub async fn spawn(pool: PgPool) {
     });
 }
 
-async fn update(pool: PgPool) -> Result<()> {
-    database::achievements_percent::update(&pool).await?;
-
+async fn update(pool: &PgPool) -> Result<()> {
     Ok(())
 }

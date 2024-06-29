@@ -3,7 +3,7 @@ use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::{api::ApiResult, database, mihomo, Language};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -44,14 +44,10 @@ async fn put_user_uid(
         uid: *uid,
     };
 
-    if database::set_connection(&connection, &pool).await.is_err() {
-        reqwest::Client::new()
-            .put(format!("http://localhost:8000/api/mihomo/{uid}"))
-            .send()
-            .await?;
+    // Wacky way to update the database in case the uid isn't in there
+    mihomo::get(*uid, Language::En, &pool).await?;
 
-        database::set_connection(&connection, &pool).await?;
-    }
+    database::set_connection(&connection, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
