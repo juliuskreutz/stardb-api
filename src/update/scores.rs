@@ -16,7 +16,7 @@ pub async fn spawn(pool: PgPool) {
     {
         let pool = pool.clone();
 
-        rt::spawn(async move {
+        actix::Arbiter::new().spawn(async move {
             let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
             loop {
@@ -39,7 +39,7 @@ pub async fn spawn(pool: PgPool) {
         });
     }
 
-    rt::spawn(async move {
+    actix::Arbiter::new().spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
 
         loop {

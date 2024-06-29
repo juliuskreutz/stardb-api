@@ -96,7 +96,7 @@ struct Sitemap {
 }
 
 pub fn cache(pool: PgPool) {
-    rt::spawn(async move {
+    actix::Arbiter::new().spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
 
         loop {

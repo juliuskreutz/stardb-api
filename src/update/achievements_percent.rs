@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use crate::database;
 
 pub async fn spawn(pool: PgPool) {
-    rt::spawn(async move {
+    actix::Arbiter::new().spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(5 * 60));
 
         loop {

@@ -161,7 +161,7 @@ struct TextHash {
 }
 
 pub async fn spawn(pool: PgPool) {
-    rt::spawn(async move {
+    actix::Arbiter::new().spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
         let mut up_to_date = false;

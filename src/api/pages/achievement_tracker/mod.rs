@@ -144,7 +144,7 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
     {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
-        rt::spawn(async move {
+        actix::Arbiter::new().spawn(async move {
             let mut interval = rt::time::interval(Duration::from_secs(60));
 
             loop {
