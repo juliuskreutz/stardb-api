@@ -141,31 +141,31 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
         achievement_tracker_map,
     });
 
-    {
-        let achievement_tracker_cache = achievement_tracker_cache.clone();
-
-        actix::Arbiter::new().spawn(async move {
-            let mut interval = rt::time::interval(Duration::from_secs(60));
-
-            loop {
-                interval.tick().await;
-
-                let start = Instant::now();
-
-                if let Err(e) = update(achievement_tracker_cache.clone(), pool.clone()).await {
-                    error!(
-                        "Achievement Tracker update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Achievement Tracker update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-            }
-        });
-    }
+    //{
+    //    let achievement_tracker_cache = achievement_tracker_cache.clone();
+    //
+    //    actix::Arbiter::new().spawn(async move {
+    //        let mut interval = rt::time::interval(Duration::from_secs(60));
+    //
+    //        loop {
+    //            interval.tick().await;
+    //
+    //            let start = Instant::now();
+    //
+    //            if let Err(e) = update(achievement_tracker_cache.clone(), pool.clone()).await {
+    //                error!(
+    //                    "Achievement Tracker update failed with {e} in {}s",
+    //                    start.elapsed().as_secs_f64()
+    //                );
+    //            } else {
+    //                info!(
+    //                    "Achievement Tracker update succeeded in {}s",
+    //                    start.elapsed().as_secs_f64()
+    //                );
+    //            }
+    //        }
+    //    });
+    //}
 
     achievement_tracker_cache
 }
