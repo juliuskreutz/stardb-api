@@ -152,7 +152,7 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
 
                 let start = Instant::now();
 
-                if let Err(e) = update(&achievement_tracker_cache, &pool).await {
+                if let Err(e) = update(achievement_tracker_cache.clone(), pool.clone()).await {
                     error!(
                         "Achievement Tracker update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
@@ -171,13 +171,13 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
 }
 
 async fn update(
-    achievement_tracker_cache: &web::Data<AchievementTrackerCache>,
-    pool: &PgPool,
+    achievement_tracker_cache: web::Data<AchievementTrackerCache>,
+    pool: PgPool,
 ) -> anyhow::Result<()> {
     let mut achievement_tracker_map = HashMap::new();
 
     for language in Language::iter() {
-        let achievements = database::achievements::get_all(language, pool).await?;
+        let achievements = database::achievements::get_all(language, &pool).await?;
 
         let mut versions = HashSet::new();
         let mut series = Vec::new();
@@ -253,7 +253,7 @@ async fn update(
             jade_count += series.jade_count;
         }
 
-        let user_count = database::get_users_achievements_completed_user_count(pool).await?;
+        let user_count = database::get_users_achievements_completed_user_count(&pool).await?;
 
         let mut versions = versions.into_iter().collect::<Vec<_>>();
         versions.sort_unstable();
