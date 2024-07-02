@@ -167,18 +167,18 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
                     );
                 }
 
-                let start = Instant::now();
-                if let Err(e) = update_achievements_percent(pool.clone()).await {
-                    error!(
-                        "Achievements Percent update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Achievements Percent update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
+                //let start = Instant::now();
+                //if let Err(e) = update_achievements_percent(pool.clone()).await {
+                //    error!(
+                //        "Achievements Percent update failed with {e} in {}s",
+                //        start.elapsed().as_secs_f64()
+                //    );
+                //} else {
+                //    info!(
+                //        "Achievements Percent update succeeded in {}s",
+                //        start.elapsed().as_secs_f64()
+                //    );
+                //}
             }
         });
     }
