@@ -5,7 +5,7 @@ use anyhow::Result;
 use sqlx::PgPool;
 
 pub async fn spawn(pool: PgPool) {
-    actix::Arbiter::new().spawn(async move {
+    rt::spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(5 * 60));
 
         loop {

@@ -104,7 +104,7 @@ pub fn cache(pool: PgPool) -> web::Data<BookTrackerCache> {
     {
         let book_tracker_cache = book_tracker_cache.clone();
 
-        actix::Arbiter::new().spawn(async move {
+        rt::spawn(async move {
             let mut interval = rt::time::interval(Duration::from_secs(60));
 
             loop {

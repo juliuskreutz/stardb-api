@@ -289,56 +289,56 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
 
     info!("Starting achievement_series");
 
-    for achievement_series in achievement_series.values() {
-        let id = achievement_series.id;
-
-        let priority = achievement_series.priority;
-
-        let db_series = database::DbAchievementSeries {
-            id,
-            priority,
-            name: String::new(),
-        };
-        database::set_achievement_series(&db_series, &pool).await?;
-    }
+    //for achievement_series in achievement_series.values() {
+    //    let id = achievement_series.id;
+    //
+    //    let priority = achievement_series.priority;
+    //
+    //    let db_series = database::DbAchievementSeries {
+    //        id,
+    //        priority,
+    //        name: String::new(),
+    //    };
+    //    database::set_achievement_series(&db_series, &pool).await?;
+    //}
 
     info!("Starting achievements");
 
-    for achievement_data in achievement_data.values() {
-        let id = achievement_data.id;
-
-        let series = achievement_data.series;
-
-        let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
-            .jades
-            .unwrap_or_default();
-
-        let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
-
-        let priority = achievement_data.priority;
-
-        let db_achievement = database::achievements::DbAchievement {
-            id,
-            series,
-            series_name: String::new(),
-            name: String::new(),
-            description: String::new(),
-            jades,
-            hidden,
-            priority,
-            version: None,
-            comment: None,
-            reference: None,
-            difficulty: None,
-            video: None,
-            gacha: false,
-            impossible: false,
-            set: None,
-            percent: 0.0,
-        };
-
-        database::achievements::set(&db_achievement, &pool).await?;
-    }
+    //for achievement_data in achievement_data.values() {
+    //    let id = achievement_data.id;
+    //
+    //    let series = achievement_data.series;
+    //
+    //    let jades = reward_data[&quest_data[&id.to_string()].reward_id.to_string()]
+    //        .jades
+    //        .unwrap_or_default();
+    //
+    //    let hidden = achievement_data.show_type.as_deref() == Some("ShowAfterFinish");
+    //
+    //    let priority = achievement_data.priority;
+    //
+    //    let db_achievement = database::achievements::DbAchievement {
+    //        id,
+    //        series,
+    //        series_name: String::new(),
+    //        name: String::new(),
+    //        description: String::new(),
+    //        jades,
+    //        hidden,
+    //        priority,
+    //        version: None,
+    //        comment: None,
+    //        reference: None,
+    //        difficulty: None,
+    //        video: None,
+    //        gacha: false,
+    //        impossible: false,
+    //        set: None,
+    //        percent: 0.0,
+    //    };
+    //
+    //    database::achievements::set(&db_achievement, &pool).await?;
+    //}
 
     info!("Starting avatars");
 

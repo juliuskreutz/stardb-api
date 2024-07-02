@@ -126,3 +126,32 @@ pub async fn get_score_achievement_by_uid(uid: i32, pool: &PgPool) -> Result<DbS
     .fetch_one(pool)
     .await?)
 }
+
+#[derive(Default)]
+pub struct DbScoreAchievementTimestamp {
+    pub achievement_count: i32,
+    pub timestamp: DateTime<Utc>,
+}
+
+pub async fn get_score_achievement_timestamp_by_uid(
+    uid: i32,
+    pool: &PgPool,
+) -> Result<DbScoreAchievementTimestamp> {
+    Ok(sqlx::query_as!(
+        DbScoreAchievementTimestamp,
+        "
+        SELECT
+            achievement_count,
+            timestamp
+        FROM
+            scores_achievement
+        NATURAL JOIN
+            mihomo
+        WHERE
+            uid = $1
+        ",
+        uid,
+    )
+    .fetch_one(pool)
+    .await?)
+}

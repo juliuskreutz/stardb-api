@@ -40,5 +40,8 @@ SELECT
     COALESCE(percent, 0)
 FROM
     achievements
-    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id;
+    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id
+ON CONFLICT (id)
+    DO UPDATE SET
+        percent = EXCLUDED.percent;
 

@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 use webp::Encoder;
 
 pub async fn spawn() {
-    actix::Arbiter::new().spawn(async move {
+    rt::spawn(async move {
         let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
         let mut up_to_date = false;

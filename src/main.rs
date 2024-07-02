@@ -140,7 +140,6 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements_percent::spawn(pool.clone()).await;
     //update::books_percent(pool.clone()).await;
     //update::community_tier_list(pool.clone()).await;
     update::dimbreath::spawn(pool.clone()).await;

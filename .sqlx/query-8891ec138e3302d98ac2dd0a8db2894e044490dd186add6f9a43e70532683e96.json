@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT DISTINCT uid FROM warps",
+  "query": "select uid from mihomo where exists (select * from warps where mihomo.uid = warps.uid )",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "273aa4082bd97d7109f0ce4a292deb2167364a68f46ab36b127b5cffe8b50e0e"
+  "hash": "8891ec138e3302d98ac2dd0a8db2894e044490dd186add6f9a43e70532683e96"
 }

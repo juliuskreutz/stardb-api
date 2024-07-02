@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            achievement_count,\n            timestamp\n        FROM\n            scores_achievement\n        NATURAL JOIN\n            mihomo\n        WHERE\n            uid = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "achievement_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "90c8215b6ae5cda1dc5dbd9af62c687ea9f8af2ae633f852eecbd118aafde8b2"
+}

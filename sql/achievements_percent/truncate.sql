@@ -1,2 +1,0 @@
-TRUNCATE achievements_percent;
-
