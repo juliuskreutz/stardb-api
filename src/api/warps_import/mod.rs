@@ -275,8 +275,10 @@ async fn import_warps(
             let uid = entry.uid.parse()?;
             let item = entry.item_id.parse()?;
 
-            let mut character = (entry.item_type == "Character").then_some(item);
-            let mut light_cone = (entry.item_type == "Light Cone").then_some(item);
+            let mut character =
+                (entry.item_type == "Character" || entry.item_type == "角色").then_some(item);
+            let mut light_cone =
+                (entry.item_type == "Light Cone" || entry.item_type == "光錐").then_some(item);
 
             if character.is_none() && light_cone.is_none() {
                 if item >= 20000 {
