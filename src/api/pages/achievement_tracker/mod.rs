@@ -195,9 +195,7 @@ async fn update_achievement_tracker(
     let user_count = database::get_users_achievements_completed_user_count(&pool).await?;
 
     for language in Language::iter() {
-        error!("Waiting {language}");
         let achievements = database::achievements::get_all(language, &pool).await?;
-        error!("Got {language} {}", achievements.len());
 
         let mut versions = HashSet::new();
         let mut series = Vec::new();

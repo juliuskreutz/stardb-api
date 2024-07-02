@@ -2,6 +2,7 @@ mod uid;
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use futures::lock::Mutex;
@@ -98,6 +99,7 @@ struct WarpsImport {
 )]
 #[post("/api/warps-import")]
 async fn post_warps_import(
+    session: Session,
     params: web::Json<WarpsImportParams>,
     warps_import_infos: web::Data<WarpsImportInfos>,
     pool: web::Data<PgPool>,
@@ -146,6 +148,12 @@ async fn post_warps_import(
         warps_import_infos.lock().await.insert(uid, info.clone());
 
         return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
+    }
+
+    if let Ok(Some(username)) = session.get::<String>("username") {
+        let connection = database::DbConnection { uid, username };
+
+        database::set_connection(&connection, &pool).await?;
     }
 
     if warps_import_infos.lock().await.contains_key(&uid) {
