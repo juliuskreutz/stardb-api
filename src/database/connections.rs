@@ -4,13 +4,15 @@ use sqlx::PgPool;
 pub struct DbConnection {
     pub uid: i32,
     pub username: String,
+    pub verified: bool,
 }
 
 pub async fn set_connection(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     sqlx::query!(
-        "INSERT INTO connections(uid, username) VALUES($1, $2)",
+        "INSERT INTO connections(uid, username, verified) VALUES($1, $2, $3) ON CONFLICT(uid, username) DO UPDATE SET verified = EXCLUDED.verified",
         connection.uid,
         connection.username,
+        connection.verified,
     )
     .execute(pool)
     .await?;

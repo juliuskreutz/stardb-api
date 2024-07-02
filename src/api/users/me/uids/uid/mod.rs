@@ -42,6 +42,7 @@ async fn put_user_uid(
     let connection = database::DbConnection {
         username,
         uid: *uid,
+        verified: false,
     };
 
     // Wacky way to update the database in case the uid isn't in there
@@ -74,6 +75,7 @@ async fn delete_user_uid(
     let connection = database::DbConnection {
         username,
         uid: *uid,
+        verified: false,
     };
 
     database::delete_connection(&connection, &pool).await?;

@@ -151,7 +151,11 @@ async fn post_warps_import(
     }
 
     if let Ok(Some(username)) = session.get::<String>("username") {
-        let connection = database::DbConnection { uid, username };
+        let connection = database::DbConnection {
+            uid,
+            username,
+            verified: true,
+        };
 
         database::set_connection(&connection, &pool).await?;
     }
