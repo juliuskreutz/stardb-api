@@ -275,8 +275,18 @@ async fn import_warps(
             let uid = entry.uid.parse()?;
             let item = entry.item_id.parse()?;
 
-            let character = (entry.item_type == "Character").then_some(item);
-            let light_cone = (entry.item_type == "Light Cone").then_some(item);
+            let mut character = (entry.item_type == "Character").then_some(item);
+            let mut light_cone = (entry.item_type == "Light Cone").then_some(item);
+
+            if character.is_none() && light_cone.is_none() {
+                if item >= 20000 {
+                    light_cone = Some(item);
+                } else if item <= 10000 {
+                    character = Some(item);
+                } else {
+                    return Err(anyhow::anyhow!("{} is weird...", entry.item_type).into());
+                }
+            }
 
             let db_warp = database::DbWarp {
                 id,

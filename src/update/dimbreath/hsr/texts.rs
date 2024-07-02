@@ -238,6 +238,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
     }
 
+    info!("Setting all achievement series texts");
     database::set_all_achievement_series_texts(
         &achievement_series_id,
         &achievement_series_language,
@@ -246,6 +247,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
+    info!("Setting all achievement texts");
     database::set_all_achievement_texts(
         &achievements_id,
         &achievements_language,
@@ -255,6 +257,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
+    info!("Setting all character texts");
     database::set_all_character_texts(
         &characters_id,
         &characters_language,
@@ -265,8 +268,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
+    info!("Setting all skill texts");
     database::set_all_skill_texts(&skills_id, &skills_language, &skills_name, pool).await?;
 
+    info!("Setting all book series world texts");
     database::set_all_book_series_world_texts(
         &book_series_worlds_id,
         &book_series_worlds_language,
@@ -275,6 +280,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
+    info!("Setting all book series texts");
     database::set_all_book_series_texts(
         &book_series_id,
         &book_series_language,
@@ -283,8 +289,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
+    info!("Setting all book texts");
     database::set_all_book_texts(&books_id, &books_language, &books_name, pool).await?;
 
+    info!("Setting all light cone texts");
     database::set_all_light_cone_texts(
         &light_cones_id,
         &light_cones_language,

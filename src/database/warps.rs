@@ -65,7 +65,7 @@ pub async fn delete_warp_by_id_and_timestamp(
 
 pub async fn get_warp_uids(pool: &PgPool) -> Result<Vec<i32>> {
     Ok(sqlx::query!(
-        "select uid from mihomo where exists (select * from warps where mihomo.uid = warps.uid )"
+        "select uid from mihomo where exists (select * from warps where mihomo.uid = warps.uid)"
     )
     .fetch_all(pool)
     .await?
