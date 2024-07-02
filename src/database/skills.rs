@@ -3,27 +3,28 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-#[derive(Clone)]
 pub struct DbSkill {
     pub id: i32,
     pub character: i32,
     pub name: String,
 }
 
-pub async fn set_skill(skill: &DbSkill, pool: &PgPool) -> Result<()> {
+pub async fn set_all_skills(id: &[i32], character: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             skills(id, character)
-        VALUES
-            ($1, $2)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[])
         ON CONFLICT
             (id)
         DO UPDATE SET
-            character = $2
+            character = EXCLUDED.character
         ",
-        skill.id,
-        skill.character,
+        id,
+        character,
     )
     .execute(pool)
     .await?;
@@ -32,6 +33,8 @@ pub async fn set_skill(skill: &DbSkill, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_skills(language: Language, pool: &PgPool) -> Result<Vec<DbSkill>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbSkill,
         "
@@ -47,13 +50,15 @@ pub async fn get_skills(language: Language, pool: &PgPool) -> Result<Vec<DbSkill
         ORDER BY
             id
         ",
-        language as Language
+        language,
     )
     .fetch_all(pool)
     .await?)
 }
 
 pub async fn get_skill_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbSkill> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbSkill,
         "
@@ -70,7 +75,7 @@ pub async fn get_skill_by_id(id: i32, language: Language, pool: &PgPool) -> Resu
             skills.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)
@@ -81,6 +86,8 @@ pub async fn get_skills_by_character(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbSkill>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbSkill,
         "
@@ -97,7 +104,7 @@ pub async fn get_skills_by_character(
             skills.character = $1
         ",
         character,
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)

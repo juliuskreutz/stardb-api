@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            skills(id, character)\n        SELECT\n            *\n        FROM\n            UNNEST($1::integer[], $2::integer[])\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            character = EXCLUDED.character\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "21262874ff1a1d974d5c126aa619114ece4f3c6bd5342bb7bdfef76cb561fb82"
+}

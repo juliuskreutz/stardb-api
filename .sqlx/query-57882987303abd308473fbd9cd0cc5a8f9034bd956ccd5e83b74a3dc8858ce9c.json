@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            light_cones(id, rarity)\n        SELECT\n            *\n        FROM\n            UNNEST($1::integer[], $2::integer[])\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            rarity = EXCLUDED.rarity\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57882987303abd308473fbd9cd0cc5a8f9034bd956ccd5e83b74a3dc8858ce9c"
+}

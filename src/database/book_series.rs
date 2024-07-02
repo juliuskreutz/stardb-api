@@ -11,22 +11,29 @@ pub struct DbBookSeries {
     pub name: String,
 }
 
-pub async fn set_book_series(series: &DbBookSeries, pool: &PgPool) -> Result<()> {
+pub async fn set_all_book_series(
+    id: &[i32],
+    world: &[i32],
+    bookshelf: &[bool],
+    pool: &PgPool,
+) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             book_series(id, world, bookshelf)
-        VALUES
-            ($1, $2, $3)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[], $3::boolean[])
         ON CONFLICT
             (id)
         DO UPDATE SET
             world = EXCLUDED.world,
             bookshelf = EXCLUDED.bookshelf
         ",
-        series.id,
-        series.world,
-        series.bookshelf,
+        id,
+        world,
+        bookshelf,
     )
     .execute(pool)
     .await?;
@@ -35,6 +42,8 @@ pub async fn set_book_series(series: &DbBookSeries, pool: &PgPool) -> Result<()>
 }
 
 pub async fn get_book_series(language: Language, pool: &PgPool) -> Result<Vec<DbBookSeries>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBookSeries,
         "
@@ -55,7 +64,7 @@ pub async fn get_book_series(language: Language, pool: &PgPool) -> Result<Vec<Db
         ORDER BY
             world, id
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -66,6 +75,8 @@ pub async fn get_book_series_by_id(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbBookSeries> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBookSeries,
         "
@@ -87,7 +98,7 @@ pub async fn get_book_series_by_id(
             book_series.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

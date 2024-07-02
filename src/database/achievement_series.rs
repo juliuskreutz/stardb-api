@@ -6,23 +6,24 @@ use crate::Language;
 pub struct DbAchievementSeries {
     pub id: i32,
     pub name: String,
-    pub priority: i32,
 }
 
-pub async fn set_achievement_series(series: &DbAchievementSeries, pool: &PgPool) -> Result<()> {
+pub async fn set_all_achievement_series(id: &[i32], priority: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             achievement_series(id, priority)
-        VALUES
-            ($1, $2)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[])
         ON CONFLICT
             (id)
         DO UPDATE SET
             priority = EXCLUDED.priority
         ",
-        series.id,
-        series.priority,
+        id,
+        priority,
     )
     .execute(pool)
     .await?;
@@ -34,13 +35,14 @@ pub async fn get_achievement_series(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbAchievementSeries>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbAchievementSeries,
         "
         SELECT
             achievement_series.id,
-            achievement_series_text.name,
-            achievement_series.priority
+            achievement_series_text.name
         FROM
             achievement_series
         INNER JOIN
@@ -50,7 +52,7 @@ pub async fn get_achievement_series(
         ORDER BY
             priority DESC, achievement_series.id
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -61,13 +63,14 @@ pub async fn get_achievement_series_by_id(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbAchievementSeries> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbAchievementSeries,
         "
         SELECT
             achievement_series.id,
-            achievement_series_text.name,
-            achievement_series.priority
+            achievement_series_text.name
         FROM
             achievement_series
         INNER JOIN
@@ -78,7 +81,7 @@ pub async fn get_achievement_series_by_id(
             achievement_series.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

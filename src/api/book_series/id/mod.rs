@@ -31,11 +31,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[get("/api/book-series/{id}")]
 async fn get_book_series(
     id: web::Path<i32>,
-    language_param: web::Query<LanguageParams>,
+    language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let series =
-        BookSeries::from(database::get_book_series_by_id(*id, language_param.lang, &pool).await?);
+        BookSeries::from(database::get_book_series_by_id(*id, language_params.lang, &pool).await?);
 
     Ok(HttpResponse::Ok().json(series))
 }

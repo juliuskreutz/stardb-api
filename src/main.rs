@@ -34,29 +34,21 @@ use utoipa_swagger_ui::SwaggerUi;
     serde::Serialize,
     serde::Deserialize,
     utoipa::ToSchema,
-    sqlx::Type,
 )]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "language", rename_all = "snake_case")]
+#[strum(serialize_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 enum Language {
-    #[serde(alias = "zh-cn")]
-    Chs,
-    #[serde(alias = "zh-tw")]
-    Cht,
+    ZhCn,
+    ZhTw,
     De,
     #[default]
     En,
-    #[serde(alias = "es-es")]
-    Es,
+    EsEs,
     Fr,
     Id,
-    #[serde(alias = "ja")]
-    Jp,
-    #[serde(alias = "ko")]
-    Kr,
-    #[serde(alias = "pt-pt")]
-    Pt,
+    Ja,
+    Ko,
+    PtPt,
     Ru,
     Th,
     Vi,
@@ -65,16 +57,16 @@ enum Language {
 impl Language {
     pub fn name(&self) -> String {
         match self {
-            Language::Chs => "简体中文",
-            Language::Cht => "繁體中文",
+            Language::ZhCn => "简体中文",
+            Language::ZhTw => "繁體中文",
             Language::De => "Deutsch",
             Language::En => "English",
-            Language::Es => "Español",
+            Language::EsEs => "Español",
             Language::Fr => "Français",
             Language::Id => "Bahasa Indonesia",
-            Language::Jp => "日本語",
-            Language::Kr => "한국어",
-            Language::Pt => "Português",
+            Language::Ja => "日本語",
+            Language::Ko => "한국어",
+            Language::PtPt => "Português",
             Language::Ru => "Русский",
             Language::Th => "ไทย",
             Language::Vi => "Tiếng Việt",
@@ -142,7 +134,8 @@ async fn main() -> anyhow::Result<()> {
 
     //update::books_percent(pool.clone()).await;
     //update::community_tier_list(pool.clone()).await;
-    update::dimbreath::spawn(pool.clone()).await;
+    update::dimbreath::hsr::spawn(pool.clone()).await;
+    update::dimbreath::zzz::spawn(pool.clone()).await;
     update::star_rail_res::spawn().await;
     update::scores::spawn(pool.clone()).await;
     //update::character_averages::spawn(pool.clone()).await;

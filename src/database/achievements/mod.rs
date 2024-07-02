@@ -32,14 +32,21 @@ pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn set(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
+pub async fn set_all(
+    id: &[i32],
+    series: &[i32],
+    jades: &[i32],
+    hidden: &[bool],
+    priority: &[i32],
+    pool: &PgPool,
+) -> Result<()> {
     sqlx::query_file!(
-        "sql/achievements/set.sql",
-        achievement.id,
-        achievement.series,
-        achievement.jades,
-        achievement.hidden,
-        achievement.priority,
+        "sql/achievements/set_all.sql",
+        id,
+        series,
+        jades,
+        hidden,
+        priority,
     )
     .execute(pool)
     .await?;
@@ -48,13 +55,13 @@ pub async fn set(achievement: &DbAchievement, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievement>> {
-    Ok(sqlx::query_file_as!(
-        DbAchievement,
-        "sql/achievements/get_all.sql",
-        language as Language
+    let language = language.to_string();
+
+    Ok(
+        sqlx::query_file_as!(DbAchievement, "sql/achievements/get_all.sql", language)
+            .fetch_all(pool)
+            .await?,
     )
-    .fetch_all(pool)
-    .await?)
 }
 
 pub async fn get_all_ids_shown(pool: &PgPool) -> Result<Vec<i32>> {
@@ -78,11 +85,13 @@ pub async fn get_all_related_ids(id: i32, set: i32, pool: &PgPool) -> Result<Vec
 }
 
 pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievement> {
+    let language = language.to_string();
+
     Ok(sqlx::query_file_as!(
         DbAchievement,
         "sql/achievements/get_one_by_id.sql",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

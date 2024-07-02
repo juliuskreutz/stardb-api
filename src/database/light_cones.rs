@@ -11,20 +11,22 @@ pub struct DbLightCone {
     pub path_id: String,
 }
 
-pub async fn set_light_cone(light_cone: &DbLightCone, pool: &PgPool) -> Result<()> {
+pub async fn set_all_light_cones(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             light_cones(id, rarity)
-        VALUES
-            ($1, $2)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[])
         ON CONFLICT
             (id)
         DO UPDATE SET
             rarity = EXCLUDED.rarity
         ",
-        light_cone.id,
-        light_cone.rarity,
+        id,
+        rarity,
     )
     .execute(pool)
     .await?;
@@ -33,6 +35,8 @@ pub async fn set_light_cone(light_cone: &DbLightCone, pool: &PgPool) -> Result<(
 }
 
 pub async fn get_light_cones(language: Language, pool: &PgPool) -> Result<Vec<DbLightCone>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbLightCone,
         "
@@ -54,7 +58,7 @@ pub async fn get_light_cones(language: Language, pool: &PgPool) -> Result<Vec<Db
         ORDER BY
             id
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -65,6 +69,8 @@ pub async fn get_light_cone_by_id(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbLightCone> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbLightCone,
         "
@@ -87,7 +93,7 @@ pub async fn get_light_cone_by_id(
             light_cones.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

@@ -8,16 +8,18 @@ pub struct DbBookSeriesWorld {
     pub name: String,
 }
 
-pub async fn set_book_series_world(series: &DbBookSeriesWorld, pool: &PgPool) -> Result<()> {
+pub async fn set_all_book_series_worlds(id: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             book_series_worlds(id)
-        VALUES
-            ($1)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[])
         ON CONFLICT DO NOTHING
         ",
-        series.id,
+        id,
     )
     .execute(pool)
     .await?;
@@ -29,6 +31,8 @@ pub async fn get_book_series_worlds(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbBookSeriesWorld>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBookSeriesWorld,
         "
@@ -44,7 +48,7 @@ pub async fn get_book_series_worlds(
         ORDER BY
             id
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -55,6 +59,8 @@ pub async fn get_book_series_world_by_id(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbBookSeriesWorld> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBookSeriesWorld,
         "
@@ -71,7 +77,7 @@ pub async fn get_book_series_world_by_id(
             book_series_worlds.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

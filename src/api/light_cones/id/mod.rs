@@ -31,11 +31,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[get("/api/light-cones/{id}")]
 async fn get_light_cone(
     id: web::Path<i32>,
-    language_param: web::Query<LanguageParams>,
+    language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let light_cone =
-        LightCone::from(database::get_light_cone_by_id(*id, language_param.lang, &pool).await?);
+        LightCone::from(database::get_light_cone_by_id(*id, language_params.lang, &pool).await?);
 
     Ok(HttpResponse::Ok().json(light_cone))
 }

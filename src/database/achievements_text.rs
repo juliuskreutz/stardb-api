@@ -3,33 +3,33 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-pub struct DbAchievementText {
-    pub id: i32,
-    pub language: Language,
-    pub name: String,
-    pub description: String,
-}
-
-pub async fn set_achievement_text(
-    achievement_text: &DbAchievementText,
+pub async fn set_all_achievement_texts(
+    id: &[i32],
+    language: &[Language],
+    name: &[String],
+    description: &[String],
     pool: &PgPool,
 ) -> Result<()> {
+    let language = &language.iter().map(ToString::to_string).collect::<Vec<_>>();
+
     sqlx::query!(
         "
         INSERT INTO
             achievements_text(id, language, name, description)
-        VALUES
-            ($1, $2, $3, $4)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::text[], $3::text[], $4::text[])
         ON CONFLICT
             (id, language)
         DO UPDATE SET
             name = EXCLUDED.name,
             description = EXCLUDED.description
         ",
-        achievement_text.id,
-        achievement_text.language as Language,
-        achievement_text.name,
-        achievement_text.description,
+        id,
+        language,
+        name,
+        description,
     )
     .execute(pool)
     .await?;

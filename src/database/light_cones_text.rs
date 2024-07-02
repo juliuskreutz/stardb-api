@@ -3,30 +3,33 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-pub struct DbLightConeText {
-    pub id: i32,
-    pub language: Language,
-    pub name: String,
-    pub path: String,
-}
+pub async fn set_all_light_cone_texts(
+    id: &[i32],
+    language: &[Language],
+    name: &[String],
+    path: &[String],
+    pool: &PgPool,
+) -> Result<()> {
+    let language = &language.iter().map(ToString::to_string).collect::<Vec<_>>();
 
-pub async fn set_light_cone_text(light_cone_text: &DbLightConeText, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             light_cones_text(id, language, name, path)
-        VALUES
-            ($1, $2, $3, $4)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::text[], $3::text[], $4::text[])
         ON CONFLICT
             (id, language)
         DO UPDATE SET
             name = EXCLUDED.name,
             path = EXCLUDED.path
         ",
-        light_cone_text.id,
-        light_cone_text.language as Language,
-        light_cone_text.name,
-        light_cone_text.path,
+        id,
+        language,
+        name,
+        path,
     )
     .execute(pool)
     .await?;

@@ -19,13 +19,21 @@ pub struct DbBook {
     pub percent: f64,
 }
 
-pub async fn set_book(book: &DbBook, pool: &PgPool) -> Result<()> {
+pub async fn set_all_books(
+    id: &[i32],
+    series: &[i32],
+    series_inside: &[i32],
+    icon: &[i32],
+    pool: &PgPool,
+) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             books(id, series, series_inside, icon)
-        VALUES
-            ($1, $2, $3, $4)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[], $3::integer[], $4::integer[])
         ON CONFLICT
             (id)
         DO UPDATE SET
@@ -33,10 +41,10 @@ pub async fn set_book(book: &DbBook, pool: &PgPool) -> Result<()> {
             series_inside = EXCLUDED.series_inside,
             icon = EXCLUDED.icon
         ",
-        book.id,
-        book.series,
-        book.series_inside,
-        book.icon,
+        id,
+        series,
+        series_inside,
+        icon,
     )
     .execute(pool)
     .await?;
@@ -45,6 +53,8 @@ pub async fn set_book(book: &DbBook, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_books(language: Language, pool: &PgPool) -> Result<Vec<DbBook>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBook,
         "
@@ -80,13 +90,15 @@ pub async fn get_books(language: Language, pool: &PgPool) -> Result<Vec<DbBook>>
         ORDER BY
             world, series, series_inside, id
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
 }
 
 pub async fn get_book_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbBook> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbBook,
         "
@@ -123,26 +135,10 @@ pub async fn get_book_by_id(id: i32, language: Language, pool: &PgPool) -> Resul
             icon IS NOT NULL
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)
-}
-
-pub async fn get_books_id(pool: &PgPool) -> Result<Vec<i32>> {
-    Ok(sqlx::query!(
-        "
-        SELECT
-            id
-        FROM
-            books
-        "
-    )
-    .fetch_all(pool)
-    .await?
-    .iter()
-    .map(|r| r.id)
-    .collect())
 }
 
 pub async fn update_book_comment(id: i32, comment: &str, pool: &PgPool) -> Result<()> {

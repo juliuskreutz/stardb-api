@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            achievement_series.id,\n            achievement_series_text.name\n        FROM\n            achievement_series\n        INNER JOIN\n            achievement_series_text\n        ON\n            achievement_series_text.id = achievement_series.id AND achievement_series_text.language = $1\n        ORDER BY\n            priority DESC, achievement_series.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "10f9e9af19e490e50da574e859abf15e7498b4902be619859ba5fef30e15675c"
+}

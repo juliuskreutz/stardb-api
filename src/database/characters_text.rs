@@ -3,21 +3,24 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-pub struct DbCharacterText {
-    pub id: i32,
-    pub language: Language,
-    pub name: String,
-    pub path: String,
-    pub element: String,
-}
+pub async fn set_all_character_texts(
+    id: &[i32],
+    language: &[Language],
+    name: &[String],
+    path: &[String],
+    element: &[String],
+    pool: &PgPool,
+) -> Result<()> {
+    let language = &language.iter().map(ToString::to_string).collect::<Vec<_>>();
 
-pub async fn set_character_text(character_text: &DbCharacterText, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             characters_text(id, language, name, path, element)
-        VALUES
-            ($1, $2, $3, $4, $5)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::text[], $3::text[], $4::text[], $5::text[])
         ON CONFLICT
             (id, language)
         DO UPDATE SET
@@ -25,11 +28,11 @@ pub async fn set_character_text(character_text: &DbCharacterText, pool: &PgPool)
             path = EXCLUDED.path,
             element = EXCLUDED.element
         ",
-        character_text.id,
-        character_text.language as Language,
-        character_text.name,
-        character_text.path,
-        character_text.element,
+        id,
+        language,
+        name,
+        path,
+        element,
     )
     .execute(pool)
     .await?;

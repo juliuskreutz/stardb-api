@@ -75,6 +75,8 @@ pub async fn get_warp_uids(pool: &PgPool) -> Result<Vec<i32>> {
 }
 
 pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Result<Vec<DbWarp>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbWarp,
         "
@@ -112,7 +114,7 @@ pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Re
             id
         ",
         uid,
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -124,6 +126,8 @@ pub async fn get_warps_by_uid_and_gacha_type(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbWarp>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbWarp,
         "
@@ -164,7 +168,7 @@ pub async fn get_warps_by_uid_and_gacha_type(
         ",
         uid,
         gacha_type as GachaType,
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -176,6 +180,8 @@ pub async fn get_warp_by_id_and_timestamp(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbWarp> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbWarp,
         "
@@ -214,7 +220,7 @@ pub async fn get_warp_by_id_and_timestamp(
         ",
         id,
         timestamp,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)
@@ -261,6 +267,8 @@ pub async fn get_characters_count_by_uid(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbCharacterCount>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbCharacterCount,
         "
@@ -303,7 +311,7 @@ pub async fn get_characters_count_by_uid(
             rarity DESC, id DESC
         ",
         uid,
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -323,6 +331,8 @@ pub async fn get_light_cones_count_by_uid(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbLightConeCount>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbLightConeCount,
         "
@@ -361,7 +371,7 @@ pub async fn get_light_cones_count_by_uid(
             rarity DESC, id DESC
         ",
         uid,
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)

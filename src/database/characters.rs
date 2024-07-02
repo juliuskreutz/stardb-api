@@ -13,20 +13,22 @@ pub struct DbCharacter {
     pub element_id: String,
 }
 
-pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()> {
+pub async fn set_all_characters(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
             characters(id, rarity)
-        VALUES
-            ($1, $2)
+        SELECT
+            *
+        FROM
+            UNNEST($1::integer[], $2::integer[])
         ON CONFLICT
             (id)
         DO UPDATE SET
             rarity = EXCLUDED.rarity
         ",
-        character.id,
-        character.rarity,
+        id,
+        rarity,
     )
     .execute(pool)
     .await?;
@@ -35,6 +37,8 @@ pub async fn set_character(character: &DbCharacter, pool: &PgPool) -> Result<()>
 }
 
 pub async fn get_characters(language: Language, pool: &PgPool) -> Result<Vec<DbCharacter>> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbCharacter,
         "
@@ -56,7 +60,7 @@ pub async fn get_characters(language: Language, pool: &PgPool) -> Result<Vec<DbC
         ON
             characters.id = characters_text_en.id AND characters_text_en.language = 'en'
         ",
-        language as Language,
+        language,
     )
     .fetch_all(pool)
     .await?)
@@ -67,6 +71,8 @@ pub async fn get_character_by_id(
     language: Language,
     pool: &PgPool,
 ) -> Result<DbCharacter> {
+    let language = language.to_string();
+
     Ok(sqlx::query_as!(
         DbCharacter,
         "
@@ -91,7 +97,7 @@ pub async fn get_character_by_id(
             characters.id = $1
         ",
         id,
-        language as Language,
+        language,
     )
     .fetch_one(pool)
     .await?)

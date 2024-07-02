@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO\n            achievement_series(id, priority)\n        SELECT\n            *\n        FROM\n            UNNEST($1::integer[], $2::integer[])\n        ON CONFLICT\n            (id)\n        DO UPDATE SET\n            priority = EXCLUDED.priority\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "313c30606807c6b8b45e369a1bf37fecb29affbcd4a594a832249f79afc413a1"
+}
