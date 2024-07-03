@@ -82,6 +82,8 @@ struct Warps {
     probability_5: f64,
     pull_4: usize,
     pull_5: usize,
+    max_pull_4: usize,
+    max_pull_5: usize,
     count: usize,
     jades: usize,
 }
@@ -226,15 +228,19 @@ async fn get_warp_tracker(
     }
 
     standard.pull_4 = standard_pull_4;
+    standard.max_pull_4 = 10;
     standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
 
     special.pull_4 = special_pull_4;
+    special.max_pull_4 = 10;
     special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
 
     lc.pull_4 = lc_pull_4;
+    lc.max_pull_4 = 10;
     lc.probability_4 = if lc_pull_4 < 10 { 6.6 } else { 100.0 };
 
     standard.pull_5 = standard_pull_5;
+    standard.max_pull_5 = 90;
     standard.probability_5 = if standard_pull_5 < 89 {
         0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
     } else {
@@ -242,6 +248,7 @@ async fn get_warp_tracker(
     };
 
     special.pull_5 = special_pull_5;
+    special.max_pull_5 = 90;
     special.probability_5 = if special_pull_5 < 89 {
         0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
     } else {
@@ -249,6 +256,7 @@ async fn get_warp_tracker(
     };
 
     lc.pull_5 = lc_pull_5;
+    lc.max_pull_5 = 80;
     lc.probability_5 = if lc_pull_5 < 79 {
         0.8 + 7.0 * lc_pull_5.saturating_sub(64) as f64
     } else {
