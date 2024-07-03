@@ -7,7 +7,11 @@ use std::{
 };
 
 use actix_session::Session;
-use actix_web::{get, rt, web, HttpResponse, Responder};
+use actix_web::{
+    get,
+    rt::{self, Runtime},
+    web, HttpResponse, Responder,
+};
 use async_rwlock::RwLock;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -144,42 +148,35 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
     {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
-        actix::Arbiter::new().spawn(async move {
-            let mut interval = rt::time::interval(Duration::from_secs(60));
+        std::thread::spawn(move || {
+            let rt = Runtime::new().unwrap();
 
-            loop {
-                interval.tick().await;
+            let handle = rt.spawn(async move {
+                let mut interval = rt::time::interval(Duration::from_secs(60));
 
-                let start = Instant::now();
+                loop {
+                    interval.tick().await;
 
-                if let Err(e) =
-                    update_achievement_tracker(achievement_tracker_cache.clone(), pool.clone())
-                        .await
-                {
-                    error!(
-                        "Achievement Tracker update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Achievement Tracker update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
+                    let start = Instant::now();
+
+                    if let Err(e) =
+                        update_achievement_tracker(achievement_tracker_cache.clone(), pool.clone())
+                            .await
+                    {
+                        error!(
+                            "Achievement Tracker update failed with {e} in {}s",
+                            start.elapsed().as_secs_f64()
+                        );
+                    } else {
+                        info!(
+                            "Achievement Tracker update succeeded in {}s",
+                            start.elapsed().as_secs_f64()
+                        );
+                    }
                 }
+            });
 
-                //let start = Instant::now();
-                //if let Err(e) = update_achievements_percent(pool.clone()).await {
-                //    error!(
-                //        "Achievements Percent update failed with {e} in {}s",
-                //        start.elapsed().as_secs_f64()
-                //    );
-                //} else {
-                //    info!(
-                //        "Achievements Percent update succeeded in {}s",
-                //        start.elapsed().as_secs_f64()
-                //    );
-                //}
-            }
+            rt.block_on(handle).unwrap();
         });
     }
 
@@ -297,12 +294,6 @@ async fn update_achievement_tracker(
         .achievement_tracker_map
         .write()
         .await = achievement_tracker_map;
-
-    Ok(())
-}
-
-async fn update_achievements_percent(pool: PgPool) -> anyhow::Result<()> {
-    database::achievements_percent::update(&pool).await?;
 
     Ok(())
 }

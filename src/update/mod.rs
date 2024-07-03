@@ -1,4 +1,5 @@
 //pub mod books_percent;
+pub mod achievements_percent;
 pub mod character_averages;
 pub mod dimbreath;
 pub mod scores;

@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use actix_web::rt;
+use actix_web::rt::{self, Runtime};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -16,49 +16,61 @@ pub async fn spawn(pool: PgPool) {
     {
         let pool = pool.clone();
 
-        actix::Arbiter::new().spawn(async move {
-            let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
+        std::thread::spawn(move || {
+            let rt = Runtime::new().unwrap();
+
+            let handle = rt.spawn(async move {
+                let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
+
+                loop {
+                    interval.tick().await;
+
+                    let start = Instant::now();
+
+                    if let Err(e) = update_top_100(pool.clone()).await {
+                        error!(
+                            "Scores top 100 update failed with {e} in {}s",
+                            start.elapsed().as_secs_f64()
+                        );
+                    } else {
+                        info!(
+                            "Scores top 100 update succeeded in {}s",
+                            start.elapsed().as_secs_f64()
+                        );
+                    }
+                }
+            });
+
+            rt.block_on(handle).unwrap();
+        });
+    }
+
+    std::thread::spawn(move || {
+        let rt = Runtime::new().unwrap();
+
+        let handle = rt.spawn(async move {
+            let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
 
             loop {
                 interval.tick().await;
 
                 let start = Instant::now();
 
-                if let Err(e) = update_top_100(pool.clone()).await {
+                if let Err(e) = update_lower_100(pool.clone()).await {
                     error!(
-                        "Scores top 100 update failed with {e} in {}s",
+                        "Scores lower 100 update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
                     );
                 } else {
                     info!(
-                        "Scores top 100 update succeeded in {}s",
+                        "Scores lower 100 update succeeded in {}s",
                         start.elapsed().as_secs_f64()
                     );
                 }
             }
         });
-    }
 
-    actix::Arbiter::new().spawn(async move {
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
-
-        loop {
-            interval.tick().await;
-
-            let start = Instant::now();
-
-            if let Err(e) = update_lower_100(pool.clone()).await {
-                error!(
-                    "Scores lower 100 update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-            } else {
-                info!(
-                    "Scores lower 100 update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-            }
-        }
+        rt.block_on(handle).unwrap();
     });
 }
 

@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::rt;
+use actix_web::rt::{self, Runtime};
 use anyhow::{anyhow, Result};
 use async_process::Command;
 use image::{EncodableLayout, ImageFormat};
@@ -14,28 +14,34 @@ use walkdir::WalkDir;
 use webp::Encoder;
 
 pub async fn spawn() {
-    actix::Arbiter::new().spawn(async move {
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
+    std::thread::spawn(move || {
+        let rt = Runtime::new().unwrap();
 
-        let mut up_to_date = false;
+        let handle = rt.spawn(async move {
+            let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
-        loop {
-            interval.tick().await;
+            let mut up_to_date = false;
 
-            let start = Instant::now();
+            loop {
+                interval.tick().await;
 
-            if let Err(e) = update(&mut up_to_date).await {
-                error!(
-                    "StarRailRes update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-            } else {
-                info!(
-                    "StarRailRes update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
+                let start = Instant::now();
+
+                if let Err(e) = update(&mut up_to_date).await {
+                    error!(
+                        "StarRailRes update failed with {e} in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                } else {
+                    info!(
+                        "StarRailRes update succeeded in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                }
             }
-        }
+        });
+
+        rt.block_on(handle).unwrap();
     });
 }
 

@@ -3,7 +3,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{get, rt, web, Responder};
+use actix_web::{
+    get,
+    rt::{self, Runtime},
+    web, Responder,
+};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -96,26 +100,32 @@ struct Sitemap {
 }
 
 pub fn cache(pool: PgPool) {
-    actix::Arbiter::new().spawn(async move {
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
+    std::thread::spawn(move || {
+        let rt = Runtime::new().unwrap();
 
-        loop {
-            interval.tick().await;
+        let handle = rt.spawn(async move {
+            let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
 
-            let start = Instant::now();
+            loop {
+                interval.tick().await;
 
-            if let Err(e) = update(pool.clone()).await {
-                error!(
-                    "Sitemap update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-            } else {
-                info!(
-                    "Sitemap update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
+                let start = Instant::now();
+
+                if let Err(e) = update(pool.clone()).await {
+                    error!(
+                        "Sitemap update failed with {e} in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                } else {
+                    info!(
+                        "Sitemap update succeeded in {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                }
             }
-        }
+        });
+
+        rt.block_on(handle).unwrap();
     });
 }
 
