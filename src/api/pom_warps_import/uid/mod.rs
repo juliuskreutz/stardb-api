@@ -81,8 +81,10 @@ async fn post_pom_warps_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    let uid = *uid;
+
     // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(*uid, Language::En, &pool).await?;
+    mihomo::get(uid, Language::En, &pool).await?;
 
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,
@@ -92,35 +94,51 @@ async fn post_pom_warps_import(
 
     let pom: Pom = serde_json::from_str(&params.data)?;
 
-    import_warps(
-        *uid,
-        timestamp_offset,
-        &pom.default.standard,
-        GachaType::Standard,
-        &pool,
-    )
-    .await?;
-    import_warps(
-        *uid,
-        timestamp_offset,
-        &pom.default.departure,
-        GachaType::Departure,
-        &pool,
-    )
-    .await?;
-    import_warps(
-        *uid,
-        timestamp_offset,
-        &pom.default.special,
-        GachaType::Special,
-        &pool,
-    )
-    .await?;
-    import_warps(
-        *uid,
-        timestamp_offset,
-        &pom.default.lc,
-        GachaType::Lc,
+    let mut warp_id = Vec::new();
+    let mut warp_uid = Vec::new();
+    let mut warp_character = Vec::new();
+    let mut warp_light_cone = Vec::new();
+    let mut warp_gacha_type = Vec::new();
+    let mut warp_timestamp = Vec::new();
+    let mut warp_official = Vec::new();
+
+    for (warps, gacha_type) in [
+        (&pom.default.standard, GachaType::Standard),
+        (&pom.default.departure, GachaType::Departure),
+        (&pom.default.special, GachaType::Special),
+        (&pom.default.lc, GachaType::Lc),
+    ] {
+        for warp in warps {
+            let id = warp.id.parse::<i64>().unwrap();
+            let item_id = warp.item_id.parse().unwrap();
+            let (character, light_cone) = if item_id < 2000 {
+                (Some(item_id), None)
+            } else {
+                (None, Some(item_id))
+            };
+
+            let timestamp = NaiveDateTime::parse_from_str(&warp.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
+
+            warp_id.push(id);
+            warp_uid.push(uid);
+            warp_character.push(character);
+            warp_light_cone.push(light_cone);
+            warp_gacha_type.push(gacha_type);
+            warp_timestamp.push(timestamp);
+            warp_official.push(false);
+        }
+    }
+
+    database::set_all_warps(
+        &warp_id,
+        &warp_uid,
+        &warp_gacha_type,
+        &warp_character,
+        &warp_light_cone,
+        &warp_timestamp,
+        &warp_official,
         &pool,
     )
     .await?;
@@ -135,45 +153,5 @@ async fn import_warps(
     gacha_type: GachaType,
     pool: &PgPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    for warp in warps {
-        let id = warp.id.parse::<i64>().unwrap();
-        let item_id = warp.item_id.parse().unwrap();
-        let (character, light_cone) = if item_id < 2000 {
-            (Some(item_id), None)
-        } else {
-            (None, Some(item_id))
-        };
-
-        let timestamp = NaiveDateTime::parse_from_str(&warp.time, "%Y-%m-%d %H:%M:%S")?.and_utc()
-            - timestamp_offset;
-
-        // FIXME: Temp
-        database::delete_warp_by_id_and_timestamp(id, timestamp + chrono::Duration::hours(5), pool)
-            .await?;
-        database::delete_warp_by_id_and_timestamp(id, timestamp + chrono::Duration::hours(6), pool)
-            .await?;
-        database::delete_warp_by_id_and_timestamp(
-            id,
-            timestamp + chrono::Duration::hours(13),
-            pool,
-        )
-        .await?;
-        // FIXME: Temp
-
-        let warp = database::DbWarp {
-            id,
-            uid,
-            gacha_type,
-            character,
-            light_cone,
-            name: None,
-            rarity: None,
-            timestamp,
-            official: false,
-        };
-
-        database::set_warp(&warp, pool).await?;
-    }
-
     Ok(())
 }
