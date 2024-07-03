@@ -177,7 +177,7 @@ async fn get_profile_json(
     for wc in &warps_count {
         let count = wc.count.unwrap_or_default();
         total += count;
-        match wc.gacha_type {
+        match wc.gacha_type.parse()? {
             GachaType::Departure => departure = count,
             GachaType::Standard => standard = count,
             GachaType::Special => special = count,

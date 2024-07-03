@@ -145,13 +145,3 @@ async fn post_pom_warps_import(
 
     Ok(HttpResponse::Ok().finish())
 }
-
-async fn import_warps(
-    uid: i32,
-    timestamp_offset: TimeDelta,
-    warps: &[Warp],
-    gacha_type: GachaType,
-    pool: &PgPool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    Ok(())
-}

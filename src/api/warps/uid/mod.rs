@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -77,11 +78,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/warps/{uid}")]
 async fn get_warps(
+    session: Session,
     uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     warp_params: web::Query<WarpParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    //TODO: Private warps
     let warps: Vec<_> = database::get_warps_by_uid_and_gacha_type(
         *uid,
         warp_params.gacha_type,

@@ -7,37 +7,13 @@ use crate::{GachaType, Language};
 pub struct DbWarp {
     pub id: i64,
     pub uid: i32,
-    pub gacha_type: GachaType,
+    pub gacha_type: String,
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
     pub official: bool,
-}
-
-pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "
-        INSERT INTO
-            warps(id, uid, gacha_type, character, light_cone, timestamp, official)
-        VALUES
-            ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT
-            DO NOTHING
-        ",
-        warp.id,
-        warp.uid,
-        warp.gacha_type as GachaType,
-        warp.character,
-        warp.light_cone,
-        warp.timestamp,
-        warp.official,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
 }
 
 pub async fn set_all_warps(
@@ -105,7 +81,7 @@ pub async fn delete_warp_by_id_and_timestamp(
 
 pub async fn get_warp_uids(pool: &PgPool) -> Result<Vec<i32>> {
     Ok(sqlx::query!(
-        "select uid from mihomo where exists (select * from warps where mihomo.uid = warps.uid)"
+        "select uid from mihomo where exists (select * from warps where mihomo.uid = warps.uid) and not exists (select * from connections where mihomo.uid = connections.uid and connections.private)"
     )
     .fetch_all(pool)
     .await?
@@ -123,7 +99,7 @@ pub async fn get_warps_by_uid(uid: i32, language: Language, pool: &PgPool) -> Re
         SELECT
             warps.id,
             warps.uid,
-            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.gacha_type,
             warps.character,
             warps.light_cone,
             warps.timestamp,
@@ -166,6 +142,7 @@ pub async fn get_warps_by_uid_and_gacha_type(
     language: Language,
     pool: &PgPool,
 ) -> Result<Vec<DbWarp>> {
+    let gacha_type = gacha_type.to_string();
     let language = language.to_string();
 
     Ok(sqlx::query_as!(
@@ -174,7 +151,7 @@ pub async fn get_warps_by_uid_and_gacha_type(
         SELECT
             warps.id,
             warps.uid,
-            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.gacha_type,
             warps.character,
             warps.light_cone,
             warps.timestamp,
@@ -207,7 +184,7 @@ pub async fn get_warps_by_uid_and_gacha_type(
             id
         ",
         uid,
-        gacha_type as GachaType,
+        gacha_type,
         language,
     )
     .fetch_all(pool)
@@ -228,7 +205,7 @@ pub async fn get_warp_by_id_and_timestamp(
         SELECT
             warps.id,
             warps.uid,
-            warps.gacha_type as \"gacha_type: GachaType\",
+            warps.gacha_type,
             warps.character,
             warps.light_cone,
             warps.timestamp,
@@ -267,7 +244,7 @@ pub async fn get_warp_by_id_and_timestamp(
 }
 
 pub struct DbWarpCount {
-    pub gacha_type: GachaType,
+    pub gacha_type: String,
     pub count: Option<i64>,
 }
 
@@ -276,7 +253,7 @@ pub async fn get_warp_counts_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbWar
         DbWarpCount,
         "
         SELECT
-            gacha_type AS \"gacha_type: GachaType\",
+            gacha_type,
             count(*)
         FROM
             warps

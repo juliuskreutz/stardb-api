@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -78,6 +79,8 @@ struct Warps {
     warps: Vec<Warp>,
     probability_4: f64,
     probability_5: f64,
+    pull_4: usize,
+    pull_5: usize,
     count: usize,
     jades: usize,
 }
@@ -93,11 +96,35 @@ struct Warps {
 )]
 #[get("/api/pages/warp-tracker/{uid}", guard = "private")]
 async fn get_warp_tracker(
+    session: Session,
     uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let warps = database::get_warps_by_uid(*uid, language_params.lang, &pool).await?;
+    let uid = *uid;
+
+    let mut forbidden = false;
+
+    if let Ok(Some(username)) = session.get::<String>("username") {
+        if let Ok(connection) =
+            database::get_connection_by_uid_and_username(uid, &username, &pool).await
+        {
+            forbidden = !connection.verified;
+        }
+    }
+
+    if forbidden {
+        forbidden = database::get_connections_by_uid(uid, &pool)
+            .await?
+            .iter()
+            .any(|c| c.private);
+    }
+
+    if forbidden {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let warps = database::get_warps_by_uid(uid, language_params.lang, &pool).await?;
 
     let mut standard = Warps::default();
     let mut departure = Warps::default();
@@ -120,7 +147,7 @@ async fn get_warp_tracker(
     let mut lc_pull_5 = 0;
 
     for warp in warps {
-        let gacha_type = warp.gacha_type;
+        let gacha_type = warp.gacha_type.parse()?;
 
         let mut warp: Warp = warp.into();
 

@@ -80,14 +80,13 @@ impl Language {
     Copy,
     strum::Display,
     strum::EnumIter,
+    strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
     utoipa::ToSchema,
-    sqlx::Type,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "gacha_type", rename_all = "snake_case")]
 enum GachaType {
     Standard,
     Departure,
