@@ -225,6 +225,14 @@ async fn import_warps(
         )])
         .finish();
 
+    let mut warp_id = Vec::new();
+    let mut warp_uid = Vec::new();
+    let mut warp_character = Vec::new();
+    let mut warp_light_cone = Vec::new();
+    let mut warp_gacha_type = Vec::new();
+    let mut warp_timestamp = Vec::new();
+    let mut warp_official = Vec::new();
+
     loop {
         let mut i = 0;
         let gacha_log = loop {
@@ -284,8 +292,8 @@ async fn import_warps(
                 continue;
             }
 
-            let uid = entry.uid.parse()?;
-            let item = entry.item_id.parse()?;
+            let uid: i32 = entry.uid.parse()?;
+            let item: i32 = entry.item_id.parse()?;
 
             let mut character =
                 (entry.item_type == "Character" || entry.item_type == "角色").then_some(item);
@@ -302,19 +310,13 @@ async fn import_warps(
                 }
             }
 
-            let db_warp = database::DbWarp {
-                id,
-                uid,
-                character,
-                light_cone,
-                gacha_type,
-                name: None,
-                rarity: None,
-                timestamp,
-                official: true,
-            };
-
-            database::set_warp(&db_warp, pool).await?;
+            warp_id.push(id);
+            warp_uid.push(uid);
+            warp_character.push(character);
+            warp_light_cone.push(light_cone);
+            warp_gacha_type.push(gacha_type);
+            warp_timestamp.push(timestamp);
+            warp_official.push(true);
 
             match gacha_type {
                 GachaType::Standard => info.lock().await.standard += 1,
@@ -324,6 +326,18 @@ async fn import_warps(
             }
         }
     }
+
+    database::set_all_warps(
+        &warp_id,
+        &warp_uid,
+        &warp_gacha_type,
+        &warp_character,
+        &warp_light_cone,
+        &warp_timestamp,
+        &warp_official,
+        pool,
+    )
+    .await?;
 
     Ok(())
 }

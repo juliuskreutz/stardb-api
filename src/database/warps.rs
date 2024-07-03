@@ -40,6 +40,46 @@ pub async fn set_warp(warp: &DbWarp, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn set_all_warps(
+    id: &[i64],
+    uid: &[i32],
+    gacha_type: &[GachaType],
+    character: &[Option<i32>],
+    light_cone: &[Option<i32>],
+    timestamp: &[DateTime<Utc>],
+    official: &[bool],
+    pool: &PgPool,
+) -> Result<()> {
+    let gacha_type = &gacha_type
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+
+    sqlx::query!(
+        "
+        INSERT INTO
+            warps(id, uid, gacha_type, character, light_cone, timestamp, official)
+        SELECT
+            *
+        FROM
+            UNNEST($1::bigint[], $2::integer[], $3::text[], $4::integer[], $5::integer[], $6::timestamp[], $7::boolean[])
+        ON CONFLICT
+            DO NOTHING
+        ",
+        id,
+        uid,
+        gacha_type,
+        character as &[Option<i32>],
+        light_cone as &[Option<i32>],
+        timestamp as &[DateTime<Utc>],
+        official,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn delete_warp_by_id_and_timestamp(
     id: i64,
     timestamp: DateTime<Utc>,

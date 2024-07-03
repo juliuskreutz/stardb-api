@@ -16,19 +16,7 @@
       {
         "ordinal": 2,
         "name": "gacha_type: GachaType",
-        "type_info": {
-          "Custom": {
-            "name": "gacha_type",
-            "kind": {
-              "Enum": [
-                "departure",
-                "standard",
-                "special",
-                "lc"
-              ]
-            }
-          }
-        }
+        "type_info": "Text"
       },
       {
         "ordinal": 3,
