@@ -223,20 +223,30 @@ async fn get_warp_tracker(
         }
     }
 
+    standard.pull_4 = standard_pull_4;
     standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
+
+    special.pull_4 = special_pull_4;
     special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
+
+    lc.pull_4 = lc_pull_4;
     lc.probability_4 = if lc_pull_4 < 10 { 6.6 } else { 100.0 };
 
+    standard.pull_5 = standard_pull_5;
     standard.probability_5 = if standard_pull_5 < 89 {
         0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
+
+    special.pull_5 = special_pull_5;
     special.probability_5 = if special_pull_5 < 89 {
         0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
     } else {
         100.0
     };
+
+    lc.pull_5 = lc_pull_5;
     lc.probability_5 = if lc_pull_5 < 79 {
         0.8 + 7.0 * lc_pull_5.saturating_sub(64) as f64
     } else {
