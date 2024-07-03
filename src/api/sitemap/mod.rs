@@ -177,8 +177,6 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
     let warp_uids = database::get_warp_uids(&pool).await?;
 
-    error!("Sitemap database done");
-
     let mut count = 0;
 
     let mut urls = Vec::new();
