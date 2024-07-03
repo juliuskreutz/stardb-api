@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            warps.id,\n            warps.uid,\n            warps.gacha_type as \"gacha_type: GachaType\",\n            warps.character,\n            warps.light_cone,\n            warps.timestamp,\n            warps.official,\n            COALESCE(characters_text.name, light_cones_text.name) AS name,\n            COALESCE(characters.rarity, light_cones.rarity) AS rarity\n        FROM\n            warps\n        LEFT JOIN\n            characters\n        ON\n            characters.id = character\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            warps.id = $1\n        AND\n            timestamp = $2\n        ",
+  "query": "\n        SELECT\n            warps.id,\n            warps.uid,\n            warps.gacha_type,\n            warps.character,\n            warps.light_cone,\n            warps.timestamp,\n            warps.official,\n            COALESCE(characters_text.name, light_cones_text.name) AS name,\n            COALESCE(characters.rarity, light_cones.rarity) AS rarity\n        FROM\n            warps\n        LEFT JOIN\n            characters\n        ON\n            characters.id = character\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        LEFT JOIN\n            characters_text\n        ON\n            characters_text.id = character AND characters_text.language = $3\n        LEFT JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cone AND light_cones_text.language = $3\n        WHERE\n            warps.id = $1\n        AND\n            timestamp = $2\n        ",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "gacha_type: GachaType",
+        "name": "gacha_type",
         "type_info": "Text"
       },
       {
@@ -68,5 +68,5 @@
       null
     ]
   },
-  "hash": "0defaf9a70fb61bcde49bf2d596200842eb164e098cf780d3d3405ebd93a1668"
+  "hash": "d8844ad06975ab8d5147100baf2c3676c8481b93ce186018435fde63a5e261f8"
 }

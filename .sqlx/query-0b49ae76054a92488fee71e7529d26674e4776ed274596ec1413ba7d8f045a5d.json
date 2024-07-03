@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM connections WHERE username = $1",
+  "query": "SELECT * FROM connections WHERE uid = $1 AND username = $2",
   "describe": {
     "columns": [
       {
@@ -26,6 +26,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Text"
       ]
     },
@@ -36,5 +37,5 @@
       false
     ]
   },
-  "hash": "2a56a580e79cec16155b7dd764a132fb5da4f1452307f9df3e3a1c26787cc366"
+  "hash": "0b49ae76054a92488fee71e7529d26674e4776ed274596ec1413ba7d8f045a5d"
 }

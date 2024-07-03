@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO connections\n            (uid, username, verified, private) \n        VALUES\n            ($1, $2, $3, $4) \n        ON CONFLICT\n            (uid, username) \n        DO UPDATE SET \n            verified = EXCLUDED.verified\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "706e050ddc4fb4ef001a821ea68d4c5ae7cd8030079c88b9c620892c47a4983a"
+}

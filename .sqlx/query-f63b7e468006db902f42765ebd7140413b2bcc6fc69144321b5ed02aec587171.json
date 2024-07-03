@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            gacha_type AS \"gacha_type: GachaType\",\n            count(*)\n        FROM\n            warps\n        WHERE\n            uid = $1\n        GROUP BY\n            gacha_type\n        ",
+  "query": "\n        SELECT\n            gacha_type,\n            count(*)\n        FROM\n            warps\n        WHERE\n            uid = $1\n        GROUP BY\n            gacha_type\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "gacha_type: GachaType",
+        "name": "gacha_type",
         "type_info": "Text"
       },
       {
@@ -24,5 +24,5 @@
       null
     ]
   },
-  "hash": "de15e2ce8766fbc0c6a8b1a140739e8971990c8578d42549130560cf2bcc40d3"
+  "hash": "f63b7e468006db902f42765ebd7140413b2bcc6fc69144321b5ed02aec587171"
 }

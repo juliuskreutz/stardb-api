@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE connections SET private = $3 WHERE uid = $1 AND username = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b27325db394d565f61ae186cb2b89656f5a59baa3c01d5ee432d00e85483d35d"
+}
