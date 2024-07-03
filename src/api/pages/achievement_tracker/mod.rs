@@ -152,10 +152,14 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
             let rt = Runtime::new().unwrap();
 
             let handle = rt.spawn(async move {
+                let mut success = true;
+
                 let mut interval = rt::time::interval(Duration::from_secs(60));
 
                 loop {
-                    interval.tick().await;
+                    if success {
+                        interval.tick().await;
+                    }
 
                     let start = Instant::now();
 
@@ -163,11 +167,15 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
                         update_achievement_tracker(achievement_tracker_cache.clone(), pool.clone())
                             .await
                     {
+                        success = false;
+
                         error!(
                             "Achievement Tracker update failed with {e} in {}s",
                             start.elapsed().as_secs_f64()
                         );
                     } else {
+                        success = true;
+
                         info!(
                             "Achievement Tracker update succeeded in {}s",
                             start.elapsed().as_secs_f64()
