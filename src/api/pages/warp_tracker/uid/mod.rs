@@ -72,6 +72,7 @@ struct WarpTracker {
     lc: Warps,
     count: usize,
     jades: usize,
+    name: String,
 }
 
 #[derive(Default, Serialize)]
@@ -124,6 +125,7 @@ async fn get_warp_tracker(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    let name = database::mihomo::get_one_by_uid(uid, &pool).await?.name;
     let warps = database::get_warps_by_uid(uid, language_params.lang, &pool).await?;
 
     let mut standard = Warps::default();
@@ -273,6 +275,7 @@ async fn get_warp_tracker(
         lc,
         count,
         jades,
+        name,
     };
 
     Ok(HttpResponse::Ok().json(warp_tracker))
