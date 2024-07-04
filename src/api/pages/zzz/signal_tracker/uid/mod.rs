@@ -30,8 +30,8 @@ struct Signal {
     rarity: i32,
     item_id: i32,
     pull: usize,
-    pull_4: usize,
-    pull_5: usize,
+    pull_a: usize,
+    pull_s: usize,
     timestamp: DateTime<Utc>,
 }
 
@@ -58,8 +58,8 @@ impl From<database::zzz::signals::DbSignal> for Signal {
             item_id: signal.character.or(signal.w_engine).unwrap(),
             timestamp: signal.timestamp,
             pull: 0,
-            pull_4: 0,
-            pull_5: 0,
+            pull_a: 0,
+            pull_s: 0,
         }
     }
 }
@@ -77,12 +77,12 @@ struct SignalTracker {
 #[derive(Default, Serialize)]
 struct Signals {
     signals: Vec<Signal>,
-    probability_4: f64,
-    probability_5: f64,
-    pull_4: usize,
-    pull_5: usize,
-    max_pull_4: usize,
-    max_pull_5: usize,
+    probability_a: f64,
+    probability_s: f64,
+    pull_a: usize,
+    pull_s: usize,
+    max_pull_a: usize,
+    max_pull_s: usize,
     count: usize,
     polychromes: usize,
 }
@@ -138,15 +138,15 @@ async fn get_signal_tracker(
     let mut w_engine_pull = 0;
     let mut bangboo_pull = 0;
 
-    let mut standard_pull_4 = 0;
-    let mut special_pull_4 = 0;
-    let mut w_engine_pull_4 = 0;
-    let mut bangboo_pull_4 = 0;
+    let mut standard_pull_a = 0;
+    let mut special_pull_a = 0;
+    let mut w_engine_pull_a = 0;
+    let mut bangboo_pull_a = 0;
 
-    let mut standard_pull_5 = 0;
-    let mut special_pull_5 = 0;
-    let mut w_engine_pull_5 = 0;
-    let mut bangboo_pull_5 = 0;
+    let mut standard_pull_s = 0;
+    let mut special_pull_s = 0;
+    let mut w_engine_pull_s = 0;
+    let mut bangboo_pull_s = 0;
 
     for signal in signals {
         let gacha_type = signal.gacha_type.parse()?;
@@ -156,16 +156,16 @@ async fn get_signal_tracker(
         match gacha_type {
             ZzzGachaType::Standard => {
                 standard_pull += 1;
-                standard_pull_4 += 1;
-                standard_pull_5 += 1;
+                standard_pull_a += 1;
+                standard_pull_s += 1;
 
                 signal.pull = standard_pull;
-                signal.pull_4 = standard_pull_4;
-                signal.pull_5 = standard_pull_5;
+                signal.pull_a = standard_pull_a;
+                signal.pull_s = standard_pull_s;
 
                 match signal.rarity {
-                    4 => standard_pull_4 = 0,
-                    5 => standard_pull_5 = 0,
+                    3 => standard_pull_a = 0,
+                    4 => standard_pull_s = 0,
                     _ => {}
                 }
 
@@ -173,16 +173,16 @@ async fn get_signal_tracker(
             }
             ZzzGachaType::Special => {
                 special_pull += 1;
-                special_pull_4 += 1;
-                special_pull_5 += 1;
+                special_pull_a += 1;
+                special_pull_s += 1;
 
                 signal.pull = special_pull;
-                signal.pull_4 = special_pull_4;
-                signal.pull_5 = special_pull_5;
+                signal.pull_a = special_pull_a;
+                signal.pull_s = special_pull_s;
 
                 match signal.rarity {
-                    4 => special_pull_4 = 0,
-                    5 => special_pull_5 = 0,
+                    3 => special_pull_a = 0,
+                    4 => special_pull_s = 0,
                     _ => {}
                 }
 
@@ -190,16 +190,16 @@ async fn get_signal_tracker(
             }
             ZzzGachaType::WEngine => {
                 w_engine_pull += 1;
-                w_engine_pull_4 += 1;
-                w_engine_pull_5 += 1;
+                w_engine_pull_a += 1;
+                w_engine_pull_s += 1;
 
                 signal.pull = w_engine_pull;
-                signal.pull_4 = w_engine_pull_4;
-                signal.pull_5 = w_engine_pull_5;
+                signal.pull_a = w_engine_pull_a;
+                signal.pull_s = w_engine_pull_s;
 
                 match signal.rarity {
-                    4 => w_engine_pull_4 = 0,
-                    5 => w_engine_pull_5 = 0,
+                    3 => w_engine_pull_a = 0,
+                    4 => w_engine_pull_s = 0,
                     _ => {}
                 }
 
@@ -207,16 +207,16 @@ async fn get_signal_tracker(
             }
             ZzzGachaType::Bangboo => {
                 bangboo_pull += 1;
-                bangboo_pull_4 += 1;
-                bangboo_pull_5 += 1;
+                bangboo_pull_a += 1;
+                bangboo_pull_s += 1;
 
                 signal.pull = bangboo_pull;
-                signal.pull_4 = bangboo_pull_4;
-                signal.pull_5 = bangboo_pull_5;
+                signal.pull_a = bangboo_pull_a;
+                signal.pull_s = bangboo_pull_s;
 
                 match signal.rarity {
-                    4 => bangboo_pull_4 = 0,
-                    5 => bangboo_pull_5 = 0,
+                    3 => bangboo_pull_a = 0,
+                    4 => bangboo_pull_s = 0,
                     _ => {}
                 }
 
@@ -225,38 +225,38 @@ async fn get_signal_tracker(
         }
     }
 
-    standard.pull_4 = standard_pull_4;
-    standard.max_pull_4 = 10;
-    standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
+    standard.pull_a = standard_pull_a;
+    standard.max_pull_a = 10;
+    standard.probability_a = if standard_pull_a < 10 { 5.1 } else { 100.0 };
 
-    special.pull_4 = special_pull_4;
-    special.max_pull_4 = 10;
-    special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
+    special.pull_a = special_pull_a;
+    special.max_pull_a = 10;
+    special.probability_a = if special_pull_a < 10 { 5.1 } else { 100.0 };
 
-    w_engine.pull_4 = w_engine_pull_4;
-    w_engine.max_pull_4 = 10;
-    w_engine.probability_4 = if w_engine_pull_4 < 10 { 6.6 } else { 100.0 };
+    w_engine.pull_a = w_engine_pull_a;
+    w_engine.max_pull_a = 10;
+    w_engine.probability_a = if w_engine_pull_a < 10 { 6.6 } else { 100.0 };
 
-    standard.pull_5 = standard_pull_5;
-    standard.max_pull_5 = 90;
-    standard.probability_5 = if standard_pull_5 < 89 {
-        0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
+    standard.pull_s = standard_pull_s;
+    standard.max_pull_s = 90;
+    standard.probability_s = if standard_pull_s < 89 {
+        0.6 + 6.0 * standard_pull_s.saturating_sub(72) as f64
     } else {
         100.0
     };
 
-    special.pull_5 = special_pull_5;
-    special.max_pull_5 = 90;
-    special.probability_5 = if special_pull_5 < 89 {
-        0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
+    special.pull_s = special_pull_s;
+    special.max_pull_s = 90;
+    special.probability_s = if special_pull_s < 89 {
+        0.6 + 6.0 * special_pull_s.saturating_sub(72) as f64
     } else {
         100.0
     };
 
-    w_engine.pull_5 = w_engine_pull_5;
-    w_engine.max_pull_5 = 80;
-    w_engine.probability_5 = if w_engine_pull_5 < 79 {
-        0.8 + 7.0 * w_engine_pull_5.saturating_sub(64) as f64
+    w_engine.pull_s = w_engine_pull_s;
+    w_engine.max_pull_s = 80;
+    w_engine.probability_s = if w_engine_pull_s < 79 {
+        0.8 + 7.0 * w_engine_pull_s.saturating_sub(64) as f64
     } else {
         100.0
     };
