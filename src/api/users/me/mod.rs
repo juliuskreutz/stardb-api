@@ -5,6 +5,7 @@ mod import;
 mod password;
 mod uids;
 mod username;
+mod zzz;
 
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -33,6 +34,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(password::openapi());
     openapi.merge(uids::openapi());
     openapi.merge(username::openapi());
+    openapi.merge(zzz::openapi());
     openapi
 }
 
@@ -44,7 +46,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(import::configure)
         .configure(password::configure)
         .configure(uids::configure)
-        .configure(username::configure);
+        .configure(username::configure)
+        .configure(zzz::configure);
 }
 
 #[derive(Serialize, ToSchema)]
@@ -53,6 +56,7 @@ pub struct User {
     admin: bool,
     email: Option<String>,
     uids: Vec<i32>,
+    zzz_uids: Vec<i32>,
     achievements: Vec<i32>,
     books: Vec<i32>,
 }
@@ -88,6 +92,12 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .map(|c| c.uid)
         .collect();
 
+    let zzz_uids = database::zzz::connections::get_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|c| c.uid)
+        .collect();
+
     let books = database::get_user_books_completed_by_username(&username, &pool)
         .await?
         .into_iter()
@@ -105,6 +115,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         admin,
         email,
         uids,
+        zzz_uids,
         achievements,
         books,
     };
