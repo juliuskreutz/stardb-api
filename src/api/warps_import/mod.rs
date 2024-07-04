@@ -12,7 +12,7 @@ use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database, GachaType, Language};
+use crate::{api::ApiResult, database, mihomo, GachaType, Language};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -150,6 +150,7 @@ async fn post_warps_import(
         return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
     }
 
+    mihomo::get(uid, Language::En, &pool).await?;
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::DbConnection {
             uid,
