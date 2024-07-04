@@ -98,6 +98,25 @@ enum GachaType {
     Clone,
     Copy,
     strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum ZzzGachaType {
+    Standard,
+    Special,
+    WEngine,
+    Bangboo,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    strum::Display,
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,

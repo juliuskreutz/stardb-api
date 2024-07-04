@@ -324,7 +324,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
 
     info!("Parsed all json");
 
-    info!("Starting achievement_series");
+    info!("Starting achievement series");
     achievement_series::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
 

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_uids (uid)\n    VALUES ($1);\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe8e10f1f15e56950c238016ac00588091bf77104afdeec6f7113b0b59753bb3"
+}
