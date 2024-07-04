@@ -227,15 +227,15 @@ async fn get_signal_tracker(
 
     standard.pull_a = standard_pull_a;
     standard.max_pull_a = 10;
-    standard.probability_a = if standard_pull_a < 10 { 5.1 } else { 100.0 };
+    standard.probability_a = if standard_pull_a < 10 { 9.4 } else { 100.0 };
 
     special.pull_a = special_pull_a;
     special.max_pull_a = 10;
-    special.probability_a = if special_pull_a < 10 { 5.1 } else { 100.0 };
+    special.probability_a = if special_pull_a < 10 { 9.4 } else { 100.0 };
 
     w_engine.pull_a = w_engine_pull_a;
     w_engine.max_pull_a = 10;
-    w_engine.probability_a = if w_engine_pull_a < 10 { 6.6 } else { 100.0 };
+    w_engine.probability_a = if w_engine_pull_a < 10 { 15.0 } else { 100.0 };
 
     standard.pull_s = standard_pull_s;
     standard.max_pull_s = 90;
@@ -256,7 +256,7 @@ async fn get_signal_tracker(
     w_engine.pull_s = w_engine_pull_s;
     w_engine.max_pull_s = 80;
     w_engine.probability_s = if w_engine_pull_s < 79 {
-        0.8 + 7.0 * w_engine_pull_s.saturating_sub(64) as f64
+        1.0 + 7.0 * w_engine_pull_s.saturating_sub(64) as f64
     } else {
         100.0
     };
