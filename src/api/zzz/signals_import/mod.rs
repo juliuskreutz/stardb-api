@@ -136,18 +136,6 @@ async fn post_zzz_signals_import(
         }
     }
 
-    database::zzz::uids::set(&database::zzz::uids::DbUid { uid }, &pool).await?;
-    if let Ok(Some(username)) = session.get::<String>("username") {
-        let connection = database::zzz::connections::DbConnection {
-            uid,
-            username,
-            verified: true,
-            private: false,
-        };
-
-        database::zzz::connections::set(&connection, &pool).await?;
-    }
-
     if uid == 0 {
         let info = Arc::new(Mutex::new(SignalsImportInfo {
             gacha_type: ZzzGachaType::Standard,
@@ -163,15 +151,16 @@ async fn post_zzz_signals_import(
         return Ok(HttpResponse::Ok().json(SignalsImport { uid }));
     }
 
+    database::zzz::uids::set(&database::zzz::uids::DbUid { uid }, &pool).await?;
     if let Ok(Some(username)) = session.get::<String>("username") {
-        let connection = database::DbConnection {
+        let connection = database::zzz::connections::DbConnection {
             uid,
             username,
             verified: true,
             private: false,
         };
 
-        database::set_connection(&connection, &pool).await?;
+        database::zzz::connections::set(&connection, &pool).await?;
     }
 
     if signals_import_infos.lock().await.contains_key(&uid) {
