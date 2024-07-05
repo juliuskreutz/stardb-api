@@ -16,6 +16,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut w_engines_language = Vec::new();
     let mut w_engines_name = Vec::new();
 
+    let mut bangboos_id = Vec::new();
+    let mut bangboos_language = Vec::new();
+    let mut bangboos_name = Vec::new();
+
     for (language_str, language) in [
         ("", Language::ZhCn),
         ("_CHT", Language::ZhTw),
@@ -52,7 +56,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             characters_name.push(name);
         }
 
-        info!("Starting {} light cones", language);
+        info!("Starting {} weapons", language);
         for weapon in &configs.weapon["GMNCBMLIHPE"] {
             let id = weapon.id;
 
@@ -67,6 +71,22 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             w_engines_language.push(language);
             w_engines_name.push(name);
         }
+
+        info!("Starting {} buddys", language);
+        for buddy in &configs.buddy["GMNCBMLIHPE"] {
+            let id = buddy.id;
+
+            let name = &configs.item["GMNCBMLIHPE"]
+                .iter()
+                .find(|i| i.id == buddy.id)
+                .unwrap()
+                .name;
+            let name = ruby(&text_map[name])?;
+
+            bangboos_id.push(id);
+            bangboos_language.push(language);
+            bangboos_name.push(name);
+        }
     }
 
     info!("Setting all character texts");
@@ -78,7 +98,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
-    info!("Setting all light cone texts");
+    info!("Setting all w-engines texts");
     database::zzz::w_engines_text::set_all(
         &w_engines_id,
         &w_engines_language,
@@ -86,6 +106,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         pool,
     )
     .await?;
+
+    info!("Setting all bangboos texts");
+    database::zzz::bangboos_text::set_all(&bangboos_id, &bangboos_language, &bangboos_name, pool)
+        .await?;
 
     Ok(())
 }

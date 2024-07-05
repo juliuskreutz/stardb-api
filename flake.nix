@@ -30,6 +30,7 @@
               pgformatter
               pkg-config
               openssl
+              cargo-cross
             ];
           };
       }

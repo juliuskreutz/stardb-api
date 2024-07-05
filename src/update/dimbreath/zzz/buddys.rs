@@ -5,11 +5,11 @@ use crate::database;
 use super::Configs;
 
 pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
-    let mut w_engines_id = Vec::new();
-    let mut w_engines_rarity = Vec::new();
+    let mut bangboos_id = Vec::new();
+    let mut bangboos_rarity = Vec::new();
 
-    for weapon in &configs.weapon["GMNCBMLIHPE"] {
-        let id = weapon.id;
+    for buddy in &configs.buddy["GMNCBMLIHPE"] {
+        let id = buddy.id;
 
         let Some(rarity) = configs.item["GMNCBMLIHPE"]
             .iter()
@@ -19,11 +19,11 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             continue;
         };
 
-        w_engines_id.push(id);
-        w_engines_rarity.push(rarity);
+        bangboos_id.push(id);
+        bangboos_rarity.push(rarity);
     }
 
-    database::zzz::w_engines::set_all(&w_engines_id, &w_engines_rarity, pool).await?;
+    database::zzz::bangboos::set_all(&bangboos_id, &bangboos_rarity, pool).await?;
 
     Ok(())
 }

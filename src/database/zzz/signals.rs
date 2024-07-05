@@ -10,6 +10,7 @@ pub struct DbSignal {
     pub gacha_type: String,
     pub character: Option<i32>,
     pub w_engine: Option<i32>,
+    pub bangboo: Option<i32>,
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
@@ -22,6 +23,7 @@ pub async fn set_all(
     gacha_type: &[ZzzGachaType],
     character: &[Option<i32>],
     w_engine: &[Option<i32>],
+    bangboo: &[Option<i32>],
     timestamp: &[DateTime<Utc>],
     official: &[bool],
     pool: &PgPool,
@@ -38,6 +40,7 @@ pub async fn set_all(
         gacha_type,
         character as &[Option<i32>],
         w_engine as &[Option<i32>],
+        bangboo as &[Option<i32>],
         timestamp as &[DateTime<Utc>],
         official,
     )

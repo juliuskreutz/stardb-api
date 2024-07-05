@@ -9,6 +9,7 @@ use std::{
 mod achievement_series;
 mod achievements;
 mod avatars;
+mod buddys;
 mod texts;
 mod w_engines;
 
@@ -61,14 +62,6 @@ struct Reward {
 }
 
 #[derive(serde::Deserialize)]
-struct Avatar {
-    #[serde(rename = "HBKDOIKGNDE")]
-    id: i32,
-    #[serde(rename = "DIIDBBGLDOL")]
-    name: String,
-}
-
-#[derive(serde::Deserialize)]
 struct Item {
     #[serde(rename = "HBKDOIKGNDE")]
     id: i32,
@@ -79,8 +72,22 @@ struct Item {
 }
 
 #[derive(serde::Deserialize)]
+struct Avatar {
+    #[serde(rename = "HBKDOIKGNDE")]
+    id: i32,
+    #[serde(rename = "DIIDBBGLDOL")]
+    name: String,
+}
+
+#[derive(serde::Deserialize)]
 struct Weapon {
     #[serde(rename = "NOJCFGOCGBI")]
+    id: i32,
+}
+
+#[derive(serde::Deserialize)]
+struct Buddy {
+    #[serde(rename = "HBKDOIKGNDE")]
     id: i32,
 }
 
@@ -88,9 +95,10 @@ struct Configs {
     achievement_second_class_config: HashMap<String, Vec<AchieveSecondClass>>,
     achievement: HashMap<String, Vec<Achievement>>,
     once_reward: HashMap<String, Vec<Rewards>>,
-    avatar: HashMap<String, Vec<Avatar>>,
     item: HashMap<String, Vec<Item>>,
+    avatar: HashMap<String, Vec<Avatar>>,
     weapon: HashMap<String, Vec<Weapon>>,
+    buddy: HashMap<String, Vec<Buddy>>,
 }
 
 pub async fn spawn(pool: PgPool) {
@@ -170,25 +178,30 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
         File::open("ZenlessData/FileCfg/OnceRewardTemplateTb.json")?,
     ))?;
 
-    let avatar: HashMap<String, Vec<Avatar>> = serde_json::from_reader(BufReader::new(
-        File::open("ZenlessData/FileCfg/AvatarBaseTemplateTb.json")?,
-    ))?;
-
     let item: HashMap<String, Vec<Item>> = serde_json::from_reader(BufReader::new(File::open(
         "ZenlessData/FileCfg/ItemTemplateTb.json",
     )?))?;
+
+    let avatar: HashMap<String, Vec<Avatar>> = serde_json::from_reader(BufReader::new(
+        File::open("ZenlessData/FileCfg/AvatarBaseTemplateTb.json")?,
+    ))?;
 
     let weapon: HashMap<String, Vec<Weapon>> = serde_json::from_reader(BufReader::new(
         File::open("ZenlessData/FileCfg/WeaponTemplateTb.json")?,
     ))?;
 
+    let buddy: HashMap<String, Vec<Buddy>> = serde_json::from_reader(BufReader::new(File::open(
+        "ZenlessData/FileCfg/BuddyBaseTemplateTb.json",
+    )?))?;
+
     let configs = Configs {
         achievement_second_class_config,
         achievement,
         once_reward,
-        avatar,
         item,
+        avatar,
         weapon,
+        buddy,
     };
 
     info!("Starting achievement series");
@@ -205,6 +218,10 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
 
     info!("Starting w-engines");
     w_engines::update(&configs, &pool).await?;
+    actix_web::rt::task::yield_now().await;
+
+    info!("Starting bangboos");
+    buddys::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
 
     info!("Starting texts");

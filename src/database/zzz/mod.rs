@@ -1,5 +1,7 @@
 pub mod achievement_series;
 pub mod achievements;
+pub mod bangboos;
+pub mod bangboos_text;
 pub mod characters;
 pub mod characters_text;
 pub mod connections;

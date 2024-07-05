@@ -233,6 +233,7 @@ async fn import_signals(
     let mut signal_uid = Vec::new();
     let mut signal_character = Vec::new();
     let mut signal_w_engine = Vec::new();
+    let mut signal_bangboo = Vec::new();
     let mut signal_gacha_type = Vec::new();
     let mut signal_timestamp = Vec::new();
     let mut signal_official = Vec::new();
@@ -282,9 +283,13 @@ async fn import_signals(
                 (entry.item_type == "Agents" || entry.item_type == "角色").then_some(item);
             let mut w_engine =
                 (entry.item_type == "W-Engines" || entry.item_type == "光錐").then_some(item);
+            let mut bangboo =
+                (entry.item_type == "Bangboo" || entry.item_type == "光錐").then_some(item);
 
             if character.is_none() && w_engine.is_none() {
-                if item >= 12000 {
+                if item >= 50000 {
+                    bangboo = Some(item);
+                } else if item >= 12000 {
                     w_engine = Some(item);
                 } else {
                     character = Some(item);
@@ -295,6 +300,7 @@ async fn import_signals(
             signal_uid.push(uid);
             signal_character.push(character);
             signal_w_engine.push(w_engine);
+            signal_bangboo.push(bangboo);
             signal_gacha_type.push(gacha_type);
             signal_timestamp.push(timestamp);
             signal_official.push(true);
@@ -314,6 +320,7 @@ async fn import_signals(
         &signal_gacha_type,
         &signal_character,
         &signal_w_engine,
+        &signal_bangboo,
         &signal_timestamp,
         &signal_official,
         pool,
