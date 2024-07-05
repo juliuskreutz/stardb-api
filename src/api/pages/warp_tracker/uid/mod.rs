@@ -106,21 +106,19 @@ async fn get_warp_tracker(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = false;
-
-    if let Ok(Some(username)) = session.get::<String>("username") {
-        if let Ok(connection) =
-            database::get_connection_by_uid_and_username(uid, &username, &pool).await
-        {
-            forbidden = !connection.verified;
-        }
-    }
+    let mut forbidden = database::get_connections_by_uid(uid, &pool)
+        .await?
+        .iter()
+        .any(|c| c.private);
 
     if forbidden {
-        forbidden = database::get_connections_by_uid(uid, &pool)
-            .await?
-            .iter()
-            .any(|c| c.private);
+        if let Ok(Some(username)) = session.get::<String>("username") {
+            if let Ok(connection) =
+                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
+            {
+                forbidden = !connection.verified;
+            }
+        }
     }
 
     if forbidden {

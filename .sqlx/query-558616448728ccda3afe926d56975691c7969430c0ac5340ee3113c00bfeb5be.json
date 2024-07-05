@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals (id, uid, gacha_type, character, w_engine, bangboo, timestamp, official)\nSELECT\n    *\nFROM\n    UNNEST($1::bigint[], $2::integer[], $3::text[], $4::integer[], $5::integer[], $6::integer[], $7::timestamp[], $8::boolean[])\nON CONFLICT\n    DO NOTHING;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "TextArray",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "TimestampArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "558616448728ccda3afe926d56975691c7969430c0ac5340ee3113c00bfeb5be"
+}

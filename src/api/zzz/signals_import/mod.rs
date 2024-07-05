@@ -213,15 +213,9 @@ async fn import_signals(
     info: &Arc<Mutex<SignalsImportInfo>>,
     pool: &PgPool,
 ) -> ApiResult<()> {
-    match gacha_type {
-        ZzzGachaType::Bangboo => return Ok(()),
-        _ => {}
-    }
-    
     let mut url = url.clone();
     let mut end_id = "0".to_string();
 
-    //TODO: Here
     url.query_pairs_mut()
         .extend_pairs(&[(
             "gacha_type",
@@ -285,13 +279,13 @@ async fn import_signals(
             let item: i32 = entry.item_id.parse()?;
 
             let mut character =
-                (entry.item_type == "Agents" || entry.item_type == "角色").then_some(item);
+                (entry.item_type == "Agents" || entry.item_type == "代理人").then_some(item);
             let mut w_engine =
-                (entry.item_type == "W-Engines" || entry.item_type == "光錐").then_some(item);
+                (entry.item_type == "W-Engines" || entry.item_type == "音擎").then_some(item);
             let mut bangboo =
-                (entry.item_type == "Bangboo" || entry.item_type == "光錐").then_some(item);
+                (entry.item_type == "Bangboo" || entry.item_type == "邦布").then_some(item);
 
-            if character.is_none() && w_engine.is_none() {
+            if character.is_none() && w_engine.is_none() && bangboo.is_none() {
                 if item >= 50000 {
                     bangboo = Some(item);
                 } else if item >= 12000 {

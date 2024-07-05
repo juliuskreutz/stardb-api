@@ -9,9 +9,10 @@ use actix_web::{
     web, Responder,
 };
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::{api::ApiResult, database, Language};
 
 lazy_static::lazy_static! {
     static ref CACHE: Mutex<Option<()>> = Mutex::new(None);
@@ -34,9 +35,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.service(sitemaps);
 }
 
-const LANGUAGES: &[&str] = &[
-    "de", "en", "es-es", "fr", "id", "ja", "ko", "pt-pt", "ru", "th", "vi", "zh-cn", "zh-tw",
-];
 const LASTMOD: &str = "2024-06-26";
 const MAX_URLS: usize = 20000;
 
@@ -55,6 +53,7 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/warp-tracker",
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
+    "https://stardb.gg/%LANG%/zzz/signal-import",
 ];
 
 #[derive(serde::Serialize)]
@@ -176,16 +175,19 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
     let warp_uids = database::get_warp_uids(&pool).await?;
+    let signal_uids = database::zzz::signals::get_uids(&pool).await?;
 
     let mut count = 0;
 
     let mut urls = Vec::new();
 
-    for language in LANGUAGES {
+    let languages: Vec<_> = Language::iter().map(|l| l.to_string()).collect();
+
+    for language in &languages {
         for route in LOCALIZED_ROUTES {
             let mut links = Vec::new();
 
-            for &link_language in LANGUAGES {
+            for link_language in &languages {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
@@ -211,7 +213,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
         for id in &achievement_ids {
             let mut links = Vec::new();
 
-            for link_language in LANGUAGES {
+            for link_language in &languages {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
@@ -238,7 +240,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
             for path in ["overview", "characters", "collection"] {
                 let mut links = Vec::new();
 
-                for link_language in LANGUAGES {
+                for link_language in &languages {
                     links.push(Link {
                         rel: "alternate".to_string(),
                         hreflang: link_language.to_string(),
@@ -265,7 +267,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
         for uid in &warp_uids {
             let mut links = Vec::new();
 
-            for link_language in LANGUAGES {
+            for link_language in &languages {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
@@ -275,6 +277,32 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             let url = Url {
                 loc: format!("https://stardb.gg/{language}/warp-tracker/{uid}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
+        }
+
+        for uid in &signal_uids {
+            let mut links = Vec::new();
+
+            for link_language in &languages {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!("https://stardb.gg/{link_language}/zzz/signal-tracker/{uid}"),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/zzz/signal-tracker/{uid}"),
                 lastmod: LASTMOD.to_string(),
                 links,
             };

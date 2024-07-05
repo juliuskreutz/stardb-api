@@ -40,14 +40,17 @@ struct Signal {
 enum SignalType {
     Agent,
     WEngine,
+    Bangboo,
 }
 
 impl From<database::zzz::signals::DbSignal> for Signal {
     fn from(signal: database::zzz::signals::DbSignal) -> Self {
         let r#type = if signal.character.is_some() {
             SignalType::Agent
-        } else {
+        } else if signal.w_engine.is_some() {
             SignalType::WEngine
+        } else {
+            SignalType::Bangboo
         };
 
         Self {
@@ -55,7 +58,11 @@ impl From<database::zzz::signals::DbSignal> for Signal {
             id: signal.id.to_string(),
             name: signal.name.unwrap(),
             rarity: signal.rarity.unwrap(),
-            item_id: signal.character.or(signal.w_engine).unwrap(),
+            item_id: signal
+                .character
+                .or(signal.w_engine)
+                .or(signal.bangboo)
+                .unwrap(),
             timestamp: signal.timestamp,
             pull: 0,
             pull_a: 0,
@@ -105,21 +112,19 @@ async fn get_signal_tracker(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = false;
-
-    if let Ok(Some(username)) = session.get::<String>("username") {
-        if let Ok(connection) =
-            database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
-        {
-            forbidden = !connection.verified;
-        }
-    }
+    let mut forbidden = database::zzz::connections::get_by_uid(uid, &pool)
+        .await?
+        .iter()
+        .any(|c| c.private);
 
     if forbidden {
-        forbidden = database::zzz::connections::get_by_uid(uid, &pool)
-            .await?
-            .iter()
-            .any(|c| c.private);
+        if let Ok(Some(username)) = session.get::<String>("username") {
+            if let Ok(connection) =
+                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
+            {
+                forbidden = !connection.verified;
+            }
+        }
     }
 
     if forbidden {

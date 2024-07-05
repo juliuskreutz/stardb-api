@@ -22,7 +22,7 @@
         devShells.default = with pkgs;
           mkShell {
             buildInputs = [
-              rust-bin.stable.latest.default
+              # rust-bin.stable.latest.default
               rust-analyzer
               taplo
               postgresql

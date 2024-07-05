@@ -21,6 +21,6 @@ FROM
     LEFT JOIN zzz_bangboos_text ON zzz_bangboos_text.id = bangboo
         AND zzz_bangboos_text.language = $3
 WHERE
-    id = $1
+    zzz_signals.id = $1
     AND timestamp = $2;
 

@@ -84,9 +84,29 @@ async fn get_warps(
     warp_params: web::Query<WarpParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    //TODO: Private warps
+    let uid = *uid;
+
+    let mut forbidden = database::get_connections_by_uid(uid, &pool)
+        .await?
+        .iter()
+        .any(|c| c.private);
+
+    if forbidden {
+        if let Ok(Some(username)) = session.get::<String>("username") {
+            if let Ok(connection) =
+                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
+            {
+                forbidden = !connection.verified;
+            }
+        }
+    }
+
+    if forbidden {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let warps: Vec<_> = database::get_warps_by_uid_and_gacha_type(
-        *uid,
+        uid,
         warp_params.gacha_type,
         language_params.lang,
         &pool,
