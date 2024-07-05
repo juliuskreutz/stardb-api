@@ -213,6 +213,11 @@ async fn import_signals(
     info: &Arc<Mutex<SignalsImportInfo>>,
     pool: &PgPool,
 ) -> ApiResult<()> {
+    match gacha_type {
+        ZzzGachaType::Bangboo => return Ok(()),
+        _ => {}
+    }
+    
     let mut url = url.clone();
     let mut end_id = "0".to_string();
 
