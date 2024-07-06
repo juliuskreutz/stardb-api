@@ -112,7 +112,7 @@ async fn get_profile(
     uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> 
+) -> ApiResult<impl Responder> {
     let uid = *uid;
     
     let mut forbidden = database::get_connections_by_uid(uid, &pool)
