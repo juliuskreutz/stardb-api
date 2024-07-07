@@ -114,7 +114,7 @@ async fn get_profile(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
-    
+
     let mut forbidden = database::get_connections_by_uid(uid, &pool)
         .await?
         .iter()
@@ -133,7 +133,7 @@ async fn get_profile(
     if forbidden {
         return Ok(HttpResponse::Forbidden().finish());
     }
-    
+
     let profile = get_profile_json(false, uid, language_params.lang, &pool).await?;
 
     Ok(HttpResponse::Ok().json(profile))
@@ -151,11 +151,33 @@ async fn get_profile(
 )]
 #[put("/api/pages/profiles/{uid}", guard = "private")]
 async fn update_profile(
+    session: Session,
     uid: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let profile = get_profile_json(true, *uid, language_params.lang, &pool).await?;
+    let uid = *uid;
+
+    let mut forbidden = database::get_connections_by_uid(uid, &pool)
+        .await?
+        .iter()
+        .any(|c| c.private);
+
+    if forbidden {
+        if let Ok(Some(username)) = session.get::<String>("username") {
+            if let Ok(connection) =
+                database::get_connection_by_uid_and_username(uid, &username, &pool).await
+            {
+                forbidden = !connection.verified;
+            }
+        }
+    }
+
+    if forbidden {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let profile = get_profile_json(true, uid, language_params.lang, &pool).await?;
 
     Ok(HttpResponse::Ok().json(profile))
 }

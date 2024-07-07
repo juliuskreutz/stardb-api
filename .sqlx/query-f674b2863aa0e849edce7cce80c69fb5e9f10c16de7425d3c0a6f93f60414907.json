@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH threshholded_zzz_users_achievements AS (\n    SELECT\n        zzz_users_achievements_completed.username,\n        id\n    FROM\n        zzz_users_achievements_completed\n        JOIN (\n            SELECT\n                username\n            FROM\n                zzz_users_achievements_completed\n            GROUP BY\n                username\n            HAVING\n                count(*) >= $1) threshholded_users ON zzz_users_achievements_completed.username = threshholded_users.username\n),\nzzz_achievements_percent AS (\n    SELECT\n        id,\n        COUNT(*)::float / (\n            SELECT\n                COUNT(*)\n            FROM\n                users\n            WHERE\n                EXISTS (\n                    SELECT\n                        *\n                    FROM\n                        threshholded_zzz_users_achievements\n                    WHERE\n                        users.username = threshholded_zzz_users_achievements.username)) percent\n            FROM\n                threshholded_zzz_users_achievements\n            GROUP BY\n                id)\n    INSERT INTO zzz_achievements_percent (id, percent)\nSELECT\n    zzz_achievements.id,\n    COALESCE(percent, 0)\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\nON CONFLICT (id)\n    DO UPDATE SET\n        percent = EXCLUDED.percent;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f674b2863aa0e849edce7cce80c69fb5e9f10c16de7425d3c0a6f93f60414907"
+}

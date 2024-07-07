@@ -92,7 +92,7 @@ struct Buddy {
 }
 
 struct Configs {
-    achievement_second_class_config: HashMap<String, Vec<AchieveSecondClass>>,
+    achievement_second_class: HashMap<String, Vec<AchieveSecondClass>>,
     achievement: HashMap<String, Vec<Achievement>>,
     once_reward: HashMap<String, Vec<Rewards>>,
     item: HashMap<String, Vec<Item>>,
@@ -165,7 +165,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let achievement_second_class_config: HashMap<String, Vec<AchieveSecondClass>> =
+    let achievement_second_class: HashMap<String, Vec<AchieveSecondClass>> =
         serde_json::from_reader(BufReader::new(File::open(
             "ZenlessData/FileCfg/AchieveSecondClassConfigTemplateTb.json",
         )?))?;
@@ -195,7 +195,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     )?))?;
 
     let configs = Configs {
-        achievement_second_class_config,
+        achievement_second_class,
         achievement,
         once_reward,
         item,

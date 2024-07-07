@@ -1,42 +1,37 @@
-mod private;
-
 use actix_session::Session;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, mihomo, Language};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "users/me/uids/{uid}")),
-    paths(put_user_uid, delete_user_uid),
+    tags((name = "users/me/uids/{uid}/private")),
+    paths(put_user_uid_private, delete_user_uid_private),
 )]
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    let mut openapi = ApiDoc::openapi();
-    openapi.merge(private::openapi());
-    openapi
+    ApiDoc::openapi()
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(private::configure)
-        .service(put_user_uid)
-        .service(delete_user_uid);
+    cfg.service(put_user_uid_private)
+        .service(delete_user_uid_private);
 }
 
 #[utoipa::path(
-    tag = "users/me/uids/{uid}",
+    tag = "users/me/uids/{uid}/private",
     put,
-    path = "/api/users/me/uids/{uid}",
+    path = "/api/users/me/uids/{uid}/private",
     responses(
         (status = 200, description = "Added uid"),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[put("/api/users/me/uids/{uid}")]
-async fn put_user_uid(
+#[put("/api/users/me/uids/{uid}/private")]
+async fn put_user_uid_private(
     session: Session,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -45,32 +40,22 @@ async fn put_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let connection = database::DbConnection {
-        username,
-        uid: *uid,
-        verified: false,
-        private: false,
-    };
-
-    // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(*uid, Language::En, &pool).await?;
-
-    database::set_connection(&connection, &pool).await?;
+    database::update_connection_private_by_uid_and_username(*uid, &username, true, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
-    tag = "users/me/uids/{uid}",
+    tag = "users/me/uids/{uid}/private",
     delete,
-    path = "/api/users/me/uids/{uid}",
+    path = "/api/users/me/uids/{uid}/private",
     responses(
         (status = 200, description = "Deleted uid"),
         (status = 400, description = "Not logged in"),
     )
 )]
-#[delete("/api/users/me/uids/{uid}")]
-async fn delete_user_uid(
+#[delete("/api/users/me/uids/{uid}/private")]
+async fn delete_user_uid_private(
     session: Session,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -79,14 +64,7 @@ async fn delete_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let connection = database::DbConnection {
-        username,
-        uid: *uid,
-        verified: false,
-        private: false,
-    };
-
-    database::delete_connection(&connection, &pool).await?;
+    database::update_connection_private_by_uid_and_username(*uid, &username, false, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

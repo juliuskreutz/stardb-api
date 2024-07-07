@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs::File, io::BufReader};
 
-use regex::{Captures, Regex};
 use sqlx::PgPool;
 
 use crate::{database, Language};
@@ -8,6 +7,15 @@ use crate::{database, Language};
 use super::Configs;
 
 pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
+    let mut achievement_series_id = Vec::new();
+    let mut achievement_series_language = Vec::new();
+    let mut achievement_series_name = Vec::new();
+
+    let mut achievements_id = Vec::new();
+    let mut achievements_language = Vec::new();
+    let mut achievements_name = Vec::new();
+    let mut achievements_description = Vec::new();
+
     let mut characters_id = Vec::new();
     let mut characters_language = Vec::new();
     let mut characters_name = Vec::new();
@@ -44,10 +52,33 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 "ZenlessData/TextMap/TextMap{language_str}TemplateTb.json",
             ))?))?;
 
+        info!("Starting {} achievement series", language);
+        for achievement_second_class in &configs.achievement_second_class["GMNCBMLIHPE"] {
+            let name = text_map[&achievement_second_class.name].clone();
+
+            let id = achievement_second_class.id;
+
+            achievement_series_id.push(id);
+            achievement_series_language.push(language);
+            achievement_series_name.push(name);
+        }
+
+        info!("Starting {} achievements", language);
+        for achievement in &configs.achievement["GMNCBMLIHPE"] {
+            let name = text_map[&achievement.name].clone();
+            let description = text_map[&achievement.description].clone();
+
+            let id = achievement.id;
+
+            achievements_id.push(id);
+            achievements_language.push(language);
+            achievements_name.push(name);
+            achievements_description.push(description);
+        }
+
         info!("Starting {} avatars", language);
         for avatar in &configs.avatar["GMNCBMLIHPE"] {
             let name = text_map[&avatar.name].clone();
-            let name = ruby(&name)?;
 
             let id = avatar.id;
 
@@ -65,7 +96,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 .find(|i| i.id == weapon.id)
                 .unwrap()
                 .name;
-            let name = ruby(&text_map[name])?;
+            let name = text_map[name].clone();
 
             w_engines_id.push(id);
             w_engines_language.push(language);
@@ -81,13 +112,32 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 .find(|i| i.id == buddy.id)
                 .unwrap()
                 .name;
-            let name = ruby(&text_map[name])?;
+            let name = text_map[name].clone();
 
             bangboos_id.push(id);
             bangboos_language.push(language);
             bangboos_name.push(name);
         }
     }
+
+    info!("Setting all achievement series texts");
+    database::zzz::achievement_series_text::set_all(
+        &achievement_series_id,
+        &achievement_series_language,
+        &achievement_series_name,
+        pool,
+    )
+    .await?;
+
+    info!("Setting all achievements texts");
+    database::zzz::achievements_text::set_all(
+        &achievements_id,
+        &achievements_language,
+        &achievements_name,
+        &achievements_description,
+        pool,
+    )
+    .await?;
 
     info!("Setting all character texts");
     database::zzz::characters_text::set_all(
@@ -114,36 +164,36 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn html(s: &str) -> anyhow::Result<String> {
-    Ok(Regex::new(r"<[^>]*>")?
-        .replace_all(s, |_: &Captures| "")
-        .to_string())
-}
-
-fn gender(s: &str) -> anyhow::Result<String> {
-    Ok(Regex::new(r"\{(M|F)#([^}]*)\}\{(F|M)#([^}]*)\}")?
-        .replace_all(s, |c: &Captures| {
-            c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
-        })
-        .to_string())
-}
-
-fn layout(s: &str) -> anyhow::Result<String> {
-    Ok(Regex::new(
-        r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
-    )?
-    .replace_all(s, |c: &Captures| {
-        c.get(1).unwrap().as_str().to_string()
-            + "/"
-            + c.get(2).unwrap().as_str()
-            + "/"
-            + c.get(3).unwrap().as_str()
-    })
-    .to_string())
-}
-
-fn ruby(s: &str) -> anyhow::Result<String> {
-    Ok(Regex::new(r"\{RUBY_.#.*?\}")?
-        .replace_all(s, |_: &Captures| "")
-        .to_string())
-}
+//fn html(s: &str) -> anyhow::Result<String> {
+//    Ok(Regex::new(r"<[^>]*>")?
+//        .replace_all(s, |_: &Captures| "")
+//        .to_string())
+//}
+//
+//fn gender(s: &str) -> anyhow::Result<String> {
+//    Ok(Regex::new(r"\{(M|F)#([^}]*)\}\{(F|M)#([^}]*)\}")?
+//        .replace_all(s, |c: &Captures| {
+//            c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
+//        })
+//        .to_string())
+//}
+//
+//fn layout(s: &str) -> anyhow::Result<String> {
+//    Ok(Regex::new(
+//        r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
+//    )?
+//    .replace_all(s, |c: &Captures| {
+//        c.get(1).unwrap().as_str().to_string()
+//            + "/"
+//            + c.get(2).unwrap().as_str()
+//            + "/"
+//            + c.get(3).unwrap().as_str()
+//    })
+//    .to_string())
+//}
+//
+//fn ruby(s: &str) -> anyhow::Result<String> {
+//    Ok(Regex::new(r"\{RUBY_.#.*?\}")?
+//        .replace_all(s, |_: &Captures| "")
+//        .to_string())
+//}

@@ -58,6 +58,7 @@ pub struct User {
     uids: Vec<i32>,
     zzz_uids: Vec<i32>,
     achievements: Vec<i32>,
+    zzz_achievements: Vec<i32>,
     books: Vec<i32>,
 }
 
@@ -110,6 +111,13 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .map(|b| b.id)
         .collect();
 
+    let zzz_achievements =
+        database::zzz::users_achievements_completed::get_by_username(&username, &pool)
+            .await?
+            .into_iter()
+            .map(|b| b.id)
+            .collect();
+
     let user = User {
         username,
         admin,
@@ -117,6 +125,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         uids,
         zzz_uids,
         achievements,
+        zzz_achievements,
         books,
     };
 

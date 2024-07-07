@@ -33,5 +33,5 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(leaderboard::configure)
         .configure(profiles::configure)
         .configure(warp_tracker::configure)
-        .configure(zzz::configure);
+        .configure(|sc| zzz::configure(sc, pool.clone()));
 }

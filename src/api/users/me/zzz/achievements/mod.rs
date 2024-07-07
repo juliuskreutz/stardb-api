@@ -1,5 +1,5 @@
-mod achievements;
-mod uids;
+mod completed;
+mod favorites;
 
 use actix_web::web;
 use utoipa::OpenApi;
@@ -10,12 +10,12 @@ struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
-    openapi.merge(uids::openapi());
-    openapi.merge(achievements::openapi());
+    openapi.merge(completed::openapi());
+    openapi.merge(favorites::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(achievements::configure)
-        .configure(uids::configure);
+    cfg.configure(completed::configure)
+        .configure(favorites::configure);
 }
