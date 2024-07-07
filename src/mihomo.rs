@@ -37,7 +37,7 @@ pub struct SpaceInfo {
 }
 
 pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
-    let path = format!("mihomo/{language}_{uid}.json");
+    let path = format!("mihomo/{}_{uid}.json", language.mihomo());
 
     if PathBuf::from(&path).exists() {
         Ok(serde_json::from_reader(File::open(&path)?)?)
@@ -49,7 +49,10 @@ pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
 pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
     let now = Utc::now();
 
-    let url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang={language}&version=v2");
+    let url = format!(
+        "https://api.mihomo.me/sr_info_parsed/{uid}?lang={}&version=v2",
+        language.mihomo()
+    );
 
     let mut json: Value = reqwest::get(&url).await?.json().await?;
     if let Some(o) = json.as_object_mut() {
@@ -58,7 +61,7 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
 
     if serde_json::from_value::<Mihomo>(json.clone()).is_ok() {
         serde_json::to_writer(
-            &mut File::create(format!("mihomo/{language}_{uid}.json"))?,
+            &mut File::create(format!("mihomo/{}_{uid}.json", language.mihomo()))?,
             &json,
         )?;
     }

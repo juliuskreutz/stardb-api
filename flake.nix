@@ -22,15 +22,16 @@
         devShells.default = with pkgs;
           mkShell {
             buildInputs = [
-              rust-bin.stable.latest.default
+              pkgsStatic.buildPackages.rust-bin.stable.latest.default
               rust-analyzer
               taplo
               postgresql
               sqlx-cli
               pgformatter
-              pkg-config
-              openssl
             ];
+
+            RUSTFLAGS = "-C link-args=-D_FORTIFY_SOURCE=0";
+            CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
           };
       }
     );

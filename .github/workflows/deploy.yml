@@ -15,13 +15,15 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: x86_64-unknown-linux-musl
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
-          args: --release
+          args: --release --target x86_64-unknown-linux-musl
+        env:
+          SQLX_OFFLINE: true
 
       - name: Prepare
         run: mv target/x86_64-unknown-linux-gnu/release/stardb-api .

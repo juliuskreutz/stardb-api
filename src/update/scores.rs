@@ -49,11 +49,7 @@ pub async fn spawn(pool: PgPool) {
         let rt = Runtime::new().unwrap();
 
         let handle = rt.spawn(async move {
-            let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
-
             loop {
-                interval.tick().await;
-
                 let start = Instant::now();
 
                 if let Err(e) = update_lower_100(pool.clone()).await {

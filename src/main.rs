@@ -73,6 +73,25 @@ impl Language {
         }
         .to_string()
     }
+
+    pub fn mihomo(&self) -> String {
+        match self {
+            Language::ZhCn => "chs",
+            Language::ZhTw => "cht",
+            Language::De => "de",
+            Language::En => "en",
+            Language::EsEs => "es",
+            Language::Fr => "fr",
+            Language::Id => "id",
+            Language::Ja => "jp",
+            Language::Ko => "kr",
+            Language::PtPt => "pt",
+            Language::Ru => "ru",
+            Language::Th => "th",
+            Language::Vi => "vi",
+        }
+        .to_string()
+    }
 }
 
 #[derive(
