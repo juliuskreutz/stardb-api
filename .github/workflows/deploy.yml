@@ -17,6 +17,12 @@ jobs:
           toolchain: stable
           target: x86_64-unknown-linux-musl
 
+      - name: Install Musl Tools
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: musl-tools
+          version: 1.0
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
