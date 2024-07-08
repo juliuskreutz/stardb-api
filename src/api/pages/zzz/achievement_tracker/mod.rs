@@ -54,8 +54,8 @@ pub struct ZzzAchievementTrackerCache {
 struct AchievementTracker {
     achievement_count: usize,
     achievement_count_current: usize,
-    polychrome_count: i32,
-    polychrome_count_current: i32,
+    currency_count: i32,
+    currency_count_current: i32,
     user_count: i64,
     language: Language,
     versions: Vec<String>,
@@ -67,8 +67,8 @@ struct Series {
     series: String,
     achievement_count: usize,
     achievement_count_current: usize,
-    polychrome_count: i32,
-    polychrome_count_current: i32,
+    currency_count: i32,
+    currency_count_current: i32,
     achievement_groups: Vec<AchievementGroup>,
 }
 
@@ -87,7 +87,7 @@ struct Achievement {
     series_index: usize,
     name: String,
     description: String,
-    polychromes: i32,
+    currency: i32,
     hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
@@ -109,7 +109,7 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
             series_index: 0,
             name: db_achievement.name.clone(),
             description: db_achievement.description.clone(),
-            polychromes: db_achievement.polychromes,
+            currency: db_achievement.polychromes,
             hidden: db_achievement.hidden,
             version: db_achievement.version.clone(),
             difficulty: db_achievement
@@ -223,8 +223,8 @@ async fn update_achievement_tracker(
                     series: achievement.series_name.clone(),
                     achievement_count: 0,
                     achievement_count_current: 0,
-                    polychrome_count: 0,
-                    polychrome_count_current: 0,
+                    currency_count: 0,
+                    currency_count_current: 0,
                     achievement_groups: Vec::new(),
                 });
             }
@@ -264,18 +264,18 @@ async fn update_achievement_tracker(
         }
 
         let mut achievement_count = 0;
-        let mut polychrome_count = 0;
+        let mut currency_count = 0;
 
         for series in series.iter_mut() {
             series.achievement_count = series.achievement_groups.len();
-            series.polychrome_count = series
+            series.currency_count = series
                 .achievement_groups
                 .iter()
-                .map(|group| group.achievements[0].polychromes)
+                .map(|group| group.achievements[0].currency)
                 .sum();
 
             achievement_count += series.achievement_count;
-            polychrome_count += series.polychrome_count;
+            currency_count += series.currency_count;
         }
 
         let mut versions = versions.into_iter().collect::<Vec<_>>();
@@ -284,8 +284,8 @@ async fn update_achievement_tracker(
         let achievement_tracker = AchievementTracker {
             achievement_count,
             achievement_count_current: 0,
-            polychrome_count,
-            polychrome_count_current: 0,
+            currency_count,
+            currency_count_current: 0,
             user_count,
             language,
             versions,
@@ -346,11 +346,11 @@ async fn get_zzz_achievement_tracker(
                 .collect::<HashSet<_>>();
 
         let mut achievement_count_current_total = 0;
-        let mut polychrome_count_current_total = 0;
+        let mut currency_count_current_total = 0;
 
         for series in achievement_tracker.series.iter_mut() {
             let mut achievement_count_current = 0;
-            let mut polychrome_count_current = 0;
+            let mut currency_count_current = 0;
 
             for group in series.achievement_groups.iter_mut() {
                 let complete = group
@@ -371,24 +371,24 @@ async fn get_zzz_achievement_tracker(
                 if let Some(complete) = complete {
                     achievement_count_current += 1;
 
-                    polychrome_count_current += group
+                    currency_count_current += group
                         .achievements
                         .iter()
                         .find(|a| a.id == complete)
                         .unwrap()
-                        .polychromes;
+                        .currency;
                 }
             }
 
             series.achievement_count_current = achievement_count_current;
-            series.polychrome_count_current = polychrome_count_current;
+            series.currency_count_current = currency_count_current;
 
             achievement_count_current_total += achievement_count_current;
-            polychrome_count_current_total += polychrome_count_current;
+            currency_count_current_total += currency_count_current;
         }
 
         achievement_tracker.achievement_count_current = achievement_count_current_total;
-        achievement_tracker.polychrome_count_current = polychrome_count_current_total;
+        achievement_tracker.currency_count_current = currency_count_current_total;
     }
 
     Ok(HttpResponse::Ok().json(achievement_tracker))
