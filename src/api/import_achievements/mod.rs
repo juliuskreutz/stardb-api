@@ -47,8 +47,12 @@ struct Achievement {
     difficulty: Option<String>,
     #[serde(rename = "Video")]
     video: Option<String>,
-    #[serde(rename = "Gacha Required")]
+    #[serde(rename = "Character Locked")]
     gacha: Option<String>,
+    #[serde(rename = "Time Gated")]
+    timegated: Option<String>,
+    #[serde(rename = "Missable")]
+    missable: Option<String>,
     #[serde(rename = "Forbidden")]
     impossible: Option<String>,
 }
