@@ -212,19 +212,19 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
                         if [1209, 1004, 1101, 1211, 1104, 1107, 1003]
                             .contains(&warp.character.unwrap())
                         {
-                            max_win_streak = max_win_streak.max(win_streak);
                             win_streak = 0;
 
                             loss_streak += 1;
+                            max_loss_streak = max_loss_streak.max(loss_streak);
 
                             guarantee = true;
                         } else {
                             sum_win += 1;
 
-                            max_loss_streak = max_loss_streak.max(loss_streak);
                             loss_streak = 0;
 
                             win_streak += 1;
+                            max_win_streak = max_win_streak.max(win_streak);
                         }
                     }
                 }
@@ -353,19 +353,19 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
                         if [23000, 23002, 23003, 23004, 23005, 23012, 23013]
                             .contains(&warp.light_cone.unwrap())
                         {
-                            sum_win += 1;
-
-                            max_win_streak = max_win_streak.max(win_streak);
                             win_streak = 0;
 
                             loss_streak += 1;
+                            max_loss_streak = max_loss_streak.max(loss_streak);
 
                             guarantee = true;
                         } else {
-                            max_loss_streak = max_loss_streak.max(loss_streak);
+                            sum_win += 1;
+
                             loss_streak = 0;
 
                             win_streak += 1;
+                            max_win_streak = max_win_streak.max(win_streak);
                         }
                     }
                 }
