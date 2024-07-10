@@ -242,6 +242,10 @@ async fn get_signal_tracker(
     w_engine.max_pull_a = 10;
     w_engine.probability_a = if w_engine_pull_a < 10 { 15.0 } else { 100.0 };
 
+    bangboo.pull_a = bangboo_pull_a;
+    bangboo.max_pull_a = 10;
+    bangboo.probability_a = if bangboo_pull_a < 10 { 15.0 } else { 100.0 };
+
     standard.pull_s = standard_pull_s;
     standard.max_pull_s = 90;
     standard.probability_s = if standard_pull_s < 89 {
@@ -262,6 +266,14 @@ async fn get_signal_tracker(
     w_engine.max_pull_s = 80;
     w_engine.probability_s = if w_engine_pull_s < 79 {
         1.0 + 7.0 * w_engine_pull_s.saturating_sub(64) as f64
+    } else {
+        100.0
+    };
+
+    bangboo.pull_s = bangboo_pull_s;
+    bangboo.max_pull_s = 80;
+    bangboo.probability_s = if bangboo_pull_s < 79 {
+        1.0 + 7.0 * bangboo_pull_s.saturating_sub(64) as f64
     } else {
         100.0
     };

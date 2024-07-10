@@ -31,7 +31,7 @@ struct Achievement {
     series_name: String,
     name: String,
     description: String,
-    jades: i32,
+    currency: i32,
     hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
@@ -62,7 +62,7 @@ impl From<database::achievements::DbAchievement> for Achievement {
             series_name: db_achievement.series_name.clone(),
             name: db_achievement.name.clone(),
             description: db_achievement.description.clone(),
-            jades: db_achievement.jades,
+            currency: db_achievement.jades,
             hidden: db_achievement.hidden,
             version: db_achievement.version.clone(),
             comment: db_achievement.comment.clone(),

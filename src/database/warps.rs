@@ -16,6 +16,13 @@ pub struct DbWarp {
     pub official: bool,
 }
 
+pub struct DbWarpInfo {
+    pub uid: i32,
+    pub character: Option<i32>,
+    pub light_cone: Option<i32>,
+    pub rarity: Option<i32>,
+}
+
 pub async fn set_all_warps(
     id: &[i64],
     uid: &[i32],
@@ -186,6 +193,45 @@ pub async fn get_warps_by_uid_and_gacha_type(
         uid,
         gacha_type,
         language,
+    )
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn get_warp_infos_by_uid_and_gacha_type(
+    uid: i32,
+    gacha_type: GachaType,
+    pool: &PgPool,
+) -> Result<Vec<DbWarpInfo>> {
+    let gacha_type = gacha_type.to_string();
+
+    Ok(sqlx::query_as!(
+        DbWarpInfo,
+        "
+        SELECT
+            warps.uid,
+            warps.character,
+            warps.light_cone,
+            COALESCE(characters.rarity, light_cones.rarity) AS rarity
+        FROM
+            warps
+        LEFT JOIN
+            characters
+        ON
+            characters.id = character
+        LEFT JOIN
+            light_cones
+        ON
+            light_cones.id = light_cone
+        WHERE
+            uid = $1
+        AND
+            gacha_type = $2
+        ORDER BY
+            warps.id
+        ",
+        uid,
+        gacha_type,
     )
     .fetch_all(pool)
     .await?)

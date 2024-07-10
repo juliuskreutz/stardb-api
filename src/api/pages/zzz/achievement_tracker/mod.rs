@@ -202,8 +202,6 @@ async fn update_achievement_tracker(
     for language in Language::iter() {
         let achievements = database::zzz::achievements::get_all(language, &pool).await?;
 
-        info!("{}", achievements.len());
-
         let mut versions = HashSet::new();
         let mut series = Vec::new();
 

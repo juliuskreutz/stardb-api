@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            warps.uid,\n            warps.character,\n            warps.light_cone,\n            COALESCE(characters.rarity, light_cones.rarity) AS rarity\n        FROM\n            warps\n        LEFT JOIN\n            characters\n        ON\n            characters.id = character\n        LEFT JOIN\n            light_cones\n        ON\n            light_cones.id = light_cone\n        WHERE\n            uid = $1\n        AND\n            gacha_type = $2\n        ORDER BY\n            warps.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "light_cone",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "0766c26ae1f33058346ca074bd35b12fa74593899960ddb5240b1887cb4f7dc3"
+}
