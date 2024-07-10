@@ -84,7 +84,16 @@ async fn post_pom_warps_import(
     let uid = *uid;
 
     // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(uid, Language::En, &pool).await?;
+    if !database::mihomo::exists(uid, &pool).await?
+        && mihomo::get(uid, Language::En, &pool).await.is_err()
+    {
+        let db_mihomo = database::mihomo::DbMihomo {
+            uid,
+            ..std::default::Default::default()
+        };
+
+        database::mihomo::set(&db_mihomo, &pool).await?;
+    }
 
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,

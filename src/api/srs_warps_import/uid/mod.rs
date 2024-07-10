@@ -92,7 +92,16 @@ async fn post_srs_warps_import(
     let uid = *uid;
 
     // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(uid, Language::En, &pool).await?;
+    if !database::mihomo::exists(uid, &pool).await?
+        && mihomo::get(uid, Language::En, &pool).await.is_err()
+    {
+        let db_mihomo = database::mihomo::DbMihomo {
+            uid,
+            ..Default::default()
+        };
+
+        database::mihomo::set(&db_mihomo, &pool).await?;
+    }
 
     let srs: Srs = serde_json::from_str(&params.data)?;
 

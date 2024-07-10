@@ -150,7 +150,18 @@ async fn post_warps_import(
         return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
     }
 
-    mihomo::get(uid, Language::En, &pool).await?;
+    // Wacky way to update the database in case the uid isn't in there
+    if !database::mihomo::exists(uid, &pool).await?
+        && mihomo::get(uid, Language::En, &pool).await.is_err()
+    {
+        let db_mihomo = database::mihomo::DbMihomo {
+            uid,
+            ..Default::default()
+        };
+
+        database::mihomo::set(&db_mihomo, &pool).await?;
+    }
+
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::DbConnection {
             uid,

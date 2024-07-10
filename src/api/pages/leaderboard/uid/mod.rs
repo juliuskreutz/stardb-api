@@ -34,10 +34,21 @@ async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(*uid, Language::En, &pool).await?;
+    let uid = *uid;
 
-    let score = database::get_score_achievement_by_uid(*uid, &pool)
+    // Wacky way to update the database in case the uid isn't in there
+    if !database::mihomo::exists(uid, &pool).await?
+        && mihomo::get(uid, Language::En, &pool).await.is_err()
+    {
+        let db_mihomo = database::mihomo::DbMihomo {
+            uid,
+            ..Default::default()
+        };
+
+        database::mihomo::set(&db_mihomo, &pool).await?;
+    }
+
+    let score = database::get_score_achievement_by_uid(uid, &pool)
         .await?
         .into();
 

@@ -45,15 +45,26 @@ async fn put_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
+    let uid = *uid;
+
     let connection = database::DbConnection {
         username,
-        uid: *uid,
+        uid,
         verified: false,
         private: false,
     };
 
     // Wacky way to update the database in case the uid isn't in there
-    mihomo::get(*uid, Language::En, &pool).await?;
+    if !database::mihomo::exists(uid, &pool).await?
+        && mihomo::get(uid, Language::En, &pool).await.is_err()
+    {
+        let db_mihomo = database::mihomo::DbMihomo {
+            uid,
+            ..Default::default()
+        };
+
+        database::mihomo::set(&db_mihomo, &pool).await?;
+    }
 
     database::set_connection(&connection, &pool).await?;
 
