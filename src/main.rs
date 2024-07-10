@@ -176,7 +176,7 @@ async fn main() -> anyhow::Result<()> {
     update::dimbreath::hsr::spawn(pool.clone()).await;
     update::dimbreath::zzz::spawn(pool.clone()).await;
     update::star_rail_res::spawn().await;
-    //update::scores::spawn(pool.clone()).await;
+    update::scores::spawn(pool.clone()).await;
     //update::character_averages::spawn(pool.clone()).await;
     update::warps_stats::spawn(pool.clone()).await;
 

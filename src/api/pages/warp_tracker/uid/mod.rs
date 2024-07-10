@@ -70,8 +70,6 @@ struct WarpTracker {
     departure: Warps,
     special: Warps,
     lc: Warps,
-    count: usize,
-    jades: usize,
     name: String,
 }
 
@@ -85,7 +83,20 @@ struct Warps {
     max_pull_4: usize,
     max_pull_5: usize,
     count: usize,
-    jades: usize,
+    stats: Option<Stats>,
+}
+
+#[derive(Serialize)]
+struct Stats {
+    users: i32,
+    count_rank: i32,
+    luck_4: f64,
+    luck_4_rank: i32,
+    luck_5: f64,
+    luck_5_rank: i32,
+    win_rate: Option<f64>,
+    win_streak: Option<i32>,
+    loss_streak: Option<i32>,
 }
 
 #[utoipa::path(
@@ -266,21 +277,59 @@ async fn get_warp_tracker(
     special.count = special.warps.len();
     lc.count = lc.warps.len();
 
-    departure.jades = departure.count * 160;
-    standard.jades = standard.count * 160;
-    special.jades = special.count * 160;
-    lc.jades = lc.count * 160;
+    if let Some(stats) = database::warps_stats_standard::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats_standard::count(&pool).await? as i32;
 
-    let count = standard.count + departure.count + special.count + lc.count;
-    let jades = standard.jades + departure.jades + special.jades + lc.jades;
+        standard.stats = Some(Stats {
+            users,
+            count_rank: stats.count_rank,
+            luck_4: stats.luck_4,
+            luck_4_rank: stats.luck_4_rank,
+            luck_5: stats.luck_5,
+            luck_5_rank: stats.luck_5_rank,
+            win_rate: None,
+            win_streak: None,
+            loss_streak: None,
+        });
+    }
+
+    if let Some(stats) = database::warps_stats_special::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats_special::count(&pool).await? as i32;
+
+        special.stats = Some(Stats {
+            users,
+            count_rank: stats.count_rank,
+            luck_4: stats.luck_4,
+            luck_4_rank: stats.luck_4_rank,
+            luck_5: stats.luck_5,
+            luck_5_rank: stats.luck_5_rank,
+            win_rate: Some(stats.win_rate),
+            win_streak: Some(stats.win_streak),
+            loss_streak: Some(stats.loss_streak),
+        });
+    }
+
+    if let Some(stats) = database::warps_stats_lc::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats_lc::count(&pool).await? as i32;
+
+        lc.stats = Some(Stats {
+            users,
+            count_rank: stats.count_rank,
+            luck_4: stats.luck_4,
+            luck_4_rank: stats.luck_4_rank,
+            luck_5: stats.luck_5,
+            luck_5_rank: stats.luck_5_rank,
+            win_rate: Some(stats.win_rate),
+            win_streak: Some(stats.win_streak),
+            loss_streak: Some(stats.loss_streak),
+        });
+    }
 
     let warp_tracker = WarpTracker {
         standard,
         departure,
         special,
         lc,
-        count,
-        jades,
         name,
     };
 

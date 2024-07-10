@@ -44,11 +44,11 @@ pub async fn spawn(pool: PgPool) {
 async fn update(pool: PgPool) -> Result<()> {
     let uids = database::get_warp_uids(&pool).await?;
 
-    //info!("Starting standard");
-    //standard(&uids, &pool).await?;
-    //
-    //info!("Starting special");
-    //special(&uids, &pool).await?;
+    info!("Starting standard");
+    standard(&uids, &pool).await?;
+
+    info!("Starting special");
+    special(&uids, &pool).await?;
 
     info!("Starting lc");
     lc(&uids, &pool).await?;

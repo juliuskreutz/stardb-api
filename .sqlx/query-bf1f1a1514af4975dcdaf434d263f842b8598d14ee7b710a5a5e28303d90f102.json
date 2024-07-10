@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    warps_stats_lc\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "count_rank",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_4",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "luck_4_rank",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "luck_5",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "luck_5_rank",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "win_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 7,
+        "name": "win_streak",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "loss_streak",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bf1f1a1514af4975dcdaf434d263f842b8598d14ee7b710a5a5e28303d90f102"
+}
