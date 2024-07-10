@@ -11,16 +11,11 @@ use crate::{
     database, Difficulty,
 };
 
-use crate::Language;
-
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "achievements")),
-    paths(get_achievements),
-    components(schemas(
-        Language,
-        Achievement
-    ))
+    tags((name = "zzz/achievements")),
+    paths(get_zzz_achievements),
+    components(schemas(Achievement))
 )]
 struct ApiDoc;
 
@@ -31,7 +26,7 @@ struct Achievement {
     series_name: String,
     name: String,
     description: String,
-    jades: i32,
+    currency: i32,
     hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<String>,
@@ -54,15 +49,15 @@ struct Achievement {
     percent: f64,
 }
 
-impl From<database::achievements::DbAchievement> for Achievement {
-    fn from(db_achievement: database::achievements::DbAchievement) -> Self {
+impl From<database::zzz::achievements::DbAchievement> for Achievement {
+    fn from(db_achievement: database::zzz::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
             series: db_achievement.series,
             series_name: db_achievement.series_name.clone(),
             name: db_achievement.name.clone(),
             description: db_achievement.description.clone(),
-            jades: db_achievement.jades,
+            currency: db_achievement.polychromes,
             hidden: db_achievement.hidden,
             version: db_achievement.version.clone(),
             comment: db_achievement.comment.clone(),
@@ -90,20 +85,20 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_achievements).configure(id::configure);
+    cfg.service(get_zzz_achievements).configure(id::configure);
 }
 
 #[utoipa::path(
-    tag = "achievements",
+    tag = "zzz/achievements",
     get,
-    path = "/api/achievements",
+    path = "/api/zzz/achievements",
     params(LanguageParams),
     responses(
         (status = 200, description = "[Achievement]", body = Vec<Achievement>),
     )
 )]
-#[get("/api/achievements")]
-async fn get_achievements(
+#[get("/api/zzz/achievements")]
+async fn get_zzz_achievements(
     session: Session,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
@@ -116,7 +111,8 @@ async fn get_achievements(
         false
     };
 
-    let mut db_achievements = database::achievements::get_all(language_params.lang, &pool).await?;
+    let mut db_achievements =
+        database::zzz::achievements::get_all(language_params.lang, &pool).await?;
 
     if !admin {
         db_achievements.retain(|a| !(a.hidden && a.impossible));
@@ -130,7 +126,8 @@ async fn get_achievements(
     for achievement in &mut achievements {
         if let Some(set) = achievement.set {
             achievement.related = Some(
-                database::achievements::get_all_related_ids(achievement.id, set, &pool).await?,
+                database::zzz::achievements::get_all_related_ids(achievement.id, set, &pool)
+                    .await?,
             );
         }
     }

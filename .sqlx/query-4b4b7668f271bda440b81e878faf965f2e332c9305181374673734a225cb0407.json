@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    zzz_achievements.*,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $1\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $1\n    ORDER BY\n        zzz_achievement_series.priority DESC,\n        series,\n        priority DESC,\n        id;\n\n",
+  "query": "SELECT\n    zzz_achievements.*,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -101,6 +101,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Text"
       ]
     },
@@ -126,5 +127,5 @@
       false
     ]
   },
-  "hash": "2fde6eee84770207048be6b4fa8b930ef94a72b8dd5c1198ab66242740f38070"
+  "hash": "4b4b7668f271bda440b81e878faf965f2e332c9305181374673734a225cb0407"
 }

@@ -19,6 +19,8 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub video: Option<String>,
     pub gacha: bool,
+    pub timegated: bool,
+    pub missable: bool,
     pub impossible: bool,
     pub set: Option<i32>,
     pub percent: f64,
@@ -54,6 +56,19 @@ pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievem
             .fetch_all(pool)
             .await?,
     )
+}
+
+pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievement> {
+    let language = language.to_string();
+
+    Ok(sqlx::query_file_as!(
+        DbAchievement,
+        "sql/zzz/achievements/get_one_by_id.sql",
+        id,
+        language,
+    )
+    .fetch_one(pool)
+    .await?)
 }
 
 pub async fn get_all_related_ids(id: i32, set: i32, pool: &PgPool) -> Result<Vec<i32>> {

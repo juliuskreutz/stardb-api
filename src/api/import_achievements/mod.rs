@@ -142,6 +142,20 @@ async fn import_achievements(
             &pool,
         )
         .await?;
+
+        database::achievements::update_timegated_by_id(
+            achievement.key,
+            achievement.timegated.is_some(),
+            &pool,
+        )
+        .await?;
+
+        database::achievements::update_missable_by_id(
+            achievement.key,
+            achievement.missable.is_some(),
+            &pool,
+        )
+        .await?;
     }
 
     Ok(HttpResponse::Ok().finish())
