@@ -283,30 +283,6 @@ async fn import_warps(
 
             let id = entry.id.parse()?;
             let uid: i32 = entry.uid.parse()?;
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
-
-            // FIXME: Temp
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(1),
-                pool,
-            )
-            .await?;
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(6),
-                pool,
-            )
-            .await?;
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(13),
-                pool,
-            )
-            .await?;
-            // FIXME: Temp
 
             if database::get_warp_by_id_and_uid(id, uid, Language::En, pool)
                 .await
@@ -331,6 +307,10 @@ async fn import_warps(
                     return Err(anyhow::anyhow!("{} is weird...", entry.item_type).into());
                 }
             }
+
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
 
             warp_id.push(id);
             warp_uid.push(uid);

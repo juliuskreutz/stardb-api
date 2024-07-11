@@ -142,27 +142,6 @@ async fn post_srs_warps_import(
 
             let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
 
-            // FIXME: Temp
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(1),
-                &pool,
-            )
-            .await?;
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(6),
-                &pool,
-            )
-            .await?;
-            database::delete_warp_by_id_and_timestamp(
-                id,
-                timestamp + chrono::Duration::hours(13),
-                &pool,
-            )
-            .await?;
-            // FIXME: Temp
-
             warp_id.push(id);
             warp_uid.push(uid);
             warp_character.push(character);
