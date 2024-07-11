@@ -82,6 +82,17 @@ pub async fn get_all_related_ids(id: i32, set: i32, pool: &PgPool) -> Result<Vec
     )
 }
 
+pub async fn get_all_ids_shown(pool: &PgPool) -> Result<Vec<i32>> {
+    Ok(
+        sqlx::query_file!("sql/zzz/achievements/get_all_ids_shown.sql")
+            .fetch_all(pool)
+            .await?
+            .iter()
+            .map(|r| r.id)
+            .collect(),
+    )
+}
+
 pub async fn update_version_by_id(id: i32, version: &str, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/zzz/achievements/update_version_by_id.sql", id, version)
         .execute(pool)

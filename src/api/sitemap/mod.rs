@@ -173,6 +173,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 
 async fn update(pool: PgPool) -> anyhow::Result<()> {
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
+    let zzz_achievement_ids = database::zzz::achievements::get_all_ids_shown(&pool).await?;
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
     let warp_uids = database::get_warp_uids(&pool).await?;
     let signal_uids = database::zzz::signals::get_uids(&pool).await?;
@@ -223,6 +224,34 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             let url = Url {
                 loc: format!("https://stardb.gg/{language}/database/achievements/{id}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
+        }
+
+        for id in &zzz_achievement_ids {
+            let mut links = Vec::new();
+
+            for link_language in &languages {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!(
+                        "https://stardb.gg/{link_language}/zzz/database/achievements/{id}"
+                    ),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/zzz/database/achievements/{id}"),
                 lastmod: LASTMOD.to_string(),
                 links,
             };

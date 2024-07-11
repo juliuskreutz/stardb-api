@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    id\nFROM\n    zzz_achievements\nWHERE\n    NOT (hidden\n        AND impossible);\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "efde0fb0119d954daade9dd779bd303d51c28b1a68481ee44fef2ab1ca09e944"
+}
