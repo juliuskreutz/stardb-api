@@ -1,5 +1,14 @@
 SELECT
     uid
 FROM
-    mihomo;
+    mihomo
+WHERE
+    NOT EXISTS (
+        SELECT
+            *
+        FROM
+            connections
+        WHERE
+            connections.uid = mihomo.uid
+            AND private);
 

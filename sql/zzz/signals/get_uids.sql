@@ -9,13 +9,13 @@ WHERE
         FROM
             zzz_signals
         WHERE
-            zzz_uids.uid = zzz_signals.uid)
+            zzz_signals.uid = zzz_uids.uid)
     AND NOT EXISTS (
         SELECT
             *
         FROM
             zzz_connections
         WHERE
-            zzz_uids.uid = zzz_connections.uid
-            AND zzz_connections.private);
+            zzz_connections.uid = zzz_uids.uid
+            AND private);
 

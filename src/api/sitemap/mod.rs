@@ -174,6 +174,7 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 async fn update(pool: PgPool) -> anyhow::Result<()> {
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let zzz_achievement_ids = database::zzz::achievements::get_all_ids_shown(&pool).await?;
+
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
     let warp_uids = database::get_warp_uids(&pool).await?;
     let signal_uids = database::zzz::signals::get_uids(&pool).await?;
@@ -183,6 +184,26 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
     let mut urls = Vec::new();
 
     let languages: Vec<_> = Language::iter().map(|l| l.to_string()).collect();
+
+    for uid in &mihomo_uids {
+        for path in ["overview", "characters", "collection"] {
+            let links = Vec::new();
+
+            let url = Url {
+                loc: format!("https://stardb.gg/en/profile/{uid}/{path}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
+        }
+    }
 
     for language in &languages {
         for route in LOCALIZED_ROUTES {
@@ -265,33 +286,35 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
             }
         }
 
-        for uid in &mihomo_uids {
-            for path in ["overview", "characters", "collection"] {
-                let mut links = Vec::new();
-
-                for link_language in &languages {
-                    links.push(Link {
-                        rel: "alternate".to_string(),
-                        hreflang: link_language.to_string(),
-                        href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
-                    });
-                }
-
-                let url = Url {
-                    loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
-                    lastmod: LASTMOD.to_string(),
-                    links,
-                };
-
-                urls.push(url);
-
-                if urls.len() >= MAX_URLS {
-                    write_urls(count, urls)?;
-                    count += 1;
-                    urls = Vec::new();
-                }
-            }
-        }
+        //TODO: Comment in when client emulator works
+        //
+        //for uid in &mihomo_uids {
+        //    for path in ["overview", "characters", "collection"] {
+        //        let mut links = Vec::new();
+        //
+        //        for link_language in &languages {
+        //            links.push(Link {
+        //                rel: "alternate".to_string(),
+        //                hreflang: link_language.to_string(),
+        //                href: format!("https://stardb.gg/{link_language}/profile/{uid}/{path}"),
+        //            });
+        //        }
+        //
+        //        let url = Url {
+        //            loc: format!("https://stardb.gg/{language}/profile/{uid}/{path}"),
+        //            lastmod: LASTMOD.to_string(),
+        //            links,
+        //        };
+        //
+        //        urls.push(url);
+        //
+        //        if urls.len() >= MAX_URLS {
+        //            write_urls(count, urls)?;
+        //            count += 1;
+        //            urls = Vec::new();
+        //        }
+        //    }
+        //}
 
         for uid in &warp_uids {
             let mut links = Vec::new();
