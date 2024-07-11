@@ -154,8 +154,17 @@ async fn post_warps_import(
     if !database::mihomo::exists(uid, &pool).await?
         && mihomo::get(uid, Language::En, &pool).await.is_err()
     {
+        let region = match uid.to_string().chars().next() {
+            Some('6') => "na",
+            Some('7') => "eu",
+            Some('8') | Some('9') => "asia",
+            _ => "cn",
+        }
+        .to_string();
+
         let db_mihomo = database::mihomo::DbMihomo {
             uid,
+            region,
             ..Default::default()
         };
 
