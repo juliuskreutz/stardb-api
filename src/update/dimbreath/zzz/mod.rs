@@ -228,5 +228,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     texts::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
 
+    *up_to_date = true;
+
     Ok(())
 }
