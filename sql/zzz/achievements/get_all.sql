@@ -13,7 +13,6 @@ FROM
     JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id
         AND zzz_achievement_series_text.language = $1
     ORDER BY
-        zzz_achievement_series.priority DESC,
         series,
         priority DESC,
         id;
