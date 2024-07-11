@@ -25,9 +25,9 @@
               pkgsStatic.buildPackages.rust-bin.stable.latest.default
               rust-analyzer
               taplo
-              postgresql
               sqlx-cli
               pgformatter
+              schemacrawler
             ];
 
             RUSTFLAGS = "-C link-args=-D_FORTIFY_SOURCE=0";
