@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO warps_stats_lc (uid, count_percentile, luck_4, luck_4_percentile, luck_5, luck_5_percentile, win_rate, win_streak, loss_streak)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::double precision[], $3::double precision[], $4::double precision[], $5::double precision[], $6::double precision[], $7::double precision[], $8::integer[], $9::integer[])\nON CONFLICT (uid)\n    DO UPDATE SET\n        count_percentile = EXCLUDED.count_percentile,\n        luck_4 = EXCLUDED.luck_4,\n        luck_4_percentile = EXCLUDED.luck_4_percentile,\n        luck_5 = EXCLUDED.luck_5,\n        luck_5_percentile = EXCLUDED.luck_5_percentile,\n        win_rate = EXCLUDED.win_rate,\n        win_streak = EXCLUDED.win_streak,\n        loss_streak = EXCLUDED.loss_streak;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array",
+        "Int4Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e8132aa21eb8d17658a1429cfa8a9950c62dbd1ee5ce2719042d195ef43c8fed"
+}

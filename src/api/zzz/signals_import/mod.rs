@@ -264,19 +264,19 @@ async fn import_signals(
             end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
+            let uid: i32 = entry.uid.parse()?;
 
-            if database::zzz::signals::get_by_id_and_timestamp(id, timestamp, Language::En, pool)
+            if database::zzz::signals::get_by_id_and_uid(id, uid, Language::En, pool)
                 .await
                 .is_ok()
             {
                 continue;
             }
 
-            let uid: i32 = entry.uid.parse()?;
             let item: i32 = entry.item_id.parse()?;
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
 
             let mut character =
                 (entry.item_type == "Agents" || entry.item_type == "代理人").then_some(item);

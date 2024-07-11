@@ -10,8 +10,8 @@
       },
       {
         "ordinal": 1,
-        "name": "count_rank",
-        "type_info": "Int4"
+        "name": "count_percentile",
+        "type_info": "Float8"
       },
       {
         "ordinal": 2,
@@ -20,8 +20,8 @@
       },
       {
         "ordinal": 3,
-        "name": "luck_4_rank",
-        "type_info": "Int4"
+        "name": "luck_4_percentile",
+        "type_info": "Float8"
       },
       {
         "ordinal": 4,
@@ -30,8 +30,8 @@
       },
       {
         "ordinal": 5,
-        "name": "luck_5_rank",
-        "type_info": "Int4"
+        "name": "luck_5_percentile",
+        "type_info": "Float8"
       }
     ],
     "parameters": {

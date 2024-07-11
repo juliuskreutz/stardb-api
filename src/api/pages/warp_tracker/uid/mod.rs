@@ -89,11 +89,11 @@ struct Warps {
 #[derive(Serialize)]
 struct Stats {
     users: i32,
-    count_rank: i32,
+    count_percentile: f64,
     luck_4: f64,
-    luck_4_rank: i32,
+    luck_4_percentile: f64,
     luck_5: f64,
-    luck_5_rank: i32,
+    luck_5_percentile: f64,
     win_rate: Option<f64>,
     win_streak: Option<i32>,
     loss_streak: Option<i32>,
@@ -282,11 +282,11 @@ async fn get_warp_tracker(
 
         standard.stats = Some(Stats {
             users,
-            count_rank: stats.count_rank,
+            count_percentile: stats.count_percentile,
             luck_4: stats.luck_4,
-            luck_4_rank: stats.luck_4_rank,
+            luck_4_percentile: stats.luck_4_percentile,
             luck_5: stats.luck_5,
-            luck_5_rank: stats.luck_5_rank,
+            luck_5_percentile: stats.luck_5_percentile,
             win_rate: None,
             win_streak: None,
             loss_streak: None,
@@ -298,11 +298,11 @@ async fn get_warp_tracker(
 
         special.stats = Some(Stats {
             users,
-            count_rank: stats.count_rank,
+            count_percentile: stats.count_percentile,
             luck_4: stats.luck_4,
-            luck_4_rank: stats.luck_4_rank,
+            luck_4_percentile: stats.luck_4_percentile,
             luck_5: stats.luck_5,
-            luck_5_rank: stats.luck_5_rank,
+            luck_5_percentile: stats.luck_5_percentile,
             win_rate: Some(stats.win_rate),
             win_streak: Some(stats.win_streak),
             loss_streak: Some(stats.loss_streak),
@@ -314,11 +314,11 @@ async fn get_warp_tracker(
 
         lc.stats = Some(Stats {
             users,
-            count_rank: stats.count_rank,
+            count_percentile: stats.count_percentile,
             luck_4: stats.luck_4,
-            luck_4_rank: stats.luck_4_rank,
+            luck_4_percentile: stats.luck_4_percentile,
             luck_5: stats.luck_5,
-            luck_5_rank: stats.luck_5_rank,
+            luck_5_percentile: stats.luck_5_percentile,
             win_rate: Some(stats.win_rate),
             win_streak: Some(stats.win_streak),
             loss_streak: Some(stats.loss_streak),

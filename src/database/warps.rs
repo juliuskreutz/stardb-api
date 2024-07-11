@@ -237,9 +237,9 @@ pub async fn get_warp_infos_by_uid_and_gacha_type(
     .await?)
 }
 
-pub async fn get_warp_by_id_and_timestamp(
+pub async fn get_warp_by_id_and_uid(
     id: i64,
-    timestamp: DateTime<Utc>,
+    uid: i32,
     language: Language,
     pool: &PgPool,
 ) -> Result<DbWarp> {
@@ -279,10 +279,10 @@ pub async fn get_warp_by_id_and_timestamp(
         WHERE
             warps.id = $1
         AND
-            timestamp = $2
+            uid = $2
         ",
         id,
-        timestamp,
+        uid,
         language,
     )
     .fetch_one(pool)

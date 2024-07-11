@@ -124,32 +124,33 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
 
-    let count_ranks: HashMap<_, _> = sorted_count
+    let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_4_ranks: HashMap<_, _> = sorted_luck_4
+    let luck_4_percentiles: HashMap<_, _> = sorted_luck_4
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_5_ranks: HashMap<_, _> = sorted_luck_5
+    let luck_5_percentiles: HashMap<_, _> = sorted_luck_5
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
+    let len = set_all.uid.len() as f64;
     for uid in &set_all.uid {
-        let count_rank = count_ranks[uid] as i32;
-        let luck4_rank = luck_4_ranks[uid] as i32;
-        let luck5_rank = luck_5_ranks[uid] as i32;
+        let count_percentile = count_percentiles[uid] as f64 / len;
+        let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
+        let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_rank.push(count_rank);
-        set_all.luck_4_rank.push(luck4_rank);
-        set_all.luck_5_rank.push(luck5_rank);
+        set_all.count_percentile.push(count_percentile);
+        set_all.luck_4_percentile.push(luck_4_percentile);
+        set_all.luck_5_percentile.push(luck_5_percentile);
     }
 
     database::warps_stats_standard::set_all(&set_all, pool).await?;
@@ -265,32 +266,33 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
 
-    let count_ranks: HashMap<_, _> = sorted_count
+    let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_4_ranks: HashMap<_, _> = sorted_luck_4
+    let luck_4_percentiles: HashMap<_, _> = sorted_luck_4
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_5_ranks: HashMap<_, _> = sorted_luck_5
+    let luck_5_percentiles: HashMap<_, _> = sorted_luck_5
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
+    let len = set_all.uid.len() as f64;
     for uid in &set_all.uid {
-        let count_rank = count_ranks[uid] as i32;
-        let luck4_rank = luck_4_ranks[uid] as i32;
-        let luck5_rank = luck_5_ranks[uid] as i32;
+        let count_percentile = count_percentiles[uid] as f64 / len;
+        let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
+        let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_rank.push(count_rank);
-        set_all.luck_4_rank.push(luck4_rank);
-        set_all.luck_5_rank.push(luck5_rank);
+        set_all.count_percentile.push(count_percentile);
+        set_all.luck_4_percentile.push(luck_4_percentile);
+        set_all.luck_5_percentile.push(luck_5_percentile);
     }
 
     database::warps_stats_special::set_all(&set_all, pool).await?;
@@ -406,32 +408,33 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
 
-    let count_ranks: HashMap<_, _> = sorted_count
+    let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_4_ranks: HashMap<_, _> = sorted_luck_4
+    let luck_4_percentiles: HashMap<_, _> = sorted_luck_4
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let luck_5_ranks: HashMap<_, _> = sorted_luck_5
+    let luck_5_percentiles: HashMap<_, _> = sorted_luck_5
         .into_iter()
         .enumerate()
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
+    let len = set_all.uid.len() as f64;
     for uid in &set_all.uid {
-        let count_rank = count_ranks[uid] as i32;
-        let luck4_rank = luck_4_ranks[uid] as i32;
-        let luck5_rank = luck_5_ranks[uid] as i32;
+        let count_percentile = count_percentiles[uid] as f64 / len;
+        let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
+        let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_rank.push(count_rank);
-        set_all.luck_4_rank.push(luck4_rank);
-        set_all.luck_5_rank.push(luck5_rank);
+        set_all.count_percentile.push(count_percentile);
+        set_all.luck_4_percentile.push(luck_4_percentile);
+        set_all.luck_5_percentile.push(luck_5_percentile);
     }
 
     database::warps_stats_lc::set_all(&set_all, pool).await?;

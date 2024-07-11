@@ -273,6 +273,7 @@ async fn import_warps(
             end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
+            let uid: i32 = entry.uid.parse()?;
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
                 .and_utc()
                 - timestamp_offset;
@@ -298,14 +299,13 @@ async fn import_warps(
             .await?;
             // FIXME: Temp
 
-            if database::get_warp_by_id_and_timestamp(id, timestamp, Language::En, pool)
+            if database::get_warp_by_id_and_uid(id, uid, Language::En, pool)
                 .await
                 .is_ok()
             {
                 continue;
             }
 
-            let uid: i32 = entry.uid.parse()?;
             let item: i32 = entry.item_id.parse()?;
 
             let mut character =

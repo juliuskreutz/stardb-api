@@ -22,5 +22,5 @@ FROM
         AND zzz_bangboos_text.language = $3
 WHERE
     zzz_signals.id = $1
-    AND timestamp = $2;
+    AND uid = $2;
 

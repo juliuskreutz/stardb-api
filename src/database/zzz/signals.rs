@@ -89,9 +89,9 @@ pub async fn get_by_uid_and_gacha_type(
     .await?)
 }
 
-pub async fn get_by_id_and_timestamp(
+pub async fn get_by_id_and_uid(
     id: i64,
-    timestamp: DateTime<Utc>,
+    uid: i32,
     language: Language,
     pool: &PgPool,
 ) -> Result<DbSignal> {
@@ -101,7 +101,7 @@ pub async fn get_by_id_and_timestamp(
         DbSignal,
         "sql/zzz/signals/get_by_id_and_timestamp.sql",
         id,
-        timestamp,
+        uid,
         language,
     )
     .fetch_one(pool)

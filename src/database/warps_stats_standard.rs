@@ -3,33 +3,33 @@ use sqlx::PgPool;
 
 pub struct DbWarpsStatStandard {
     pub uid: i32,
-    pub count_rank: i32,
+    pub count_percentile: f64,
     pub luck_4: f64,
-    pub luck_4_rank: i32,
+    pub luck_4_percentile: f64,
     pub luck_5: f64,
-    pub luck_5_rank: i32,
+    pub luck_5_percentile: f64,
 }
 
 #[derive(Default)]
 pub struct SetAll {
     pub uid: Vec<i32>,
     pub count: Vec<i32>,
-    pub count_rank: Vec<i32>,
+    pub count_percentile: Vec<f64>,
     pub luck_4: Vec<f64>,
-    pub luck_4_rank: Vec<i32>,
+    pub luck_4_percentile: Vec<f64>,
     pub luck_5: Vec<f64>,
-    pub luck_5_rank: Vec<i32>,
+    pub luck_5_percentile: Vec<f64>,
 }
 
 pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/warps_stats_standard/set_all.sql",
         &set_all.uid,
-        &set_all.count_rank,
+        &set_all.count_percentile,
         &set_all.luck_4,
-        &set_all.luck_4_rank,
+        &set_all.luck_4_percentile,
         &set_all.luck_5,
-        &set_all.luck_5_rank
+        &set_all.luck_5_percentile
     )
     .execute(pool)
     .await?;
