@@ -13,7 +13,7 @@ pub async fn spawn(pool: PgPool) {
     actix::Arbiter::new().spawn(async move {
         let mut success = true;
 
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60 * 24));
+        let mut interval = rt::time::interval(Duration::from_secs(60 * 60));
 
         loop {
             if success {
