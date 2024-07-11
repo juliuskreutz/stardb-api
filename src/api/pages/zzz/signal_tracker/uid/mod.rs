@@ -170,7 +170,10 @@ async fn get_signal_tracker(
 
                 match signal.rarity {
                     3 => standard_pull_a = 0,
-                    4 => standard_pull_s = 0,
+                    4 => {
+                        standard_pull_a = 0;
+                        standard_pull_s = 0;
+                    }
                     _ => {}
                 }
 
@@ -187,7 +190,10 @@ async fn get_signal_tracker(
 
                 match signal.rarity {
                     3 => special_pull_a = 0,
-                    4 => special_pull_s = 0,
+                    4 => {
+                        special_pull_a = 0;
+                        special_pull_s = 0;
+                    }
                     _ => {}
                 }
 
@@ -204,7 +210,10 @@ async fn get_signal_tracker(
 
                 match signal.rarity {
                     3 => w_engine_pull_a = 0,
-                    4 => w_engine_pull_s = 0,
+                    4 => {
+                        w_engine_pull_a = 0;
+                        w_engine_pull_s = 0;
+                    }
                     _ => {}
                 }
 
@@ -221,7 +230,10 @@ async fn get_signal_tracker(
 
                 match signal.rarity {
                     3 => bangboo_pull_a = 0,
-                    4 => bangboo_pull_s = 0,
+                    4 => {
+                        bangboo_pull_a = 0;
+                        bangboo_pull_s = 0;
+                    }
                     _ => {}
                 }
 
