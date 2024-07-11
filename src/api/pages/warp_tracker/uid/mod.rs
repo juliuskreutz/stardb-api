@@ -238,15 +238,15 @@ async fn get_warp_tracker(
 
     standard.pull_4 = standard_pull_4;
     standard.max_pull_4 = 10;
-    standard.probability_4 = if standard_pull_4 < 10 { 5.1 } else { 100.0 };
+    standard.probability_4 = if standard_pull_4 < 9 { 5.1 } else { 100.0 };
 
     special.pull_4 = special_pull_4;
     special.max_pull_4 = 10;
-    special.probability_4 = if special_pull_4 < 10 { 5.1 } else { 100.0 };
+    special.probability_4 = if special_pull_4 < 9 { 5.1 } else { 100.0 };
 
     lc.pull_4 = lc_pull_4;
     lc.max_pull_4 = 10;
-    lc.probability_4 = if lc_pull_4 < 10 { 6.6 } else { 100.0 };
+    lc.probability_4 = if lc_pull_4 < 9 { 6.6 } else { 100.0 };
 
     standard.pull_5 = standard_pull_5;
     standard.max_pull_5 = 90;
