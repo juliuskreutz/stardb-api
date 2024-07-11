@@ -16,7 +16,7 @@ pub async fn add(user_achievement: &DbUserAchievementFavorite, pool: &PgPool) ->
     .await?;
 
     if let Some(set) = sqlx::query!(
-        "SELECT set FROM achievements WHERE id = $1",
+        "SELECT set FROM zzz_achievements WHERE id = $1",
         user_achievement.id,
     )
     .fetch_one(pool)
