@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    zzz_achievements\nSET\n    missable = $2\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5f50b84a2aaafa43103b7569035f87abfa965d0272df27adde5f5cffa8ad2bc2"
+}

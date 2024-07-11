@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    zzz_achievements\nSET\n    timegated = $2\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "be8ce24d4d9d8a6684374c06e906528bd08ff4213b2890b32bf1a96fddeab434"
+}

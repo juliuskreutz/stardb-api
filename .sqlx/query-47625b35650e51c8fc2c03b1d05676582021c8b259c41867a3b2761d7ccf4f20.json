@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    zzz_achievements\nSET\n    comment = NULL\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "47625b35650e51c8fc2c03b1d05676582021c8b259c41867a3b2761d7ccf4f20"
+}

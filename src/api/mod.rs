@@ -8,6 +8,7 @@ mod characters;
 mod free_jade_alert;
 mod import_achievements;
 mod import_books;
+mod import_zzz_achievements;
 mod index;
 mod languages;
 mod light_cones;
@@ -96,6 +97,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
+    openapi.merge(import_zzz_achievements::openapi());
     openapi.merge(index::openapi());
     openapi.merge(languages::openapi());
     openapi.merge(light_cones::openapi());
@@ -126,6 +128,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(free_jade_alert::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
+        .configure(import_zzz_achievements::configure)
         .configure(index::configure)
         .configure(languages::configure)
         .configure(light_cones::configure)
