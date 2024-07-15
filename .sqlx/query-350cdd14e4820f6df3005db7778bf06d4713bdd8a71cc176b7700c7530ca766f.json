@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    warps_stats_lc\nSET\n    count_percentile = $2,\n    luck_4_percentile = $3,\n    luck_5_percentile = $4\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "350cdd14e4820f6df3005db7778bf06d4713bdd8a71cc176b7700c7530ca766f"
+}
