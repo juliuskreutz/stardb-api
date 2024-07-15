@@ -118,17 +118,14 @@ async fn post_srs_warps_import(
     let warps: Warps =
         serde_json::from_value(srs.data.stores[&format!("{profile}_warp-v2")].clone())?;
 
-    let mut warp_id = Vec::new();
-    let mut warp_uid = Vec::new();
-    let mut warp_character = Vec::new();
-    let mut warp_light_cone = Vec::new();
-    let mut warp_gacha_type = Vec::new();
-    let mut warp_timestamp = Vec::new();
-    let mut warp_official = Vec::new();
+    let mut set_all_departure = database::warps::SetAll::default();
+    let mut set_all_standard = database::warps::SetAll::default();
+    let mut set_all_special = database::warps::SetAll::default();
+    let mut set_all_lc = database::warps::SetAll::default();
 
     for (warps, gacha_type) in [
-        (&warps.standard, GachaType::Standard),
         (&warps.departure, GachaType::Departure),
+        (&warps.standard, GachaType::Standard),
         (&warps.special, GachaType::Special),
         (&warps.lc, GachaType::Lc),
     ] {
@@ -142,27 +139,242 @@ async fn post_srs_warps_import(
 
             let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
 
-            warp_id.push(id);
-            warp_uid.push(uid);
-            warp_character.push(character);
-            warp_light_cone.push(light_cone);
-            warp_gacha_type.push(gacha_type);
-            warp_timestamp.push(timestamp);
-            warp_official.push(false);
+            let set_all = match gacha_type {
+                GachaType::Departure => &mut set_all_departure,
+                GachaType::Standard => &mut set_all_standard,
+                GachaType::Special => &mut set_all_special,
+                GachaType::Lc => &mut set_all_lc,
+            };
+
+            set_all.id.push(id);
+            set_all.uid.push(uid);
+            set_all.character.push(character);
+            set_all.light_cone.push(light_cone);
+            set_all.timestamp.push(timestamp);
+            set_all.official.push(false);
         }
     }
 
-    database::set_all_warps(
-        &warp_id,
-        &warp_uid,
-        &warp_gacha_type,
-        &warp_character,
-        &warp_light_cone,
-        &warp_timestamp,
-        &warp_official,
-        &pool,
-    )
-    .await?;
+    database::warps::departure::set_all(&set_all_departure, &pool).await?;
+    database::warps::standard::set_all(&set_all_standard, &pool).await?;
+    database::warps::special::set_all(&set_all_special, &pool).await?;
+    database::warps::lc::set_all(&set_all_lc, &pool).await?;
+
+    calculate_stats_standard(uid, &pool).await?;
+    calculate_stats_special(uid, &pool).await?;
+    calculate_stats_lc(uid, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let warps = database::warps::standard::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_4 = 0;
+    let mut sum_4 = 0;
+    let mut count_4 = 0;
+
+    let mut pull_5 = 0;
+    let mut sum_5 = 0;
+    let mut count_5 = 0;
+
+    for warp in &warps {
+        pull_4 += 1;
+        pull_5 += 1;
+
+        match warp.rarity.unwrap() {
+            4 => {
+                count_4 += 1;
+                sum_4 += pull_4;
+                pull_4 = 0;
+            }
+            5 => {
+                count_5 += 1;
+                sum_5 += pull_5;
+                pull_5 = 0;
+            }
+            _ => {}
+        }
+    }
+
+    let luck_4 = sum_4 as f64 / count_4 as f64;
+    let luck_5 = sum_5 as f64 / count_5 as f64;
+
+    let set_data = database::warps_stats_standard::SetData {
+        uid,
+        luck_4,
+        luck_5,
+    };
+    database::warps_stats_standard::set_data(&set_data, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let warps = database::warps::special::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_4 = 0;
+    let mut sum_4 = 0;
+    let mut count_4 = 0;
+
+    let mut pull_5 = 0;
+    let mut sum_5 = 0;
+    let mut count_5 = 0;
+
+    let mut guarantee = false;
+
+    let mut sum_win = 0;
+    let mut count_win = 0;
+
+    let mut win_streak = 0;
+    let mut max_win_streak = 0;
+
+    let mut loss_streak = 0;
+    let mut max_loss_streak = 0;
+
+    for warp in &warps {
+        pull_4 += 1;
+        pull_5 += 1;
+
+        match warp.rarity.unwrap() {
+            4 => {
+                count_4 += 1;
+                sum_4 += pull_4;
+                pull_4 = 0;
+            }
+            5 => {
+                count_5 += 1;
+                sum_5 += pull_5;
+                pull_5 = 0;
+
+                if guarantee {
+                    guarantee = false;
+                } else {
+                    count_win += 1;
+
+                    if [1209, 1004, 1101, 1211, 1104, 1107, 1003].contains(&warp.character.unwrap())
+                    {
+                        win_streak = 0;
+
+                        loss_streak += 1;
+                        max_loss_streak = max_loss_streak.max(loss_streak);
+
+                        guarantee = true;
+                    } else {
+                        sum_win += 1;
+
+                        loss_streak = 0;
+
+                        win_streak += 1;
+                        max_win_streak = max_win_streak.max(win_streak);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let win_streak = max_win_streak;
+    let loss_streak = max_loss_streak;
+
+    let luck_4 = sum_4 as f64 / count_4 as f64;
+    let luck_5 = sum_5 as f64 / count_5 as f64;
+    let win_rate = sum_win as f64 / count_win as f64;
+
+    let set_data = database::warps_stats_special::SetData {
+        uid,
+        luck_4,
+        luck_5,
+        win_rate,
+        win_streak,
+        loss_streak,
+    };
+    database::warps_stats_special::set_data(&set_data, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let warps = database::warps::lc::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_4 = 0;
+    let mut sum_4 = 0;
+    let mut count_4 = 0;
+
+    let mut pull_5 = 0;
+    let mut sum_5 = 0;
+    let mut count_5 = 0;
+
+    let mut guarantee = false;
+
+    let mut sum_win = 0;
+    let mut count_win = 0;
+
+    let mut win_streak = 0;
+    let mut max_win_streak = 0;
+
+    let mut loss_streak = 0;
+    let mut max_loss_streak = 0;
+
+    for warp in &warps {
+        pull_4 += 1;
+        pull_5 += 1;
+
+        match warp.rarity.unwrap() {
+            4 => {
+                count_4 += 1;
+                sum_4 += pull_4;
+                pull_4 = 0;
+            }
+            5 => {
+                count_5 += 1;
+                sum_5 += pull_5;
+                pull_5 = 0;
+
+                if guarantee {
+                    guarantee = false;
+                } else {
+                    count_win += 1;
+
+                    if [23000, 23002, 23003, 23004, 23005, 23012, 23013]
+                        .contains(&warp.light_cone.unwrap())
+                    {
+                        win_streak = 0;
+
+                        loss_streak += 1;
+                        max_loss_streak = max_loss_streak.max(loss_streak);
+
+                        guarantee = true;
+                    } else {
+                        sum_win += 1;
+
+                        loss_streak = 0;
+
+                        win_streak += 1;
+                        max_win_streak = max_win_streak.max(win_streak);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let win_streak = max_win_streak;
+    let loss_streak = max_loss_streak;
+
+    let luck_4 = sum_4 as f64 / count_4 as f64;
+    let luck_5 = sum_5 as f64 / count_5 as f64;
+    let win_rate = sum_win as f64 / count_win as f64;
+
+    let set_data = database::warps_stats_lc::SetData {
+        uid,
+        luck_4,
+        luck_5,
+        win_rate,
+        win_streak,
+        loss_streak,
+    };
+    database::warps_stats_lc::set_data(&set_data, pool).await?;
+
+    Ok(())
 }

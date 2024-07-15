@@ -8,7 +8,7 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, LanguageParams, Region},
-    database, mihomo, GachaType, Language,
+    database, mihomo, Language,
 };
 
 #[derive(OpenApi)]
@@ -68,8 +68,8 @@ struct LightCone {
     count: i64,
 }
 
-impl From<database::DbCharacterCount> for Character {
-    fn from(db_character: database::DbCharacterCount) -> Self {
+impl From<database::warps::DbCharacterCount> for Character {
+    fn from(db_character: database::warps::DbCharacterCount) -> Self {
         Character {
             id: db_character.id,
             rarity: db_character.rarity,
@@ -83,8 +83,8 @@ impl From<database::DbCharacterCount> for Character {
     }
 }
 
-impl From<database::DbLightConeCount> for LightCone {
-    fn from(db_light_cone: database::DbLightConeCount) -> Self {
+impl From<database::warps::DbLightConeCount> for LightCone {
+    fn from(db_light_cone: database::warps::DbLightConeCount) -> Self {
         LightCone {
             id: db_light_cone.id,
             rarity: db_light_cone.rarity,
@@ -210,28 +210,16 @@ async fn get_profile_json(
 
     let updated_at = score_achievement.updated_at;
 
-    let warps_count = database::get_warp_counts_by_uid(uid, pool).await?;
-    let character_counts = database::get_characters_count_by_uid(uid, lang, pool).await?;
-    let light_cones_counts = database::get_light_cones_count_by_uid(uid, lang, pool).await?;
+    let character_counts = database::warps::get_characters_count_by_uid(uid, lang, pool).await?;
+    let light_cones_counts = database::warps::get_light_cones_count_by_uid(uid, lang, pool).await?;
 
-    let mut total = 0;
-    let mut departure = 0;
-    let mut standard = 0;
-    let mut special = 0;
-    let mut lc = 0;
-    for wc in &warps_count {
-        let count = wc.count.unwrap_or_default();
-        total += count;
-        match wc.gacha_type.parse()? {
-            GachaType::Departure => departure = count,
-            GachaType::Standard => standard = count,
-            GachaType::Special => special = count,
-            GachaType::Lc => lc = count,
-        }
-    }
+    let departure = database::warps::departure::get_count_by_uid(uid, pool).await?;
+    let standard = database::warps::standard::get_count_by_uid(uid, pool).await?;
+    let special = database::warps::special::get_count_by_uid(uid, pool).await?;
+    let lc = database::warps::lc::get_count_by_uid(uid, pool).await?;
+    let total = departure + standard + special + lc;
 
     let characters = character_counts.into_iter().map(From::from).collect();
-
     let light_cones = light_cones_counts.into_iter().map(From::from).collect();
 
     let collection = Collection {

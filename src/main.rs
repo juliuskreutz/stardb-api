@@ -107,8 +107,8 @@ impl Language {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 enum GachaType {
-    Standard,
     Departure,
+    Standard,
     Special,
     Lc,
 }

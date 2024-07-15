@@ -176,7 +176,7 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
     let zzz_achievement_ids = database::zzz::achievements::get_all_ids_shown(&pool).await?;
 
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
-    let warp_uids = database::get_warp_uids(&pool).await?;
+    let warp_uids = database::warps::get_uids(&pool).await?;
     let signal_uids = database::zzz::signals::get_uids(&pool).await?;
 
     let mut count = 0;

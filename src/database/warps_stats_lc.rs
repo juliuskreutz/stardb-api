@@ -13,32 +13,44 @@ pub struct DbWarpsStatLc {
     pub loss_streak: i32,
 }
 
-#[derive(Default)]
-pub struct SetAll {
-    pub uid: Vec<i32>,
-    pub count: Vec<i32>,
-    pub count_percentile: Vec<f64>,
-    pub luck_4: Vec<f64>,
-    pub luck_4_percentile: Vec<f64>,
-    pub luck_5: Vec<f64>,
-    pub luck_5_percentile: Vec<f64>,
-    pub win_rate: Vec<f64>,
-    pub win_streak: Vec<i32>,
-    pub loss_streak: Vec<i32>,
+pub struct SetData {
+    pub uid: i32,
+    pub luck_4: f64,
+    pub luck_5: f64,
+    pub win_rate: f64,
+    pub win_streak: i32,
+    pub loss_streak: i32,
 }
 
-pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> Result<()> {
+pub async fn update_percentiles_by_uid(
+    uid: i32,
+    count_percentile: f64,
+    luck_4_percentile: f64,
+    luck_5_percentile: f64,
+    pool: &PgPool,
+) -> Result<()> {
     sqlx::query_file!(
-        "sql/warps_stats_lc/set_all.sql",
-        &set_all.uid,
-        &set_all.count_percentile,
-        &set_all.luck_4,
-        &set_all.luck_4_percentile,
-        &set_all.luck_5,
-        &set_all.luck_5_percentile,
-        &set_all.win_rate,
-        &set_all.win_streak,
-        &set_all.loss_streak,
+        "sql/warps_stats_lc/update_percentiles_by_uid.sql",
+        uid,
+        count_percentile,
+        luck_4_percentile,
+        luck_5_percentile
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn set_data(set_data: &SetData, pool: &PgPool) -> Result<()> {
+    sqlx::query_file!(
+        "sql/warps_stats_lc/set_data.sql",
+        set_data.uid,
+        set_data.luck_4,
+        set_data.luck_5,
+        set_data.win_rate,
+        set_data.win_streak,
+        set_data.loss_streak,
     )
     .execute(pool)
     .await?;

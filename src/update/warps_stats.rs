@@ -7,7 +7,7 @@ use actix_web::rt;
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::{database, GachaType};
+use crate::database;
 
 pub async fn spawn(pool: PgPool) {
     actix::Arbiter::new().spawn(async move {
@@ -42,7 +42,7 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(pool: PgPool) -> Result<()> {
-    let uids = database::get_warp_uids(&pool).await?;
+    let uids = database::warps::get_uids(&pool).await?;
 
     info!("Starting standard");
     standard(&uids, &pool).await?;
@@ -61,58 +61,24 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
-    let mut set_all = database::warps_stats_standard::SetAll::default();
+    let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let warps =
-            database::get_warp_infos_by_uid_and_gacha_type(uid, GachaType::Standard, pool).await?;
+        let Some(warp_stat) = database::warps_stats_standard::get_by_uid(uid, pool).await? else {
+            continue;
+        };
 
-        let count = warps.len() as i32;
+        let count = database::warps::standard::get_count_by_uid(uid, pool).await? as i32;
 
-        let mut pull_4 = 0;
-        let mut sum_4 = 0;
-        let mut count_4 = 0;
-
-        let mut pull_5 = 0;
-        let mut sum_5 = 0;
-        let mut count_5 = 0;
-
-        for warp in &warps {
-            pull_4 += 1;
-            pull_5 += 1;
-
-            match warp.rarity.unwrap() {
-                4 => {
-                    count_4 += 1;
-                    sum_4 += pull_4;
-                    pull_4 = 0;
-                }
-                5 => {
-                    count_5 += 1;
-                    sum_5 += pull_5;
-                    pull_5 = 0;
-                }
-                _ => {}
-            }
-        }
-
-        if count_5 < 3 {
+        if count < 200 {
             continue;
         }
 
-        let luck_4 = sum_4 as f64 / count_4 as f64;
-        let luck_5 = sum_5 as f64 / count_5 as f64;
+        stat_uids.push(uid);
 
-        set_all.uid.push(uid);
-
-        set_all.count.push(count);
         count_map.insert(uid, count);
-
-        set_all.luck_4.push(luck_4);
-        luck_4_map.insert(uid, luck_4);
-
-        set_all.luck_5.push(luck_5);
-        luck_5_map.insert(uid, luck_5);
+        luck_4_map.insert(uid, warp_stat.luck_4);
+        luck_5_map.insert(uid, warp_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -142,18 +108,21 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let len = set_all.uid.len() as f64;
-    for uid in &set_all.uid {
+    let len = stat_uids.len() as f64;
+    for uid in &stat_uids {
         let count_percentile = count_percentiles[uid] as f64 / len;
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_percentile.push(count_percentile);
-        set_all.luck_4_percentile.push(luck_4_percentile);
-        set_all.luck_5_percentile.push(luck_5_percentile);
+        database::warps_stats_standard::update_percentiles_by_uid(
+            *uid,
+            count_percentile,
+            luck_4_percentile,
+            luck_5_percentile,
+            pool,
+        )
+        .await?;
     }
-
-    database::warps_stats_standard::set_all(&set_all, pool).await?;
 
     Ok(())
 }
@@ -163,98 +132,24 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
-    let mut set_all = database::warps_stats_special::SetAll::default();
+    let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let warps =
-            database::get_warp_infos_by_uid_and_gacha_type(uid, GachaType::Special, pool).await?;
+        let Some(warp_stat) = database::warps_stats_special::get_by_uid(uid, pool).await? else {
+            continue;
+        };
 
-        let count = warps.len() as i32;
+        let count = database::warps::special::get_count_by_uid(uid, pool).await? as i32;
 
-        let mut pull_4 = 0;
-        let mut sum_4 = 0;
-        let mut count_4 = 0;
-
-        let mut pull_5 = 0;
-        let mut sum_5 = 0;
-        let mut count_5 = 0;
-
-        let mut guarantee = false;
-
-        let mut sum_win = 0;
-        let mut count_win = 0;
-
-        let mut win_streak = 0;
-        let mut max_win_streak = 0;
-
-        let mut loss_streak = 0;
-        let mut max_loss_streak = 0;
-
-        for warp in &warps {
-            pull_4 += 1;
-            pull_5 += 1;
-
-            match warp.rarity.unwrap() {
-                4 => {
-                    count_4 += 1;
-                    sum_4 += pull_4;
-                    pull_4 = 0;
-                }
-                5 => {
-                    count_5 += 1;
-                    sum_5 += pull_5;
-                    pull_5 = 0;
-
-                    if guarantee {
-                        guarantee = false;
-                    } else {
-                        count_win += 1;
-
-                        if [1209, 1004, 1101, 1211, 1104, 1107, 1003]
-                            .contains(&warp.character.unwrap())
-                        {
-                            win_streak = 0;
-
-                            loss_streak += 1;
-                            max_loss_streak = max_loss_streak.max(loss_streak);
-
-                            guarantee = true;
-                        } else {
-                            sum_win += 1;
-
-                            loss_streak = 0;
-
-                            win_streak += 1;
-                            max_win_streak = max_win_streak.max(win_streak);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if count_5 < 5 {
+        if count < 200 {
             continue;
         }
 
-        let luck_4 = sum_4 as f64 / count_4 as f64;
-        let luck_5 = sum_5 as f64 / count_5 as f64;
-        let win_rate = sum_win as f64 / count_win as f64;
+        stat_uids.push(uid);
 
-        set_all.uid.push(uid);
-
-        set_all.count.push(count);
         count_map.insert(uid, count);
-
-        set_all.luck_4.push(luck_4);
-        luck_4_map.insert(uid, luck_4);
-
-        set_all.luck_5.push(luck_5);
-        luck_5_map.insert(uid, luck_5);
-
-        set_all.win_rate.push(win_rate);
-        set_all.win_streak.push(max_win_streak);
-        set_all.loss_streak.push(max_loss_streak);
+        luck_4_map.insert(uid, warp_stat.luck_4);
+        luck_5_map.insert(uid, warp_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -284,18 +179,21 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let len = set_all.uid.len() as f64;
-    for uid in &set_all.uid {
+    let len = stat_uids.len() as f64;
+    for uid in &stat_uids {
         let count_percentile = count_percentiles[uid] as f64 / len;
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_percentile.push(count_percentile);
-        set_all.luck_4_percentile.push(luck_4_percentile);
-        set_all.luck_5_percentile.push(luck_5_percentile);
+        database::warps_stats_special::update_percentiles_by_uid(
+            *uid,
+            count_percentile,
+            luck_4_percentile,
+            luck_5_percentile,
+            pool,
+        )
+        .await?;
     }
-
-    database::warps_stats_special::set_all(&set_all, pool).await?;
 
     Ok(())
 }
@@ -305,98 +203,24 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
-    let mut set_all = database::warps_stats_lc::SetAll::default();
+    let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let warps =
-            database::get_warp_infos_by_uid_and_gacha_type(uid, GachaType::Lc, pool).await?;
+        let Some(warp_stat) = database::warps_stats_lc::get_by_uid(uid, pool).await? else {
+            continue;
+        };
 
-        let count = warps.len() as i32;
+        let count = database::warps::lc::get_count_by_uid(uid, pool).await? as i32;
 
-        let mut pull_4 = 0;
-        let mut sum_4 = 0;
-        let mut count_4 = 0;
-
-        let mut pull_5 = 0;
-        let mut sum_5 = 0;
-        let mut count_5 = 0;
-
-        let mut guarantee = false;
-
-        let mut sum_win = 0;
-        let mut count_win = 0;
-
-        let mut win_streak = 0;
-        let mut max_win_streak = 0;
-
-        let mut loss_streak = 0;
-        let mut max_loss_streak = 0;
-
-        for warp in &warps {
-            pull_4 += 1;
-            pull_5 += 1;
-
-            match warp.rarity.unwrap() {
-                4 => {
-                    count_4 += 1;
-                    sum_4 += pull_4;
-                    pull_4 = 0;
-                }
-                5 => {
-                    count_5 += 1;
-                    sum_5 += pull_5;
-                    pull_5 = 0;
-
-                    if guarantee {
-                        guarantee = false;
-                    } else {
-                        count_win += 1;
-
-                        if [23000, 23002, 23003, 23004, 23005, 23012, 23013]
-                            .contains(&warp.light_cone.unwrap())
-                        {
-                            win_streak = 0;
-
-                            loss_streak += 1;
-                            max_loss_streak = max_loss_streak.max(loss_streak);
-
-                            guarantee = true;
-                        } else {
-                            sum_win += 1;
-
-                            loss_streak = 0;
-
-                            win_streak += 1;
-                            max_win_streak = max_win_streak.max(win_streak);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if count_5 < 5 {
+        if count < 200 {
             continue;
         }
 
-        let luck_4 = sum_4 as f64 / count_4 as f64;
-        let luck_5 = sum_5 as f64 / count_5 as f64;
-        let win_rate = sum_win as f64 / count_win as f64;
+        stat_uids.push(uid);
 
-        set_all.uid.push(uid);
-
-        set_all.count.push(count);
         count_map.insert(uid, count);
-
-        set_all.luck_4.push(luck_4);
-        luck_4_map.insert(uid, luck_4);
-
-        set_all.luck_5.push(luck_5);
-        luck_5_map.insert(uid, luck_5);
-
-        set_all.win_rate.push(win_rate);
-        set_all.win_streak.push(max_win_streak);
-        set_all.loss_streak.push(max_loss_streak);
+        luck_4_map.insert(uid, warp_stat.luck_4);
+        luck_5_map.insert(uid, warp_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -426,18 +250,21 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
         .map(|(i, (uid, _))| (uid, i))
         .collect();
 
-    let len = set_all.uid.len() as f64;
-    for uid in &set_all.uid {
+    let len = stat_uids.len() as f64;
+    for uid in &stat_uids {
         let count_percentile = count_percentiles[uid] as f64 / len;
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        set_all.count_percentile.push(count_percentile);
-        set_all.luck_4_percentile.push(luck_4_percentile);
-        set_all.luck_5_percentile.push(luck_5_percentile);
+        database::warps_stats_lc::update_percentiles_by_uid(
+            *uid,
+            count_percentile,
+            luck_4_percentile,
+            luck_5_percentile,
+            pool,
+        )
+        .await?;
     }
-
-    database::warps_stats_lc::set_all(&set_all, pool).await?;
 
     Ok(())
 }

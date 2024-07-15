@@ -28,8 +28,8 @@ struct Warp {
     timestamp: DateTime<Utc>,
 }
 
-impl From<database::DbWarp> for Warp {
-    fn from(warp: database::DbWarp) -> Self {
+impl From<database::warps::DbWarp> for Warp {
+    fn from(warp: database::warps::DbWarp) -> Self {
         let r#type = if warp.character.is_some() {
             WarpType::Character
         } else {
@@ -105,16 +105,18 @@ async fn get_warps(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let warps: Vec<_> = database::get_warps_by_uid_and_gacha_type(
-        uid,
-        warp_params.gacha_type,
-        language_params.lang,
-        &pool,
-    )
-    .await?
-    .into_iter()
-    .map(Warp::from)
-    .collect();
+    let language = language_params.lang;
+
+    let db_warps = match warp_params.gacha_type {
+        GachaType::Departure => {
+            database::warps::departure::get_by_uid(uid, language, &pool).await?
+        }
+        GachaType::Standard => database::warps::standard::get_by_uid(uid, language, &pool).await?,
+        GachaType::Special => database::warps::special::get_by_uid(uid, language, &pool).await?,
+        GachaType::Lc => database::warps::lc::get_by_uid(uid, language, &pool).await?,
+    };
+
+    let warps: Vec<_> = db_warps.into_iter().map(Warp::from).collect();
 
     Ok(HttpResponse::Ok().json(warps))
 }

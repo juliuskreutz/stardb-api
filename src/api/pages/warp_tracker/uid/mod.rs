@@ -7,7 +7,7 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, LanguageParams},
-    database, GachaType,
+    database,
 };
 
 #[derive(OpenApi)]
@@ -42,8 +42,8 @@ enum WarpType {
     LightCone,
 }
 
-impl From<database::DbWarp> for Warp {
-    fn from(warp: database::DbWarp) -> Self {
+impl From<database::warps::DbWarp> for Warp {
+    fn from(warp: database::warps::DbWarp) -> Self {
         let r#type = if warp.character.is_some() {
             WarpType::Character
         } else {
@@ -136,117 +136,68 @@ async fn get_warp_tracker(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    let language = language_params.lang;
+
     let name = database::mihomo::get_one_by_uid(uid, &pool).await?.name;
-    let warps = database::get_warps_by_uid(uid, language_params.lang, &pool).await?;
 
-    let mut standard = Warps::default();
+    // Departure
     let mut departure = Warps::default();
-    let mut special = Warps::default();
-    let mut lc = Warps::default();
-
-    let mut standard_pull = 0;
     let mut departure_pull = 0;
-    let mut special_pull = 0;
-    let mut lc_pull = 0;
-
-    let mut standard_pull_4 = 0;
     let mut departure_pull_4 = 0;
-    let mut special_pull_4 = 0;
-    let mut lc_pull_4 = 0;
-
-    let mut standard_pull_5 = 0;
     let mut departure_pull_5 = 0;
-    let mut special_pull_5 = 0;
-    let mut lc_pull_5 = 0;
 
-    for warp in warps {
-        let gacha_type = warp.gacha_type.parse()?;
-
+    for warp in database::warps::departure::get_by_uid(uid, language, &pool).await? {
         let mut warp: Warp = warp.into();
 
-        match gacha_type {
-            GachaType::Departure => {
-                departure_pull += 1;
-                departure_pull_4 += 1;
-                departure_pull_5 += 1;
+        departure_pull += 1;
+        departure_pull_4 += 1;
+        departure_pull_5 += 1;
 
-                warp.pull = departure_pull;
-                warp.pull_4 = departure_pull_4;
-                warp.pull_5 = departure_pull_5;
+        warp.pull = departure_pull;
+        warp.pull_4 = departure_pull_4;
+        warp.pull_5 = departure_pull_5;
 
-                match warp.rarity {
-                    4 => departure_pull_4 = 0,
-                    5 => departure_pull_5 = 0,
-                    _ => {}
-                }
-
-                departure.warps.push(warp);
-            }
-            GachaType::Standard => {
-                standard_pull += 1;
-                standard_pull_4 += 1;
-                standard_pull_5 += 1;
-
-                warp.pull = standard_pull;
-                warp.pull_4 = standard_pull_4;
-                warp.pull_5 = standard_pull_5;
-
-                match warp.rarity {
-                    4 => standard_pull_4 = 0,
-                    5 => standard_pull_5 = 0,
-                    _ => {}
-                }
-
-                standard.warps.push(warp);
-            }
-            GachaType::Special => {
-                special_pull += 1;
-                special_pull_4 += 1;
-                special_pull_5 += 1;
-
-                warp.pull = special_pull;
-                warp.pull_4 = special_pull_4;
-                warp.pull_5 = special_pull_5;
-
-                match warp.rarity {
-                    4 => special_pull_4 = 0,
-                    5 => special_pull_5 = 0,
-                    _ => {}
-                }
-
-                special.warps.push(warp);
-            }
-            GachaType::Lc => {
-                lc_pull += 1;
-                lc_pull_4 += 1;
-                lc_pull_5 += 1;
-
-                warp.pull = lc_pull;
-                warp.pull_4 = lc_pull_4;
-                warp.pull_5 = lc_pull_5;
-
-                match warp.rarity {
-                    4 => lc_pull_4 = 0,
-                    5 => lc_pull_5 = 0,
-                    _ => {}
-                }
-
-                lc.warps.push(warp);
-            }
+        match warp.rarity {
+            4 => departure_pull_4 = 0,
+            5 => departure_pull_5 = 0,
+            _ => {}
         }
+
+        departure.warps.push(warp);
+    }
+
+    departure.count = departure.warps.len();
+    // Departure
+
+    // Standard
+    let mut standard = Warps::default();
+    let mut standard_pull = 0;
+    let mut standard_pull_4 = 0;
+    let mut standard_pull_5 = 0;
+
+    for warp in database::warps::standard::get_by_uid(uid, language, &pool).await? {
+        let mut warp: Warp = warp.into();
+
+        standard_pull += 1;
+        standard_pull_4 += 1;
+        standard_pull_5 += 1;
+
+        warp.pull = standard_pull;
+        warp.pull_4 = standard_pull_4;
+        warp.pull_5 = standard_pull_5;
+
+        match warp.rarity {
+            4 => standard_pull_4 = 0,
+            5 => standard_pull_5 = 0,
+            _ => {}
+        }
+
+        standard.warps.push(warp);
     }
 
     standard.pull_4 = standard_pull_4;
     standard.max_pull_4 = 10;
     standard.probability_4 = if standard_pull_4 < 9 { 5.1 } else { 100.0 };
-
-    special.pull_4 = special_pull_4;
-    special.max_pull_4 = 10;
-    special.probability_4 = if special_pull_4 < 9 { 5.1 } else { 100.0 };
-
-    lc.pull_4 = lc_pull_4;
-    lc.max_pull_4 = 10;
-    lc.probability_4 = if lc_pull_4 < 9 { 6.6 } else { 100.0 };
 
     standard.pull_5 = standard_pull_5;
     standard.max_pull_5 = 90;
@@ -256,6 +207,39 @@ async fn get_warp_tracker(
         100.0
     };
 
+    standard.count = standard.warps.len();
+    // Standard
+
+    // Special
+    let mut special = Warps::default();
+    let mut special_pull = 0;
+    let mut special_pull_4 = 0;
+    let mut special_pull_5 = 0;
+
+    for warp in database::warps::special::get_by_uid(uid, language, &pool).await? {
+        let mut warp: Warp = warp.into();
+
+        special_pull += 1;
+        special_pull_4 += 1;
+        special_pull_5 += 1;
+
+        warp.pull = special_pull;
+        warp.pull_4 = special_pull_4;
+        warp.pull_5 = special_pull_5;
+
+        match warp.rarity {
+            4 => special_pull_4 = 0,
+            5 => special_pull_5 = 0,
+            _ => {}
+        }
+
+        special.warps.push(warp);
+    }
+
+    special.pull_4 = special_pull_4;
+    special.max_pull_4 = 10;
+    special.probability_4 = if special_pull_4 < 9 { 5.1 } else { 100.0 };
+
     special.pull_5 = special_pull_5;
     special.max_pull_5 = 90;
     special.probability_5 = if special_pull_5 < 89 {
@@ -263,6 +247,39 @@ async fn get_warp_tracker(
     } else {
         100.0
     };
+
+    special.count = special.warps.len();
+    // Special
+
+    // Lc
+    let mut lc = Warps::default();
+    let mut lc_pull = 0;
+    let mut lc_pull_4 = 0;
+    let mut lc_pull_5 = 0;
+
+    for warp in database::warps::lc::get_by_uid(uid, language, &pool).await? {
+        let mut warp: Warp = warp.into();
+
+        lc_pull += 1;
+        lc_pull_4 += 1;
+        lc_pull_5 += 1;
+
+        warp.pull = lc_pull;
+        warp.pull_4 = lc_pull_4;
+        warp.pull_5 = lc_pull_5;
+
+        match warp.rarity {
+            4 => lc_pull_4 = 0,
+            5 => lc_pull_5 = 0,
+            _ => {}
+        }
+
+        lc.warps.push(warp);
+    }
+
+    lc.pull_4 = lc_pull_4;
+    lc.max_pull_4 = 10;
+    lc.probability_4 = if lc_pull_4 < 9 { 6.6 } else { 100.0 };
 
     lc.pull_5 = lc_pull_5;
     lc.max_pull_5 = 80;
@@ -272,10 +289,8 @@ async fn get_warp_tracker(
         100.0
     };
 
-    departure.count = departure.warps.len();
-    standard.count = standard.warps.len();
-    special.count = special.warps.len();
     lc.count = lc.warps.len();
+    // Lc
 
     if let Some(stats) = database::warps_stats_standard::get_by_uid(uid, &pool).await? {
         let users = database::warps_stats_standard::count(&pool).await? as i32;
