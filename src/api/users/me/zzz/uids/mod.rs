@@ -10,7 +10,7 @@ use crate::{api::ApiResult, database};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me/zzz/uids")),
-    paths(get_user_uids)
+    paths(get_user_zzz_uids)
 )]
 struct ApiDoc;
 
@@ -21,7 +21,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_user_uids).configure(uid::configure);
+    cfg.service(get_user_zzz_uids).configure(uid::configure);
 }
 
 #[utoipa::path(
@@ -34,7 +34,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/zzz/uids")]
-async fn get_user_uids(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+async fn get_user_zzz_uids(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };

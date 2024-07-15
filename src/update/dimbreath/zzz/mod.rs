@@ -39,7 +39,7 @@ struct Achievement {
     description: String,
     #[serde(rename = "IGFHDCPGNIF")]
     reward: i32,
-    #[serde(rename = "OMPENGGFEFF")]
+    #[serde(rename = "JMMFFIOOJEF")]
     hidden: i32,
     #[serde(rename = "LDJMOLPOPOF")]
     priority: i32,

@@ -1,21 +1,21 @@
 use std::io::{BufRead, BufReader};
 
-use actix_multipart::form::{tempfile::TempFile, MultipartForm};
+use actix_multipart::form::MultipartForm;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use serde::Deserialize;
 use sqlx::PgPool;
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database};
+use crate::{
+    api::{ApiResult, File},
+    database,
+};
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "import-zzz-achievements")),
-    paths(import_zzz_achievements),
-    components(schemas(
-        File,
-    ))
+    paths(import_zzz_achievements)
 )]
 struct ApiDoc;
 
@@ -25,12 +25,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import_zzz_achievements);
-}
-
-#[derive(MultipartForm, ToSchema)]
-struct File {
-    #[schema(value_type = String, format = Binary)]
-    file: TempFile,
 }
 
 #[derive(Deserialize)]
