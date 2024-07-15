@@ -292,8 +292,8 @@ async fn get_warp_tracker(
     lc.count = lc.warps.len();
     // Lc
 
-    if let Some(stats) = database::warps_stats_standard::get_by_uid(uid, &pool).await? {
-        let users = database::warps_stats_standard::count(&pool).await? as i32;
+    if let Some(stats) = database::warps_stats::standard::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats::standard::count(&pool).await? as i32;
 
         standard.stats = Some(Stats {
             users,
@@ -308,8 +308,8 @@ async fn get_warp_tracker(
         });
     }
 
-    if let Some(stats) = database::warps_stats_special::get_by_uid(uid, &pool).await? {
-        let users = database::warps_stats_special::count(&pool).await? as i32;
+    if let Some(stats) = database::warps_stats::special::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats::special::count(&pool).await? as i32;
 
         special.stats = Some(Stats {
             users,
@@ -324,8 +324,8 @@ async fn get_warp_tracker(
         });
     }
 
-    if let Some(stats) = database::warps_stats_lc::get_by_uid(uid, &pool).await? {
-        let users = database::warps_stats_lc::count(&pool).await? as i32;
+    if let Some(stats) = database::warps_stats::lc::get_by_uid(uid, &pool).await? {
+        let users = database::warps_stats::lc::count(&pool).await? as i32;
 
         lc.stats = Some(Stats {
             users,

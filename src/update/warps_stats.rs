@@ -64,7 +64,7 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(warp_stat) = database::warps_stats_standard::get_by_uid(uid, pool).await? else {
+        let Some(warp_stat) = database::warps_stats::standard::get_by_uid(uid, pool).await? else {
             continue;
         };
 
@@ -114,7 +114,7 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        database::warps_stats_standard::update_percentiles_by_uid(
+        database::warps_stats::standard::update_percentiles_by_uid(
             *uid,
             count_percentile,
             luck_4_percentile,
@@ -135,7 +135,7 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(warp_stat) = database::warps_stats_special::get_by_uid(uid, pool).await? else {
+        let Some(warp_stat) = database::warps_stats::special::get_by_uid(uid, pool).await? else {
             continue;
         };
 
@@ -185,7 +185,7 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        database::warps_stats_special::update_percentiles_by_uid(
+        database::warps_stats::special::update_percentiles_by_uid(
             *uid,
             count_percentile,
             luck_4_percentile,
@@ -206,7 +206,7 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(warp_stat) = database::warps_stats_lc::get_by_uid(uid, pool).await? else {
+        let Some(warp_stat) = database::warps_stats::lc::get_by_uid(uid, pool).await? else {
             continue;
         };
 
@@ -256,7 +256,7 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
         let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
 
-        database::warps_stats_lc::update_percentiles_by_uid(
+        database::warps_stats::lc::update_percentiles_by_uid(
             *uid,
             count_percentile,
             luck_4_percentile,

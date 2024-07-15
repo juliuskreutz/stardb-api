@@ -30,9 +30,7 @@ mod users_achievements_favorites;
 mod users_books_completed;
 mod users_books_favorites;
 pub mod warps;
-pub mod warps_stats_lc;
-pub mod warps_stats_special;
-pub mod warps_stats_standard;
+pub mod warps_stats;
 
 pub use achievement_scores::*;
 pub use achievement_series::*;
