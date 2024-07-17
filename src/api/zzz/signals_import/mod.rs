@@ -12,7 +12,7 @@ use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database, Language, ZzzGachaType};
+use crate::{api::ApiResult, database, ZzzGachaType};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -64,6 +64,7 @@ type SignalsImportInfos = Mutex<HashMap<i32, Arc<Mutex<SignalsImportInfo>>>>;
 #[serde(rename_all = "snake_case")]
 enum Status {
     Pending,
+    Calculating,
     Finished,
     Error(String),
 }
@@ -179,20 +180,22 @@ async fn post_zzz_signals_import(
     signals_import_infos.lock().await.insert(uid, info.clone());
 
     rt::spawn(async move {
-        let mut error = None;
+        let mut error = Ok(());
 
         for gacha_type in ZzzGachaType::iter() {
             info.lock().await.gacha_type = gacha_type;
 
             if let Err(e) = import_signals(&url, gacha_type, &info, &pool).await {
-                error = Some(e.to_string());
+                error = Err(e);
 
                 break;
             }
         }
 
-        if let Some(e) = error {
-            info.lock().await.status = Status::Error(e);
+        if let Err(e) = error {
+            info.lock().await.status = Status::Error(e.to_string());
+        } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
+            info.lock().await.status = Status::Error(e.to_string());
         } else {
             info.lock().await.status = Status::Finished;
         }
@@ -228,14 +231,7 @@ async fn import_signals(
         )])
         .finish();
 
-    let mut signal_id = Vec::new();
-    let mut signal_uid = Vec::new();
-    let mut signal_character = Vec::new();
-    let mut signal_w_engine = Vec::new();
-    let mut signal_bangboo = Vec::new();
-    let mut signal_gacha_type = Vec::new();
-    let mut signal_timestamp = Vec::new();
-    let mut signal_official = Vec::new();
+    let mut set_all = database::zzz::signals::SetAll::default();
 
     loop {
         let mut i = 0;
@@ -266,17 +262,26 @@ async fn import_signals(
             let id = entry.id.parse()?;
             let uid: i32 = entry.uid.parse()?;
 
-            if database::zzz::signals::get_by_id_and_uid(id, uid, Language::En, pool)
-                .await
-                .is_ok()
-            {
+            let exists = match gacha_type {
+                ZzzGachaType::Standard => {
+                    database::zzz::signals::standard::exists(id, uid, pool).await?
+                }
+                ZzzGachaType::Special => {
+                    database::zzz::signals::special::exists(id, uid, pool).await?
+                }
+                ZzzGachaType::WEngine => {
+                    database::zzz::signals::w_engine::exists(id, uid, pool).await?
+                }
+                ZzzGachaType::Bangboo => {
+                    database::zzz::signals::bangboo::exists(id, uid, pool).await?
+                }
+            };
+
+            if exists {
                 continue;
             }
 
             let item: i32 = entry.item_id.parse()?;
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
 
             let mut character =
                 (entry.item_type == "Agents" || entry.item_type == "代理人").then_some(item);
@@ -295,14 +300,17 @@ async fn import_signals(
                 }
             }
 
-            signal_id.push(id);
-            signal_uid.push(uid);
-            signal_character.push(character);
-            signal_w_engine.push(w_engine);
-            signal_bangboo.push(bangboo);
-            signal_gacha_type.push(gacha_type);
-            signal_timestamp.push(timestamp);
-            signal_official.push(true);
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
+
+            set_all.id.push(id);
+            set_all.uid.push(uid);
+            set_all.character.push(character);
+            set_all.w_engine.push(w_engine);
+            set_all.bangboo.push(bangboo);
+            set_all.timestamp.push(timestamp);
+            set_all.official.push(true);
 
             match gacha_type {
                 ZzzGachaType::Standard => info.lock().await.standard += 1,
@@ -313,18 +321,325 @@ async fn import_signals(
         }
     }
 
-    database::zzz::signals::set_all(
-        &signal_id,
-        &signal_uid,
-        &signal_gacha_type,
-        &signal_character,
-        &signal_w_engine,
-        &signal_bangboo,
-        &signal_timestamp,
-        &signal_official,
-        pool,
-    )
-    .await?;
+    match gacha_type {
+        ZzzGachaType::Standard => database::zzz::signals::standard::set_all(&set_all, pool).await?,
+        ZzzGachaType::Special => database::zzz::signals::special::set_all(&set_all, pool).await?,
+        ZzzGachaType::WEngine => database::zzz::signals::w_engine::set_all(&set_all, pool).await?,
+        ZzzGachaType::Bangboo => database::zzz::signals::bangboo::set_all(&set_all, pool).await?,
+    }
+
+    Ok(())
+}
+
+async fn calculate_stats(
+    uid: i32,
+    info: &Arc<Mutex<SignalsImportInfo>>,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    info.lock().await.status = Status::Calculating;
+
+    info.lock().await.gacha_type = ZzzGachaType::Standard;
+    calculate_stats_standard(uid, pool).await?;
+    info.lock().await.gacha_type = ZzzGachaType::Special;
+    calculate_stats_special(uid, pool).await?;
+    info.lock().await.gacha_type = ZzzGachaType::WEngine;
+    calculate_stats_w_engine(uid, pool).await?;
+    info.lock().await.gacha_type = ZzzGachaType::Bangboo;
+    calculate_stats_bangboo(uid, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let signals = database::zzz::signals::standard::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_a = 0;
+    let mut sum_a = 0;
+    let mut count_a = 0;
+
+    let mut pull_s = 0;
+    let mut sum_s = 0;
+    let mut count_s = 0;
+
+    for signal in &signals {
+        pull_a += 1;
+        pull_s += 1;
+
+        match signal.rarity.unwrap() {
+            3 => {
+                count_a += 1;
+                sum_a += pull_a;
+                pull_a = 0;
+            }
+            4 => {
+                count_s += 1;
+                sum_s += pull_s;
+                pull_s = 0;
+            }
+            _ => {}
+        }
+    }
+
+    let luck_a = if count_a != 0 {
+        sum_a as f64 / count_a as f64
+    } else {
+        0.0
+    };
+    let luck_s = if count_s != 0 {
+        sum_s as f64 / count_s as f64
+    } else {
+        0.0
+    };
+
+    let set_data = database::zzz::signals_stats::standard::SetData {
+        uid,
+        luck_a,
+        luck_s,
+    };
+    database::zzz::signals_stats::standard::set_data(&set_data, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let signals = database::zzz::signals::special::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_a = 0;
+    let mut sum_a = 0;
+    let mut count_a = 0;
+
+    let mut pull_s = 0;
+    let mut sum_s = 0;
+    let mut count_s = 0;
+
+    let mut guarantee = false;
+
+    let mut sum_win = 0;
+    let mut count_win = 0;
+
+    let mut win_streak = 0;
+    let mut max_win_streak = 0;
+
+    let mut loss_streak = 0;
+    let mut max_loss_streak = 0;
+
+    for signal in &signals {
+        pull_a += 1;
+        pull_s += 1;
+
+        match signal.rarity.unwrap() {
+            3 => {
+                count_a += 1;
+                sum_a += pull_a;
+                pull_a = 0;
+            }
+            4 => {
+                count_s += 1;
+                sum_s += pull_s;
+                pull_s = 0;
+
+                if guarantee {
+                    guarantee = false;
+                } else {
+                    count_win += 1;
+
+                    if [1021, 1041, 1101, 1141, 1181, 1211].contains(&signal.character.unwrap()) {
+                        win_streak = 0;
+
+                        loss_streak += 1;
+                        max_loss_streak = max_loss_streak.max(loss_streak);
+
+                        guarantee = true;
+                    } else {
+                        sum_win += 1;
+
+                        loss_streak = 0;
+
+                        win_streak += 1;
+                        max_win_streak = max_win_streak.max(win_streak);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let win_streak = max_win_streak;
+    let loss_streak = max_loss_streak;
+
+    let luck_a = if count_a != 0 {
+        sum_a as f64 / count_a as f64
+    } else {
+        0.0
+    };
+    let luck_s = if count_s != 0 {
+        sum_s as f64 / count_s as f64
+    } else {
+        0.0
+    };
+    let win_rate = if count_win != 0 {
+        sum_win as f64 / count_win as f64
+    } else {
+        0.0
+    };
+
+    let set_data = database::zzz::signals_stats::special::SetData {
+        uid,
+        luck_a,
+        luck_s,
+        win_rate,
+        win_streak,
+        loss_streak,
+    };
+    database::zzz::signals_stats::special::set_data(&set_data, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_w_engine(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let signals = database::zzz::signals::w_engine::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_a = 0;
+    let mut sum_a = 0;
+    let mut count_a = 0;
+
+    let mut pull_s = 0;
+    let mut sum_s = 0;
+    let mut count_s = 0;
+
+    let mut guarantee = false;
+
+    let mut sum_win = 0;
+    let mut count_win = 0;
+
+    let mut win_streak = 0;
+    let mut max_win_streak = 0;
+
+    let mut loss_streak = 0;
+    let mut max_loss_streak = 0;
+
+    for signal in &signals {
+        pull_a += 1;
+        pull_s += 1;
+
+        match signal.rarity.unwrap() {
+            3 => {
+                count_a += 1;
+                sum_a += pull_a;
+                pull_a = 0;
+            }
+            4 => {
+                count_s += 1;
+                sum_s += pull_s;
+                pull_s = 0;
+
+                if guarantee {
+                    guarantee = false;
+                } else {
+                    count_win += 1;
+
+                    if [14103, 14104, 14110, 14114, 14118, 14121]
+                        .contains(&signal.w_engine.unwrap())
+                    {
+                        win_streak = 0;
+
+                        loss_streak += 1;
+                        max_loss_streak = max_loss_streak.max(loss_streak);
+
+                        guarantee = true;
+                    } else {
+                        sum_win += 1;
+
+                        loss_streak = 0;
+
+                        win_streak += 1;
+                        max_win_streak = max_win_streak.max(win_streak);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let win_streak = max_win_streak;
+    let loss_streak = max_loss_streak;
+
+    let luck_a = if count_a != 0 {
+        sum_a as f64 / count_a as f64
+    } else {
+        0.0
+    };
+    let luck_s = if count_s != 0 {
+        sum_s as f64 / count_s as f64
+    } else {
+        0.0
+    };
+    let win_rate = if count_win != 0 {
+        sum_win as f64 / count_win as f64
+    } else {
+        0.0
+    };
+
+    let set_data = database::zzz::signals_stats::w_engine::SetData {
+        uid,
+        luck_a,
+        luck_s,
+        win_rate,
+        win_streak,
+        loss_streak,
+    };
+    database::zzz::signals_stats::w_engine::set_data(&set_data, pool).await?;
+
+    Ok(())
+}
+
+async fn calculate_stats_bangboo(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let signals = database::zzz::signals::bangboo::get_infos_by_uid(uid, pool).await?;
+
+    let mut pull_a = 0;
+    let mut sum_a = 0;
+    let mut count_a = 0;
+
+    let mut pull_s = 0;
+    let mut sum_s = 0;
+    let mut count_s = 0;
+
+    for signal in &signals {
+        pull_a += 1;
+        pull_s += 1;
+
+        match signal.rarity.unwrap() {
+            3 => {
+                count_a += 1;
+                sum_a += pull_a;
+                pull_a = 0;
+            }
+            4 => {
+                count_s += 1;
+                sum_s += pull_s;
+                pull_s = 0;
+            }
+            _ => {}
+        }
+    }
+
+    let luck_a = if count_a != 0 {
+        sum_a as f64 / count_a as f64
+    } else {
+        0.0
+    };
+    let luck_s = if count_s != 0 {
+        sum_s as f64 / count_s as f64
+    } else {
+        0.0
+    };
+
+    let set_data = database::zzz::signals_stats::bangboo::SetData {
+        uid,
+        luck_a,
+        luck_s,
+    };
+    database::zzz::signals_stats::bangboo::set_data(&set_data, pool).await?;
 
     Ok(())
 }

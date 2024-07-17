@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    zzz_signals_bangboo.id,\n    zzz_signals_bangboo.uid,\n    NULL::integer AS character,\n    zzz_signals_bangboo.bangboo,\n    zzz_signals_bangboo.w_engine,\n    zzz_signals_bangboo.timestamp,\n    zzz_signals_bangboo.official,\n    COALESCE(zzz_bangboos_text.name, zzz_w_engines_text.name) AS name,\n    COALESCE(zzz_bangboos.rarity, zzz_w_engines.rarity) AS rarity\nFROM\n    zzz_signals_bangboo\n    LEFT JOIN zzz_bangboos ON zzz_bangboos.id = bangboo\n    LEFT JOIN zzz_w_engines ON zzz_w_engines.id = w_engine\n    LEFT JOIN zzz_bangboos_text ON zzz_bangboos_text.id = bangboo\n        AND zzz_bangboos_text.language = $2\n    LEFT JOIN zzz_w_engines_text ON zzz_w_engines_text.id = w_engine\n        AND zzz_w_engines_text.language = $2\nWHERE\n    uid = $1\nORDER BY\n    id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "bangboo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "w_engine",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "official",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      true,
+      true,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "d3e86f82c0d3f4f0b10d5d730efa735a9675f8b3054e1415e7036f22a1e3bd73"
+}

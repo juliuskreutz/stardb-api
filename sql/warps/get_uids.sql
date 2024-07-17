@@ -8,26 +8,22 @@ WHERE
             *
         FROM (
             SELECT
-                uid,
-                light_cone
+                uid
             FROM
                 warps_departure
             UNION ALL
             SELECT
-                uid,
-                light_cone
+                uid
             FROM
                 warps_standard
             UNION ALL
             SELECT
-                uid,
-                light_cone
+                uid
             FROM
                 warps_special
             UNION ALL
             SELECT
-                uid,
-                light_cone
+                uid
             FROM
                 warps_lc) warps
         WHERE

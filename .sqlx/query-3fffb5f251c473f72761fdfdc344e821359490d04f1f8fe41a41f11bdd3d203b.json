@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    zzz_signals_w_engine.uid,\n    zzz_signals_w_engine.character,\n    NULL::integer AS bangboo,\n    zzz_signals_w_engine.w_engine,\n    COALESCE(zzz_characters.rarity, zzz_w_engines.rarity) AS rarity\nFROM\n    zzz_signals_w_engine\n    LEFT JOIN zzz_characters ON zzz_characters.id = character\n    LEFT JOIN zzz_w_engines ON zzz_w_engines.id = w_engine\nWHERE\n    uid = $1\nORDER BY\n    zzz_signals_w_engine.id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "bangboo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "w_engine",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "3fffb5f251c473f72761fdfdc344e821359490d04f1f8fe41a41f11bdd3d203b"
+}
