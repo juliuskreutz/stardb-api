@@ -89,10 +89,10 @@ struct Signals {
     max_pull_4: usize,
     max_pull_5: usize,
     count: usize,
-    stats: Option<Stats>,
+    stats: Stats,
 }
 
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 struct Stats {
     users: i32,
     count_percentile: f64,
@@ -100,9 +100,14 @@ struct Stats {
     luck_4_percentile: f64,
     luck_5: f64,
     luck_5_percentile: f64,
-    win_rate: Option<f64>,
-    win_streak: Option<i32>,
-    loss_streak: Option<i32>,
+    win_stats: Option<WinStats>,
+}
+
+#[derive(Serialize)]
+struct WinStats {
+    win_rate: f64,
+    win_streak: i32,
+    loss_streak: i32,
 }
 
 #[utoipa::path(
@@ -323,65 +328,69 @@ async fn get_signal_tracker(
     if let Some(stats) = database::zzz::signals_stats::standard::get_by_uid(uid, &pool).await? {
         let users = database::zzz::signals_stats::standard::count(&pool).await? as i32;
 
-        standard.stats = Some(Stats {
+        standard.stats = Stats {
             users,
             count_percentile: stats.count_percentile,
             luck_4: stats.luck_a,
-            luck_4_percentile: stats.luck_s_percentile,
+            luck_4_percentile: stats.luck_a_percentile,
             luck_5: stats.luck_s,
             luck_5_percentile: stats.luck_s_percentile,
-            win_rate: None,
-            win_streak: None,
-            loss_streak: None,
-        });
+            win_stats: None,
+        };
     }
 
     if let Some(stats) = database::zzz::signals_stats::special::get_by_uid(uid, &pool).await? {
         let users = database::zzz::signals_stats::special::count(&pool).await? as i32;
 
-        special.stats = Some(Stats {
+        let win_stats = WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        };
+
+        special.stats = Stats {
             users,
             count_percentile: stats.count_percentile,
             luck_4: stats.luck_a,
             luck_4_percentile: stats.luck_a_percentile,
             luck_5: stats.luck_s,
             luck_5_percentile: stats.luck_s_percentile,
-            win_rate: Some(stats.win_rate),
-            win_streak: Some(stats.win_streak),
-            loss_streak: Some(stats.loss_streak),
-        });
+            win_stats: Some(win_stats),
+        };
     }
 
     if let Some(stats) = database::zzz::signals_stats::w_engine::get_by_uid(uid, &pool).await? {
         let users = database::zzz::signals_stats::w_engine::count(&pool).await? as i32;
 
-        w_engine.stats = Some(Stats {
+        let win_stats = WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        };
+
+        w_engine.stats = Stats {
             users,
             count_percentile: stats.count_percentile,
             luck_4: stats.luck_a,
             luck_4_percentile: stats.luck_a_percentile,
             luck_5: stats.luck_s,
             luck_5_percentile: stats.luck_s_percentile,
-            win_rate: Some(stats.win_rate),
-            win_streak: Some(stats.win_streak),
-            loss_streak: Some(stats.loss_streak),
-        });
+            win_stats: Some(win_stats),
+        };
     }
 
     if let Some(stats) = database::zzz::signals_stats::bangboo::get_by_uid(uid, &pool).await? {
         let users = database::zzz::signals_stats::bangboo::count(&pool).await? as i32;
 
-        bangboo.stats = Some(Stats {
+        bangboo.stats = Stats {
             users,
             count_percentile: stats.count_percentile,
             luck_4: stats.luck_a,
             luck_4_percentile: stats.luck_a_percentile,
             luck_5: stats.luck_s,
             luck_5_percentile: stats.luck_s_percentile,
-            win_rate: None,
-            win_streak: None,
-            loss_streak: None,
-        });
+            win_stats: None,
+        };
     }
 
     let signal_tracker = SignalTracker {
