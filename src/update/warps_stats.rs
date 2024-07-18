@@ -68,7 +68,7 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::warps::standard::get_count_by_uid(uid, pool).await? as i32;
 
-        if count < 200 {
+        if count < 100 {
             continue;
         }
 
@@ -137,7 +137,7 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::warps::special::get_count_by_uid(uid, pool).await? as i32;
 
-        if count < 200 {
+        if count < 100 {
             continue;
         }
 
@@ -206,7 +206,7 @@ async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::warps::lc::get_count_by_uid(uid, pool).await? as i32;
 
-        if count < 200 {
+        if count < 100 {
             continue;
         }
 
