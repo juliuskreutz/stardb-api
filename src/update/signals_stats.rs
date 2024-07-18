@@ -44,7 +44,7 @@ pub async fn spawn(pool: PgPool) {
 async fn update(pool: PgPool) -> Result<()> {
     let uids = database::zzz::signals::get_uids(&pool).await?;
 
-    for &uid in uids {
+    for &uid in &uids {
         calculate_stats_standard(uid, &pool).await?;
     }
 
