@@ -30,7 +30,8 @@
               schemacrawler
             ];
 
-            RUSTFLAGS = "-Clink-args=-D_FORTIFY_SOURCE=0";
+            hardeningDisable = ["fortify"];
+
             CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
           };
       }
