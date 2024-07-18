@@ -44,10 +44,6 @@ pub async fn spawn(pool: PgPool) {
 async fn update(pool: PgPool) -> Result<()> {
     let uids = database::zzz::signals::get_uids(&pool).await?;
 
-    for &uid in &uids {
-        calculate_stats_standard(uid, &pool).await?;
-    }
-
     info!("Starting standard");
     standard(&uids, &pool).await?;
 
@@ -343,65 +339,6 @@ async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         database::zzz::signals_stats_global::bangboo::set(&stat, pool).await?;
     }
-
-    Ok(())
-}
-
-async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let signals = database::zzz::signals::standard::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut first_s_rank = true;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                if first_s_rank {
-                    first_s_rank = false;
-                    pull_s = 0;
-                    continue;
-                }
-                
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-
-    let stat = database::zzz::signals_stats::standard::DbSignalsStatStandard {
-        uid,
-        luck_a,
-        luck_s,
-    };
-    database::zzz::signals_stats::standard::set(&stat, pool).await?;
 
     Ok(())
 }
