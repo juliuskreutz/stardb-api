@@ -75,9 +75,9 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::zzz::signals::standard::get_count_by_uid(uid, pool).await? as i32;
 
-        //if count < 200 {
-        //    continue;
-        //}
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            continue;
+        }
 
         stat_uids.push(uid);
 
@@ -148,9 +148,9 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::zzz::signals::special::get_count_by_uid(uid, pool).await? as i32;
 
-        //if count < 200 {
-        //    continue;
-        //}
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            continue;
+        }
 
         stat_uids.push(uid);
 
@@ -221,9 +221,9 @@ async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::zzz::signals::w_engine::get_count_by_uid(uid, pool).await? as i32;
 
-        //if count < 200 {
-        //    continue;
-        //}
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            continue;
+        }
 
         stat_uids.push(uid);
 
@@ -294,9 +294,9 @@ async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
 
         let count = database::zzz::signals::bangboo::get_count_by_uid(uid, pool).await? as i32;
 
-        //if count < 200 {
-        //    continue;
-        //}
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            continue;
+        }
 
         stat_uids.push(uid);
 
