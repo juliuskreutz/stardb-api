@@ -361,6 +361,8 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
     let mut sum_s = 0;
     let mut count_s = 0;
 
+    let mut first_s_rank = true;
+
     for signal in &signals {
         pull_a += 1;
         pull_s += 1;
@@ -372,6 +374,12 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
                 pull_a = 0;
             }
             4 => {
+                if first_s_rank {
+                    first_s_rank = false;
+                    pull_s = 0;
+                    continue;
+                }
+                
                 count_s += 1;
                 sum_s += pull_s;
                 pull_s = 0;
