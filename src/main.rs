@@ -158,6 +158,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
+    let _ = fs::create_dir("dimbreath");
     let _ = fs::create_dir("static");
     let _ = fs::create_dir("cache");
     let _ = fs::remove_dir_all("sitemaps");
@@ -175,6 +176,7 @@ async fn main() -> anyhow::Result<()> {
     //update::community_tier_list(pool.clone()).await;
     update::dimbreath::hsr::spawn(pool.clone()).await;
     update::dimbreath::zzz::spawn(pool.clone()).await;
+    update::dimbreath::gi::spawn(pool.clone()).await;
     update::star_rail_res::spawn().await;
     update::scores::spawn(pool.clone()).await;
     //update::character_averages::spawn(pool.clone()).await;

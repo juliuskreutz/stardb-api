@@ -49,7 +49,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         let text_map: HashMap<String, String> =
             serde_json::from_reader(BufReader::new(File::open(format!(
-                "ZenlessData/TextMap/TextMap{language_str}TemplateTb.json",
+                "dimbreath/ZenlessData/TextMap/TextMap{language_str}TemplateTb.json",
             ))?))?;
 
         info!("Starting {} achievement series", language);
@@ -163,37 +163,3 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
     Ok(())
 }
-
-//fn html(s: &str) -> anyhow::Result<String> {
-//    Ok(Regex::new(r"<[^>]*>")?
-//        .replace_all(s, |_: &Captures| "")
-//        .to_string())
-//}
-//
-//fn gender(s: &str) -> anyhow::Result<String> {
-//    Ok(Regex::new(r"\{(M|F)#([^}]*)\}\{(F|M)#([^}]*)\}")?
-//        .replace_all(s, |c: &Captures| {
-//            c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
-//        })
-//        .to_string())
-//}
-//
-//fn layout(s: &str) -> anyhow::Result<String> {
-//    Ok(Regex::new(
-//        r"\{LAYOUT_MOBILE#([^}]*)\}\{LAYOUT_CONTROLLER#([^}]*)\}\{LAYOUT_KEYBOARD#([^}]*)\}",
-//    )?
-//    .replace_all(s, |c: &Captures| {
-//        c.get(1).unwrap().as_str().to_string()
-//            + "/"
-//            + c.get(2).unwrap().as_str()
-//            + "/"
-//            + c.get(3).unwrap().as_str()
-//    })
-//    .to_string())
-//}
-//
-//fn ruby(s: &str) -> anyhow::Result<String> {
-//    Ok(Regex::new(r"\{RUBY_.#.*?\}")?
-//        .replace_all(s, |_: &Captures| "")
-//        .to_string())
-//}
