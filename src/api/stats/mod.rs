@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -35,10 +36,22 @@ struct Stats {
     path = "/api/stats",
     responses(
         (status = 200, description = "Stats", body = Stats),
-    )
+    ),
+    security(("admin" = []))
 )]
 #[get("/api/stats")]
-async fn get_stats(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+async fn get_stats(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if database::admins::get_one_by_username(&username, &pool)
+        .await
+        .is_err()
+    {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let emails = database::users::count_emails(&pool).await?;
     let hsr_achievement_users = database::count_hsr_users(100, &pool).await?;
     let zzz_achievement_users =
