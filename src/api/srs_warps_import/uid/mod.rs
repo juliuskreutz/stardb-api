@@ -200,12 +200,12 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
     let luck_4 = sum_4 as f64 / count_4 as f64;
     let luck_5 = sum_5 as f64 / count_5 as f64;
 
-    let set_data = database::warps_stats::standard::SetData {
+    let stat = database::warps_stats::standard::DbWarpsStatStandard {
         uid,
         luck_4,
         luck_5,
     };
-    database::warps_stats::standard::set_data(&set_data, pool).await?;
+    database::warps_stats::standard::set(&stat, pool).await?;
 
     Ok(())
 }
@@ -281,7 +281,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let set_data = database::warps_stats::special::SetData {
+    let stat = database::warps_stats::special::DbWarpsStatSpecial {
         uid,
         luck_4,
         luck_5,
@@ -289,7 +289,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
         win_streak,
         loss_streak,
     };
-    database::warps_stats::special::set_data(&set_data, pool).await?;
+    database::warps_stats::special::set(&stat, pool).await?;
 
     Ok(())
 }
@@ -366,7 +366,7 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let set_data = database::warps_stats::lc::SetData {
+    let stat = database::warps_stats::lc::DbWarpsStatLc {
         uid,
         luck_4,
         luck_5,
@@ -374,7 +374,7 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
         win_streak,
         loss_streak,
     };
-    database::warps_stats::lc::set_data(&set_data, pool).await?;
+    database::warps_stats::lc::set(&stat, pool).await?;
 
     Ok(())
 }

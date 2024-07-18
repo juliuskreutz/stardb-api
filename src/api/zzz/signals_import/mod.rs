@@ -391,12 +391,12 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
         0.0
     };
 
-    let set_data = database::zzz::signals_stats::standard::SetData {
+    let stat = database::zzz::signals_stats::standard::DbSignalsStatStandard {
         uid,
         luck_a,
         luck_s,
     };
-    database::zzz::signals_stats::standard::set_data(&set_data, pool).await?;
+    database::zzz::signals_stats::standard::set(&stat, pool).await?;
 
     Ok(())
 }
@@ -483,7 +483,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
         0.0
     };
 
-    let set_data = database::zzz::signals_stats::special::SetData {
+    let stat = database::zzz::signals_stats::special::DbSignalsStatSpecial {
         uid,
         luck_a,
         luck_s,
@@ -491,7 +491,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
         win_streak,
         loss_streak,
     };
-    database::zzz::signals_stats::special::set_data(&set_data, pool).await?;
+    database::zzz::signals_stats::special::set(&stat, pool).await?;
 
     Ok(())
 }
@@ -580,7 +580,7 @@ async fn calculate_stats_w_engine(uid: i32, pool: &PgPool) -> anyhow::Result<()>
         0.0
     };
 
-    let set_data = database::zzz::signals_stats::w_engine::SetData {
+    let stat = database::zzz::signals_stats::w_engine::DbSignalsStatWEngine {
         uid,
         luck_a,
         luck_s,
@@ -588,7 +588,7 @@ async fn calculate_stats_w_engine(uid: i32, pool: &PgPool) -> anyhow::Result<()>
         win_streak,
         loss_streak,
     };
-    database::zzz::signals_stats::w_engine::set_data(&set_data, pool).await?;
+    database::zzz::signals_stats::w_engine::set(&stat, pool).await?;
 
     Ok(())
 }
@@ -634,12 +634,12 @@ async fn calculate_stats_bangboo(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
         0.0
     };
 
-    let set_data = database::zzz::signals_stats::bangboo::SetData {
+    let stat = database::zzz::signals_stats::bangboo::DbSignalsStatBangboo {
         uid,
         luck_a,
         luck_s,
     };
-    database::zzz::signals_stats::bangboo::set_data(&set_data, pool).await?;
+    database::zzz::signals_stats::bangboo::set(&stat, pool).await?;
 
     Ok(())
 }

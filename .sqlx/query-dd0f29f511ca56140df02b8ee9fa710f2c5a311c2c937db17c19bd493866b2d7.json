@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_stats_w_engine (uid, luck_a, luck_s, win_rate, win_streak, loss_streak)\n    VALUES ($1, $2, $3, $4, $5, $6)\nON CONFLICT (uid)\n    DO UPDATE SET\n        luck_a = EXCLUDED.luck_a, luck_s = EXCLUDED.luck_s, win_rate = EXCLUDED.win_rate, win_streak = EXCLUDED.win_streak, loss_streak = EXCLUDED.loss_streak;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd0f29f511ca56140df02b8ee9fa710f2c5a311c2c937db17c19bd493866b2d7"
+}

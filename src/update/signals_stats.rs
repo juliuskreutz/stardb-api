@@ -67,19 +67,12 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(signal_stat) =
-            database::zzz::signals_stats::standard::get_by_uid(uid, pool).await?
-        else {
-            continue;
-        };
+        let signal_stat = database::zzz::signals_stats::standard::get_by_uid(uid, pool).await?;
 
         let count = database::zzz::signals::standard::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
-            database::zzz::signals_stats::standard::update_percentiles_by_uid(
-                uid, 0.0, 0.0, 0.0, pool,
-            )
-            .await?;
+            database::zzz::signals_stats_global::standard::delete_by_uid(uid, pool).await?;
 
             continue;
         }
@@ -124,14 +117,14 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_a_percentile = luck_a_percentiles[uid] as f64 / len;
         let luck_s_percentile = luck_s_percentiles[uid] as f64 / len;
 
-        database::zzz::signals_stats::standard::update_percentiles_by_uid(
-            *uid,
+        let stat = database::zzz::signals_stats_global::standard::DbSignalsStatGlobalStandard {
+            uid: *uid,
             count_percentile,
             luck_a_percentile,
             luck_s_percentile,
-            pool,
-        )
-        .await?;
+        };
+
+        database::zzz::signals_stats_global::standard::set(&stat, pool).await?;
     }
 
     Ok(())
@@ -145,19 +138,12 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(signal_stat) =
-            database::zzz::signals_stats::special::get_by_uid(uid, pool).await?
-        else {
-            continue;
-        };
+        let signal_stat = database::zzz::signals_stats::special::get_by_uid(uid, pool).await?;
 
         let count = database::zzz::signals::special::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
-            database::zzz::signals_stats::special::update_percentiles_by_uid(
-                uid, 0.0, 0.0, 0.0, pool,
-            )
-            .await?;
+            database::zzz::signals_stats_global::special::delete_by_uid(uid, pool).await?;
 
             continue;
         }
@@ -202,14 +188,14 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_a_percentile = luck_a_percentiles[uid] as f64 / len;
         let luck_s_percentile = luck_s_percentiles[uid] as f64 / len;
 
-        database::zzz::signals_stats::special::update_percentiles_by_uid(
-            *uid,
+        let stat = database::zzz::signals_stats_global::special::DbSignalsStatGlobalSpecial {
+            uid: *uid,
             count_percentile,
             luck_a_percentile,
             luck_s_percentile,
-            pool,
-        )
-        .await?;
+        };
+
+        database::zzz::signals_stats_global::special::set(&stat, pool).await?;
     }
 
     Ok(())
@@ -223,19 +209,12 @@ async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(signal_stat) =
-            database::zzz::signals_stats::w_engine::get_by_uid(uid, pool).await?
-        else {
-            continue;
-        };
+        let signal_stat = database::zzz::signals_stats::w_engine::get_by_uid(uid, pool).await?;
 
         let count = database::zzz::signals::w_engine::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
-            database::zzz::signals_stats::w_engine::update_percentiles_by_uid(
-                uid, 0.0, 0.0, 0.0, pool,
-            )
-            .await?;
+            database::zzz::signals_stats_global::w_engine::delete_by_uid(uid, pool).await?;
 
             continue;
         }
@@ -280,14 +259,14 @@ async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_a_percentile = luck_a_percentiles[uid] as f64 / len;
         let luck_s_percentile = luck_s_percentiles[uid] as f64 / len;
 
-        database::zzz::signals_stats::w_engine::update_percentiles_by_uid(
-            *uid,
+        let stat = database::zzz::signals_stats_global::w_engine::DbSignalsStatGlobalWEngine {
+            uid: *uid,
             count_percentile,
             luck_a_percentile,
             luck_s_percentile,
-            pool,
-        )
-        .await?;
+        };
+
+        database::zzz::signals_stats_global::w_engine::set(&stat, pool).await?;
     }
 
     Ok(())
@@ -301,19 +280,12 @@ async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
     let mut stat_uids = Vec::new();
 
     for &uid in uids {
-        let Some(signal_stat) =
-            database::zzz::signals_stats::bangboo::get_by_uid(uid, pool).await?
-        else {
-            continue;
-        };
+        let signal_stat = database::zzz::signals_stats::bangboo::get_by_uid(uid, pool).await?;
 
         let count = database::zzz::signals::bangboo::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
-            database::zzz::signals_stats::bangboo::update_percentiles_by_uid(
-                uid, 0.0, 0.0, 0.0, pool,
-            )
-            .await?;
+            database::zzz::signals_stats_global::bangboo::delete_by_uid(uid, pool).await?;
 
             continue;
         }
@@ -358,14 +330,14 @@ async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
         let luck_a_percentile = luck_a_percentiles[uid] as f64 / len;
         let luck_s_percentile = luck_s_percentiles[uid] as f64 / len;
 
-        database::zzz::signals_stats::bangboo::update_percentiles_by_uid(
-            *uid,
+        let stat = database::zzz::signals_stats_global::bangboo::DbSignalsStatGlobalBangboo {
+            uid: *uid,
             count_percentile,
             luck_a_percentile,
             luck_s_percentile,
-            pool,
-        )
-        .await?;
+        };
+
+        database::zzz::signals_stats_global::bangboo::set(&stat, pool).await?;
     }
 
     Ok(())

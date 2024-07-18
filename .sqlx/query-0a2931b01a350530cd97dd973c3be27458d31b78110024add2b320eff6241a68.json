@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO warps_stats_global_standard (uid, count_percentile, luck_4_percentile, luck_5_percentile)\n    VALUES ($1, $2, $3, $4)\nON CONFLICT (uid)\n    DO UPDATE SET\n        count_percentile = EXCLUDED.count_percentile, luck_4_percentile = EXCLUDED.luck_4_percentile, luck_5_percentile = EXCLUDED.luck_5_percentile;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a2931b01a350530cd97dd973c3be27458d31b78110024add2b320eff6241a68"
+}

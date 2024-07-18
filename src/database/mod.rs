@@ -31,6 +31,7 @@ mod users_books_completed;
 mod users_books_favorites;
 pub mod warps;
 pub mod warps_stats;
+pub mod warps_stats_global;
 
 pub use achievement_scores::*;
 pub use achievement_series::*;

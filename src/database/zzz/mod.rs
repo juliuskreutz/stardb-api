@@ -10,6 +10,7 @@ pub mod characters_text;
 pub mod connections;
 pub mod signals;
 pub mod signals_stats;
+pub mod signals_stats_global;
 pub mod uids;
 pub mod users_achievements_completed;
 pub mod users_achievements_favorites;

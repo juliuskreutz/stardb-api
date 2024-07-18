@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    zzz_signals_stats_global_standard\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "count_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_a_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "luck_s_percentile",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "16f9d831a2203c4cb41d1f73d7bae3eacdc7703d7dae48866f1138cf210a4665"
+}

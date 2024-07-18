@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_stats_bangboo (uid, luck_a, luck_s)\n    VALUES ($1, $2, $3)\nON CONFLICT (uid)\n    DO UPDATE SET\n        luck_a = EXCLUDED.luck_a, luck_s = EXCLUDED.luck_s;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "731dbf30faf2805ba52ee06a33bbf7f40cb0ac0cf39cb405c42411be1ad23590"
+}

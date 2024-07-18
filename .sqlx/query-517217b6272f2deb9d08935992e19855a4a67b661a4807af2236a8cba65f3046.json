@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    warps_stats_global_standard\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "count_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_4_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "luck_5_percentile",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "517217b6272f2deb9d08935992e19855a4a67b661a4807af2236a8cba65f3046"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_stats_global_standard (uid, count_percentile, luck_a_percentile, luck_s_percentile)\n    VALUES ($1, $2, $3, $4)\nON CONFLICT (uid)\n    DO UPDATE SET\n        count_percentile = EXCLUDED.count_percentile, luck_a_percentile = EXCLUDED.luck_a_percentile, luck_s_percentile = EXCLUDED.luck_s_percentile;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a5ea8969734e5bbf5962a463a2dd23d0d5951269bb7a509f684a033068b4d6c9"
+}
