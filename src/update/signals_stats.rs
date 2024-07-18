@@ -76,6 +76,11 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
         let count = database::zzz::signals::standard::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats::standard::update_percentiles_by_uid(
+                uid, 0.0, 0.0, 0.0, pool,
+            )
+            .await?;
+
             continue;
         }
 
@@ -149,6 +154,11 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
         let count = database::zzz::signals::special::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats::special::update_percentiles_by_uid(
+                uid, 0.0, 0.0, 0.0, pool,
+            )
+            .await?;
+
             continue;
         }
 
@@ -222,6 +232,11 @@ async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
         let count = database::zzz::signals::w_engine::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats::w_engine::update_percentiles_by_uid(
+                uid, 0.0, 0.0, 0.0, pool,
+            )
+            .await?;
+
             continue;
         }
 
@@ -295,6 +310,11 @@ async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
         let count = database::zzz::signals::bangboo::get_count_by_uid(uid, pool).await? as i32;
 
         if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats::bangboo::update_percentiles_by_uid(
+                uid, 0.0, 0.0, 0.0, pool,
+            )
+            .await?;
+
             continue;
         }
 
