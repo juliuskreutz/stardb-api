@@ -46,6 +46,14 @@ pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
         .collect())
 }
 
+pub async fn count_uids(pool: &PgPool) -> anyhow::Result<i64> {
+    Ok(sqlx::query_file!("sql/warps/count_uids.sql")
+        .fetch_one(pool)
+        .await?
+        .count
+        .unwrap())
+}
+
 pub struct DbCharacterCount {
     pub id: i32,
     pub rarity: i32,

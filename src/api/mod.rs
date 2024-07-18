@@ -4,7 +4,6 @@ mod book_series;
 mod book_series_worlds;
 mod books;
 mod characters;
-//mod community_tier_list;
 mod free_jade_alert;
 mod import_achievements;
 mod import_books;
@@ -20,11 +19,11 @@ mod select_all;
 mod sitemap;
 mod skills;
 mod srs_warps_import;
+mod stats;
 mod users;
 mod warps;
 mod warps_import;
 mod zzz;
-// mod warps_stats;
 
 use std::env;
 
@@ -93,7 +92,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(book_series_worlds::openapi());
     openapi.merge(books::openapi());
     openapi.merge(characters::openapi());
-    //openapi.merge(community_tier_list::openapi());
     openapi.merge(free_jade_alert::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
@@ -109,11 +107,11 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(sitemap::openapi());
     openapi.merge(srs_warps_import::openapi());
     openapi.merge(skills::openapi());
+    openapi.merge(stats::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi.merge(warps_import::openapi());
     openapi.merge(zzz::openapi());
-    // openapi.merge(warps_stats::openapi());
     openapi
 }
 
@@ -124,7 +122,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(book_series_worlds::configure)
         .configure(books::configure)
         .configure(characters::configure)
-        //.configure(community_tier_list::configure)
         .configure(free_jade_alert::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
@@ -140,9 +137,9 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(|sc| sitemap::configure(sc, pool.clone()))
         .configure(skills::configure)
         .configure(srs_warps_import::configure)
+        .configure(stats::configure)
         .configure(users::configure)
         .configure(warps::configure)
         .configure(warps_import::configure)
         .configure(zzz::configure);
-    // .configure(warps_stats::configure);
 }

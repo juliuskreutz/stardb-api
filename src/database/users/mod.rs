@@ -59,3 +59,11 @@ pub async fn delete_email_by_username(username: &str, pool: &PgPool) -> Result<(
 
     Ok(())
 }
+
+pub async fn count_emails(pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query_file!("sql/users/count_emails.sql")
+        .fetch_one(pool)
+        .await?
+        .count
+        .unwrap())
+}

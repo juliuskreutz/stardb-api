@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    count(*)\nFROM (\n    SELECT\n        username\n    FROM\n        zzz_users_achievements_completed\n    GROUP BY\n        username\n    HAVING\n        count(*) >= $1) t;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a485f2f07ae21a0412f27cbad684f230978d2cfda2383c09a008f147de8f652f"
+}

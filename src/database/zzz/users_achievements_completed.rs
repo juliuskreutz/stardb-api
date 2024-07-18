@@ -75,12 +75,13 @@ pub async fn get_by_username(
     .await?)
 }
 
-pub async fn get_user_count(pool: &PgPool) -> Result<i64> {
-    Ok(
-        sqlx::query!("SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM zzz_users_achievements_completed WHERE users.username = zzz_users_achievements_completed.username)")
-            .fetch_one(pool)
-            .await?
-            .count
-            .unwrap_or_default(),
+pub async fn count_users(threshhold: i64, pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query_file!(
+        "sql/zzz/users/achievements/completed/count_users.sql",
+        threshhold
     )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }

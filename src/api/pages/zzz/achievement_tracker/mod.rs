@@ -56,7 +56,6 @@ struct AchievementTracker {
     achievement_count_current: usize,
     currency_count: i32,
     currency_count_current: i32,
-    user_count: i64,
     language: Language,
     versions: Vec<String>,
     series: Vec<Series>,
@@ -197,8 +196,6 @@ async fn update_achievement_tracker(
 ) -> anyhow::Result<()> {
     let mut achievement_tracker_map = HashMap::new();
 
-    let user_count = database::zzz::users_achievements_completed::get_user_count(&pool).await?;
-
     for language in Language::iter() {
         let achievements = database::zzz::achievements::get_all(language, &pool).await?;
 
@@ -284,7 +281,6 @@ async fn update_achievement_tracker(
             achievement_count_current: 0,
             currency_count,
             currency_count_current: 0,
-            user_count,
             language,
             versions,
             series,
