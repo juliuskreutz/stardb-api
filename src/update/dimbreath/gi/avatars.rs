@@ -6,39 +6,23 @@ use crate::database;
 use super::Configs;
 
 pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
-    let rarity_re = Regex::new(r"CombatPowerAvatarRarityType(\d+)")?;
-
     let mut characters_id = Vec::new();
     let mut characters_rarity = Vec::new();
 
-    let mut skills_id = Vec::new();
-    let mut skills_character = Vec::new();
+    for avatar in &configs.avatar_data {
+        let id = avatar.id;
 
-    for avatar_config in configs.avatar_config.values() {
-        let id = avatar_config.id;
-
-        let rarity: i32 = rarity_re
-            .captures(&avatar_config.rarity)
-            .and_then(|c| c.get(1))
-            .and_then(|m| m.as_str().parse().ok())
-            .unwrap_or_default();
+        let rarity = if avatar.quality == "QUALITY_PURPLE" {
+            4
+        } else {
+            5
+        };
 
         characters_id.push(id);
         characters_rarity.push(rarity);
-
-        for skill in avatar_config.skills.iter() {
-            let skill = &configs.avatar_skill_config[&skill.to_string()].one;
-
-            let id = skill.id;
-            let character = avatar_config.id;
-
-            skills_id.push(id);
-            skills_character.push(character);
-        }
     }
 
-    database::set_all_characters(&characters_id, &characters_rarity, pool).await?;
-    database::set_all_skills(&skills_id, &skills_character, pool).await?;
+    database::gi::characters::set_all(&characters_id, &characters_rarity, pool).await?;
 
     Ok(())
 }

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_characters_text (id,\n    LANGUAGE, name)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::text[], $3::text[])\nON CONFLICT (id,\n    LANGUAGE)\n    DO UPDATE SET\n        name = EXCLUDED.name;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "678f41c13e8e7891b6e5c827322a4b7ad22f0c1712b0a7e88339fb4b19813091"
+}

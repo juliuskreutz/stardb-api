@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_characters (id, rarity)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::integer[])\nON CONFLICT (id)\n    DO UPDATE SET\n        rarity = EXCLUDED.rarity;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ea044e81a876d923540ad127d5a7f6d4438553f1eb8fdd59d7d09d47fb12fd58"
+}
