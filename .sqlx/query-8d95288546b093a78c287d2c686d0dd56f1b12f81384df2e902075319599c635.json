@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    gi_wishes_beginner.id,\n    gi_wishes_beginner.uid,\n    gi_wishes_beginner.character,\n    gi_wishes_beginner.weapon,\n    gi_wishes_beginner.timestamp,\n    gi_wishes_beginner.official,\n    COALESCE(gi_characters_text.name, gi_weapons_text.name) AS name,\n    COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity\nFROM\n    gi_wishes_beginner\n    LEFT JOIN gi_characters ON gi_characters.id = character\n    LEFT JOIN gi_weapons ON gi_weapons.id = weapon\n    LEFT JOIN gi_characters_text ON gi_characters_text.id = character\n        AND gi_characters_text.language = $2\n    LEFT JOIN gi_weapons_text ON gi_weapons_text.id = weapon\n        AND gi_weapons_text.language = $2\nWHERE\n    uid = $1\nORDER BY\n    id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "weapon",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "official",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "8d95288546b093a78c287d2c686d0dd56f1b12f81384df2e902075319599c635"
+}

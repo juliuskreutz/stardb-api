@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_wishes_beginner (id, uid, character, weapon, timestamp, official)\nSELECT\n    *\nFROM\n    UNNEST($1::bigint[], $2::integer[], $3::integer[], $4::integer[], $5::timestamp[], $6::boolean[])\nON CONFLICT\n    DO NOTHING;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "TimestampArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "56299bff69c8b7e8a26d2d403488d6ee9a330077e3f3c5f824c15ef84f782f7d"
+}

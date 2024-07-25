@@ -1,7 +1,7 @@
 SELECT
     uid
 FROM
-    zzz_uids
+    gi_profiles
 WHERE
     EXISTS (
         SELECT
@@ -10,30 +10,35 @@ WHERE
             SELECT
                 uid
             FROM
-                zzz_signals_standard
+                gi_wishes_beginner
             UNION ALL
             SELECT
                 uid
             FROM
-                zzz_signals_special
+                gi_wishes_standard
             UNION ALL
             SELECT
                 uid
             FROM
-                zzz_signals_w_engine
+                gi_wishes_character
             UNION ALL
             SELECT
                 uid
             FROM
-                zzz_signals_bangboo) zzz_signals
+                gi_wishes_weapon
+            UNION ALL
+            SELECT
+                uid
+            FROM
+                gi_wishes_chronicled) gi_wishes
         WHERE
-            zzz_uids.uid = zzz_signals.uid)
+            gi_profiles.uid = gi_wishes.uid)
     AND NOT EXISTS (
         SELECT
             *
         FROM
-            zzz_connections
+            gi_connections
         WHERE
-            zzz_uids.uid = zzz_connections.uid
-            AND zzz_connections.private);
+            gi_profiles.uid = gi_connections.uid
+            AND gi_connections.private);
 

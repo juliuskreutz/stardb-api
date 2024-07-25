@@ -6,6 +6,7 @@ use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use futures::lock::Mutex;
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use strum::IntoEnumIterator;
@@ -54,7 +55,7 @@ struct Entry {
     id: String,
     uid: String,
     item_type: String,
-    item_id: String,
+    name: String,
     time: String,
 }
 
@@ -153,7 +154,18 @@ async fn post_gi_wishes_import(
         return Ok(HttpResponse::Ok().json(WishesImport { uid }));
     }
 
-    database::gi::uids::set(&database::gi::uids::DbUid { uid }, &pool).await?;
+    let name = reqwest::Client::new()
+        .get(format!("https://enka.network/api/uid/{uid}?info"))
+        .header(header::USER_AGENT, "stardb")
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?["playerInfo"]["nickname"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    database::gi::profiles::set(&database::gi::profiles::DbProfile { uid, name }, &pool).await?;
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::gi::connections::DbConnection {
             uid,
@@ -171,10 +183,11 @@ async fn post_gi_wishes_import(
 
     let info = Arc::new(Mutex::new(WishesImportInfo {
         gacha_type: GiGachaType::Standard,
+        beginner: 0,
         standard: 0,
-        bangboo: 0,
-        special: 0,
-        w_engine: 0,
+        character: 0,
+        weapon: 0,
+        chronicled: 0,
         status: Status::Pending,
     }));
 
@@ -224,10 +237,11 @@ async fn import_wishes(
         .extend_pairs(&[(
             "gacha_type",
             match gacha_type {
-                GiGachaType::Standard => "1001",
-                GiGachaType::Special => "2001",
-                GiGachaType::WEngine => "3001",
-                GiGachaType::Bangboo => "5001",
+                GiGachaType::Beginner => "100",
+                GiGachaType::Standard => "200",
+                GiGachaType::Character => "301",
+                GiGachaType::Weapon => "302",
+                GiGachaType::Chronicled => "500",
             },
         )])
         .finish();
@@ -255,7 +269,13 @@ async fn import_wishes(
             break;
         }
 
-        let timestamp_offset = chrono::Duration::hours(gacha_log.data.region_time_zone);
+        let region_time_zone = match gacha_log.data.region.as_str() {
+            "os_usa" => -5,
+            "os_eu" => 1,
+            _ => 8,
+        };
+
+        let timestamp_offset = chrono::Duration::hours(region_time_zone);
 
         for entry in gacha_log.data.list {
             end_id.clone_from(&entry.id);
@@ -264,17 +284,18 @@ async fn import_wishes(
             let uid: i32 = entry.uid.parse()?;
 
             let exists = match gacha_type {
+                GiGachaType::Beginner => {
+                    database::gi::wishes::beginner::exists(id, uid, pool).await?
+                }
                 GiGachaType::Standard => {
                     database::gi::wishes::standard::exists(id, uid, pool).await?
                 }
-                GiGachaType::Special => {
-                    database::gi::wishes::special::exists(id, uid, pool).await?
+                GiGachaType::Character => {
+                    database::gi::wishes::character::exists(id, uid, pool).await?
                 }
-                GiGachaType::WEngine => {
-                    database::gi::wishes::w_engine::exists(id, uid, pool).await?
-                }
-                GiGachaType::Bangboo => {
-                    database::gi::wishes::bangboo::exists(id, uid, pool).await?
+                GiGachaType::Weapon => database::gi::wishes::weapon::exists(id, uid, pool).await?,
+                GiGachaType::Chronicled => {
+                    database::gi::wishes::chronicled::exists(id, uid, pool).await?
                 }
             };
 
@@ -282,22 +303,22 @@ async fn import_wishes(
                 continue;
             }
 
-            let item: i32 = entry.item_id.parse()?;
+            let item: i32 = if let Ok(id) =
+                database::gi::characters_text::get_id_by_name(&entry.name, pool).await
+            {
+                id
+            } else {
+                database::gi::weapons_text::get_id_by_name(&entry.name, pool).await?
+            };
 
-            let mut character =
-                (entry.item_type == "Agents" || entry.item_type == "代理人").then_some(item);
-            let mut w_engine =
-                (entry.item_type == "W-Engines" || entry.item_type == "音擎").then_some(item);
-            let mut bangboo =
-                (entry.item_type == "Bangboo" || entry.item_type == "邦布").then_some(item);
+            let mut character = (entry.item_type == "Character").then_some(item);
+            let mut weapon = (entry.item_type == "Weapon").then_some(item);
 
-            if character.is_none() && w_engine.is_none() && bangboo.is_none() {
-                if item >= 50000 {
-                    bangboo = Some(item);
-                } else if item >= 12000 {
-                    w_engine = Some(item);
-                } else {
+            if character.is_none() && weapon.is_none() {
+                if item >= 10000000 {
                     character = Some(item);
+                } else {
+                    weapon = Some(item);
                 }
             }
 
@@ -308,25 +329,28 @@ async fn import_wishes(
             set_all.id.push(id);
             set_all.uid.push(uid);
             set_all.character.push(character);
-            set_all.w_engine.push(w_engine);
-            set_all.bangboo.push(bangboo);
+            set_all.weapon.push(weapon);
             set_all.timestamp.push(timestamp);
             set_all.official.push(true);
 
             match gacha_type {
+                GiGachaType::Beginner => info.lock().await.beginner += 1,
                 GiGachaType::Standard => info.lock().await.standard += 1,
-                GiGachaType::Special => info.lock().await.special += 1,
-                GiGachaType::WEngine => info.lock().await.w_engine += 1,
-                GiGachaType::Bangboo => info.lock().await.bangboo += 1,
+                GiGachaType::Character => info.lock().await.character += 1,
+                GiGachaType::Weapon => info.lock().await.weapon += 1,
+                GiGachaType::Chronicled => info.lock().await.chronicled += 1,
             }
         }
     }
 
     match gacha_type {
+        GiGachaType::Beginner => database::gi::wishes::beginner::set_all(&set_all, pool).await?,
         GiGachaType::Standard => database::gi::wishes::standard::set_all(&set_all, pool).await?,
-        GiGachaType::Special => database::gi::wishes::special::set_all(&set_all, pool).await?,
-        GiGachaType::WEngine => database::gi::wishes::w_engine::set_all(&set_all, pool).await?,
-        GiGachaType::Bangboo => database::gi::wishes::bangboo::set_all(&set_all, pool).await?,
+        GiGachaType::Character => database::gi::wishes::character::set_all(&set_all, pool).await?,
+        GiGachaType::Weapon => database::gi::wishes::weapon::set_all(&set_all, pool).await?,
+        GiGachaType::Chronicled => {
+            database::gi::wishes::chronicled::set_all(&set_all, pool).await?
+        }
     }
 
     Ok(())

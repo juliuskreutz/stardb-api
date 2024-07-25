@@ -303,7 +303,7 @@ async fn update_achievement_tracker(
 }
 
 #[utoipa::path(
-    tag = "pages",
+    tag = "pages/zzz",
     get,
     path = "/api/pages/zzz/achievement-tracker",
     params(LanguageParams),

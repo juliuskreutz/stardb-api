@@ -115,7 +115,7 @@ struct GlobalStats {
 }
 
 #[utoipa::path(
-    tag = "pages",
+    tag = "pages/zzz",
     get,
     path = "/api/pages/zzz/signal-tracker/{uid}",
     security(("api_key" = [])),

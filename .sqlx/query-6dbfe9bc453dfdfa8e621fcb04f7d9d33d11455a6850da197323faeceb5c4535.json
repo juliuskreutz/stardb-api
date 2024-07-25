@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_profiles (uid, name)\n    VALUES ($1, $2)\nON CONFLICT (uid)\n    DO UPDATE SET\n        name = EXCLUDED.name;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6dbfe9bc453dfdfa8e621fcb04f7d9d33d11455a6850da197323faeceb5c4535"
+}

@@ -1,12 +1,12 @@
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
-use crate::api::{zzz::signals_import::SignalsImportInfos, ApiResult};
+use crate::api::{gi::wishes_import::WishesImportInfos, ApiResult};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "zzz/signals-import/{uid}")),
-    paths(get_zzz_signals_import)
+    tags((name = "gi/wishes-import/{uid}")),
+    paths(get_gi_wishes_import)
 )]
 struct ApiDoc;
 
@@ -15,23 +15,23 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_zzz_signals_import);
+    cfg.service(get_gi_wishes_import);
 }
 
 #[utoipa::path(
-    tag = "zzz/signals-import/{uid}",
+    tag = "gi/wishes-import/{uid}",
     get,
-    path = "/api/zzz/signals-import/{uid}",
+    path = "/api/gi/wishes-import/{uid}",
     responses(
-        (status = 200, description = "SignalsImportInfo", body = SignalsImportInfo)
+        (status = 200, description = "WishesImportInfo", body = WishesImportInfo)
     )
 )]
-#[get("/api/zzz/signals-import/{uid}")]
-async fn get_zzz_signals_import(
+#[get("/api/gi/wishes-import/{uid}")]
+async fn get_gi_wishes_import(
     uid: web::Path<i32>,
-    signals_import_infos: web::Data<SignalsImportInfos>,
+    wishes_import_infos: web::Data<WishesImportInfos>,
 ) -> ApiResult<impl Responder> {
-    let Some(info) = signals_import_infos.lock().await.get(&*uid).cloned() else {
+    let Some(info) = wishes_import_infos.lock().await.get(&*uid).cloned() else {
         return Ok(HttpResponse::BadRequest().finish());
     };
 

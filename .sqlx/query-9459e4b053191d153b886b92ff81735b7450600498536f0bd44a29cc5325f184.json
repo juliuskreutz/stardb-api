@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    uid\nFROM\n    zzz_uids\nWHERE\n    EXISTS (\n        SELECT\n            *\n        FROM (\n            SELECT\n                uid\n            FROM\n                zzz_signals_standard\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                zzz_signals_special\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                zzz_signals_w_engine\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                zzz_signals_bangboo) zzz_signals\n        WHERE\n            zzz_uids.uid = zzz_signals.uid)\n    AND NOT EXISTS (\n        SELECT\n            *\n        FROM\n            zzz_connections\n        WHERE\n            zzz_uids.uid = zzz_connections.uid\n            AND zzz_connections.private);\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9459e4b053191d153b886b92ff81735b7450600498536f0bd44a29cc5325f184"
+}

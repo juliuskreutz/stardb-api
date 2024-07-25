@@ -1,4 +1,5 @@
 mod achievement_tracker;
+mod gi;
 mod zzz;
 //mod book_tracker;
 //mod community_tier_list;
@@ -22,6 +23,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(leaderboard::openapi());
     openapi.merge(profiles::openapi());
     openapi.merge(warp_tracker::openapi());
+    openapi.merge(gi::openapi());
     openapi.merge(zzz::openapi());
     openapi
 }
@@ -33,5 +35,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(leaderboard::configure)
         .configure(profiles::configure)
         .configure(warp_tracker::configure)
+        .configure(|sc| gi::configure(sc, pool.clone()))
         .configure(|sc| zzz::configure(sc, pool.clone()));
 }

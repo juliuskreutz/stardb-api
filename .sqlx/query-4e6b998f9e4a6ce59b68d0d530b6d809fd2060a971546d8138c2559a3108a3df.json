@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    uid\nFROM\n    gi_profiles\nWHERE\n    EXISTS (\n        SELECT\n            *\n        FROM (\n            SELECT\n                uid\n            FROM\n                gi_wishes_beginner\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                gi_wishes_standard\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                gi_wishes_character\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                gi_wishes_weapon\n            UNION ALL\n            SELECT\n                uid\n            FROM\n                gi_wishes_chronicled) gi_wishes\n        WHERE\n            gi_profiles.uid = gi_wishes.uid)\n    AND NOT EXISTS (\n        SELECT\n            *\n        FROM\n            gi_connections\n        WHERE\n            gi_profiles.uid = gi_connections.uid\n            AND gi_connections.private);\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4e6b998f9e4a6ce59b68d0d530b6d809fd2060a971546d8138c2559a3108a3df"
+}
