@@ -123,8 +123,8 @@ async fn post_srgf_warps_import(
         let id = entry.id.parse::<i64>().unwrap();
 
         let set_all = match entry.gacha_type.as_str() {
-            "1" => &mut set_all_departure,
-            "2" => &mut set_all_standard,
+            "2" => &mut set_all_departure,
+            "1" => &mut set_all_standard,
             "11" => &mut set_all_special,
             "12" => &mut set_all_lc,
             _ => return Ok(HttpResponse::BadRequest().finish()),
