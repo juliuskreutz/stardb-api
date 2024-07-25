@@ -5,6 +5,7 @@ mod book_series_worlds;
 mod books;
 mod characters;
 mod free_jade_alert;
+//mod gi;
 mod import_achievements;
 mod import_books;
 mod import_zzz_achievements;
@@ -94,6 +95,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(books::openapi());
     openapi.merge(characters::openapi());
     openapi.merge(free_jade_alert::openapi());
+    //openapi.merge(gi::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
     openapi.merge(import_zzz_achievements::openapi());
@@ -125,6 +127,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(books::configure)
         .configure(characters::configure)
         .configure(free_jade_alert::configure)
+        //.configure(gi::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
         .configure(import_zzz_achievements::configure)

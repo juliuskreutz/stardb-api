@@ -14,7 +14,7 @@ use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
     cookie::{time::Duration, Key},
     middleware::Compress,
-    web::Data,
+    web::{self, Data},
     App, HttpServer,
 };
 use pg_session_store::PgSessionStore;
@@ -136,6 +136,26 @@ enum ZzzGachaType {
     Clone,
     Copy,
     strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+enum GiGachaType {
+    Beginner,
+    Standard,
+    Character,
+    Weapon,
+    Chronicled,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    strum::Display,
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
@@ -191,6 +211,7 @@ async fn main() -> anyhow::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .app_data(web::JsonConfig::default().limit(5 * 1024 * 1024))
             .app_data(pool_data.clone())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {

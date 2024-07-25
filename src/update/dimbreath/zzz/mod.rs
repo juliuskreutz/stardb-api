@@ -134,13 +134,13 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if !Path::new("dimbreath").join("ZenlessData").exists() {
+    if !Path::new("dimbreath").join("tvgamedata").exists() {
         Command::new("git")
             .args([
                 "clone",
                 "--depth",
                 "1",
-                "https://github.com/Dimbreath/ZenlessData",
+                "https://gitlab.com/Dimbreath/tvgamedata",
             ])
             .current_dir("dimbreath")
             .output()
@@ -152,7 +152,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     let output = String::from_utf8(
         Command::new("git")
             .arg("pull")
-            .current_dir(Path::new("dimbreath").join("ZenlessData"))
+            .current_dir(Path::new("dimbreath").join("tvgamedata"))
             .output()
             .await?
             .stdout,
@@ -168,31 +168,31 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
 
     let achievement_second_class: HashMap<String, Vec<AchieveSecondClass>> =
         serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/ZenlessData/FileCfg/AchieveSecondClassConfigTemplateTb.json",
+            "dimbreath/tvgamedata/FileCfg/AchieveSecondClassConfigTemplateTb.json",
         )?))?;
 
     let achievement: HashMap<String, Vec<Achievement>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/ZenlessData/FileCfg/AchievementTemplateTb.json")?,
+        File::open("dimbreath/tvgamedata/FileCfg/AchievementTemplateTb.json")?,
     ))?;
 
     let once_reward: HashMap<String, Vec<Rewards>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/ZenlessData/FileCfg/OnceRewardTemplateTb.json")?,
+        File::open("dimbreath/tvgamedata/FileCfg/OnceRewardTemplateTb.json")?,
     ))?;
 
     let item: HashMap<String, Vec<Item>> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/ZenlessData/FileCfg/ItemTemplateTb.json",
+        "dimbreath/tvgamedata/FileCfg/ItemTemplateTb.json",
     )?))?;
 
     let avatar: HashMap<String, Vec<Avatar>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/ZenlessData/FileCfg/AvatarBaseTemplateTb.json")?,
+        File::open("dimbreath/tvgamedata/FileCfg/AvatarBaseTemplateTb.json")?,
     ))?;
 
     let weapon: HashMap<String, Vec<Weapon>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/ZenlessData/FileCfg/WeaponTemplateTb.json")?,
+        File::open("dimbreath/tvgamedata/FileCfg/WeaponTemplateTb.json")?,
     ))?;
 
     let buddy: HashMap<String, Vec<Buddy>> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/ZenlessData/FileCfg/BuddyBaseTemplateTb.json",
+        "dimbreath/tvgamedata/FileCfg/BuddyBaseTemplateTb.json",
     )?))?;
 
     let configs = Configs {

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    gi_connections\nSET\n    private = $3\nWHERE\n    uid = $1\n    AND username = $2;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4fb2ec9a7e8ef4e8d1c1e38ed671b36cc8476f62ce7e758de452672b37a4cc82"
+}
