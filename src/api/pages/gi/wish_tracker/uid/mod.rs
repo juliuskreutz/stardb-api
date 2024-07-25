@@ -66,6 +66,7 @@ impl From<database::gi::wishes::DbWish> for Wish {
 
 #[derive(Serialize)]
 struct WishTracker {
+    name: String,
     beginner: Wishes,
     standard: Wishes,
     character: Wishes,
@@ -144,6 +145,8 @@ async fn get_wish_tracker(
     if forbidden {
         return Ok(HttpResponse::Forbidden().finish());
     }
+
+    let name = database::gi::profiles::get_by_uid(uid, &pool).await?.name;
 
     let language = language_params.lang;
 
@@ -453,6 +456,7 @@ async fn get_wish_tracker(
     //}
 
     let wish_tracker = WishTracker {
+        name,
         beginner,
         standard,
         character,

@@ -57,6 +57,7 @@ pub struct User {
     email: Option<String>,
     uids: Vec<i32>,
     zzz_uids: Vec<i32>,
+    gi_uids: Vec<i32>,
     achievements: Vec<i32>,
     zzz_achievements: Vec<i32>,
     books: Vec<i32>,
@@ -99,6 +100,12 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .map(|c| c.uid)
         .collect();
 
+    let gi_uids = database::gi::connections::get_by_username(&username, &pool)
+        .await?
+        .into_iter()
+        .map(|c| c.uid)
+        .collect();
+
     let books = database::get_user_books_completed_by_username(&username, &pool)
         .await?
         .into_iter()
@@ -124,6 +131,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         email,
         uids,
         zzz_uids,
+        gi_uids,
         achievements,
         zzz_achievements,
         books,
