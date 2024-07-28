@@ -54,6 +54,9 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-import",
+    "https://stardb.gg/%LANG%/gi/achievement-tracker",
+    "https://stardb.gg/%LANG%/gi/wish-tracker",
+    "https://stardb.gg/%LANG%/gi/wish-import",
 ];
 
 #[derive(serde::Serialize)]
@@ -174,10 +177,12 @@ fn write_sitemap_index(count: usize) -> anyhow::Result<()> {
 async fn update(pool: PgPool) -> anyhow::Result<()> {
     let achievement_ids = database::achievements::get_all_ids_shown(&pool).await?;
     let zzz_achievement_ids = database::zzz::achievements::get_all_ids_shown(&pool).await?;
+    let gi_achievement_ids = database::gi::achievements::get_all_ids_shown(&pool).await?;
 
     let mihomo_uids = database::mihomo::get_all_uids(&pool).await?;
     let warp_uids = database::warps::get_uids(&pool).await?;
     let signal_uids = database::zzz::signals::get_uids(&pool).await?;
+    let wish_uids = database::gi::wishes::get_uids(&pool).await?;
 
     let mut count = 0;
 
@@ -286,6 +291,34 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
             }
         }
 
+        for id in &gi_achievement_ids {
+            let mut links = Vec::new();
+
+            for link_language in &languages {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!(
+                        "https://stardb.gg/{link_language}/gi/database/achievements/{id}"
+                    ),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/gi/database/achievements/{id}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
+        }
+
         //TODO: Comment in when client emulator works
         //
         //for uid in &mihomo_uids {
@@ -355,6 +388,32 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
 
             let url = Url {
                 loc: format!("https://stardb.gg/{language}/zzz/signal-tracker/{uid}"),
+                lastmod: LASTMOD.to_string(),
+                links,
+            };
+
+            urls.push(url);
+
+            if urls.len() >= MAX_URLS {
+                write_urls(count, urls)?;
+                count += 1;
+                urls = Vec::new();
+            }
+        }
+
+        for uid in &wish_uids {
+            let mut links = Vec::new();
+
+            for link_language in &languages {
+                links.push(Link {
+                    rel: "alternate".to_string(),
+                    hreflang: link_language.to_string(),
+                    href: format!("https://stardb.gg/{link_language}/gi/wish-tracker/{uid}"),
+                });
+            }
+
+            let url = Url {
+                loc: format!("https://stardb.gg/{language}/gi/wish-tracker/{uid}"),
                 lastmod: LASTMOD.to_string(),
                 links,
             };
