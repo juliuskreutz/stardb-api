@@ -190,18 +190,19 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements_percent::spawn(pool.clone()).await;
-    update::zzz_achievements_percent::spawn(pool.clone()).await;
+    //update::achievements_percent::spawn(pool.clone()).await;
+    //update::zzz_achievements_percent::spawn(pool.clone()).await;
+    update::gi_achievements_percent::spawn(pool.clone()).await;
     //update::books_percent(pool.clone()).await;
     //update::community_tier_list(pool.clone()).await;
-    update::dimbreath::hsr::spawn(pool.clone()).await;
-    update::dimbreath::zzz::spawn(pool.clone()).await;
+    //update::dimbreath::hsr::spawn(pool.clone()).await;
+    //update::dimbreath::zzz::spawn(pool.clone()).await;
     update::dimbreath::gi::spawn(pool.clone()).await;
-    update::star_rail_res::spawn().await;
-    update::scores::spawn(pool.clone()).await;
+    //update::star_rail_res::spawn().await;
+    //update::scores::spawn(pool.clone()).await;
     //update::character_averages::spawn(pool.clone()).await;
-    update::warps_stats::spawn(pool.clone()).await;
-    update::signals_stats::spawn(pool.clone()).await;
+    //update::warps_stats::spawn(pool.clone()).await;
+    //update::signals_stats::spawn(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
 

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    gi_achievements\nSET\n    impossible = $2\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f6f53e79486d643d12465ee1ad4c5e8c6b3fb850dc5278a6b0fb8c499d00b2fa"
+}

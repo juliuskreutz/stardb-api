@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_users_achievements_favorites(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ac9bbc876190e34ac21bfc81103e90f117f85469ff3707ddc7148ee45923eb30"
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_achievements (id, series, primogems, hidden, priority)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::integer[], $3::integer[], $4::bool[], $5::integer[])\nON CONFLICT (id)\n    DO UPDATE SET\n        series = EXCLUDED.series,\n        primogems = EXCLUDED.primogems,\n        hidden = EXCLUDED.hidden,\n        priority = EXCLUDED.priority;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "BoolArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4d94d050890f8459647aac52a66fdf3c415b0c2c8228d3ce46854e9ea553b6e2"
+}

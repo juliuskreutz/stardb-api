@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    id\nFROM\n    gi_achievements\nWHERE\n    id != $1\n    AND SET = $2;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "42063dfc9349591187bcf6157244787a69247333a8460e40020ebce59c6b67e6"
+}

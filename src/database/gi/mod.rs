@@ -1,8 +1,14 @@
+pub mod achievement_series;
+pub mod achievement_series_text;
+pub mod achievements;
+pub mod achievements_percent;
+pub mod achievements_text;
 pub mod characters;
 pub mod characters_text;
 pub mod connections;
 pub mod profiles;
+pub mod users_achievements_completed;
+pub mod users_achievements_favorites;
 pub mod weapons;
 pub mod weapons_text;
 pub mod wishes;
-

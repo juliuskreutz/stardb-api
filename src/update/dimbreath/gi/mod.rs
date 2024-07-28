@@ -5,6 +5,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod achievement_series;
+mod achievements;
 mod avatars;
 mod texts;
 mod weapons;
@@ -46,6 +48,50 @@ pub async fn spawn(pool: PgPool) {
 }
 
 #[derive(serde::Deserialize)]
+struct AchievementGoalData {
+    id: Option<i32>,
+    #[serde(rename = "nameTextMapHash")]
+    name: i64,
+    #[serde(rename = "orderId")]
+    order: i32,
+}
+
+#[derive(serde::Deserialize)]
+struct AchievementData {
+    id: i32,
+    #[serde(rename = "goalId")]
+    goal: Option<i32>,
+    #[serde(rename = "titleTextMapHash")]
+    name: i64,
+    #[serde(rename = "descTextMapHash")]
+    description: i64,
+    #[serde(rename = "finishRewardId")]
+    reward: i32,
+    #[serde(rename = "isShow")]
+    show: Option<String>,
+    #[serde(rename = "orderId")]
+    order: Option<i32>,
+    #[serde(rename = "isDisuse")]
+    disuse: Option<bool>,
+}
+
+#[derive(serde::Deserialize)]
+struct RewardData {
+    #[serde(rename = "rewardId")]
+    id: i32,
+    #[serde(rename = "rewardItemList")]
+    rewards: Vec<Reward>,
+}
+
+#[derive(serde::Deserialize)]
+struct Reward {
+    #[serde(rename = "itemId")]
+    id: Option<i32>,
+    #[serde(rename = "itemCount")]
+    count: Option<i32>,
+}
+
+#[derive(serde::Deserialize)]
 struct AvatarData {
     id: i32,
     #[serde(rename = "nameTextMapHash")]
@@ -64,6 +110,9 @@ struct WeaponData {
 }
 
 struct Configs {
+    achievement_goal_data: Vec<AchievementGoalData>,
+    achievement_data: Vec<AchievementData>,
+    reward_data: Vec<RewardData>,
     avatar_data: Vec<AvatarData>,
     weapon_data: Vec<WeaponData>,
 }
@@ -101,6 +150,18 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let achievement_goal_data: Vec<AchievementGoalData> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/AnimeGameData/ExcelBinOutput/AchievementGoalExcelConfigData.json")?,
+    ))?;
+
+    let achievement_data: Vec<AchievementData> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/AnimeGameData/ExcelBinOutput/AchievementExcelConfigData.json")?,
+    ))?;
+
+    let reward_data: Vec<RewardData> = serde_json::from_reader(BufReader::new(File::open(
+        "dimbreath/AnimeGameData/ExcelBinOutput/RewardExcelConfigData.json",
+    )?))?;
+
     let avatar_data: Vec<AvatarData> = serde_json::from_reader(BufReader::new(File::open(
         "dimbreath/AnimeGameData/ExcelBinOutput/AvatarExcelConfigData.json",
     )?))?;
@@ -110,9 +171,20 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     )?))?;
 
     let configs = Configs {
+        achievement_goal_data,
+        achievement_data,
+        reward_data,
         avatar_data,
         weapon_data,
     };
+
+    info!("Starting achievement series");
+    achievement_series::update(&configs, &pool).await?;
+    actix_web::rt::task::yield_now().await;
+
+    info!("Starting achievements");
+    achievements::update(&configs, &pool).await?;
+    actix_web::rt::task::yield_now().await;
 
     info!("Starting avatars");
     avatars::update(&configs, &pool).await?;
@@ -125,6 +197,8 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     info!("Starting texts");
     texts::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
+
+    *up_to_date = true;
 
     Ok(())
 }

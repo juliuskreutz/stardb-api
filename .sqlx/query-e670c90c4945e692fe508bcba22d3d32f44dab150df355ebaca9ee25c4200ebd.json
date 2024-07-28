@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    gi_achievements\nSET\n    reference = $2\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e670c90c4945e692fe508bcba22d3d32f44dab150df355ebaca9ee25c4200ebd"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM gi_users_achievements_favorites WHERE username = $1 AND id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7fa26e374b8c93a6a8a47099bd14344c49e264819bc23b6d430969567d48736d"
+}
