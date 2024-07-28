@@ -8,6 +8,7 @@ mod free_jade_alert;
 mod gi;
 mod import_achievements;
 mod import_books;
+mod import_gi_achievements;
 mod import_zzz_achievements;
 mod index;
 mod languages;
@@ -98,6 +99,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(gi::openapi());
     openapi.merge(import_achievements::openapi());
     openapi.merge(import_books::openapi());
+    openapi.merge(import_gi_achievements::openapi());
     openapi.merge(import_zzz_achievements::openapi());
     openapi.merge(index::openapi());
     openapi.merge(languages::openapi());
@@ -130,6 +132,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(gi::configure)
         .configure(import_achievements::configure)
         .configure(import_books::configure)
+        .configure(import_gi_achievements::configure)
         .configure(import_zzz_achievements::configure)
         .configure(index::configure)
         .configure(languages::configure)

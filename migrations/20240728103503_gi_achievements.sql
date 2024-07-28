@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS gi_achievements (
     set integer,
     priority integer NOT NULL,
     video text,
-    impossible boolean DEFAULT TRUE NOT NULL
+    impossible boolean DEFAULT FALSE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gi_achievements_percent (
