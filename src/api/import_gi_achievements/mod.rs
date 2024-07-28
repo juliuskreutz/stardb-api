@@ -39,6 +39,8 @@ struct Achievement {
     difficulty: Option<String>,
     #[serde(rename = "Time Gated")]
     timegated: Option<String>,
+    #[serde(rename = "Forbidden")]
+    impossible: Option<String>,
 }
 
 #[utoipa::path(
@@ -103,6 +105,13 @@ async fn import_gi_achievements(
         } else {
             database::gi::achievements::delete_comment_by_id(achievement.key, &pool).await?;
         }
+
+        database::gi::achievements::update_impossible_by_id(
+            achievement.key,
+            achievement.impossible.as_deref() == Some("Yes"),
+            &pool,
+        )
+        .await?;
 
         database::gi::achievements::update_timegated_by_id(
             achievement.key,
