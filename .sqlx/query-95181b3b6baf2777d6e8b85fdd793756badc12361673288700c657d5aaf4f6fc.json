@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    gi_achievements.*,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $1\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $1\n    ORDER BY\n        series,\n        priority DESC,\n        id;\n\n",
+  "query": "SELECT\n    gi_achievements.*,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $1\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $1\n    ORDER BY\n        series,\n        priority,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -126,5 +126,5 @@
       false
     ]
   },
-  "hash": "05bbf26dbacd589b2edef53eb8b08ad1f673f94928fe9f27cb982b7a6af97a07"
+  "hash": "95181b3b6baf2777d6e8b85fdd793756badc12361673288700c657d5aaf4f6fc"
 }

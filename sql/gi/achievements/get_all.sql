@@ -14,6 +14,6 @@ FROM
         AND gi_achievement_series_text.language = $1
     ORDER BY
         series,
-        priority DESC,
+        priority,
         id;
 
