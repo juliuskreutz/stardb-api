@@ -69,10 +69,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             let mut description = text_map[&achievement.description.to_string()].clone();
 
             if description.contains("{param0}") {
-                description = description.replace(
-                    "{param0}",
-                    achievement.trigger.params[0].as_deref().unwrap(),
-                );
+                description = description.replace("{param0}", &achievement.progress.to_string());
             }
 
             let id = achievement.id;
