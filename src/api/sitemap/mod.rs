@@ -54,9 +54,9 @@ const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%/zzz/achievement-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-tracker",
     "https://stardb.gg/%LANG%/zzz/signal-import",
-    "https://stardb.gg/%LANG%/gi/achievement-tracker",
-    "https://stardb.gg/%LANG%/gi/wish-tracker",
-    "https://stardb.gg/%LANG%/gi/wish-import",
+    "https://stardb.gg/%LANG%/genshin/achievement-tracker",
+    "https://stardb.gg/%LANG%/genshin/wish-tracker",
+    "https://stardb.gg/%LANG%/genshin/wish-import",
 ];
 
 #[derive(serde::Serialize)]
@@ -299,13 +299,13 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
                     href: format!(
-                        "https://stardb.gg/{link_language}/gi/database/achievements/{id}"
+                        "https://stardb.gg/{link_language}/genshin/database/achievements/{id}"
                     ),
                 });
             }
 
             let url = Url {
-                loc: format!("https://stardb.gg/{language}/gi/database/achievements/{id}"),
+                loc: format!("https://stardb.gg/{language}/genshin/database/achievements/{id}"),
                 lastmod: LASTMOD.to_string(),
                 links,
             };
@@ -408,12 +408,12 @@ async fn update(pool: PgPool) -> anyhow::Result<()> {
                 links.push(Link {
                     rel: "alternate".to_string(),
                     hreflang: link_language.to_string(),
-                    href: format!("https://stardb.gg/{link_language}/gi/wish-tracker/{uid}"),
+                    href: format!("https://stardb.gg/{link_language}/genshin/wish-tracker/{uid}"),
                 });
             }
 
             let url = Url {
-                loc: format!("https://stardb.gg/{language}/gi/wish-tracker/{uid}"),
+                loc: format!("https://stardb.gg/{language}/genshin/wish-tracker/{uid}"),
                 lastmod: LASTMOD.to_string(),
                 links,
             };
