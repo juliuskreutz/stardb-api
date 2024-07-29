@@ -73,6 +73,14 @@ struct AchievementData {
     order: Option<i32>,
     #[serde(rename = "isDisuse")]
     disuse: Option<bool>,
+    #[serde(rename = "triggerConfig")]
+    trigger: Trigger,
+}
+
+#[derive(serde::Deserialize)]
+struct Trigger {
+    #[serde(rename = "paramList")]
+    params: Vec<Option<String>>,
 }
 
 #[derive(serde::Deserialize)]

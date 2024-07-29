@@ -66,7 +66,14 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             }
 
             let name = text_map[&achievement.name.to_string()].clone();
-            let description = text_map[&achievement.description.to_string()].clone();
+            let mut description = text_map[&achievement.description.to_string()].clone();
+
+            if description.contains("{param0}") {
+                description = description.replace(
+                    "{param0}",
+                    achievement.trigger.params[0].as_deref().unwrap(),
+                );
+            }
 
             let id = achievement.id;
 
