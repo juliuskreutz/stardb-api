@@ -8,7 +8,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut light_cones_id = Vec::new();
     let mut light_cones_rarity = Vec::new();
 
-    for item_config_equipment in configs.equipment_config.values() {
+    for item_config_equipment in &configs.equipment_config {
         let id = item_config_equipment.id;
 
         let rarity = match item_config_equipment.rarity.as_str() {

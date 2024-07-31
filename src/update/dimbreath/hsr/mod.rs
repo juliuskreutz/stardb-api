@@ -9,9 +9,9 @@ use std::{
 mod achievement_series;
 mod achievements;
 mod avatars;
-mod book_series;
-mod book_series_worlds;
-mod books;
+//mod book_series;
+//mod book_series_worlds;
+//mod books;
 mod light_cones;
 mod texts;
 
@@ -57,12 +57,16 @@ struct AchievementSeries {
 
 #[derive(Deserialize)]
 struct QuestData {
+    #[serde(rename = "QuestID")]
+    quest_id: i32,
     #[serde(rename = "RewardID")]
-    reward_id: i64,
+    reward_id: i32,
 }
 
 #[derive(Deserialize)]
 struct RewardData {
+    #[serde(rename = "RewardID")]
+    reward_id: i32,
     #[serde(rename = "Hcoin")]
     jades: Option<i32>,
 }
@@ -99,12 +103,16 @@ struct AvatarSkillConfig {
 
 #[derive(Deserialize)]
 struct AvatarBaseType {
+    #[serde(rename = "ID")]
+    id: Option<String>,
     #[serde(rename = "BaseTypeText")]
     text: TextHash,
 }
 
 #[derive(Deserialize)]
 struct DamageType {
+    #[serde(rename = "ID")]
+    id: String,
     #[serde(rename = "DamageTypeName")]
     name: TextHash,
 }
@@ -166,20 +174,20 @@ struct TextHash {
 }
 
 struct Configs {
-    achievement_data: HashMap<String, AchievementData>,
-    achievement_series: HashMap<String, AchievementSeries>,
-    quest_data: HashMap<String, QuestData>,
-    reward_data: HashMap<String, RewardData>,
-    avatar_config: HashMap<String, AvatarConfig>,
-    avatar_skill_config: HashMap<String, AvatarSkillConfigWrapper>,
-    avatar_base_type: HashMap<String, AvatarBaseType>,
-    damage_type: HashMap<String, DamageType>,
-    localbook_config: HashMap<String, LocalbookConfig>,
-    book_series_config: HashMap<String, BookSeriesConfig>,
-    book_series_world: HashMap<String, BookSeriesWorld>,
-    item_config: HashMap<String, ItemConfig>,
-    item_config_book: HashMap<String, ItemConfig>,
-    equipment_config: HashMap<String, EquipmentConfig>,
+    achievement_data: Vec<AchievementData>,
+    achievement_series: Vec<AchievementSeries>,
+    quest_data: Vec<QuestData>,
+    reward_data: Vec<RewardData>,
+    avatar_config: Vec<AvatarConfig>,
+    //avatar_skill_config: Vec<AvatarSkillConfigWrapper>,
+    avatar_base_type: Vec<AvatarBaseType>,
+    damage_type: Vec<DamageType>,
+    //localbook_config: Vec<LocalbookConfig>,
+    //book_series_config: Vec<BookSeriesConfig>,
+    //book_series_world: Vec<BookSeriesWorld>,
+    //item_config: Vec<ItemConfig>,
+    //item_config_book: Vec<ItemConfig>,
+    equipment_config: Vec<EquipmentConfig>,
 }
 
 pub async fn spawn(pool: PgPool) {
@@ -247,69 +255,62 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let achievement_data: HashMap<String, AchievementData> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/AchievementData.json",
-        )?))?;
-
-    let achievement_series: HashMap<String, AchievementSeries> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/AchievementSeries.json",
-        )?))?;
-
-    let quest_data: HashMap<String, QuestData> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/QuestData.json")?,
+    let achievement_data: Vec<AchievementData> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/StarRailData/ExcelOutput/AchievementData.json")?,
     ))?;
 
-    let reward_data: HashMap<String, RewardData> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/RewardData.json")?,
+    let achievement_series: Vec<AchievementSeries> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/StarRailData/ExcelOutput/AchievementSeries.json")?,
     ))?;
 
-    let avatar_config: HashMap<String, AvatarConfig> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/AvatarConfig.json")?,
+    let quest_data: Vec<QuestData> = serde_json::from_reader(BufReader::new(File::open(
+        "dimbreath/StarRailData/ExcelOutput/QuestData.json",
+    )?))?;
+
+    let reward_data: Vec<RewardData> = serde_json::from_reader(BufReader::new(File::open(
+        "dimbreath/StarRailData/ExcelOutput/RewardData.json",
+    )?))?;
+
+    let avatar_config: Vec<AvatarConfig> = serde_json::from_reader(BufReader::new(File::open(
+        "dimbreath/StarRailData/ExcelOutput/AvatarConfig.json",
+    )?))?;
+
+    //let avatar_skill_config: Vec<AvatarSkillConfigWrapper> =
+    //    serde_json::from_reader(BufReader::new(File::open(
+    //        "dimbreath/StarRailData/ExcelOutput/AvatarSkillConfig.json",
+    //    )?))?;
+
+    let avatar_base_type: Vec<AvatarBaseType> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/StarRailData/ExcelOutput/AvatarBaseType.json")?,
     ))?;
 
-    let avatar_skill_config: HashMap<String, AvatarSkillConfigWrapper> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/AvatarSkillConfig.json",
-        )?))?;
+    let damage_type: Vec<DamageType> = serde_json::from_reader(BufReader::new(File::open(
+        "dimbreath/StarRailData/ExcelOutput/DamageType.json",
+    )?))?;
 
-    let avatar_base_type: HashMap<String, AvatarBaseType> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/AvatarBaseType.json",
-        )?))?;
+    //let localbook_config: Vec<LocalbookConfig> = serde_json::from_reader(BufReader::new(
+    //    File::open("dimbreath/StarRailData/ExcelOutput/LocalbookConfig.json")?,
+    //))?;
+    //
+    //let book_series_config: Vec<BookSeriesConfig> = serde_json::from_reader(BufReader::new(
+    //    File::open("dimbreath/StarRailData/ExcelOutput/BookSeriesConfig.json")?,
+    //))?;
+    //
+    //let book_series_world: Vec<BookSeriesWorld> = serde_json::from_reader(BufReader::new(
+    //    File::open("dimbreath/StarRailData/ExcelOutput/BookSeriesWorld.json")?,
+    //))?;
 
-    let damage_type: HashMap<String, DamageType> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/DamageType.json")?,
+    //let item_config: Vec<ItemConfig> = serde_json::from_reader(BufReader::new(File::open(
+    //    "dimbreath/StarRailData/ExcelOutput/ItemConfig.json",
+    //)?))?;
+
+    //let item_config_book: Vec<ItemConfig> = serde_json::from_reader(BufReader::new(File::open(
+    //    "dimbreath/StarRailData/ExcelOutput/ItemConfigBook.json",
+    //)?))?;
+
+    let equipment_config: Vec<EquipmentConfig> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/StarRailData/ExcelOutput/EquipmentConfig.json")?,
     ))?;
-
-    let localbook_config: HashMap<String, LocalbookConfig> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/LocalbookConfig.json",
-        )?))?;
-
-    let book_series_config: HashMap<String, BookSeriesConfig> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/BookSeriesConfig.json",
-        )?))?;
-
-    let book_series_world: HashMap<String, BookSeriesWorld> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/BookSeriesWorld.json",
-        )?))?;
-
-    let item_config: HashMap<String, ItemConfig> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/ItemConfig.json")?,
-    ))?;
-
-    let item_config_book: HashMap<String, ItemConfig> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/ItemConfigBook.json")?,
-    ))?;
-
-    let equipment_config: HashMap<String, EquipmentConfig> =
-        serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/StarRailData/ExcelOutput/EquipmentConfig.json",
-        )?))?;
 
     let configs = Configs {
         achievement_data,
@@ -317,14 +318,14 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
         quest_data,
         reward_data,
         avatar_config,
-        avatar_skill_config,
+        //avatar_skill_config,
         avatar_base_type,
         damage_type,
-        localbook_config,
-        book_series_config,
-        book_series_world,
-        item_config,
-        item_config_book,
+        //localbook_config,
+        //book_series_config,
+        //book_series_world,
+        //item_config,
+        //item_config_book,
         equipment_config,
     };
 
@@ -342,17 +343,17 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     avatars::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
 
-    info!("Starting book series worlds");
-    book_series_worlds::update(&configs, &pool).await?;
-    actix_web::rt::task::yield_now().await;
+    //info!("Starting book series worlds");
+    //book_series_worlds::update(&configs, &pool).await?;
+    //actix_web::rt::task::yield_now().await;
 
-    info!("Starting book series");
-    book_series::update(&configs, &pool).await?;
-    actix_web::rt::task::yield_now().await;
+    //info!("Starting book series");
+    //book_series::update(&configs, &pool).await?;
+    //actix_web::rt::task::yield_now().await;
 
-    info!("Starting books");
-    books::update(&configs, &pool).await?;
-    actix_web::rt::task::yield_now().await;
+    //info!("Starting books");
+    //books::update(&configs, &pool).await?;
+    //actix_web::rt::task::yield_now().await;
 
     info!("Starting light cones");
     light_cones::update(&configs, &pool).await?;

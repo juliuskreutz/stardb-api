@@ -23,21 +23,21 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut characters_path = Vec::new();
     let mut characters_element = Vec::new();
 
-    let mut skills_id = Vec::new();
-    let mut skills_language = Vec::new();
-    let mut skills_name = Vec::new();
-
-    let mut book_series_worlds_id = Vec::new();
-    let mut book_series_worlds_language = Vec::new();
-    let mut book_series_worlds_name = Vec::new();
-
-    let mut book_series_id = Vec::new();
-    let mut book_series_language = Vec::new();
-    let mut book_series_name = Vec::new();
-
-    let mut books_id = Vec::new();
-    let mut books_language = Vec::new();
-    let mut books_name = Vec::new();
+    //let mut skills_id = Vec::new();
+    //let mut skills_language = Vec::new();
+    //let mut skills_name = Vec::new();
+    //
+    //let mut book_series_worlds_id = Vec::new();
+    //let mut book_series_worlds_language = Vec::new();
+    //let mut book_series_worlds_name = Vec::new();
+    //
+    //let mut book_series_id = Vec::new();
+    //let mut book_series_language = Vec::new();
+    //let mut book_series_name = Vec::new();
+    //
+    //let mut books_id = Vec::new();
+    //let mut books_language = Vec::new();
+    //let mut books_name = Vec::new();
 
     let mut light_cones_id = Vec::new();
     let mut light_cones_language = Vec::new();
@@ -69,7 +69,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             ))?))?;
 
         info!("Starting {} achievement series", language);
-        for achievement_series in configs.achievement_series.values() {
+        for achievement_series in &configs.achievement_series {
             let id = achievement_series.id;
 
             let name = html(&text_map[&achievement_series.title.hash.to_string()])?;
@@ -81,7 +81,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} achievements", language);
-        for achievement_data in configs.achievement_data.values() {
+        for achievement_data in &configs.achievement_data {
             let id = achievement_data.id;
 
             let name = html(&text_map[&achievement_data.title.hash.to_string()])?;
@@ -127,8 +127,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} avatars", language);
-        for avatar_config in configs.avatar_config.values() {
-            let element = text_map[&configs.damage_type[&avatar_config.element]
+        for avatar_config in &configs.avatar_config {
+            let element = text_map[&configs
+                .damage_type
+                .iter()
+                .find(|dt| dt.id == avatar_config.element)
+                .unwrap()
                 .name
                 .hash
                 .to_string()]
@@ -149,7 +153,11 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
             let id = avatar_config.id;
             let path = ruby(
-                &text_map[&configs.avatar_base_type[&avatar_config.base_type]
+                &text_map[&configs
+                    .avatar_base_type
+                    .iter()
+                    .find(|abt| abt.id.as_ref() == Some(&avatar_config.base_type))
+                    .unwrap()
                     .text
                     .hash
                     .to_string()],
@@ -161,58 +169,62 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             characters_path.push(path);
             characters_element.push(element);
 
-            for skill in avatar_config.skills.iter() {
-                let skill = &configs.avatar_skill_config[&skill.to_string()].one;
-
-                let id = skill.id;
-
-                let name = ruby(&text_map[&skill.name.hash.to_string()])?;
-
-                skills_id.push(id);
-                skills_language.push(language);
-                skills_name.push(name);
-            }
+            //for skill in avatar_config.skills.iter() {
+            //    let skill = &configs.avatar_skill_config[&skill.to_string()].one;
+            //
+            //    let id = skill.id;
+            //
+            //    let name = ruby(&text_map[&skill.name.hash.to_string()])?;
+            //
+            //    skills_id.push(id);
+            //    skills_language.push(language);
+            //    skills_name.push(name);
+            //}
         }
 
-        info!("Starting {} book series worlds", language);
-        for book_series_world in configs.book_series_world.values() {
-            let id = book_series_world.id;
-
-            let name = html(&text_map[&book_series_world.name.hash.to_string()])?;
-
-            book_series_worlds_id.push(id);
-            book_series_worlds_language.push(language);
-            book_series_worlds_name.push(name);
-        }
-
-        info!("Starting {} book series", language);
-        for book_series_config in configs.book_series_config.values() {
-            let id = book_series_config.id;
-
-            let name = html(&text_map[&book_series_config.name.hash.to_string()])?;
-
-            book_series_id.push(id);
-            book_series_language.push(language);
-            book_series_name.push(name);
-        }
-
-        info!("Starting {} books", language);
-        for localbook_config in configs.localbook_config.values() {
-            let id = localbook_config.id;
-
-            let name = html(&text_map[&localbook_config.name.hash.to_string()])?;
-
-            books_id.push(id);
-            books_language.push(language);
-            books_name.push(name);
-        }
+        //info!("Starting {} book series worlds", language);
+        //for book_series_world in configs.book_series_world.values() {
+        //    let id = book_series_world.id;
+        //
+        //    let name = html(&text_map[&book_series_world.name.hash.to_string()])?;
+        //
+        //    book_series_worlds_id.push(id);
+        //    book_series_worlds_language.push(language);
+        //    book_series_worlds_name.push(name);
+        //}
+        //
+        //info!("Starting {} book series", language);
+        //for book_series_config in configs.book_series_config.values() {
+        //    let id = book_series_config.id;
+        //
+        //    let name = html(&text_map[&book_series_config.name.hash.to_string()])?;
+        //
+        //    book_series_id.push(id);
+        //    book_series_language.push(language);
+        //    book_series_name.push(name);
+        //}
+        //
+        //info!("Starting {} books", language);
+        //for localbook_config in configs.localbook_config.values() {
+        //    let id = localbook_config.id;
+        //
+        //    let name = html(&text_map[&localbook_config.name.hash.to_string()])?;
+        //
+        //    books_id.push(id);
+        //    books_language.push(language);
+        //    books_name.push(name);
+        //}
 
         info!("Starting {} light cones", language);
-        for equipment_config in configs.equipment_config.values() {
+        for equipment_config in &configs.equipment_config {
             let id = equipment_config.id;
             let name = ruby(&text_map[&equipment_config.name.hash.to_string()])?;
             let path = ruby(
-                &text_map[&configs.avatar_base_type[&equipment_config.base_type]
+                &text_map[&configs
+                    .avatar_base_type
+                    .iter()
+                    .find(|abt| abt.id.as_ref() == Some(&equipment_config.base_type))
+                    .unwrap()
                     .text
                     .hash
                     .to_string()],
@@ -255,29 +267,29 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     )
     .await?;
 
-    info!("Setting all skill texts");
-    database::set_all_skill_texts(&skills_id, &skills_language, &skills_name, pool).await?;
-
-    info!("Setting all book series world texts");
-    database::set_all_book_series_world_texts(
-        &book_series_worlds_id,
-        &book_series_worlds_language,
-        &book_series_worlds_name,
-        pool,
-    )
-    .await?;
-
-    info!("Setting all book series texts");
-    database::set_all_book_series_texts(
-        &book_series_id,
-        &book_series_language,
-        &book_series_name,
-        pool,
-    )
-    .await?;
-
-    info!("Setting all book texts");
-    database::set_all_book_texts(&books_id, &books_language, &books_name, pool).await?;
+    //info!("Setting all skill texts");
+    //database::set_all_skill_texts(&skills_id, &skills_language, &skills_name, pool).await?;
+    //
+    //info!("Setting all book series world texts");
+    //database::set_all_book_series_world_texts(
+    //    &book_series_worlds_id,
+    //    &book_series_worlds_language,
+    //    &book_series_worlds_name,
+    //    pool,
+    //)
+    //.await?;
+    //
+    //info!("Setting all book series texts");
+    //database::set_all_book_series_texts(
+    //    &book_series_id,
+    //    &book_series_language,
+    //    &book_series_name,
+    //    pool,
+    //)
+    //.await?;
+    //
+    //info!("Setting all book texts");
+    //database::set_all_book_texts(&books_id, &books_language, &books_name, pool).await?;
 
     info!("Setting all light cone texts");
     database::set_all_light_cone_texts(

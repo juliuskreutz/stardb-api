@@ -11,12 +11,24 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut achievements_hidden = Vec::new();
     let mut achievements_priority = Vec::new();
 
-    for achievement_data in configs.achievement_data.values() {
+    for achievement_data in &configs.achievement_data {
         let id = achievement_data.id;
 
         let series = achievement_data.series;
 
-        let jades = configs.reward_data[&configs.quest_data[&id.to_string()].reward_id.to_string()]
+        let jades = configs
+            .reward_data
+            .iter()
+            .find(|rd| {
+                rd.reward_id
+                    == configs
+                        .quest_data
+                        .iter()
+                        .find(|qd| qd.quest_id == id)
+                        .unwrap()
+                        .reward_id
+            })
+            .unwrap()
             .jades
             .unwrap_or_default();
 

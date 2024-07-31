@@ -7,7 +7,7 @@ use super::Configs;
 pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut book_series_worlds_id = Vec::new();
 
-    for book_series_world in configs.book_series_world.values() {
+    for book_series_world in &configs.book_series_world {
         let id = book_series_world.id;
 
         book_series_worlds_id.push(id);

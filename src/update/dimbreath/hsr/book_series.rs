@@ -9,7 +9,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut book_series_world = Vec::new();
     let mut book_series_bookself = Vec::new();
 
-    for book_series_config in configs.book_series_config.values() {
+    for book_series_config in &configs.book_series_config {
         let id = book_series_config.id;
         let world = book_series_config.world;
         let bookshelf = book_series_config.bookshelf.unwrap_or_default();
