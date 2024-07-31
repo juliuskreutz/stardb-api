@@ -115,7 +115,7 @@ async fn import_gi_achievements(
 
         database::gi::achievements::update_timegated_by_id(
             achievement.key,
-            achievement.timegated.is_some(),
+            achievement.timegated.as_deref(),
             &pool,
         )
         .await?;

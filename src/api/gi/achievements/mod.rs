@@ -39,7 +39,8 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     video: Option<String>,
     gacha: bool,
-    timegated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timegated: Option<String>,
     missable: bool,
     impossible: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,7 +69,7 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
                 .map(|d| d.parse().unwrap()),
             video: db_achievement.video.clone(),
             gacha: db_achievement.gacha,
-            timegated: db_achievement.timegated,
+            timegated: db_achievement.timegated.clone(),
             missable: db_achievement.missable,
             impossible: db_achievement.impossible,
             set: db_achievement.set,

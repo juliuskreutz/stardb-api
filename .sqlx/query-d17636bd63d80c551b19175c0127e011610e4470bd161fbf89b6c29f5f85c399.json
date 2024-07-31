@@ -50,33 +50,33 @@
       },
       {
         "ordinal": 9,
-        "name": "timegated",
-        "type_info": "Bool"
-      },
-      {
-        "ordinal": 10,
         "name": "missable",
         "type_info": "Bool"
       },
       {
-        "ordinal": 11,
+        "ordinal": 10,
         "name": "set",
         "type_info": "Int4"
       },
       {
-        "ordinal": 12,
+        "ordinal": 11,
         "name": "priority",
         "type_info": "Int4"
       },
       {
-        "ordinal": 13,
+        "ordinal": 12,
         "name": "video",
         "type_info": "Text"
       },
       {
-        "ordinal": 14,
+        "ordinal": 13,
         "name": "impossible",
         "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "timegated",
+        "type_info": "Text"
       },
       {
         "ordinal": 15,
@@ -116,11 +116,11 @@
       true,
       false,
       false,
-      false,
       true,
       false,
       true,
       false,
+      true,
       false,
       false,
       false,

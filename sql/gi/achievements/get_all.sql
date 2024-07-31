@@ -13,7 +13,7 @@ FROM
     JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id
         AND gi_achievement_series_text.language = $1
     ORDER BY
-        series,
+        gi_achievement_series.priority,
         priority,
         id;
 

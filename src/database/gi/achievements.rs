@@ -19,7 +19,7 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub video: Option<String>,
     pub gacha: bool,
-    pub timegated: bool,
+    pub timegated: Option<String>,
     pub missable: bool,
     pub impossible: bool,
     pub set: Option<i32>,
@@ -141,7 +141,7 @@ pub async fn update_gacha_by_id(id: i32, gacha: bool, pool: &PgPool) -> Result<(
     Ok(())
 }
 
-pub async fn update_timegated_by_id(id: i32, timegated: bool, pool: &PgPool) -> Result<()> {
+pub async fn update_timegated_by_id(id: i32, timegated: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/gi/achievements/update_timegated_by_id.sql",
         id,
