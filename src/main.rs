@@ -9,6 +9,7 @@ mod update;
 
 use std::{env, fs};
 
+use actix_cors::Cors;
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
@@ -211,6 +212,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(web::JsonConfig::default().limit(5 * 1024 * 1024))
             .app_data(pool_data.clone())
+            .wrap(Cors::permissive())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
                 SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
