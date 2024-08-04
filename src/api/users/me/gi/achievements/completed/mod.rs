@@ -1,7 +1,7 @@
 mod id;
 
 use actix_session::Session;
-use actix_web::{get, put, web, HttpResponse, Responder};
+use actix_web::{delete, get, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -10,7 +10,7 @@ use crate::{api::ApiResult, database};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me/gi/achievements/completed")),
-    paths(get_gi_user_achievements_completed, put_gi_user_achievements_completed)
+    paths(get_gi_user_achievements_completed, put_gi_user_achievements_completed, delete_gi_user_achievements_completed)
 )]
 struct ApiDoc;
 
@@ -23,6 +23,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_gi_user_achievements_completed)
         .service(put_gi_user_achievements_completed)
+        .service(delete_gi_user_achievements_completed)
         .configure(id::configure);
 }
 
@@ -81,6 +82,38 @@ async fn put_gi_user_achievements_completed(
         complete.id = id;
 
         database::gi::users_achievements_completed::add(&complete, &pool).await?;
+    }
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[utoipa::path(
+    tag = "users/me/gi/achievements/completed",
+    delete,
+    path = "/api/users/me/gi/achievements/completed",
+    request_body = Vec<i64>,
+    responses(
+        (status = 200, description = "Success"),
+        (status = 400, description = "Not logged in"),
+    )
+)]
+#[delete("/api/users/me/gi/achievements/completed")]
+async fn delete_gi_user_achievements_completed(
+    session: Session,
+    ids: web::Json<Vec<i32>>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let mut complete =
+        database::gi::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
+
+    for id in ids.0 {
+        complete.id = id;
+
+        database::gi::users_achievements_completed::delete(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())
