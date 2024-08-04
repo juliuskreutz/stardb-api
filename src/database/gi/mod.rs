@@ -13,3 +13,4 @@ pub mod weapons;
 pub mod weapons_text;
 pub mod wishes;
 pub mod wishes_stats;
+pub mod wishes_stats_global;

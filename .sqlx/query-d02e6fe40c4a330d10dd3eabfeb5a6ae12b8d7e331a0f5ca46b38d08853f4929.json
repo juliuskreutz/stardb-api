@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_wishes_stats_global_weapon (uid, count_percentile, luck_4_percentile, luck_5_percentile)\n    VALUES ($1, $2, $3, $4)\nON CONFLICT (uid)\n    DO UPDATE SET\n        count_percentile = EXCLUDED.count_percentile, luck_4_percentile = EXCLUDED.luck_4_percentile, luck_5_percentile = EXCLUDED.luck_5_percentile;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d02e6fe40c4a330d10dd3eabfeb5a6ae12b8d7e331a0f5ca46b38d08853f4929"
+}

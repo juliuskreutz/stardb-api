@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    gi_wishes_stats_global_standard\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "count_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_4_percentile",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "luck_5_percentile",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a248009adf300bdbeb98ad5976c1afe5a9ccf377197fd994885a487b3e290f3d"
+}
