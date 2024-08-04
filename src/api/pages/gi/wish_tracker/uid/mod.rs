@@ -373,11 +373,19 @@ async fn get_wish_tracker(
     {
         let stats = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await?;
 
+        let global_stats = database::gi::wishes_stats_global::standard::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
         standard.stats = Some(Stats {
             luck_4: stats.luck_4,
             luck_5: stats.luck_5,
             win_stats: None,
-            global_stats: None,
+            global_stats,
         })
     }
 
@@ -389,11 +397,19 @@ async fn get_wish_tracker(
             loss_streak: stats.loss_streak,
         });
 
+        let global_stats = database::gi::wishes_stats_global::character::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
         character.stats = Some(Stats {
             luck_4: stats.luck_4,
             luck_5: stats.luck_5,
             win_stats,
-            global_stats: None,
+            global_stats,
         })
     }
 
@@ -405,109 +421,40 @@ async fn get_wish_tracker(
             loss_streak: stats.loss_streak,
         });
 
+        let global_stats = database::gi::wishes_stats_global::weapon::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
         weapon.stats = Some(Stats {
             luck_4: stats.luck_4,
             luck_5: stats.luck_5,
             win_stats,
-            global_stats: None,
+            global_stats,
         })
     }
 
     {
         let stats = database::gi::wishes_stats::chronicled::get_by_uid(uid, &pool).await?;
 
+        let global_stats = database::gi::wishes_stats_global::chronicled::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
         chronicled.stats = Some(Stats {
             luck_4: stats.luck_4,
             luck_5: stats.luck_5,
             win_stats: None,
-            global_stats: None,
+            global_stats,
         })
     }
-
-    //{
-    //    let stats = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await?;
-    //
-    //    let global_stats = database::gi::wishes_stats_global::standard::get_by_uid(uid, &pool)
-    //        .await?
-    //        .map(|stats| GlobalStats {
-    //            count_percentile: stats.count_percentile,
-    //            luck_4_percentile: stats.luck_a_percentile,
-    //            luck_5_percentile: stats.luck_s_percentile,
-    //        });
-    //
-    //    standard.stats = Stats {
-    //        luck_4: stats.luck_a,
-    //        luck_5: stats.luck_s,
-    //        win_stats: None,
-    //        global_stats,
-    //    };
-    //}
-    //
-    //{
-    //    let stats = database::gi::wishes_stats::special::get_by_uid(uid, &pool).await?;
-    //    let win_stats = Some(WinStats {
-    //        win_rate: stats.win_rate,
-    //        win_streak: stats.win_streak,
-    //        loss_streak: stats.loss_streak,
-    //    });
-    //
-    //    let global_stats = database::gi::wishes_stats_global::special::get_by_uid(uid, &pool)
-    //        .await?
-    //        .map(|stats| GlobalStats {
-    //            count_percentile: stats.count_percentile,
-    //            luck_4_percentile: stats.luck_a_percentile,
-    //            luck_5_percentile: stats.luck_s_percentile,
-    //        });
-    //
-    //    special.stats = Stats {
-    //        luck_4: stats.luck_a,
-    //        luck_5: stats.luck_s,
-    //        win_stats,
-    //        global_stats,
-    //    };
-    //}
-    //
-    //{
-    //    let stats = database::gi::wishes_stats::w_engine::get_by_uid(uid, &pool).await?;
-    //    let win_stats = Some(WinStats {
-    //        win_rate: stats.win_rate,
-    //        win_streak: stats.win_streak,
-    //        loss_streak: stats.loss_streak,
-    //    });
-    //
-    //    let global_stats = database::gi::wishes_stats_global::w_engine::get_by_uid(uid, &pool)
-    //        .await?
-    //        .map(|stats| GlobalStats {
-    //            count_percentile: stats.count_percentile,
-    //            luck_4_percentile: stats.luck_a_percentile,
-    //            luck_5_percentile: stats.luck_s_percentile,
-    //        });
-    //
-    //    w_engine.stats = Stats {
-    //        luck_4: stats.luck_a,
-    //        luck_5: stats.luck_s,
-    //        win_stats,
-    //        global_stats,
-    //    };
-    //}
-    //
-    //{
-    //    let stats = database::gi::wishes_stats::bangboo::get_by_uid(uid, &pool).await?;
-    //    let global_stats = database::gi::wishes_stats_global::bangboo::get_by_uid(uid, &pool)
-    //        .await?
-    //        .map(|stats| GlobalStats {
-    //            count_percentile: stats.count_percentile,
-    //            luck_4_percentile: stats.luck_a_percentile,
-    //            luck_5_percentile: stats.luck_s_percentile,
-    //        });
-    //
-    //    bangboo.stats = Stats {
-    //        luck_4: stats.luck_a,
-    //        luck_5: stats.luck_s,
-    //        win_stats: None,
-    //        global_stats,
-    //    };
-    //}
 
     let wish_tracker = WishTracker {
         name,
