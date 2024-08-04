@@ -84,7 +84,7 @@ struct Wishes {
     max_pull_4: usize,
     max_pull_5: usize,
     count: usize,
-    stats: Stats,
+    stats: Option<Stats>,
 }
 
 #[derive(Default, Serialize)]
@@ -369,6 +369,60 @@ async fn get_wish_tracker(
 
     chronicled.count = chronicled.wishes.len();
     // Chronicled
+
+    {
+        let stats = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await?;
+
+        standard.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats: None,
+            global_stats: None,
+        })
+    }
+
+    {
+        let stats = database::gi::wishes_stats::character::get_by_uid(uid, &pool).await?;
+        let win_stats = Some(WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        });
+
+        character.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats,
+            global_stats: None,
+        })
+    }
+
+    {
+        let stats = database::gi::wishes_stats::weapon::get_by_uid(uid, &pool).await?;
+        let win_stats = Some(WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        });
+
+        weapon.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats,
+            global_stats: None,
+        })
+    }
+
+    {
+        let stats = database::gi::wishes_stats::chronicled::get_by_uid(uid, &pool).await?;
+
+        chronicled.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats: None,
+            global_stats: None,
+        })
+    }
 
     //{
     //    let stats = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await?;
