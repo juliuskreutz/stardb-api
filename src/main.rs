@@ -201,6 +201,7 @@ async fn main() -> anyhow::Result<()> {
     update::scores::spawn(pool.clone()).await;
     update::warps_stats::spawn(pool.clone()).await;
     update::signals_stats::spawn(pool.clone()).await;
+    update::wishes_stats::spawn(pool.clone()).await;
 
     let pool_data = Data::new(pool.clone());
 

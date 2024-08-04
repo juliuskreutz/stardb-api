@@ -12,3 +12,4 @@ pub mod users_achievements_favorites;
 pub mod weapons;
 pub mod weapons_text;
 pub mod wishes;
+pub mod wishes_stats;

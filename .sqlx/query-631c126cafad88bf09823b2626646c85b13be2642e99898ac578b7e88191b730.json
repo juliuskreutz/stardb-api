@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_wishes_stats_chronicled (uid, luck_4, luck_5)\n    VALUES ($1, $2, $3)\nON CONFLICT (uid)\n    DO UPDATE SET\n        luck_4 = EXCLUDED.luck_4, luck_5 = EXCLUDED.luck_5;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "631c126cafad88bf09823b2626646c85b13be2642e99898ac578b7e88191b730"
+}

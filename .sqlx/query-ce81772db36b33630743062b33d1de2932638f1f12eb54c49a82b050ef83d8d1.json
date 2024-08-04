@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    gi_wishes_stats_character\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "win_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "win_streak",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "loss_streak",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ce81772db36b33630743062b33d1de2932638f1f12eb54c49a82b050ef83d8d1"
+}
