@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM gi_users_achievements_favorites WHERE username = $1",
+  "query": "SELECT\n    *\nFROM\n    gi_users_achievements_favorites\nWHERE\n    username = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "df0ec59f31d95300f2835c0807c1a86bad753bb4e07811c5853a0837b5665b92"
+  "hash": "fae3802af59cf1494ccf35cc2506cb1bbd543c12cf1b02d18d686b3de419c209"
 }

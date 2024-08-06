@@ -26,8 +26,10 @@ struct Stats {
     emails: i64,
     hsr_achievement_users: i64,
     zzz_achievement_users: i64,
+    gi_achievement_users: i64,
     warp_users: i64,
     signal_users: i64,
+    wish_users: i64,
 }
 
 #[utoipa::path(
@@ -56,15 +58,20 @@ async fn get_stats(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl 
     let hsr_achievement_users = database::count_hsr_users(100, &pool).await?;
     let zzz_achievement_users =
         database::zzz::users_achievements_completed::count_users(100, &pool).await?;
+    let gi_achievement_users =
+        database::gi::users_achievements_completed::count_users(100, &pool).await?;
     let warp_users = database::warps::count_uids(&pool).await?;
     let signal_users = database::zzz::signals::count_uids(&pool).await?;
+    let wish_users = database::gi::wishes::count_uids(&pool).await?;
 
     let stats = Stats {
         emails,
         hsr_achievement_users,
         zzz_achievement_users,
+        gi_achievement_users,
         warp_users,
         signal_users,
+        wish_users,
     };
 
     Ok(HttpResponse::Ok().json(stats))

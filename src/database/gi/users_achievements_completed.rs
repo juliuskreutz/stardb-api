@@ -1,15 +1,18 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+use crate::database::gi::achievements::DbAchievement;
+
 pub struct DbUserAchievementCompleted {
     pub username: String,
     pub id: i32,
 }
 
 pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    if sqlx::query!(
-        "SELECT impossible FROM gi_achievements WHERE id = $1",
-        user_achievement.id
+    if sqlx::query_file!(
+        "sql/gi/achievements/get_one_by_id.sql",
+        user_achievement.id,
+        "en"
     )
     .fetch_one(pool)
     .await?
@@ -18,17 +21,19 @@ pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -
         return Ok(());
     }
 
-    sqlx::query!(
-        "INSERT INTO gi_users_achievements_completed(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
+    sqlx::query_file!(
+        "sql/gi/users/achievements/completed/set.sql",
         user_achievement.username,
         user_achievement.id,
     )
     .execute(pool)
     .await?;
 
-    if let Some(set) = sqlx::query!(
-        "SELECT set FROM gi_achievements WHERE id = $1",
+    if let Some(set) = sqlx::query_file_as!(
+        DbAchievement,
+        "sql/gi/achievements/get_one_by_id.sql",
         user_achievement.id,
+        "en"
     )
     .fetch_one(pool)
     .await?
@@ -37,8 +42,8 @@ pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -
         for related in
             super::achievements::get_all_related_ids(user_achievement.id, set, pool).await?
         {
-            sqlx::query!(
-                "DELETE FROM gi_users_achievements_completed WHERE username = $1 AND id = $2",
+            sqlx::query_file!(
+                "sql/gi/users/achievements/completed/delete.sql",
                 user_achievement.username,
                 related,
             )
@@ -51,8 +56,8 @@ pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -
 }
 
 pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "DELETE FROM gi_users_achievements_completed WHERE username = $1 AND id = $2",
+    sqlx::query_file!(
+        "sql/gi/users/achievements/completed/delete.sql",
         user_achievement.username,
         user_achievement.id,
     )
@@ -66,9 +71,9 @@ pub async fn get_by_username(
     username: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbUserAchievementCompleted>> {
-    Ok(sqlx::query_as!(
+    Ok(sqlx::query_file_as!(
         DbUserAchievementCompleted,
-        "SELECT * FROM gi_users_achievements_completed WHERE username = $1",
+        "sql/gi/users/achievements/completed/get_by_username.sql",
         username
     )
     .fetch_all(pool)
