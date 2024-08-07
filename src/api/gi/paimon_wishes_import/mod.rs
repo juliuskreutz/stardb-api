@@ -31,12 +31,12 @@ struct PaimonWishesImportParams {
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct Paimon {
-    wish_uid: String,
-    wish_counter_beginners: Wishes,
-    wish_counter_standard: Wishes,
-    wish_counter_character_event: Wishes,
-    wish_counter_weapon_event: Wishes,
-    wish_counter_chronicled: Wishes,
+    wish_uid: serde_json::Value,
+    wish_counter_beginners: Option<Wishes>,
+    wish_counter_standard: Option<Wishes>,
+    wish_counter_character_event: Option<Wishes>,
+    wish_counter_weapon_event: Option<Wishes>,
+    wish_counter_chronicled: Option<Wishes>,
 }
 
 #[derive(serde::Deserialize)]
@@ -83,20 +83,19 @@ async fn post_paimon_warps_import(
 
     let paimon: Paimon = serde_json::from_str(&params.data)?;
 
-    let uid = paimon.wish_uid.parse()?;
+    let uid = if let Some(uid) = paimon.wish_uid.as_i64() {
+        uid as i32
+    } else {
+        paimon.wish_uid.as_str().unwrap().parse()?
+    };
 
-    let name = reqwest::Client::new()
-        .get(format!("https://enka.network/api/uid/{uid}?info"))
-        .header(header::USER_AGENT, "stardb")
-        .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?["playerInfo"]["nickname"]
-        .as_str()
-        .unwrap()
-        .to_string();
+    if database::gi::profiles::get_by_uid(uid, &pool)
+        .await
+        .is_err()
+    {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
 
-    database::gi::profiles::set(&database::gi::profiles::DbProfile { uid, name }, &pool).await?;
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::gi::connections::DbConnection {
             uid,
@@ -129,6 +128,10 @@ async fn post_paimon_warps_import(
         (&paimon.wish_counter_weapon_event, GiGachaType::Weapon),
         (&paimon.wish_counter_chronicled, GiGachaType::Chronicled),
     ] {
+        let Some(wishes) = wishes else {
+            continue;
+        };
+
         let earliest_timestamp = match gacha_type {
             GiGachaType::Beginner => {
                 database::gi::wishes::beginner::get_earliest_timestamp_by_uid(uid, &pool).await?
