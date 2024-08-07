@@ -1,4 +1,5 @@
 mod achievements;
+mod paimon_wishes_import;
 mod wishes_import;
 
 use actix_web::web;
@@ -11,11 +12,13 @@ struct ApiDoc;
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
+    openapi.merge(paimon_wishes_import::openapi());
     openapi.merge(wishes_import::openapi());
     openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(achievements::configure)
+        .configure(paimon_wishes_import::configure)
         .configure(wishes_import::configure);
 }

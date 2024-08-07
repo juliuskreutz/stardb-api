@@ -199,7 +199,7 @@ async fn post_gi_wishes_import(
         for gacha_type in GiGachaType::iter() {
             info.lock().await.gacha_type = gacha_type;
 
-            if let Err(e) = import_wishes(&url, gacha_type, &info, &pool).await {
+            if let Err(e) = import_wishes(uid, &url, gacha_type, &info, &pool).await {
                 error = Err(e);
 
                 break;
@@ -225,6 +225,7 @@ async fn post_gi_wishes_import(
 }
 
 async fn import_wishes(
+    uid: i32,
     url: &Url,
     gacha_type: GiGachaType,
     info: &Arc<Mutex<WishesImportInfo>>,
@@ -248,7 +249,25 @@ async fn import_wishes(
 
     let mut set_all = database::gi::wishes::SetAll::default();
 
-    loop {
+    let latest_timestamp = match gacha_type {
+        GiGachaType::Beginner => {
+            database::gi::wishes::beginner::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GiGachaType::Standard => {
+            database::gi::wishes::standard::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GiGachaType::Character => {
+            database::gi::wishes::character::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GiGachaType::Weapon => {
+            database::gi::wishes::weapon::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GiGachaType::Chronicled => {
+            database::gi::wishes::chronicled::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+    };
+
+    'outer: loop {
         let mut i = 0;
         let gacha_log = loop {
             let response = reqwest::get(format!("{url}&end_id={end_id}")).await?;
@@ -278,30 +297,19 @@ async fn import_wishes(
         let timestamp_offset = chrono::Duration::hours(region_time_zone);
 
         for entry in gacha_log.data.list {
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
+
+            if let Some(latest_timestamp) = latest_timestamp {
+                if timestamp <= latest_timestamp {
+                    break 'outer;
+                }
+            }
+
             end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
-            let uid: i32 = entry.uid.parse()?;
-
-            let exists = match gacha_type {
-                GiGachaType::Beginner => {
-                    database::gi::wishes::beginner::exists(id, uid, pool).await?
-                }
-                GiGachaType::Standard => {
-                    database::gi::wishes::standard::exists(id, uid, pool).await?
-                }
-                GiGachaType::Character => {
-                    database::gi::wishes::character::exists(id, uid, pool).await?
-                }
-                GiGachaType::Weapon => database::gi::wishes::weapon::exists(id, uid, pool).await?,
-                GiGachaType::Chronicled => {
-                    database::gi::wishes::chronicled::exists(id, uid, pool).await?
-                }
-            };
-
-            if exists {
-                continue;
-            }
 
             let item: i32 = if let Ok(id) =
                 database::gi::characters_text::get_id_by_name(&entry.name, pool).await
@@ -321,10 +329,6 @@ async fn import_wishes(
                     weapon = Some(item);
                 }
             }
-
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
 
             set_all.id.push(id);
             set_all.uid.push(uid);

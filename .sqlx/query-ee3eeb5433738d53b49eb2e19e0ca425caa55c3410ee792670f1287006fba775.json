@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    id\nFROM\n    gi_characters_text\nWHERE\n    lower(replace(replace(name, '''', ''), ' ', '_')) = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ee3eeb5433738d53b49eb2e19e0ca425caa55c3410ee792670f1287006fba775"
+}

@@ -195,7 +195,7 @@ async fn main() -> anyhow::Result<()> {
     update::zzz_achievements_percent::spawn(pool.clone()).await;
     update::gi_achievements_percent::spawn(pool.clone()).await;
     update::dimbreath::hsr::spawn(pool.clone()).await;
-    update::dimbreath::zzz::spawn(pool.clone()).await;
+    //update::dimbreath::zzz::spawn(pool.clone()).await;
     update::dimbreath::gi::spawn(pool.clone()).await;
     update::star_rail_res::spawn().await;
     update::scores::spawn(pool.clone()).await;

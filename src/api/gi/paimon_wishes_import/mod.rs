@@ -116,10 +116,11 @@ async fn post_paimon_warps_import(
 
     let paimon: Paimon = serde_json::from_str(&params.data)?;
 
-    let mut set_all_departure = database::warps::SetAll::default();
-    let mut set_all_standard = database::warps::SetAll::default();
-    let mut set_all_special = database::warps::SetAll::default();
-    let mut set_all_lc = database::warps::SetAll::default();
+    let mut set_all_beginner = database::gi::wishes::SetAll::default();
+    let mut set_all_standard = database::gi::wishes::SetAll::default();
+    let mut set_all_character = database::gi::wishes::SetAll::default();
+    let mut set_all_weapon = database::gi::wishes::SetAll::default();
+    let mut set_all_chronicled = database::gi::wishes::SetAll::default();
 
     for (wishes, gacha_type) in [
         (&paimon.wish_counter_beginners, GiGachaType::Beginner),
@@ -128,39 +129,70 @@ async fn post_paimon_warps_import(
         (&paimon.wish_counter_weapon_event, GiGachaType::Weapon),
         (&paimon.wish_counter_chronicled, GiGachaType::Chronicled),
     ] {
-        for wish in wishes.pulls {
-            let id = wish.id.parse::<i64>().unwrap();
-            let item_id = wish.item_id.parse().unwrap();
-            let (character, light_cone) = if item_id < 2000 {
-                (Some(item_id), None)
-            } else {
-                (None, Some(item_id))
+        let earliest_timestamp = match gacha_type {
+            GiGachaType::Beginner => {
+                database::gi::wishes::beginner::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GiGachaType::Standard => {
+                database::gi::wishes::standard::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GiGachaType::Character => {
+                database::gi::wishes::character::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GiGachaType::Weapon => {
+                database::gi::wishes::weapon::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GiGachaType::Chronicled => {
+                database::gi::wishes::chronicled::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+        };
+
+        for (id, wish) in wishes.pulls.iter().enumerate() {
+            info!("{}", wish.id);
+            let (character, weapon) = match wish.r#type.as_str() {
+                "character" => (
+                    Some(database::gi::characters::get_id_by_paimon_moe_id(&wish.id, &pool).await?),
+                    None,
+                ),
+                "weapon" => (
+                    None,
+                    Some(database::gi::weapons::get_id_by_paimon_moe_id(&wish.id, &pool).await?),
+                ),
+                _ => return Ok(HttpResponse::BadRequest().finish()),
             };
 
             let timestamp = NaiveDateTime::parse_from_str(&wish.time, "%Y-%m-%d %H:%M:%S")?
                 .and_utc()
                 - timestamp_offset;
 
+            if let Some(earliest_timestamp) = earliest_timestamp {
+                if timestamp >= earliest_timestamp {
+                    break;
+                }
+            }
+
             let set_all = match gacha_type {
-                GachaType::Departure => &mut set_all_departure,
-                GachaType::Standard => &mut set_all_standard,
-                GachaType::Special => &mut set_all_special,
-                GachaType::Lc => &mut set_all_lc,
+                GiGachaType::Beginner => &mut set_all_beginner,
+                GiGachaType::Standard => &mut set_all_standard,
+                GiGachaType::Character => &mut set_all_character,
+                GiGachaType::Weapon => &mut set_all_weapon,
+                GiGachaType::Chronicled => &mut set_all_chronicled,
             };
 
-            set_all.id.push(id);
+            set_all.id.push(id as i64);
             set_all.uid.push(uid);
             set_all.character.push(character);
-            set_all.light_cone.push(light_cone);
+            set_all.weapon.push(weapon);
             set_all.timestamp.push(timestamp);
             set_all.official.push(false);
         }
     }
 
-    database::warps::departure::set_all(&set_all_departure, &pool).await?;
-    database::warps::standard::set_all(&set_all_standard, &pool).await?;
-    database::warps::special::set_all(&set_all_special, &pool).await?;
-    database::warps::lc::set_all(&set_all_lc, &pool).await?;
+    database::gi::wishes::beginner::set_all(&set_all_beginner, &pool).await?;
+    database::gi::wishes::standard::set_all(&set_all_standard, &pool).await?;
+    database::gi::wishes::character::set_all(&set_all_character, &pool).await?;
+    database::gi::wishes::weapon::set_all(&set_all_weapon, &pool).await?;
+    database::gi::wishes::chronicled::set_all(&set_all_chronicled, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
