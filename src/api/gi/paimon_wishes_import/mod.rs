@@ -148,7 +148,6 @@ async fn post_paimon_warps_import(
         };
 
         for (id, wish) in wishes.pulls.iter().enumerate() {
-            info!("{}", wish.id);
             let (character, weapon) = match wish.r#type.as_str() {
                 "character" => (
                     Some(database::gi::characters::get_id_by_paimon_moe_id(&wish.id, &pool).await?),
