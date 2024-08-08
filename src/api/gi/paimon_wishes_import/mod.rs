@@ -95,17 +95,6 @@ async fn post_paimon_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    if let Ok(Some(username)) = session.get::<String>("username") {
-        let connection = database::gi::connections::DbConnection {
-            uid,
-            username,
-            verified: true,
-            private: false,
-        };
-
-        database::gi::connections::set(&connection, &pool).await?;
-    }
-
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,
         Some('7') => 1,
