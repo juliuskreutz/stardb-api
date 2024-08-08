@@ -1,7 +1,6 @@
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
-use reqwest::header;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
