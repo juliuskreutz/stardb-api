@@ -33,7 +33,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Deserialize, ToSchema)]
 struct ImportData {
     achievements: Option<Vec<i32>>,
-    books: Option<Vec<i32>>,
 }
 
 #[utoipa::path(
@@ -57,28 +56,16 @@ async fn import(
     };
 
     if let Some(achievements) = &import_data.achievements {
-        database::delete_user_achievements_completed(&username, &pool).await?;
-        let mut achievement_completed = database::DbUserAchievementCompleted {
-            username: username.clone(),
-            id: 0,
-        };
+        database::users_achievements_completed::delete_by_username(&username, &pool).await?;
+        let mut achievement_completed =
+            database::users_achievements_completed::DbUserAchievementCompleted {
+                username: username.clone(),
+                id: 0,
+            };
         for &achievement in achievements {
             achievement_completed.id = achievement;
 
-            database::add_user_achievement_completed(&achievement_completed, &pool).await?;
-        }
-    }
-
-    if let Some(books) = &import_data.books {
-        database::delete_user_books_completed(&username, &pool).await?;
-        let mut book_completed = database::DbUserBookCompleted {
-            username: username.clone(),
-            id: 0,
-        };
-        for &book in books {
-            book_completed.id = book;
-
-            database::add_user_book_completed(&book_completed, &pool).await?;
+            database::users_achievements_completed::add(&achievement_completed, &pool).await?;
         }
     }
 
@@ -108,29 +95,18 @@ async fn import_file(
     let import_data: ImportData = serde_json::from_reader(BufReader::new(&file.file.file))?;
 
     if let Some(achievements) = &import_data.achievements {
-        database::delete_user_achievements_completed(&username, &pool).await?;
-        let mut achievement_completed = database::DbUserAchievementCompleted {
-            username: username.clone(),
-            id: 0,
-        };
+        database::users_achievements_completed::delete_by_username(&username, &pool).await?;
+        let mut achievement_completed =
+            database::users_achievements_completed::DbUserAchievementCompleted {
+                username: username.clone(),
+                id: 0,
+            };
         for &achievement in achievements {
             achievement_completed.id = achievement;
 
-            database::add_user_achievement_completed(&achievement_completed, &pool).await?;
+            database::users_achievements_completed::add(&achievement_completed, &pool).await?;
         }
     }
 
-    if let Some(books) = &import_data.books {
-        database::delete_user_books_completed(&username, &pool).await?;
-        let mut book_completed = database::DbUserBookCompleted {
-            username: username.clone(),
-            id: 0,
-        };
-        for &book in books {
-            book_completed.id = book;
-
-            database::add_user_book_completed(&book_completed, &pool).await?;
-        }
-    }
     Ok(HttpResponse::Ok().finish())
 }

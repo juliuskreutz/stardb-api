@@ -45,11 +45,12 @@ async fn get_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let completed: Vec<_> = database::get_user_achievements_completed_by_username(&username, &pool)
-        .await?
-        .iter()
-        .map(|c| c.id)
-        .collect();
+    let completed: Vec<_> =
+        database::users_achievements_completed::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .map(|c| c.id)
+            .collect();
 
     Ok(HttpResponse::Ok().json(completed))
 }
@@ -74,12 +75,13 @@ async fn put_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete = database::DbUserAchievementCompleted { username, id: 0 };
+    let mut complete =
+        database::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
 
     for id in ids.0 {
         complete.id = id;
 
-        database::add_user_achievement_completed(&complete, &pool).await?;
+        database::users_achievements_completed::add(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -105,12 +107,13 @@ async fn delete_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete = database::DbUserAchievementCompleted { username, id: 0 };
+    let mut complete =
+        database::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
 
     for id in ids.0 {
         complete.id = id;
 
-        database::delete_user_achievement_completed(&complete, &pool).await?;
+        database::users_achievements_completed::delete(&complete, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())

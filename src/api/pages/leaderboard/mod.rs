@@ -58,8 +58,8 @@ struct LeaderboardParams {
     offset: Option<i64>,
 }
 
-impl From<database::DbScoreAchievement> for Score {
-    fn from(db_score: database::DbScoreAchievement) -> Self {
+impl From<database::achievement_scores::DbScoreAchievement> for Score {
+    fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         Score {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -91,14 +91,14 @@ async fn get_leaderboard(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let count_na =
-        database::count_scores_achievement(Some(&Region::Na.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
     let count_eu =
-        database::count_scores_achievement(Some(&Region::Eu.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
     let count_asia =
-        database::count_scores_achievement(Some(&Region::Asia.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
     let count_cn =
-        database::count_scores_achievement(Some(&Region::Cn.to_string()), None, &pool).await?;
-    let count_query = database::count_scores_achievement(
+        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
+    let count_query = database::achievement_scores::count(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
         &pool,
@@ -107,7 +107,7 @@ async fn get_leaderboard(
 
     let count = count_na + count_eu + count_asia + count_cn;
 
-    let db_scores = database::get_scores_achievement(
+    let db_scores = database::achievement_scores::get(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
         leaderboard_params.limit,

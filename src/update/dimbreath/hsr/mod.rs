@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::File,
     io::BufReader,
     path::Path,
@@ -9,9 +8,6 @@ use std::{
 mod achievement_series;
 mod achievements;
 mod avatars;
-//mod book_series;
-//mod book_series_worlds;
-//mod books;
 mod light_cones;
 mod texts;
 
@@ -81,24 +77,8 @@ struct AvatarConfig {
     name: TextHash,
     #[serde(rename = "DamageType")]
     element: String,
-    #[serde(rename = "SkillList")]
-    skills: Vec<i32>,
     #[serde(rename = "AvatarBaseType")]
     base_type: String,
-}
-
-#[derive(Deserialize)]
-struct AvatarSkillConfigWrapper {
-    #[serde(rename = "1")]
-    one: AvatarSkillConfig,
-}
-
-#[derive(Deserialize)]
-struct AvatarSkillConfig {
-    #[serde(rename = "SkillID")]
-    id: i32,
-    #[serde(rename = "SkillName")]
-    name: TextHash,
 }
 
 #[derive(Deserialize)]
@@ -115,44 +95,6 @@ struct DamageType {
     id: String,
     #[serde(rename = "DamageTypeName")]
     name: TextHash,
-}
-
-#[derive(Deserialize)]
-struct LocalbookConfig {
-    #[serde(rename = "BookID")]
-    id: i32,
-    #[serde(rename = "BookSeriesID")]
-    series: i32,
-    #[serde(rename = "BookSeriesInsideID")]
-    series_inside: i32,
-    #[serde(rename = "BookInsideName")]
-    name: TextHash,
-}
-
-#[derive(Deserialize)]
-struct BookSeriesConfig {
-    #[serde(rename = "BookSeriesID")]
-    id: i32,
-    #[serde(rename = "BookSeriesWorld")]
-    world: i32,
-    #[serde(rename = "BookSeries")]
-    name: TextHash,
-    #[serde(rename = "IsShowInBookshelf")]
-    bookshelf: Option<bool>,
-}
-
-#[derive(Deserialize)]
-struct BookSeriesWorld {
-    #[serde(rename = "BookSeriesWorld")]
-    id: i32,
-    #[serde(rename = "BookSeriesWorldTextmapID")]
-    name: TextHash,
-}
-
-#[derive(Deserialize)]
-struct ItemConfig {
-    #[serde(rename = "ItemIconPath")]
-    icon_path: String,
 }
 
 #[derive(Deserialize)]
@@ -179,14 +121,8 @@ struct Configs {
     quest_data: Vec<QuestData>,
     reward_data: Vec<RewardData>,
     avatar_config: Vec<AvatarConfig>,
-    //avatar_skill_config: Vec<AvatarSkillConfigWrapper>,
     avatar_base_type: Vec<AvatarBaseType>,
     damage_type: Vec<DamageType>,
-    //localbook_config: Vec<LocalbookConfig>,
-    //book_series_config: Vec<BookSeriesConfig>,
-    //book_series_world: Vec<BookSeriesWorld>,
-    //item_config: Vec<ItemConfig>,
-    //item_config_book: Vec<ItemConfig>,
     equipment_config: Vec<EquipmentConfig>,
 }
 
@@ -275,11 +211,6 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
         "dimbreath/StarRailData/ExcelOutput/AvatarConfig.json",
     )?))?;
 
-    //let avatar_skill_config: Vec<AvatarSkillConfigWrapper> =
-    //    serde_json::from_reader(BufReader::new(File::open(
-    //        "dimbreath/StarRailData/ExcelOutput/AvatarSkillConfig.json",
-    //    )?))?;
-
     let avatar_base_type: Vec<AvatarBaseType> = serde_json::from_reader(BufReader::new(
         File::open("dimbreath/StarRailData/ExcelOutput/AvatarBaseType.json")?,
     ))?;
@@ -287,26 +218,6 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     let damage_type: Vec<DamageType> = serde_json::from_reader(BufReader::new(File::open(
         "dimbreath/StarRailData/ExcelOutput/DamageType.json",
     )?))?;
-
-    //let localbook_config: Vec<LocalbookConfig> = serde_json::from_reader(BufReader::new(
-    //    File::open("dimbreath/StarRailData/ExcelOutput/LocalbookConfig.json")?,
-    //))?;
-    //
-    //let book_series_config: Vec<BookSeriesConfig> = serde_json::from_reader(BufReader::new(
-    //    File::open("dimbreath/StarRailData/ExcelOutput/BookSeriesConfig.json")?,
-    //))?;
-    //
-    //let book_series_world: Vec<BookSeriesWorld> = serde_json::from_reader(BufReader::new(
-    //    File::open("dimbreath/StarRailData/ExcelOutput/BookSeriesWorld.json")?,
-    //))?;
-
-    //let item_config: Vec<ItemConfig> = serde_json::from_reader(BufReader::new(File::open(
-    //    "dimbreath/StarRailData/ExcelOutput/ItemConfig.json",
-    //)?))?;
-
-    //let item_config_book: Vec<ItemConfig> = serde_json::from_reader(BufReader::new(File::open(
-    //    "dimbreath/StarRailData/ExcelOutput/ItemConfigBook.json",
-    //)?))?;
 
     let equipment_config: Vec<EquipmentConfig> = serde_json::from_reader(BufReader::new(
         File::open("dimbreath/StarRailData/ExcelOutput/EquipmentConfig.json")?,
@@ -318,14 +229,8 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
         quest_data,
         reward_data,
         avatar_config,
-        //avatar_skill_config,
         avatar_base_type,
         damage_type,
-        //localbook_config,
-        //book_series_config,
-        //book_series_world,
-        //item_config,
-        //item_config_book,
         equipment_config,
     };
 
@@ -342,18 +247,6 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     info!("Starting avatars");
     avatars::update(&configs, &pool).await?;
     actix_web::rt::task::yield_now().await;
-
-    //info!("Starting book series worlds");
-    //book_series_worlds::update(&configs, &pool).await?;
-    //actix_web::rt::task::yield_now().await;
-
-    //info!("Starting book series");
-    //book_series::update(&configs, &pool).await?;
-    //actix_web::rt::task::yield_now().await;
-
-    //info!("Starting books");
-    //books::update(&configs, &pool).await?;
-    //actix_web::rt::task::yield_now().await;
 
     info!("Starting light cones");
     light_cones::update(&configs, &pool).await?;

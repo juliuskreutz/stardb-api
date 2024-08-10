@@ -12,7 +12,6 @@ pub struct DbAchievement {
     pub description: String,
     pub polychromes: i32,
     pub hidden: bool,
-    pub priority: i32,
     pub version: Option<String>,
     pub comment: Option<String>,
     pub reference: Option<String>,
@@ -179,14 +178,6 @@ pub async fn update_impossible_by_id(id: i32, impossible: bool, pool: &PgPool) -
 
 pub async fn update_video_by_id(id: i32, video: &str, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/zzz/achievements/update_video_by_id.sql", id, video)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_version_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/zzz/achievements/delete_version_by_id.sql", id)
         .execute(pool)
         .await?;
 

@@ -1,5 +1,18 @@
 SELECT
-    achievements.*,
+    achievements.id,
+    achievements.series,
+    achievements.jades,
+    achievements.hidden,
+    achievements.version,
+    achievements.comment,
+    achievements.reference,
+    achievements.difficulty,
+    achievements.video,
+    achievements.gacha,
+    achievements.timegated,
+    achievements.missable,
+    achievements.impossible,
+    achievements.set,
     achievements_text.name,
     achievements_text.description,
     percent,
@@ -15,6 +28,6 @@ FROM
     ORDER BY
         achievement_series.priority DESC,
         series,
-        priority DESC,
+        achievements.priority DESC,
         id;
 

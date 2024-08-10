@@ -1,16 +1,10 @@
 mod achievement_series;
 mod achievements;
-mod book_series;
-mod book_series_worlds;
-mod books;
 mod characters;
-mod free_jade_alert;
 mod gi;
 mod import_achievements;
-mod import_books;
 mod import_gi_achievements;
 mod import_zzz_achievements;
-mod index;
 mod languages;
 mod light_cones;
 mod mihomo;
@@ -19,7 +13,6 @@ mod pom_warps_import;
 mod scores;
 mod select_all;
 mod sitemap;
-mod skills;
 mod srgf_warps_import;
 mod srs_warps_import;
 mod stats;
@@ -91,17 +84,11 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievement_series::openapi());
     openapi.merge(achievements::openapi());
-    openapi.merge(book_series::openapi());
-    openapi.merge(book_series_worlds::openapi());
-    openapi.merge(books::openapi());
     openapi.merge(characters::openapi());
-    openapi.merge(free_jade_alert::openapi());
     openapi.merge(gi::openapi());
     openapi.merge(import_achievements::openapi());
-    openapi.merge(import_books::openapi());
     openapi.merge(import_gi_achievements::openapi());
     openapi.merge(import_zzz_achievements::openapi());
-    openapi.merge(index::openapi());
     openapi.merge(languages::openapi());
     openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
@@ -112,7 +99,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(sitemap::openapi());
     openapi.merge(srs_warps_import::openapi());
     openapi.merge(srgf_warps_import::openapi());
-    openapi.merge(skills::openapi());
     openapi.merge(stats::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
@@ -124,17 +110,11 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.configure(achievement_series::configure)
         .configure(achievements::configure)
-        .configure(book_series::configure)
-        .configure(book_series_worlds::configure)
-        .configure(books::configure)
         .configure(characters::configure)
-        .configure(free_jade_alert::configure)
         .configure(gi::configure)
         .configure(import_achievements::configure)
-        .configure(import_books::configure)
         .configure(import_gi_achievements::configure)
         .configure(import_zzz_achievements::configure)
-        .configure(index::configure)
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
@@ -143,7 +123,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(scores::configure)
         .configure(select_all::configure)
         .configure(|sc| sitemap::configure(sc, pool.clone()))
-        .configure(skills::configure)
         .configure(srgf_warps_import::configure)
         .configure(srs_warps_import::configure)
         .configure(stats::configure)

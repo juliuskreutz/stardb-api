@@ -65,10 +65,7 @@ async fn post_srgf_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::admins::get_one_by_username(&username, &pool)
-        .await
-        .is_err()
-    {
+    if !database::admins::exists(&username, &pool).await? {
         return Ok(HttpResponse::Forbidden().finish());
     }
 

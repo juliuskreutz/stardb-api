@@ -35,7 +35,7 @@ async fn get_light_cone(
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let light_cone =
-        LightCone::from(database::get_light_cone_by_id(*id, language_params.lang, &pool).await?);
+        LightCone::from(database::light_cones::get_by_id(*id, language_params.lang, &pool).await?);
 
     Ok(HttpResponse::Ok().json(light_cone))
 }

@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-pub async fn set_all_achievement_series_texts(
+pub async fn set_all(
     id: &[i32],
     language: &[Language],
     name: &[String],

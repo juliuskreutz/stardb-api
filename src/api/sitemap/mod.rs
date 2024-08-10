@@ -41,8 +41,6 @@ const MAX_URLS: usize = 20000;
 const LOCALIZED_ROUTES: &[&str] = &[
     "https://stardb.gg/%LANG%",
     "https://stardb.gg/%LANG%/achievement-tracker",
-    "https://stardb.gg/%LANG%/book-tracker",
-    "https://stardb.gg/%LANG%/free-stellar-jades",
     "https://stardb.gg/%LANG%/import",
     "https://stardb.gg/%LANG%/leaderboard",
     "https://stardb.gg/%LANG%/login",

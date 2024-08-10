@@ -41,8 +41,9 @@ async fn put_user_achievement_completed(
     };
 
     let id = *id;
-    let db_complete = database::DbUserAchievementCompleted { username, id };
-    database::add_user_achievement_completed(&db_complete, &pool).await?;
+    let db_complete =
+        database::users_achievements_completed::DbUserAchievementCompleted { username, id };
+    database::users_achievements_completed::add(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -68,9 +69,10 @@ async fn delete_user_achievement_completed(
 
     let id = *id;
 
-    let db_complete = database::DbUserAchievementCompleted { username, id };
+    let db_complete =
+        database::users_achievements_completed::DbUserAchievementCompleted { username, id };
 
-    database::delete_user_achievement_completed(&db_complete, &pool).await?;
+    database::users_achievements_completed::delete(&db_complete, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -9,16 +9,8 @@ pub struct DbConnection {
 }
 
 pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "INSERT INTO zzz_connections
-            (uid, username, verified, private) 
-        VALUES
-            ($1, $2, $3, $4) 
-        ON CONFLICT
-            (uid, username) 
-        DO UPDATE SET 
-            verified = EXCLUDED.verified
-        ",
+    sqlx::query_file!(
+        "sql/zzz/connections/set.sql",
         connection.uid,
         connection.username,
         connection.verified,
@@ -31,8 +23,8 @@ pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn delete(connection: &DbConnection, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "DELETE FROM zzz_connections WHERE uid = $1 AND username = $2",
+    sqlx::query_file!(
+        "sql/zzz/connections/delete.sql",
         connection.uid,
         connection.username,
     )
@@ -43,20 +35,18 @@ pub async fn delete(connection: &DbConnection, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbConnection>> {
-    Ok(sqlx::query_as!(
-        DbConnection,
-        "SELECT * FROM zzz_connections WHERE uid = $1",
-        uid,
+    Ok(
+        sqlx::query_file_as!(DbConnection, "sql/zzz/connections/get_by_uid.sql", uid)
+            .fetch_all(pool)
+            .await?,
     )
-    .fetch_all(pool)
-    .await?)
 }
 
 pub async fn get_by_username(username: &str, pool: &PgPool) -> Result<Vec<DbConnection>> {
-    Ok(sqlx::query_as!(
+    Ok(sqlx::query_file_as!(
         DbConnection,
-        "SELECT * FROM zzz_connections WHERE username = $1",
-        username
+        "sql/zzz/connections/get_by_username.sql",
+        username,
     )
     .fetch_all(pool)
     .await?)
@@ -67,9 +57,9 @@ pub async fn get_by_uid_and_username(
     username: &str,
     pool: &PgPool,
 ) -> Result<DbConnection> {
-    Ok(sqlx::query_as!(
+    Ok(sqlx::query_file_as!(
         DbConnection,
-        "SELECT * FROM zzz_connections WHERE uid = $1 AND username = $2",
+        "sql/zzz/connections/get_by_uid_and_username.sql",
         uid,
         username,
     )
@@ -83,8 +73,8 @@ pub async fn update_private_by_uid_and_username(
     private: bool,
     pool: &PgPool,
 ) -> Result<()> {
-    sqlx::query!(
-        "UPDATE zzz_connections SET private = $3 WHERE uid = $1 AND username = $2",
+    sqlx::query_file!(
+        "sql/zzz/connections/update_private_by_uid_and_username.sql",
         uid,
         username,
         private,

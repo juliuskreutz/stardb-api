@@ -44,11 +44,12 @@ async fn get_user_achievements_favorites(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let favorites: Vec<_> = database::get_user_achievements_favorites_by_username(&username, &pool)
-        .await?
-        .iter()
-        .map(|c| c.id)
-        .collect();
+    let favorites: Vec<_> =
+        database::users_achievements_favorites::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .map(|c| c.id)
+            .collect();
 
     Ok(HttpResponse::Ok().json(favorites))
 }
@@ -73,12 +74,13 @@ async fn put_user_achievements_favorites(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut favorite = database::DbUserAchievementFavorite { username, id: 0 };
+    let mut favorite =
+        database::users_achievements_favorites::DbUserAchievementFavorite { username, id: 0 };
 
     for id in ids.0 {
         favorite.id = id;
 
-        database::add_user_achievement_favorite(&favorite, &pool).await?;
+        database::users_achievements_favorites::add(&favorite, &pool).await?;
     }
 
     Ok(HttpResponse::Ok().finish())

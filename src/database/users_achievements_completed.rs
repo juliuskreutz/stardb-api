@@ -6,10 +6,7 @@ pub struct DbUserAchievementCompleted {
     pub id: i32,
 }
 
-pub async fn add_user_achievement_completed(
-    user_achievement: &DbUserAchievementCompleted,
-    pool: &PgPool,
-) -> Result<()> {
+pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
     if sqlx::query!(
         "SELECT impossible FROM achievements WHERE id = $1",
         user_achievement.id
@@ -53,10 +50,7 @@ pub async fn add_user_achievement_completed(
     Ok(())
 }
 
-pub async fn delete_user_achievement_completed(
-    user_achievement: &DbUserAchievementCompleted,
-    pool: &PgPool,
-) -> Result<()> {
+pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "DELETE FROM users_achievements_completed WHERE username = $1 AND id = $2",
         user_achievement.username,
@@ -68,7 +62,7 @@ pub async fn delete_user_achievement_completed(
     Ok(())
 }
 
-pub async fn delete_user_achievements_completed(username: &str, pool: &PgPool) -> Result<()> {
+pub async fn delete_by_username(username: &str, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "DELETE FROM users_achievements_completed WHERE username = $1",
         username,
@@ -79,7 +73,7 @@ pub async fn delete_user_achievements_completed(username: &str, pool: &PgPool) -
     Ok(())
 }
 
-pub async fn get_user_achievements_completed_by_username(
+pub async fn get_by_username(
     username: &str,
     pool: &PgPool,
 ) -> Result<Vec<DbUserAchievementCompleted>> {
@@ -92,7 +86,7 @@ pub async fn get_user_achievements_completed_by_username(
     .await?)
 }
 
-pub async fn get_users_achievements_completed_user_count(pool: &PgPool) -> Result<i64> {
+pub async fn user_count(pool: &PgPool) -> Result<i64> {
     Ok(
         sqlx::query!("SELECT COUNT(*) FROM users WHERE EXISTS (SELECT * FROM users_achievements_completed WHERE users.username = users_achievements_completed.username)")
             .fetch_one(pool)
@@ -102,7 +96,7 @@ pub async fn get_users_achievements_completed_user_count(pool: &PgPool) -> Resul
     )
 }
 
-pub async fn count_hsr_users(threshhold: i64, pool: &PgPool) -> Result<i64> {
+pub async fn count_users(threshhold: i64, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query_file!(
         "sql/users/achievements/completed/count_users.sql",
         threshhold

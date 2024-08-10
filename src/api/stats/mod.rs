@@ -47,15 +47,13 @@ async fn get_stats(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl 
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::admins::get_one_by_username(&username, &pool)
-        .await
-        .is_err()
-    {
+    if !database::admins::exists(&username, &pool).await? {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
     let emails = database::users::count_emails(&pool).await?;
-    let hsr_achievement_users = database::count_hsr_users(100, &pool).await?;
+    let hsr_achievement_users =
+        database::users_achievements_completed::count_users(100, &pool).await?;
     let zzz_achievement_users =
         database::zzz::users_achievements_completed::count_users(100, &pool).await?;
     let gi_achievement_users =

@@ -1,7 +1,5 @@
 SELECT
-    zzz_signals_w_engine.uid,
     zzz_signals_w_engine.character,
-    NULL::integer AS bangboo,
     zzz_signals_w_engine.w_engine,
     COALESCE(zzz_characters.rarity, zzz_w_engines.rarity) AS rarity
 FROM

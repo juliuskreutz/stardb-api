@@ -114,8 +114,9 @@ async fn post_warps_import(
         )
     });
 
-    let mut url =
-        Url::parse("https://api-os-takumi.mihoyo.com/common/gacha_record/api/getGachaLog")?;
+    let mut url = Url::parse(
+        "https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_record/api/getGachaLog",
+    )?;
 
     url.query_pairs_mut()
         .extend_pairs(query)
@@ -173,14 +174,14 @@ async fn post_warps_import(
     }
 
     if let Ok(Some(username)) = session.get::<String>("username") {
-        let connection = database::DbConnection {
+        let connection = database::connections::DbConnection {
             uid,
             username,
             verified: true,
             private: false,
         };
 
-        database::set_connection(&connection, &pool).await?;
+        database::connections::set(&connection, &pool).await?;
     }
 
     if warps_import_infos.lock().await.contains_key(&uid) {

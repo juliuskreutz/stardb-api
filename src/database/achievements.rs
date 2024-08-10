@@ -12,7 +12,6 @@ pub struct DbAchievement {
     pub description: String,
     pub jades: i32,
     pub hidden: bool,
-    pub priority: i32,
     pub version: Option<String>,
     pub comment: Option<String>,
     pub reference: Option<String>,

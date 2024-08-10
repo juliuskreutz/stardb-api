@@ -1,5 +1,4 @@
 SELECT
-    gi_wishes_standard.uid,
     gi_wishes_standard.character,
     gi_wishes_standard.weapon,
     COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity

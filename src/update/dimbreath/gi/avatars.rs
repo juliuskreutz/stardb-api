@@ -1,4 +1,3 @@
-use regex::Regex;
 use sqlx::PgPool;
 
 use crate::database;

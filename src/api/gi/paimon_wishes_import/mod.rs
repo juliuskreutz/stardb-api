@@ -25,17 +25,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct PaimonWishesImportParams {
     data: String,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct Paimon {
-    wish_uid: serde_json::Value,
-    wish_counter_beginners: Option<Wishes>,
-    wish_counter_standard: Option<Wishes>,
-    wish_counter_character_event: Option<Wishes>,
-    wish_counter_weapon_event: Option<Wishes>,
-    wish_counter_chronicled: Option<Wishes>,
+    profile: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -73,19 +63,18 @@ async fn post_paimon_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if database::admins::get_one_by_username(&username, &pool)
-        .await
-        .is_err()
-    {
+    if !database::admins::exists(&username, &pool).await? {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let paimon: Paimon = serde_json::from_str(&params.data)?;
+    let json: serde_json::Value = serde_json::from_str(&params.data)?;
 
-    let uid = if let Some(uid) = paimon.wish_uid.as_i64() {
+    let wish_uid = json[format!("{}wish-uid", params.profile)].clone();
+
+    let uid = if let Some(uid) = wish_uid.as_i64() {
         uid as i32
     } else {
-        paimon.wish_uid.as_str().unwrap().parse()?
+        wish_uid.as_str().unwrap().parse()?
     };
 
     if database::gi::profiles::get_by_uid(uid, &pool)
@@ -95,13 +84,24 @@ async fn post_paimon_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
+    let wish_counter_beginners: Option<Wishes> =
+        serde_json::from_value(json[format!("{}wish-counter-beginners", params.profile)].clone())?;
+    let wish_counter_standard: Option<Wishes> =
+        serde_json::from_value(json[format!("{}wish-counter-standard", params.profile)].clone())?;
+    let wish_counter_character_event: Option<Wishes> = serde_json::from_value(
+        json[format!("{}wish-counter-character-event", params.profile)].clone(),
+    )?;
+    let wish_counter_weapon_event: Option<Wishes> = serde_json::from_value(
+        json[format!("{}wish-counter-weapon-event", params.profile)].clone(),
+    )?;
+    let wish_counter_chronicled: Option<Wishes> =
+        serde_json::from_value(json[format!("{}wish-counter-chronicled", params.profile)].clone())?;
+
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,
         Some('7') => 1,
         _ => 8,
     });
-
-    let paimon: Paimon = serde_json::from_str(&params.data)?;
 
     let mut set_all_beginner = database::gi::wishes::SetAll::default();
     let mut set_all_standard = database::gi::wishes::SetAll::default();
@@ -110,11 +110,11 @@ async fn post_paimon_warps_import(
     let mut set_all_chronicled = database::gi::wishes::SetAll::default();
 
     for (wishes, gacha_type) in [
-        (&paimon.wish_counter_beginners, GiGachaType::Beginner),
-        (&paimon.wish_counter_standard, GiGachaType::Standard),
-        (&paimon.wish_counter_character_event, GiGachaType::Character),
-        (&paimon.wish_counter_weapon_event, GiGachaType::Weapon),
-        (&paimon.wish_counter_chronicled, GiGachaType::Chronicled),
+        (&wish_counter_beginners, GiGachaType::Beginner),
+        (&wish_counter_standard, GiGachaType::Standard),
+        (&wish_counter_character_event, GiGachaType::Character),
+        (&wish_counter_weapon_event, GiGachaType::Weapon),
+        (&wish_counter_chronicled, GiGachaType::Chronicled),
     ] {
         let Some(wishes) = wishes else {
             continue;

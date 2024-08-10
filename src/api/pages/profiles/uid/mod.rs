@@ -115,7 +115,7 @@ async fn get_profile(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = database::get_connections_by_uid(uid, &pool)
+    let mut forbidden = database::connections::get_by_uid(uid, &pool)
         .await?
         .iter()
         .any(|c| c.private);
@@ -123,7 +123,7 @@ async fn get_profile(
     if forbidden {
         if let Ok(Some(username)) = session.get::<String>("username") {
             if let Ok(connection) =
-                database::get_connection_by_uid_and_username(uid, &username, &pool).await
+                database::connections::get_by_uid_and_username(uid, &username, &pool).await
             {
                 forbidden = !connection.verified;
             }
@@ -158,7 +158,7 @@ async fn update_profile(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = database::get_connections_by_uid(uid, &pool)
+    let mut forbidden = database::connections::get_by_uid(uid, &pool)
         .await?
         .iter()
         .any(|c| c.private);
@@ -166,7 +166,7 @@ async fn update_profile(
     if forbidden {
         if let Ok(Some(username)) = session.get::<String>("username") {
             if let Ok(connection) =
-                database::get_connection_by_uid_and_username(uid, &username, &pool).await
+                database::connections::get_by_uid_and_username(uid, &username, &pool).await
             {
                 forbidden = !connection.verified;
             }
@@ -194,14 +194,14 @@ async fn get_profile_json(
         mihomo::get(uid, lang, pool).await?
     };
 
-    let score_achievement = database::get_score_achievement_by_uid(uid, pool).await?;
+    let score_achievement = database::achievement_scores::get_by_uid(uid, pool).await?;
 
     let rank_global = score_achievement.global_rank.unwrap_or_default();
     let rank_regional = score_achievement.regional_rank.unwrap_or_default();
 
-    let count_global = database::count_scores_achievement(None, None, pool).await?;
+    let count_global = database::achievement_scores::count(None, None, pool).await?;
     let count_regional =
-        database::count_scores_achievement(Some(&score_achievement.region), None, pool).await?;
+        database::achievement_scores::count(Some(&score_achievement.region), None, pool).await?;
 
     let top_global = rank_global as f64 / count_global as f64;
     let top_regional = rank_regional as f64 / count_regional as f64;

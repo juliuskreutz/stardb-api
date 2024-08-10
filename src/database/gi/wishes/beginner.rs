@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-use super::{DbWish, DbWishInfo, SetAll};
+use super::{DbWish, SetAll};
 
 pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!(
@@ -36,33 +36,6 @@ pub async fn get_by_uid(
     )
     .fetch_all(pool)
     .await?)
-}
-
-pub async fn exists(id: i64, uid: i32, pool: &PgPool) -> anyhow::Result<bool> {
-    Ok(
-        sqlx::query_file!("sql/gi/wishes/beginner/exists.sql", id, uid)
-            .fetch_optional(pool)
-            .await?
-            .is_some(),
-    )
-}
-
-pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbWishInfo>> {
-    Ok(
-        sqlx::query_file_as!(DbWishInfo, "sql/gi/wishes/beginner/get_infos.sql", uid)
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
-pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(
-        sqlx::query_file!("sql/gi/wishes/beginner/get_count_by_uid.sql", uid)
-            .fetch_one(pool)
-            .await?
-            .count
-            .unwrap(),
-    )
 }
 
 pub async fn get_earliest_timestamp_by_uid(

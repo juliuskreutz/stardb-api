@@ -13,7 +13,7 @@ pub struct DbCharacter {
     pub element_id: String,
 }
 
-pub async fn set_all_characters(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
+pub async fn set_all(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
@@ -36,7 +36,7 @@ pub async fn set_all_characters(id: &[i32], rarity: &[i32], pool: &PgPool) -> Re
     Ok(())
 }
 
-pub async fn get_characters(language: Language, pool: &PgPool) -> Result<Vec<DbCharacter>> {
+pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbCharacter>> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(
@@ -66,11 +66,7 @@ pub async fn get_characters(language: Language, pool: &PgPool) -> Result<Vec<DbC
     .await?)
 }
 
-pub async fn get_character_by_id(
-    id: i32,
-    language: Language,
-    pool: &PgPool,
-) -> Result<DbCharacter> {
+pub async fn get_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbCharacter> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(

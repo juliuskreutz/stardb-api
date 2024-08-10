@@ -1,5 +1,4 @@
 mod achievements;
-mod books;
 mod email;
 mod gi;
 mod import;
@@ -29,7 +28,6 @@ struct ApiDoc;
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
-    openapi.merge(books::openapi());
     openapi.merge(email::openapi());
     openapi.merge(gi::openapi());
     openapi.merge(import::openapi());
@@ -43,7 +41,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_me)
         .configure(achievements::configure)
-        .configure(books::configure)
         .configure(email::configure)
         .configure(gi::configure)
         .configure(import::configure)
@@ -63,7 +60,6 @@ pub struct User {
     gi_uids: Vec<i32>,
     achievements: Vec<i32>,
     zzz_achievements: Vec<i32>,
-    books: Vec<i32>,
 }
 
 #[utoipa::path(
@@ -83,15 +79,13 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
 
     //session.renew();
 
-    let admin = database::admins::get_one_by_username(&username, &pool)
-        .await
-        .is_ok();
+    let admin = database::admins::exists(&username, &pool).await?;
 
     let user = database::users::get_one_by_username(&username, &pool).await?;
 
     let email = user.email;
 
-    let uids = database::get_connections_by_username(&username, &pool)
+    let uids = database::connections::get_by_username(&username, &pool)
         .await?
         .into_iter()
         .map(|c| c.uid)
@@ -109,13 +103,7 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         .map(|c| c.uid)
         .collect();
 
-    let books = database::get_user_books_completed_by_username(&username, &pool)
-        .await?
-        .into_iter()
-        .map(|b| b.id)
-        .collect();
-
-    let achievements = database::get_user_achievements_completed_by_username(&username, &pool)
+    let achievements = database::users_achievements_completed::get_by_username(&username, &pool)
         .await?
         .into_iter()
         .map(|b| b.id)
@@ -137,7 +125,6 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
         gi_uids,
         achievements,
         zzz_achievements,
-        books,
     };
 
     Ok(HttpResponse::Ok().json(user))

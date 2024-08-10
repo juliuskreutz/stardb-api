@@ -61,18 +61,18 @@ async fn get_leaderboard_entry(
         database::mihomo::set(&db_mihomo, &pool).await?;
     }
 
-    let score = database::get_score_achievement_by_uid(uid, &pool)
+    let score = database::achievement_scores::get_by_uid(uid, &pool)
         .await?
         .into();
 
     let count_na =
-        database::count_scores_achievement(Some(&Region::Na.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
     let count_eu =
-        database::count_scores_achievement(Some(&Region::Eu.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
     let count_asia =
-        database::count_scores_achievement(Some(&Region::Asia.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
     let count_cn =
-        database::count_scores_achievement(Some(&Region::Cn.to_string()), None, &pool).await?;
+        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
     let count_query = 1;
 
     let count = count_na + count_eu + count_asia + count_cn;

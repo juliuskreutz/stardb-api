@@ -1,11 +1,9 @@
 SELECT
     zzz_signals_bangboo.id,
-    zzz_signals_bangboo.uid,
     NULL::integer AS character,
     zzz_signals_bangboo.bangboo,
     zzz_signals_bangboo.w_engine,
     zzz_signals_bangboo.timestamp,
-    zzz_signals_bangboo.official,
     COALESCE(zzz_bangboos_text.name, zzz_w_engines_text.name) AS name,
     COALESCE(zzz_bangboos.rarity, zzz_w_engines.rarity) AS rarity
 FROM

@@ -31,8 +31,8 @@ struct Character {
     element_id: String,
 }
 
-impl From<database::DbCharacter> for Character {
-    fn from(db_character: database::DbCharacter) -> Self {
+impl From<database::characters::DbCharacter> for Character {
+    fn from(db_character: database::characters::DbCharacter) -> Self {
         Character {
             id: db_character.id,
             rarity: db_character.rarity,
@@ -69,7 +69,7 @@ async fn get_characters(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_characters = database::get_characters(language_params.lang, &pool).await?;
+    let db_characters = database::characters::get_all(language_params.lang, &pool).await?;
 
     let characters: Vec<_> = db_characters.into_iter().map(Character::from).collect();
 

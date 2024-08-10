@@ -35,8 +35,8 @@ struct ScoreAchievement {
     updated_at: DateTime<Utc>,
 }
 
-impl From<database::DbScoreAchievement> for ScoreAchievement {
-    fn from(db_score: database::DbScoreAchievement) -> Self {
+impl From<database::achievement_scores::DbScoreAchievement> for ScoreAchievement {
+    fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         ScoreAchievement {
             global_rank: db_score.global_rank.unwrap(),
             regional_rank: db_score.regional_rank.unwrap(),
@@ -79,7 +79,7 @@ async fn get_scores_achievements(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_scores = database::get_scores_achievement(
+    let db_scores = database::achievement_scores::get(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
         scores_params.limit,

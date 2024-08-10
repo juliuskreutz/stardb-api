@@ -6,12 +6,11 @@ use crate::Language;
 pub struct DbLightCone {
     pub id: i32,
     pub name: String,
-    pub rarity: i32,
     pub path: String,
     pub path_id: String,
 }
 
-pub async fn set_all_light_cones(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
+pub async fn set_all(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
@@ -34,14 +33,14 @@ pub async fn set_all_light_cones(id: &[i32], rarity: &[i32], pool: &PgPool) -> R
     Ok(())
 }
 
-pub async fn get_light_cones(language: Language, pool: &PgPool) -> Result<Vec<DbLightCone>> {
+pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbLightCone>> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(
         DbLightCone,
         "
         SELECT
-            light_cones.*,
+            light_cones.id,
             light_cones_text.name,
             light_cones_text.path,
             light_cones_text_en.path as path_id
@@ -64,18 +63,14 @@ pub async fn get_light_cones(language: Language, pool: &PgPool) -> Result<Vec<Db
     .await?)
 }
 
-pub async fn get_light_cone_by_id(
-    id: i32,
-    language: Language,
-    pool: &PgPool,
-) -> Result<DbLightCone> {
+pub async fn get_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbLightCone> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(
         DbLightCone,
         "
         SELECT
-            light_cones.*,
+            light_cones.id,
             light_cones_text.name,
             light_cones_text.path,
             light_cones_text_en.path as path_id

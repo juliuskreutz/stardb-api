@@ -1,10 +1,8 @@
 SELECT
     gi_wishes_beginner.id,
-    gi_wishes_beginner.uid,
     gi_wishes_beginner.character,
     gi_wishes_beginner.weapon,
     gi_wishes_beginner.timestamp,
-    gi_wishes_beginner.official,
     COALESCE(gi_characters_text.name, gi_weapons_text.name) AS name,
     COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity
 FROM

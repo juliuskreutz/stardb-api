@@ -8,7 +8,7 @@ pub struct DbConnection {
     pub private: bool,
 }
 
-pub async fn set_connection(connection: &DbConnection, pool: &PgPool) -> Result<()> {
+pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "INSERT INTO connections
             (uid, username, verified, private) 
@@ -30,7 +30,7 @@ pub async fn set_connection(connection: &DbConnection, pool: &PgPool) -> Result<
     Ok(())
 }
 
-pub async fn delete_connection(connection: &DbConnection, pool: &PgPool) -> Result<()> {
+pub async fn delete(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "DELETE FROM connections WHERE uid = $1 AND username = $2",
         connection.uid,
@@ -42,7 +42,7 @@ pub async fn delete_connection(connection: &DbConnection, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn get_connections_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbConnection>> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbConnection>> {
     Ok(sqlx::query_as!(
         DbConnection,
         "SELECT * FROM connections WHERE uid = $1",
@@ -52,10 +52,7 @@ pub async fn get_connections_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbCon
     .await?)
 }
 
-pub async fn get_connections_by_username(
-    username: &str,
-    pool: &PgPool,
-) -> Result<Vec<DbConnection>> {
+pub async fn get_by_username(username: &str, pool: &PgPool) -> Result<Vec<DbConnection>> {
     Ok(sqlx::query_as!(
         DbConnection,
         "SELECT * FROM connections WHERE username = $1",
@@ -65,7 +62,7 @@ pub async fn get_connections_by_username(
     .await?)
 }
 
-pub async fn get_connection_by_uid_and_username(
+pub async fn get_by_uid_and_username(
     uid: i32,
     username: &str,
     pool: &PgPool,
@@ -80,7 +77,7 @@ pub async fn get_connection_by_uid_and_username(
     .await?)
 }
 
-pub async fn update_connection_private_by_uid_and_username(
+pub async fn update_private_by_uid_and_username(
     uid: i32,
     username: &str,
     private: bool,

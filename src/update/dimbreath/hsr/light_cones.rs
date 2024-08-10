@@ -22,7 +22,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         light_cones_rarity.push(rarity);
     }
 
-    database::set_all_light_cones(&light_cones_id, &light_cones_rarity, pool).await?;
+    database::light_cones::set_all(&light_cones_id, &light_cones_rarity, pool).await?;
 
     Ok(())
 }

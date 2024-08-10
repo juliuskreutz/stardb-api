@@ -201,7 +201,7 @@ async fn update_achievement_tracker(
 ) -> anyhow::Result<()> {
     let mut achievement_tracker_map = HashMap::new();
 
-    let user_count = database::get_users_achievements_completed_user_count(&pool).await?;
+    let user_count = database::users_achievements_completed::user_count(&pool).await?;
 
     for language in Language::iter() {
         let achievements = database::achievements::get_all(language, &pool).await?;
@@ -334,12 +334,12 @@ async fn get_achievement_tracker(
         .clone();
 
     if let Ok(Some(username)) = session.get::<String>("username") {
-        let completed = database::get_user_achievements_completed_by_username(&username, &pool)
+        let completed = database::users_achievements_completed::get_by_username(&username, &pool)
             .await?
             .into_iter()
             .map(|c| c.id)
             .collect::<HashSet<_>>();
-        let favorites = database::get_user_achievements_favorites_by_username(&username, &pool)
+        let favorites = database::users_achievements_favorites::get_by_username(&username, &pool)
             .await?
             .into_iter()
             .map(|c| c.id)

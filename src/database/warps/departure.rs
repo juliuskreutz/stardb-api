@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 use crate::Language;
 
-use super::{DbWarp, DbWarpInfo, SetAll};
+use super::{DbWarp, SetAll};
 
 pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!(
@@ -30,14 +30,6 @@ pub async fn get_by_uid(
 
     Ok(
         sqlx::query_file_as!(DbWarp, "sql/warps/departure/get_by_uid.sql", uid, language)
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
-pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbWarpInfo>> {
-    Ok(
-        sqlx::query_file_as!(DbWarpInfo, "sql/warps/departure/get_infos.sql", uid,)
             .fetch_all(pool)
             .await?,
     )

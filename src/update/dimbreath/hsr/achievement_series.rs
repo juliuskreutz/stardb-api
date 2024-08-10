@@ -16,7 +16,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         achievement_series_priority.push(priority);
     }
 
-    database::set_all_achievement_series(
+    database::achievement_series::set_all(
         &achievement_series_id,
         &achievement_series_priority,
         pool,

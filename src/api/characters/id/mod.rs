@@ -37,10 +37,9 @@ async fn get_character(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let character: Character =
-        database::get_character_by_id(*id, language_params.lang, &pool)
-            .await?
-            .into();
+    let character: Character = database::characters::get_by_id(*id, language_params.lang, &pool)
+        .await?
+        .into();
 
     Ok(HttpResponse::Ok().json(character))
 }

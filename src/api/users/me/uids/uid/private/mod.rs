@@ -40,7 +40,7 @@ async fn put_user_uid_private(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    database::update_connection_private_by_uid_and_username(*uid, &username, true, &pool).await?;
+    database::connections::update_private_by_uid_and_username(*uid, &username, true, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -64,7 +64,8 @@ async fn delete_user_uid_private(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    database::update_connection_private_by_uid_and_username(*uid, &username, false, &pool).await?;
+    database::connections::update_private_by_uid_and_username(*uid, &username, false, &pool)
+        .await?;
 
     Ok(HttpResponse::Ok().finish())
 }

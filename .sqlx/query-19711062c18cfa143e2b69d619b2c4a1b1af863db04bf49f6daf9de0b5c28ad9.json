@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO light_cones_text (id,\n    LANGUAGE, name, path)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::text[], $3::text[], $4::text[])\nON CONFLICT (id,\n    LANGUAGE)\n    DO UPDATE SET\n        name = EXCLUDED.name,\n        path = EXCLUDED.path;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "19711062c18cfa143e2b69d619b2c4a1b1af863db04bf49f6daf9de0b5c28ad9"
+}

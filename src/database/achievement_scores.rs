@@ -17,10 +17,7 @@ pub struct DbScoreAchievement {
     pub timestamp: DateTime<Utc>,
 }
 
-pub async fn set_score_achievement(
-    score: &DbScoreAchievement,
-    pool: &PgPool,
-) -> Result<DbScoreAchievement> {
+pub async fn set(score: &DbScoreAchievement, pool: &PgPool) -> Result<DbScoreAchievement> {
     sqlx::query_as!(
         Score,
         "
@@ -39,10 +36,10 @@ pub async fn set_score_achievement(
     .execute(pool)
     .await?;
 
-    get_score_achievement_by_uid(score.uid, pool).await
+    get_by_uid(score.uid, pool).await
 }
 
-pub async fn get_scores_achievement(
+pub async fn get(
     region: Option<&str>,
     query: Option<&str>,
     limit: Option<i64>,
@@ -85,11 +82,7 @@ pub async fn get_scores_achievement(
     .await?)
 }
 
-pub async fn count_scores_achievement(
-    region: Option<&str>,
-    query: Option<&str>,
-    pool: &PgPool,
-) -> Result<i64> {
+pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query!(
         "SELECT COUNT(*) as count FROM mihomo WHERE ($1::TEXT IS NULL OR region = $1) AND ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')",
         region,
@@ -101,7 +94,7 @@ pub async fn count_scores_achievement(
     .unwrap())
 }
 
-pub async fn get_score_achievement_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievement> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievement> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "
@@ -133,10 +126,7 @@ pub struct DbScoreAchievementTimestamp {
     pub timestamp: DateTime<Utc>,
 }
 
-pub async fn get_score_achievement_timestamp_by_uid(
-    uid: i32,
-    pool: &PgPool,
-) -> Result<DbScoreAchievementTimestamp> {
+pub async fn get_timestamp_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievementTimestamp> {
     Ok(sqlx::query_as!(
         DbScoreAchievementTimestamp,
         "

@@ -8,7 +8,7 @@ pub struct DbAchievementSeries {
     pub name: String,
 }
 
-pub async fn set_all_achievement_series(id: &[i32], priority: &[i32], pool: &PgPool) -> Result<()> {
+pub async fn set_all(id: &[i32], priority: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
         INSERT INTO
@@ -31,10 +31,7 @@ pub async fn set_all_achievement_series(id: &[i32], priority: &[i32], pool: &PgP
     Ok(())
 }
 
-pub async fn get_achievement_series(
-    language: Language,
-    pool: &PgPool,
-) -> Result<Vec<DbAchievementSeries>> {
+pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievementSeries>> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(
@@ -58,11 +55,7 @@ pub async fn get_achievement_series(
     .await?)
 }
 
-pub async fn get_achievement_series_by_id(
-    id: i32,
-    language: Language,
-    pool: &PgPool,
-) -> Result<DbAchievementSeries> {
+pub async fn get_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievementSeries> {
     let language = language.to_string();
 
     Ok(sqlx::query_as!(

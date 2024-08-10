@@ -25,8 +25,8 @@ struct AchievementSeries {
     name: String,
 }
 
-impl From<database::DbAchievementSeries> for AchievementSeries {
-    fn from(db_series: database::DbAchievementSeries) -> Self {
+impl From<database::achievement_series::DbAchievementSeries> for AchievementSeries {
+    fn from(db_series: database::achievement_series::DbAchievementSeries) -> Self {
         Self {
             id: db_series.id,
             name: db_series.name,
@@ -59,7 +59,7 @@ async fn get_achievement_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let series: Vec<_> = database::get_achievement_series(language_param.lang, &pool)
+    let series: Vec<_> = database::achievement_series::get_all(language_param.lang, &pool)
         .await?
         .into_iter()
         .map(AchievementSeries::from)

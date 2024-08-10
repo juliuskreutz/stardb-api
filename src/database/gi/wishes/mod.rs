@@ -9,17 +9,14 @@ use sqlx::PgPool;
 
 pub struct DbWish {
     pub id: i64,
-    pub uid: i32,
     pub character: Option<i32>,
     pub weapon: Option<i32>,
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
-    pub official: bool,
 }
 
 pub struct DbWishInfo {
-    pub uid: i32,
     pub character: Option<i32>,
     pub weapon: Option<i32>,
     pub rarity: Option<i32>,

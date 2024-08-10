@@ -51,7 +51,7 @@ async fn put_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    let connection = database::DbConnection {
+    let connection = database::connections::DbConnection {
         username,
         uid,
         verified: false,
@@ -79,7 +79,7 @@ async fn put_user_uid(
         database::mihomo::set(&db_mihomo, &pool).await?;
     }
 
-    database::set_connection(&connection, &pool).await?;
+    database::connections::set(&connection, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -103,14 +103,14 @@ async fn delete_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let connection = database::DbConnection {
+    let connection = database::connections::DbConnection {
         username,
         uid: *uid,
         verified: false,
         private: false,
     };
 
-    database::delete_connection(&connection, &pool).await?;
+    database::connections::delete(&connection, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

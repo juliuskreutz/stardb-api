@@ -1,10 +1,8 @@
 SELECT
     warps_lc.id,
-    warps_lc.uid,
     warps_lc.character,
     warps_lc.light_cone,
     warps_lc.timestamp,
-    warps_lc.official,
     COALESCE(characters_text.name, light_cones_text.name) AS name,
     COALESCE(characters.rarity, light_cones.rarity) AS rarity
 FROM

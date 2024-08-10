@@ -1,3 +1,5 @@
+mod private;
+
 use actix_session::Session;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
@@ -13,11 +15,15 @@ use crate::{api::ApiResult, database};
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(private::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(put_user_gi_uid).service(delete_user_gi_uid);
+    cfg.configure(private::configure)
+        .service(put_user_gi_uid)
+        .service(delete_user_gi_uid);
 }
 
 #[utoipa::path(

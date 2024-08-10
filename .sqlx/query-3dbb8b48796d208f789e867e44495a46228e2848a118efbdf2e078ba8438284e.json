@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $1\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $1\n    ORDER BY\n        gi_achievement_series.priority,\n        gi_achievements.priority,\n        id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "series",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "primogems",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "hidden",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "comment",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "reference",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "difficulty",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "video",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "gacha",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "timegated",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "missable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "impossible",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "set",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
+        "name": "percent",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 17,
+        "name": "series_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3dbb8b48796d208f789e867e44495a46228e2848a118efbdf2e078ba8438284e"
+}

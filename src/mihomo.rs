@@ -87,7 +87,7 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
         .to_string();
     let achievement_count = mihomo.player.space_info.achievement_count;
     let updated_at = mihomo.updated_at;
-    let timestamp = database::get_score_achievement_timestamp_by_uid(uid, pool)
+    let timestamp = database::achievement_scores::get_timestamp_by_uid(uid, pool)
         .await
         .ok()
         .and_then(|sd| {
@@ -118,13 +118,13 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
 
     database::mihomo::set(&db_mihomo, pool).await?;
 
-    let db_score_achievement = database::DbScoreAchievement {
+    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
         uid,
         timestamp,
         ..Default::default()
     };
 
-    database::set_score_achievement(&db_score_achievement, pool).await?;
+    database::achievement_scores::set(&db_score_achievement, pool).await?;
 
     Ok(json)
 }

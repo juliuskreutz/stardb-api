@@ -27,8 +27,8 @@ struct LightCone {
     path_id: String,
 }
 
-impl From<database::DbLightCone> for LightCone {
-    fn from(db_light_cone: database::DbLightCone) -> Self {
+impl From<database::light_cones::DbLightCone> for LightCone {
+    fn from(db_light_cone: database::light_cones::DbLightCone) -> Self {
         Self {
             id: db_light_cone.id,
             name: db_light_cone.name,
@@ -62,7 +62,7 @@ async fn get_light_cones(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let light_cones: Vec<_> = database::get_light_cones(language_param.lang, &pool)
+    let light_cones: Vec<_> = database::light_cones::get_all(language_param.lang, &pool)
         .await?
         .into_iter()
         .map(LightCone::from)

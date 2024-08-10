@@ -41,8 +41,9 @@ async fn put_user_achievement_favorites(
     };
 
     let id = *id;
-    let favorite = database::DbUserAchievementFavorite { username, id };
-    database::add_user_achievement_favorite(&favorite, &pool).await?;
+    let favorite =
+        database::users_achievements_favorites::DbUserAchievementFavorite { username, id };
+    database::users_achievements_favorites::add(&favorite, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -68,9 +69,10 @@ async fn delete_user_achievement_favorites(
 
     let id = *id;
 
-    let favorite = database::DbUserAchievementFavorite { username, id };
+    let favorite =
+        database::users_achievements_favorites::DbUserAchievementFavorite { username, id };
 
-    database::delete_user_achievement_favorite(&favorite, &pool).await?;
+    database::users_achievements_favorites::delete(&favorite, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

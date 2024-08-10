@@ -1,5 +1,4 @@
 SELECT
-    warps_special.uid,
     warps_special.character,
     warps_special.light_cone,
     COALESCE(characters.rarity, light_cones.rarity) AS rarity

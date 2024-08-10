@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    gi_wishes_weapon.character,\n    gi_wishes_weapon.weapon,\n    COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity\nFROM\n    gi_wishes_weapon\n    LEFT JOIN gi_characters ON gi_characters.id = character\n    LEFT JOIN gi_weapons ON gi_weapons.id = weapon\nWHERE\n    uid = $1\nORDER BY\n    gi_wishes_weapon.id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "weapon",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "ad0e68978d13b9c04f4ae36e311b5406a1be1c094394cb6eb19ae999aae24581"
+}

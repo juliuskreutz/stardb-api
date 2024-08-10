@@ -11,17 +11,14 @@ use crate::Language;
 
 pub struct DbWarp {
     pub id: i64,
-    pub uid: i32,
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
-    pub official: bool,
 }
 
 pub struct DbWarpInfo {
-    pub uid: i32,
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub rarity: Option<i32>,
