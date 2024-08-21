@@ -42,32 +42,30 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(pool: PgPool) -> Result<()> {
-    let uids = database::zzz::signals::get_uids(&pool).await?;
-
     info!("Starting standard");
-    standard(&uids, &pool).await?;
+    standard(&pool).await?;
 
     info!("Starting special");
-    special(&uids, &pool).await?;
+    special(&pool).await?;
 
     info!("Starting w_engine");
-    w_engine(&uids, &pool).await?;
+    w_engine(&pool).await?;
 
     info!("Starting bangboo");
-    bangboo(&uids, &pool).await?;
+    bangboo(&pool).await?;
 
     Ok(())
 }
 
-async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn standard(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_a_map = HashMap::new();
     let mut luck_s_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let signal_stat = database::zzz::signals_stats::standard::get_by_uid(uid, pool).await?;
+    for signal_stat in database::zzz::signals_stats::standard::get_all(pool).await? {
+        let uid = signal_stat.uid;
 
         let count = database::zzz::signals::standard::get_count_by_uid(uid, pool).await? as i32;
 
@@ -130,15 +128,15 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn special(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_a_map = HashMap::new();
     let mut luck_s_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let signal_stat = database::zzz::signals_stats::special::get_by_uid(uid, pool).await?;
+    for signal_stat in database::zzz::signals_stats::special::get_all(pool).await? {
+        let uid = signal_stat.uid;
 
         let count = database::zzz::signals::special::get_count_by_uid(uid, pool).await? as i32;
 
@@ -201,15 +199,15 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn w_engine(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_a_map = HashMap::new();
     let mut luck_s_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let signal_stat = database::zzz::signals_stats::w_engine::get_by_uid(uid, pool).await?;
+    for signal_stat in database::zzz::signals_stats::w_engine::get_all(pool).await? {
+        let uid = signal_stat.uid;
 
         let count = database::zzz::signals::w_engine::get_count_by_uid(uid, pool).await? as i32;
 
@@ -272,15 +270,15 @@ async fn w_engine(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn bangboo(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn bangboo(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_a_map = HashMap::new();
     let mut luck_s_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let signal_stat = database::zzz::signals_stats::bangboo::get_by_uid(uid, pool).await?;
+    for signal_stat in database::zzz::signals_stats::bangboo::get_all(pool).await? {
+        let uid = signal_stat.uid;
 
         let count = database::zzz::signals::bangboo::get_count_by_uid(uid, pool).await? as i32;
 

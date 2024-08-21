@@ -1,6 +1,11 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
+pub struct DbWeapon {
+    pub id: i32,
+    pub rarity: i32,
+}
+
 pub async fn set_all(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/gi/weapons/set_all.sql", id, rarity)
         .execute(pool)
@@ -9,11 +14,10 @@ pub async fn set_all(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_id_by_paimon_moe_id(id: &str, pool: &PgPool) -> Result<i32> {
+pub async fn get_by_paimon_moe_id(id: &str, pool: &PgPool) -> Result<DbWeapon> {
     Ok(
-        sqlx::query_file!("sql/gi/weapons/get_id_by_paimon_moe_id.sql", id)
+        sqlx::query_file_as!(DbWeapon, "sql/gi/weapons/get_by_paimon_moe_id.sql", id)
             .fetch_one(pool)
-            .await?
-            .id,
+            .await?,
     )
 }

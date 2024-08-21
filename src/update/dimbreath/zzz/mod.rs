@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    env,
     fs::File,
     io::BufReader,
     path::Path,
@@ -19,75 +20,75 @@ use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 struct AchieveSecondClass {
-    #[serde(rename = "INMLOGABFMC")]
+    #[serde(rename = "MOIDOONIBDB")]
     id: i32,
-    #[serde(rename = "FCNPHLPMPDJ")]
+    #[serde(rename = "PMLIPOAIDID")]
     name: String,
-    #[serde(rename = "MDBIECECHIC")]
+    #[serde(rename = "HHMOMFIIILK")]
     priority: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Achievement {
-    #[serde(rename = "EKACDJHACBC")]
+    #[serde(rename = "JANPOBHIAPJ")]
     id: i32,
-    #[serde(rename = "IGEKGHFILLC")]
+    #[serde(rename = "IHEHPCKFLGA")]
     series: i32,
-    #[serde(rename = "LPMMOCBDALC")]
+    #[serde(rename = "JPDMDCGOLAH")]
     name: String,
-    #[serde(rename = "DJLPMAOEAJL")]
+    #[serde(rename = "KPNGCJNJBOK")]
     description: String,
-    #[serde(rename = "IGFHDCPGNIF")]
+    #[serde(rename = "PODKPAKAGJD")]
     reward: i32,
-    #[serde(rename = "JMMFFIOOJEF")]
+    #[serde(rename = "AINGCOBOPPH")]
     hidden: i32,
-    #[serde(rename = "LDJMOLPOPOF")]
+    #[serde(rename = "JJHCNJEPPCC")]
     priority: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Rewards {
-    #[serde(rename = "ILIBEPMJIAD")]
+    #[serde(rename = "PCBMFGJCLDA")]
     id: i32,
-    #[serde(rename = "HAOPBOILJMB")]
+    #[serde(rename = "INCDFKGDAOP")]
     rewards: Vec<Reward>,
 }
 
 #[derive(serde::Deserialize)]
 struct Reward {
-    #[serde(rename = "NOJCFGOCGBI")]
+    #[serde(rename = "NADBGLEMMEH")]
     id: i32,
-    #[serde(rename = "CCNFEHBGKOC")]
+    #[serde(rename = "CAIHFHJJGFJ")]
     amount: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Item {
-    #[serde(rename = "HBKDOIKGNDE")]
+    #[serde(rename = "NGPCCDGBLLK")]
     id: i32,
-    #[serde(rename = "DIIDBBGLDOL")]
+    #[serde(rename = "EAAFCGPDFAA")]
     name: String,
-    #[serde(rename = "HAOPJCCHCGF")]
+    #[serde(rename = "GNAGJHPOCIO")]
     rarity: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Avatar {
-    #[serde(rename = "HBKDOIKGNDE")]
+    #[serde(rename = "NGPCCDGBLLK")]
     id: i32,
-    #[serde(rename = "DIIDBBGLDOL")]
+    #[serde(rename = "EAAFCGPDFAA")]
     name: String,
 }
 
 #[derive(serde::Deserialize)]
 struct Weapon {
-    #[serde(rename = "NOJCFGOCGBI")]
+    #[serde(rename = "NADBGLEMMEH")]
     id: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Buddy {
-    #[serde(rename = "HBKDOIKGNDE")]
+    #[serde(rename = "NGPCCDGBLLK")]
     id: i32,
 }
 
@@ -134,14 +135,9 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if !Path::new("dimbreath").join("tvgamedata").exists() {
+    if !Path::new("dimbreath").join("ZenlessData").exists() {
         Command::new("git")
-            .args([
-                "clone",
-                "--depth",
-                "1",
-                "https://gitlab.com/Dimbreath/tvgamedata",
-            ])
+            .args(["clone", "--depth", "1", &env::var("ZENLESS_REPO")?])
             .current_dir("dimbreath")
             .output()
             .await?;
@@ -152,7 +148,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     let output = String::from_utf8(
         Command::new("git")
             .arg("pull")
-            .current_dir(Path::new("dimbreath").join("tvgamedata"))
+            .current_dir(Path::new("dimbreath").join("ZenlessData"))
             .output()
             .await?
             .stdout,
@@ -168,31 +164,31 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
 
     let achievement_second_class: HashMap<String, Vec<AchieveSecondClass>> =
         serde_json::from_reader(BufReader::new(File::open(
-            "dimbreath/tvgamedata/FileCfg/AchieveSecondClassConfigTemplateTb.json",
+            "dimbreath/ZenlessData/FileCfg/AchieveSecondClassConfigTemplateTb.json",
         )?))?;
 
     let achievement: HashMap<String, Vec<Achievement>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/tvgamedata/FileCfg/AchievementTemplateTb.json")?,
+        File::open("dimbreath/ZenlessData/FileCfg/AchievementTemplateTb.json")?,
     ))?;
 
     let once_reward: HashMap<String, Vec<Rewards>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/tvgamedata/FileCfg/OnceRewardTemplateTb.json")?,
+        File::open("dimbreath/ZenlessData/FileCfg/OnceRewardTemplateTb.json")?,
     ))?;
 
     let item: HashMap<String, Vec<Item>> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/tvgamedata/FileCfg/ItemTemplateTb.json",
+        "dimbreath/ZenlessData/FileCfg/ItemTemplateTb.json",
     )?))?;
 
     let avatar: HashMap<String, Vec<Avatar>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/tvgamedata/FileCfg/AvatarBaseTemplateTb.json")?,
+        File::open("dimbreath/ZenlessData/FileCfg/AvatarBaseTemplateTb.json")?,
     ))?;
 
     let weapon: HashMap<String, Vec<Weapon>> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/tvgamedata/FileCfg/WeaponTemplateTb.json")?,
+        File::open("dimbreath/ZenlessData/FileCfg/WeaponTemplateTb.json")?,
     ))?;
 
     let buddy: HashMap<String, Vec<Buddy>> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/tvgamedata/FileCfg/BuddyBaseTemplateTb.json",
+        "dimbreath/ZenlessData/FileCfg/BuddyBaseTemplateTb.json",
     )?))?;
 
     let configs = Configs {

@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    gi_wishes_stats_weapon;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "win_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "win_streak",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "loss_streak",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e1b63ea8e3083b6f0067f5b5e62646a6c5704eb293a6207df729ee2f598db9bf"
+}

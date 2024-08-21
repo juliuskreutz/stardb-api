@@ -170,7 +170,6 @@ async fn get_wish_tracker(
         match wish.rarity {
             4 => beginner_pull_4 = 0,
             5 => {
-                beginner_pull_4 = 0;
                 beginner_pull_5 = 0;
             }
             _ => {}
@@ -214,7 +213,6 @@ async fn get_wish_tracker(
         match wish.rarity {
             4 => standard_pull_4 = 0,
             5 => {
-                standard_pull_4 = 0;
                 standard_pull_5 = 0;
             }
             _ => {}
@@ -258,7 +256,6 @@ async fn get_wish_tracker(
         match wish.rarity {
             4 => character_pull_4 = 0,
             5 => {
-                character_pull_4 = 0;
                 character_pull_5 = 0;
             }
             _ => {}
@@ -302,7 +299,6 @@ async fn get_wish_tracker(
         match wish.rarity {
             4 => weapon_pull_4 = 0,
             5 => {
-                weapon_pull_4 = 0;
                 weapon_pull_5 = 0;
             }
             _ => {}
@@ -346,7 +342,6 @@ async fn get_wish_tracker(
         match wish.rarity {
             4 => chronicled_pull_4 = 0,
             5 => {
-                chronicled_pull_4 = 0;
                 chronicled_pull_5 = 0;
             }
             _ => {}
@@ -370,9 +365,7 @@ async fn get_wish_tracker(
     chronicled.count = chronicled.wishes.len();
     // Chronicled
 
-    {
-        let stats = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await?;
-
+    if let Some(stats) = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await? {
         let global_stats = database::gi::wishes_stats_global::standard::get_by_uid(uid, &pool)
             .await?
             .map(|stats| GlobalStats {
@@ -389,8 +382,7 @@ async fn get_wish_tracker(
         })
     }
 
-    {
-        let stats = database::gi::wishes_stats::character::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::gi::wishes_stats::character::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,
@@ -413,8 +405,7 @@ async fn get_wish_tracker(
         })
     }
 
-    {
-        let stats = database::gi::wishes_stats::weapon::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::gi::wishes_stats::weapon::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,
@@ -437,9 +428,7 @@ async fn get_wish_tracker(
         })
     }
 
-    {
-        let stats = database::gi::wishes_stats::chronicled::get_by_uid(uid, &pool).await?;
-
+    if let Some(stats) = database::gi::wishes_stats::chronicled::get_by_uid(uid, &pool).await? {
         let global_stats = database::gi::wishes_stats_global::chronicled::get_by_uid(uid, &pool)
             .await?
             .map(|stats| GlobalStats {

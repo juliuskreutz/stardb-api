@@ -42,29 +42,27 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(pool: PgPool) -> Result<()> {
-    let uids = database::warps::get_uids(&pool).await?;
-
     info!("Starting standard");
-    standard(&uids, &pool).await?;
+    standard(&pool).await?;
 
     info!("Starting special");
-    special(&uids, &pool).await?;
+    special(&pool).await?;
 
     info!("Starting lc");
-    lc(&uids, &pool).await?;
+    lc(&pool).await?;
 
     Ok(())
 }
 
-async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn standard(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::warps_stats::standard::get_by_uid(uid, pool).await?;
+    for warp_stat in database::warps_stats::standard::get_all(pool).await? {
+        let uid = warp_stat.uid;
 
         let count = database::warps::standard::get_count_by_uid(uid, pool).await? as i32;
 
@@ -125,15 +123,15 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn special(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::warps_stats::special::get_by_uid(uid, pool).await?;
+    for warp_stat in database::warps_stats::special::get_all(pool).await? {
+        let uid = warp_stat.uid;
 
         let count = database::warps::special::get_count_by_uid(uid, pool).await? as i32;
 
@@ -194,15 +192,15 @@ async fn special(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn lc(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn lc(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::warps_stats::lc::get_by_uid(uid, pool).await?;
+    for warp_stat in database::warps_stats::lc::get_all(pool).await? {
+        let uid = warp_stat.uid;
 
         let count = database::warps::lc::get_count_by_uid(uid, pool).await? as i32;
 

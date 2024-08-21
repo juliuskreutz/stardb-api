@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    id,\n    rarity\nFROM\n    gi_characters\n    NATURAL JOIN gi_characters_text\nWHERE\n    lower(replace(replace(name, '''', ''), ' ', '_')) = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "457c163cd3263fabf55a2534f747ce3fa6f493400b3b544d4742a4c543206315"
+}

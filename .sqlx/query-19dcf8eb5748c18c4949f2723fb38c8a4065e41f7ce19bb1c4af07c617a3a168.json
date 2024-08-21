@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    gi_wishes_stats_chronicled;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "19dcf8eb5748c18c4949f2723fb38c8a4065e41f7ce19bb1c4af07c617a3a168"
+}

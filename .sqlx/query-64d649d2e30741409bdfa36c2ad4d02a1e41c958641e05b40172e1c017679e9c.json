@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    zzz_signals_stats_special;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "win_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "win_streak",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "loss_streak",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "64d649d2e30741409bdfa36c2ad4d02a1e41c958641e05b40172e1c017679e9c"
+}

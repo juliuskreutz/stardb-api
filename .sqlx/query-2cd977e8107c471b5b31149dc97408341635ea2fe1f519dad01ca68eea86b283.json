@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    zzz_signals_stats_bangboo;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2cd977e8107c471b5b31149dc97408341635ea2fe1f519dad01ca68eea86b283"
+}

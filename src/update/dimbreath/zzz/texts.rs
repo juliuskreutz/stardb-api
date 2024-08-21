@@ -53,7 +53,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             ))?))?;
 
         info!("Starting {} achievement series", language);
-        for achievement_second_class in &configs.achievement_second_class["GMNCBMLIHPE"] {
+        for achievement_second_class in &configs.achievement_second_class["KHHABHLHAFG"] {
             let name = text_map[&achievement_second_class.name].clone();
 
             let id = achievement_second_class.id;
@@ -64,9 +64,13 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} achievements", language);
-        for achievement in &configs.achievement["GMNCBMLIHPE"] {
+        for achievement in &configs.achievement["KHHABHLHAFG"] {
             let name = text_map[&achievement.name].clone();
-            let description = text_map[&achievement.description].clone();
+
+            let description = text_map
+                .get(&achievement.description)
+                .cloned()
+                .unwrap_or_default();
 
             let id = achievement.id;
 
@@ -77,7 +81,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} avatars", language);
-        for avatar in &configs.avatar["GMNCBMLIHPE"] {
+        for avatar in &configs.avatar["KHHABHLHAFG"] {
             let name = text_map[&avatar.name].clone();
 
             let id = avatar.id;
@@ -88,10 +92,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} weapons", language);
-        for weapon in &configs.weapon["GMNCBMLIHPE"] {
+        for weapon in &configs.weapon["KHHABHLHAFG"] {
             let id = weapon.id;
 
-            let name = &configs.item["GMNCBMLIHPE"]
+            let name = &configs.item["KHHABHLHAFG"]
                 .iter()
                 .find(|i| i.id == weapon.id)
                 .unwrap()
@@ -104,15 +108,15 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} buddys", language);
-        for buddy in &configs.buddy["GMNCBMLIHPE"] {
+        for buddy in &configs.buddy["KHHABHLHAFG"] {
             let id = buddy.id;
 
-            let name = &configs.item["GMNCBMLIHPE"]
+            let name = &configs.item["KHHABHLHAFG"]
                 .iter()
                 .find(|i| i.id == buddy.id)
-                .unwrap()
-                .name;
-            let name = text_map[name].clone();
+                .map(|i| i.name.clone())
+                .unwrap_or_default();
+            let name = text_map.get(name).cloned().unwrap_or_default();
 
             bangboos_id.push(id);
             bangboos_language.push(language);

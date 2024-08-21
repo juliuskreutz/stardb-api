@@ -301,9 +301,7 @@ async fn get_warp_tracker(
     lc.count = lc.warps.len();
     // Lc
 
-    {
-        let stats = database::warps_stats::standard::get_by_uid(uid, &pool).await?;
-
+    if let Some(stats) = database::warps_stats::standard::get_by_uid(uid, &pool).await? {
         let global_stats = database::warps_stats_global::standard::get_by_uid(uid, &pool)
             .await?
             .map(|stats| GlobalStats {
@@ -320,8 +318,7 @@ async fn get_warp_tracker(
         });
     }
 
-    {
-        let stats = database::warps_stats::special::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::warps_stats::special::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,
@@ -344,8 +341,7 @@ async fn get_warp_tracker(
         });
     }
 
-    {
-        let stats = database::warps_stats::lc::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::warps_stats::lc::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,

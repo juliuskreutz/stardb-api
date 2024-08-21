@@ -8,7 +8,7 @@ use crate::{api::ApiResult, database, GiGachaType};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "paimon-wishes-import")),
+    tags((name = "gi/paimon-wishes-import")),
     paths(post_paimon_warps_import),
     components(schemas(PaimonWishesImportParams)),
 )]
@@ -40,12 +40,13 @@ struct Pull {
     r#type: String,
     id: String,
     time: String,
+    pity: usize,
 }
 
 #[utoipa::path(
-    tag = "paimon-wishes-import",
+    tag = "gi/paimon-wishes-import",
     post,
-    path = "/api/paimon-wishes-import",
+    path = "/api/gi/paimon-wishes-import",
     request_body = PaimonWishesImportParams,
     responses(
         (status = 200, description = "Warps imported"),
@@ -53,7 +54,7 @@ struct Pull {
     ),
     security(("admin" = []))
 )]
-#[post("/api/paimon-wishes-import")]
+#[post("/api/gi/paimon-wishes-import")]
 async fn post_paimon_warps_import(
     session: Session,
     params: web::Json<PaimonWishesImportParams>,
@@ -63,13 +64,21 @@ async fn post_paimon_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !database::admins::exists(&username, &pool).await? {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
     let json: serde_json::Value = serde_json::from_str(&params.data)?;
 
     let wish_uid = json[format!("{}wish-uid", params.profile)].clone();
+
+    let allowed = database::admins::exists(&username, &pool).await?
+        || database::gi::connections::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .find(|c| c.uid == wish_uid)
+            .map(|c| c.verified)
+            .unwrap_or_default();
+
+    if !allowed {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
 
     let uid = if let Some(uid) = wish_uid.as_i64() {
         uid as i32
@@ -138,19 +147,11 @@ async fn post_paimon_warps_import(
             }
         };
 
-        for (id, wish) in wishes.pulls.iter().enumerate() {
-            let (character, weapon) = match wish.r#type.as_str() {
-                "character" => (
-                    Some(database::gi::characters::get_id_by_paimon_moe_id(&wish.id, &pool).await?),
-                    None,
-                ),
-                "weapon" => (
-                    None,
-                    Some(database::gi::weapons::get_id_by_paimon_moe_id(&wish.id, &pool).await?),
-                ),
-                _ => return Ok(HttpResponse::BadRequest().finish()),
-            };
+        let mut pity_4 = 1;
+        let mut pity_5 = 1;
 
+        let mut id = 0;
+        for wish in wishes.pulls.iter() {
             let timestamp = NaiveDateTime::parse_from_str(&wish.time, "%Y-%m-%d %H:%M:%S")?
                 .and_utc()
                 - timestamp_offset;
@@ -161,6 +162,24 @@ async fn post_paimon_warps_import(
                 }
             }
 
+            let (character, weapon, rarity) = match wish.id.as_str() {
+                "unknown_3_star" => (None, Some(12305), 3),
+                "unknown_4_star" => (None, Some(14403), 4),
+                _ => match wish.r#type.as_str() {
+                    "character" => {
+                        let character =
+                            database::gi::characters::get_by_paimon_moe_id(&wish.id, &pool).await?;
+                        (Some(character.id), None, character.rarity)
+                    }
+                    "weapon" => {
+                        let weapon =
+                            database::gi::weapons::get_by_paimon_moe_id(&wish.id, &pool).await?;
+                        (None, Some(weapon.id), weapon.rarity)
+                    }
+                    _ => return Ok(HttpResponse::BadRequest().finish()),
+                },
+            };
+
             let set_all = match gacha_type {
                 GiGachaType::Beginner => &mut set_all_beginner,
                 GiGachaType::Standard => &mut set_all_standard,
@@ -169,12 +188,58 @@ async fn post_paimon_warps_import(
                 GiGachaType::Chronicled => &mut set_all_chronicled,
             };
 
-            set_all.id.push(id as i64);
+            let mut pity = 1;
+            match rarity {
+                3 => {
+                    pity_4 += 1;
+                    pity_5 += 1;
+                }
+                4 => {
+                    pity = pity_4;
+                    pity_4 = 1;
+                    pity_5 += 1;
+                }
+                5 => {
+                    pity = pity_5;
+                    pity_4 += 1;
+                    pity_5 = 1;
+                }
+                _ => return Ok(HttpResponse::BadRequest().finish()),
+            }
+
+            if rarity == 5 {
+                while pity < wish.pity {
+                    set_all.id.push(id);
+                    set_all.uid.push(uid);
+                    set_all.character.push(None);
+                    set_all.timestamp.push(timestamp);
+                    set_all.official.push(false);
+
+                    if pity_4 < 10 {
+                        set_all.weapon.push(Some(12305));
+
+                        pity_4 += 1;
+                    } else {
+                        set_all.weapon.push(Some(14403));
+
+                        pity_4 = 1;
+                    }
+
+                    id += 1;
+                    pity += 1;
+                }
+
+                pity_4 = 1;
+            }
+
+            set_all.id.push(id);
             set_all.uid.push(uid);
             set_all.character.push(character);
             set_all.weapon.push(weapon);
             set_all.timestamp.push(timestamp);
             set_all.official.push(false);
+
+            id += 1;
         }
     }
 

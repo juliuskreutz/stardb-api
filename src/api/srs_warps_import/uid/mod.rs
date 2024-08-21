@@ -82,11 +82,19 @@ async fn post_srs_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !database::admins::exists(&username, &pool).await? {
+    let uid = *uid;
+
+    let allowed = database::admins::exists(&username, &pool).await?
+        || database::connections::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .find(|c| c.uid == uid)
+            .map(|c| c.verified)
+            .unwrap_or_default();
+
+    if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
-
-    let uid = *uid;
 
     // Wacky way to update the database in case the uid isn't in there
     if !database::mihomo::exists(uid, &pool).await?
@@ -126,15 +134,34 @@ async fn post_srs_warps_import(
         (&warps.special, GachaType::Special),
         (&warps.lc, GachaType::Lc),
     ] {
+        let earliest_timestamp = match gacha_type {
+            GachaType::Departure => {
+                database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Standard => {
+                database::warps::standard::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Special => {
+                database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
+        };
+
         for warp in warps {
+            let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
+
+            if let Some(earliest_timestamp) = earliest_timestamp {
+                if timestamp >= earliest_timestamp {
+                    break;
+                }
+            }
+
             let id = warp.uid.parse::<i64>().unwrap();
             let (character, light_cone) = if warp.item_id < 2000 {
                 (Some(warp.item_id), None)
             } else {
                 (None, Some(warp.item_id))
             };
-
-            let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
 
             let set_all = match gacha_type {
                 GachaType::Departure => &mut set_all_departure,

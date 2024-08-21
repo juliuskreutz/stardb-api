@@ -20,12 +20,20 @@ pub async fn set(stat: &DbWarpsStatStandard, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbWarpsStatStandard> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatStandard>> {
+    Ok(
+        sqlx::query_file_as!(DbWarpsStatStandard, "sql/warps_stats/standard/get_all.sql")
+            .fetch_all(pool)
+            .await?,
+    )
+}
+
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStatStandard>> {
     Ok(sqlx::query_file_as!(
         DbWarpsStatStandard,
         "sql/warps_stats/standard/get_by_uid.sql",
-        uid
+        uid,
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?)
 }

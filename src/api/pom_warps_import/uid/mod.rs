@@ -74,11 +74,19 @@ async fn post_pom_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !database::admins::exists(&username, &pool).await? {
+    let uid = *uid;
+
+    let allowed = database::admins::exists(&username, &pool).await?
+        || database::connections::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .find(|c| c.uid == uid)
+            .map(|c| c.verified)
+            .unwrap_or_default();
+
+    if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
-
-    let uid = *uid;
 
     // Wacky way to update the database in case the uid isn't in there
     if !database::mihomo::exists(uid, &pool).await?
@@ -120,7 +128,30 @@ async fn post_pom_warps_import(
         (&pom.default.special, GachaType::Special),
         (&pom.default.lc, GachaType::Lc),
     ] {
+        let earliest_timestamp = match gacha_type {
+            GachaType::Departure => {
+                database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Standard => {
+                database::warps::standard::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Special => {
+                database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?
+            }
+            GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
+        };
+
         for warp in warps {
+            let timestamp = NaiveDateTime::parse_from_str(&warp.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
+
+            if let Some(earliest_timestamp) = earliest_timestamp {
+                if timestamp >= earliest_timestamp {
+                    break;
+                }
+            }
+
             let id = warp.id.parse::<i64>().unwrap();
             let item_id = warp.item_id.parse().unwrap();
             let (character, light_cone) = if item_id < 2000 {
@@ -128,10 +159,6 @@ async fn post_pom_warps_import(
             } else {
                 (None, Some(item_id))
             };
-
-            let timestamp = NaiveDateTime::parse_from_str(&warp.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
 
             let set_all = match gacha_type {
                 GachaType::Departure => &mut set_all_departure,

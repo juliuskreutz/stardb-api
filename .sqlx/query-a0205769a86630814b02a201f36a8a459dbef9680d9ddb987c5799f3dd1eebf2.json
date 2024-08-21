@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    id,\n    rarity\nFROM\n    gi_weapons\n    NATURAL JOIN gi_weapons_text\nWHERE\n    lower(replace(replace(name, '''', ''), ' ', '_')) = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "a0205769a86630814b02a201f36a8a459dbef9680d9ddb987c5799f3dd1eebf2"
+}

@@ -20,6 +20,7 @@ use crate::{api::ApiResult, database};
     tags((name = "users/me")),
     paths(get_me),
     components(schemas(
+        Uid,
         User,
     ))
 )]
@@ -51,13 +52,20 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Serialize, ToSchema)]
+pub struct Uid {
+    uid: i32,
+    verified: bool,
+    private: bool,
+}
+
+#[derive(Serialize, ToSchema)]
 pub struct User {
     username: String,
     admin: bool,
     email: Option<String>,
-    uids: Vec<i32>,
-    zzz_uids: Vec<i32>,
-    gi_uids: Vec<i32>,
+    uids: Vec<Uid>,
+    zzz_uids: Vec<Uid>,
+    gi_uids: Vec<Uid>,
     achievements: Vec<i32>,
     zzz_achievements: Vec<i32>,
 }
@@ -88,19 +96,31 @@ async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Res
     let uids = database::connections::get_by_username(&username, &pool)
         .await?
         .into_iter()
-        .map(|c| c.uid)
+        .map(|c| Uid {
+            uid: c.uid,
+            verified: c.verified,
+            private: c.private,
+        })
         .collect();
 
     let zzz_uids = database::zzz::connections::get_by_username(&username, &pool)
         .await?
         .into_iter()
-        .map(|c| c.uid)
+        .map(|c| Uid {
+            uid: c.uid,
+            verified: c.verified,
+            private: c.private,
+        })
         .collect();
 
     let gi_uids = database::gi::connections::get_by_username(&username, &pool)
         .await?
         .into_iter()
-        .map(|c| c.uid)
+        .map(|c| Uid {
+            uid: c.uid,
+            verified: c.verified,
+            private: c.private,
+        })
         .collect();
 
     let achievements = database::users_achievements_completed::get_by_username(&username, &pool)

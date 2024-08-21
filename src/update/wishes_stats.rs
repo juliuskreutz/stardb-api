@@ -42,32 +42,30 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(pool: PgPool) -> Result<()> {
-    let uids = database::gi::wishes::get_uids(&pool).await?;
-
     info!("Starting standard");
-    standard(&uids, &pool).await?;
+    standard(&pool).await?;
 
     info!("Starting character");
-    character(&uids, &pool).await?;
+    character(&pool).await?;
 
     info!("Starting weapon");
-    weapon(&uids, &pool).await?;
+    weapon(&pool).await?;
 
     info!("Starting chronicled");
-    chronicled(&uids, &pool).await?;
+    chronicled(&pool).await?;
 
     Ok(())
 }
 
-async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn standard(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::gi::wishes_stats::standard::get_by_uid(uid, pool).await?;
+    for wish_stat in database::gi::wishes_stats::standard::get_all(pool).await? {
+        let uid = wish_stat.uid;
 
         let count = database::gi::wishes::standard::get_count_by_uid(uid, pool).await? as i32;
 
@@ -78,8 +76,8 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
         stat_uids.push(uid);
 
         count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
+        luck_4_map.insert(uid, wish_stat.luck_4);
+        luck_5_map.insert(uid, wish_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -128,15 +126,15 @@ async fn standard(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn character(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn character(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::gi::wishes_stats::character::get_by_uid(uid, pool).await?;
+    for wish_stat in database::gi::wishes_stats::character::get_all(pool).await? {
+        let uid = wish_stat.uid;
 
         let count = database::gi::wishes::character::get_count_by_uid(uid, pool).await? as i32;
 
@@ -147,8 +145,8 @@ async fn character(uids: &[i32], pool: &PgPool) -> Result<()> {
         stat_uids.push(uid);
 
         count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
+        luck_4_map.insert(uid, wish_stat.luck_4);
+        luck_5_map.insert(uid, wish_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -197,15 +195,15 @@ async fn character(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn weapon(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn weapon(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::gi::wishes_stats::weapon::get_by_uid(uid, pool).await?;
+    for wish_stat in database::gi::wishes_stats::weapon::get_all(pool).await? {
+        let uid = wish_stat.uid;
 
         let count = database::gi::wishes::weapon::get_count_by_uid(uid, pool).await? as i32;
 
@@ -216,8 +214,8 @@ async fn weapon(uids: &[i32], pool: &PgPool) -> Result<()> {
         stat_uids.push(uid);
 
         count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
+        luck_4_map.insert(uid, wish_stat.luck_4);
+        luck_5_map.insert(uid, wish_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
@@ -266,15 +264,15 @@ async fn weapon(uids: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn chronicled(uids: &[i32], pool: &PgPool) -> Result<()> {
+async fn chronicled(pool: &PgPool) -> Result<()> {
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
 
     let mut stat_uids = Vec::new();
 
-    for &uid in uids {
-        let warp_stat = database::gi::wishes_stats::chronicled::get_by_uid(uid, pool).await?;
+    for wish_stat in database::gi::wishes_stats::chronicled::get_all(pool).await? {
+        let uid = wish_stat.uid;
 
         let count = database::gi::wishes::chronicled::get_count_by_uid(uid, pool).await? as i32;
 
@@ -285,8 +283,8 @@ async fn chronicled(uids: &[i32], pool: &PgPool) -> Result<()> {
         stat_uids.push(uid);
 
         count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
+        luck_4_map.insert(uid, wish_stat.luck_4);
+        luck_5_map.insert(uid, wish_stat.luck_5);
     }
 
     let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();

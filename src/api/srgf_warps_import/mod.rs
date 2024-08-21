@@ -65,11 +65,19 @@ async fn post_srgf_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !database::admins::exists(&username, &pool).await? {
+    let uid = srgf.info.uid.parse()?;
+
+    let allowed = database::admins::exists(&username, &pool).await?
+        || database::connections::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .find(|c| c.uid == uid)
+            .map(|c| c.verified)
+            .unwrap_or_default();
+
+    if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
-
-    let uid = srgf.info.uid.parse()?;
 
     // Wacky way to update the database in case the uid isn't in there
     if !database::mihomo::exists(uid, &pool).await?
@@ -100,6 +108,23 @@ async fn post_srgf_warps_import(
     let timestamp_offset = chrono::Duration::hours(srgf.info.region_time_zone);
 
     for entry in &srgf.list {
+        let earliest_timestamp = match entry.gacha_type.as_str() {
+            "2" => database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            "1" => database::warps::standard::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            "11" => database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            "12" => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            _ => return Ok(HttpResponse::BadRequest().finish()),
+        };
+
+        let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc()
+            - timestamp_offset;
+
+        if let Some(earliest_timestamp) = earliest_timestamp {
+            if timestamp >= earliest_timestamp {
+                break;
+            }
+        }
+
         let item: i32 = entry.item_id.parse()?;
 
         let mut character =
@@ -126,9 +151,6 @@ async fn post_srgf_warps_import(
             "12" => &mut set_all_lc,
             _ => return Ok(HttpResponse::BadRequest().finish()),
         };
-
-        let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?.and_utc()
-            - timestamp_offset;
 
         set_all.id.push(id);
         set_all.uid.push(uid);

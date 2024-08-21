@@ -205,7 +205,7 @@ async fn post_warps_import(
         for gacha_type in GachaType::iter() {
             info.lock().await.gacha_type = gacha_type;
 
-            if let Err(e) = import_warps(&url, gacha_type, &info, &pool).await {
+            if let Err(e) = import_warps(uid, &url, gacha_type, &info, &pool).await {
                 error = Err(e);
 
                 break;
@@ -231,6 +231,7 @@ async fn post_warps_import(
 }
 
 async fn import_warps(
+    uid: i32,
     url: &Url,
     gacha_type: GachaType,
     info: &Arc<Mutex<WarpsImportInfo>>,
@@ -253,7 +254,20 @@ async fn import_warps(
 
     let mut set_all = database::warps::SetAll::default();
 
-    loop {
+    let latest_timestamp = match gacha_type {
+        GachaType::Departure => {
+            database::warps::departure::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GachaType::Standard => {
+            database::warps::standard::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GachaType::Special => {
+            database::warps::special::get_latest_timestamp_by_uid(uid, pool).await?
+        }
+        GachaType::Lc => database::warps::lc::get_latest_timestamp_by_uid(uid, pool).await?,
+    };
+
+    'outer: loop {
         let mut i = 0;
         let gacha_log = loop {
             let response = reqwest::get(format!("{url}&end_id={end_id}")).await?;
@@ -277,10 +291,19 @@ async fn import_warps(
         let timestamp_offset = chrono::Duration::hours(gacha_log.data.region_time_zone);
 
         for entry in gacha_log.data.list {
+            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
+
+            if let Some(latest_timestamp) = latest_timestamp {
+                if timestamp <= latest_timestamp {
+                    break 'outer;
+                }
+            }
+
             end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
-            let uid: i32 = entry.uid.parse()?;
 
             let exists = match gacha_type {
                 GachaType::Departure => database::warps::departure::exists(id, uid, pool).await?,
@@ -309,10 +332,6 @@ async fn import_warps(
                     return Err(anyhow::anyhow!("{} is weird...", entry.item_type).into());
                 }
             }
-
-            let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
 
             set_all.id.push(id);
             set_all.uid.push(uid);

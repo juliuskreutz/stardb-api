@@ -59,3 +59,27 @@ pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
             .unwrap(),
     )
 }
+
+pub async fn get_earliest_timestamp_by_uid(
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<Option<DateTime<Utc>>> {
+    Ok(
+        sqlx::query_file!("sql/warps/special/get_earliest_timestamp_by_uid.sql", uid)
+            .fetch_one(pool)
+            .await?
+            .min,
+    )
+}
+
+pub async fn get_latest_timestamp_by_uid(
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<Option<DateTime<Utc>>> {
+    Ok(
+        sqlx::query_file!("sql/warps/special/get_latest_timestamp_by_uid.sql", uid)
+            .fetch_one(pool)
+            .await?
+            .max,
+    )
+}

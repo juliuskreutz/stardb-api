@@ -26,12 +26,21 @@ pub async fn set(stat: &DbSignalsStatWEngine, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbSignalsStatWEngine> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatWEngine>> {
     Ok(sqlx::query_file_as!(
         DbSignalsStatWEngine,
         "sql/zzz/signals_stats/w_engine/get_by_uid.sql",
-        uid
+        uid,
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
+    .await?)
+}
+
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatWEngine>> {
+    Ok(sqlx::query_file_as!(
+        DbSignalsStatWEngine,
+        "sql/zzz/signals_stats/w_engine/get_all.sql"
+    )
+    .fetch_all(pool)
     .await?)
 }

@@ -26,12 +26,21 @@ pub async fn set(stat: &DbWishesStatCharacter, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbWishesStatCharacter> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatCharacter>> {
     Ok(sqlx::query_file_as!(
         DbWishesStatCharacter,
         "sql/gi/wishes_stats/character/get_by_uid.sql",
-        uid
+        uid,
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
+    .await?)
+}
+
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatCharacter>> {
+    Ok(sqlx::query_file_as!(
+        DbWishesStatCharacter,
+        "sql/gi/wishes_stats/character/get_all.sql",
+    )
+    .fetch_all(pool)
     .await?)
 }

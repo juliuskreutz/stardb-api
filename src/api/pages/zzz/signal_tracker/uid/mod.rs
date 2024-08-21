@@ -329,9 +329,7 @@ async fn get_signal_tracker(
     bangboo.count = bangboo.signals.len();
     // Bangboo
 
-    {
-        let stats = database::zzz::signals_stats::standard::get_by_uid(uid, &pool).await?;
-
+    if let Some(stats) = database::zzz::signals_stats::standard::get_by_uid(uid, &pool).await? {
         let global_stats = database::zzz::signals_stats_global::standard::get_by_uid(uid, &pool)
             .await?
             .map(|stats| GlobalStats {
@@ -348,8 +346,7 @@ async fn get_signal_tracker(
         };
     }
 
-    {
-        let stats = database::zzz::signals_stats::special::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::zzz::signals_stats::special::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,
@@ -372,8 +369,7 @@ async fn get_signal_tracker(
         };
     }
 
-    {
-        let stats = database::zzz::signals_stats::w_engine::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::zzz::signals_stats::w_engine::get_by_uid(uid, &pool).await? {
         let win_stats = Some(WinStats {
             win_rate: stats.win_rate,
             win_streak: stats.win_streak,
@@ -396,8 +392,7 @@ async fn get_signal_tracker(
         };
     }
 
-    {
-        let stats = database::zzz::signals_stats::bangboo::get_by_uid(uid, &pool).await?;
+    if let Some(stats) = database::zzz::signals_stats::bangboo::get_by_uid(uid, &pool).await? {
         let global_stats = database::zzz::signals_stats_global::bangboo::get_by_uid(uid, &pool)
             .await?
             .map(|stats| GlobalStats {
