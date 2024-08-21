@@ -147,14 +147,14 @@ async fn post_srs_warps_import(
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
         };
 
-        for warp in warps {
+        for warp in warps.iter().rev() {
             let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
 
-            if let Some(earliest_timestamp) = earliest_timestamp {
-                if timestamp >= earliest_timestamp {
-                    break;
-                }
-            }
+            //if let Some(earliest_timestamp) = earliest_timestamp {
+            //    if timestamp >= earliest_timestamp {
+            //        break;
+            //    }
+            //}
 
             let id = warp.uid.parse::<i64>().unwrap();
             let (character, light_cone) = if warp.item_id < 2000 {

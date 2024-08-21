@@ -68,18 +68,6 @@ async fn post_paimon_warps_import(
 
     let wish_uid = json[format!("{}wish-uid", params.profile)].clone();
 
-    let allowed = database::admins::exists(&username, &pool).await?
-        || database::gi::connections::get_by_username(&username, &pool)
-            .await?
-            .iter()
-            .find(|c| c.uid == wish_uid)
-            .map(|c| c.verified)
-            .unwrap_or_default();
-
-    if !allowed {
-        return Ok(HttpResponse::Forbidden().finish());
-    }
-
     let uid = if let Some(uid) = wish_uid.as_i64() {
         uid as i32
     } else {
@@ -91,6 +79,18 @@ async fn post_paimon_warps_import(
         .is_err()
     {
         return Ok(HttpResponse::BadRequest().finish());
+    }
+
+    let allowed = database::admins::exists(&username, &pool).await?
+        || database::gi::connections::get_by_username(&username, &pool)
+            .await?
+            .iter()
+            .find(|c| c.uid == uid)
+            .map(|c| c.verified)
+            .unwrap_or_default();
+
+    if !allowed {
+        return Ok(HttpResponse::Forbidden().finish());
     }
 
     let wish_counter_beginners: Option<Wishes> =
