@@ -141,7 +141,7 @@ async fn post_pom_warps_import(
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
         };
 
-        for warp in warps.iter().rev() {
+        for warp in warps {
             let timestamp = NaiveDateTime::parse_from_str(&warp.time, "%Y-%m-%d %H:%M:%S")?
                 .and_utc()
                 - timestamp_offset;

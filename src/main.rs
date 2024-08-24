@@ -7,7 +7,7 @@ mod mihomo;
 mod pg_session_store;
 mod update;
 
-use std::{env, fs};
+use std::{env, fs, path::Path};
 
 use actix_cors::Cors;
 use actix_files::Files;
@@ -18,6 +18,7 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
+use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
 use sqlx::postgres::PgPoolOptions;
 use utoipa_swagger_ui::SwaggerUi;
@@ -108,10 +109,21 @@ impl Language {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 enum GachaType {
-    Departure,
     Standard,
+    Departure,
     Special,
     Lc,
+}
+
+impl GachaType {
+    pub fn id(self) -> i32 {
+        match self {
+            GachaType::Standard => 1,
+            GachaType::Departure => 2,
+            GachaType::Special => 11,
+            GachaType::Lc => 12,
+        }
+    }
 }
 
 #[derive(
@@ -206,6 +218,8 @@ async fn main() -> anyhow::Result<()> {
     let pool_data = Data::new(pool.clone());
 
     let key = Key::from(&std::fs::read("session_key")?);
+    let signing_key = signing_key()?;
+    let signing_key_data = web::Data::new(Mutex::new(signing_key));
 
     let openapi = api::openapi();
 
@@ -213,6 +227,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(web::JsonConfig::default().limit(5 * 1024 * 1024))
             .app_data(pool_data.clone())
+            .app_data(signing_key_data.clone())
             .wrap(Cors::permissive())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
@@ -239,4 +254,18 @@ async fn main() -> anyhow::Result<()> {
     info!("Stopping api!");
 
     std::process::exit(0)
+}
+
+fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
+    use ed25519_dalek::pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey};
+
+    let path = Path::new("id_ed25519_sign");
+
+    Ok(if path.exists() {
+        ed25519_dalek::SigningKey::read_pkcs8_pem_file(path)?
+    } else {
+        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+        signing_key.write_pkcs8_pem_file(path, LineEnding::LF)?;
+        signing_key
+    })
 }

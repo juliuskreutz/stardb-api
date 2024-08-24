@@ -38,15 +38,6 @@ pub async fn get_by_uid(
     .await?)
 }
 
-pub async fn exists(id: i64, uid: i32, pool: &PgPool) -> anyhow::Result<bool> {
-    Ok(
-        sqlx::query_file!("sql/zzz/signals/special/exists.sql", id, uid)
-            .fetch_optional(pool)
-            .await?
-            .is_some(),
-    )
-}
-
 pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbSignalInfo>> {
     Ok(
         sqlx::query_file_as!(DbSignalInfo, "sql/zzz/signals/special/get_infos.sql", uid)

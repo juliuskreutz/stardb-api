@@ -16,6 +16,7 @@ pub struct DbWarp {
     pub name: Option<String>,
     pub rarity: Option<i32>,
     pub timestamp: DateTime<Utc>,
+    pub official: bool,
 }
 
 pub struct DbWarpInfo {

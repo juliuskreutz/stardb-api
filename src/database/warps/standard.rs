@@ -43,13 +43,6 @@ pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbW
     )
 }
 
-pub async fn exists(id: i64, uid: i32, pool: &PgPool) -> anyhow::Result<bool> {
-    Ok(sqlx::query_file!("sql/warps/standard/exists.sql", id, uid)
-        .fetch_optional(pool)
-        .await?
-        .is_some())
-}
-
 pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
     Ok(
         sqlx::query_file!("sql/warps/standard/get_count_by_uid.sql", uid)

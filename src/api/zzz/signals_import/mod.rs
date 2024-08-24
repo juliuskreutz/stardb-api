@@ -262,25 +262,6 @@ async fn import_signals(
             let id = entry.id.parse()?;
             let uid: i32 = entry.uid.parse()?;
 
-            let exists = match gacha_type {
-                ZzzGachaType::Standard => {
-                    database::zzz::signals::standard::exists(id, uid, pool).await?
-                }
-                ZzzGachaType::Special => {
-                    database::zzz::signals::special::exists(id, uid, pool).await?
-                }
-                ZzzGachaType::WEngine => {
-                    database::zzz::signals::w_engine::exists(id, uid, pool).await?
-                }
-                ZzzGachaType::Bangboo => {
-                    database::zzz::signals::bangboo::exists(id, uid, pool).await?
-                }
-            };
-
-            if exists {
-                continue;
-            }
-
             let item: i32 = entry.item_id.parse()?;
 
             let mut character =
@@ -379,7 +360,7 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
                     pull_s = 0;
                     continue;
                 }
-                
+
                 count_s += 1;
                 sum_s += pull_s;
                 pull_s = 0;

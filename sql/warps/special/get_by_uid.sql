@@ -3,6 +3,7 @@ SELECT
     warps_special.character,
     warps_special.light_cone,
     warps_special.timestamp,
+    warps_special.official,
     COALESCE(characters_text.name, light_cones_text.name) AS name,
     COALESCE(characters.rarity, light_cones.rarity) AS rarity
 FROM

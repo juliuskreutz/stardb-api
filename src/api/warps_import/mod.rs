@@ -123,21 +123,21 @@ async fn post_warps_import(
         .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
         .finish();
 
-    let mut uid = 0;
+    let mut uid = None;
 
-    for gacha_type in [1, 2, 11, 12] {
+    for gacha_type in GachaType::iter().map(|gt| gt.id()) {
         let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0"))
             .await?
             .json()
             .await?;
 
         if let Some(entry) = gacha_log.data.list.first() {
-            uid = entry.uid.parse()?;
+            uid = Some(entry.uid.parse()?);
             break;
         }
     }
 
-    if uid == 0 {
+    let Some(uid) = uid else {
         let info = Arc::new(Mutex::new(WarpsImportInfo {
             gacha_type: GachaType::Standard,
             standard: 0,
@@ -147,10 +147,10 @@ async fn post_warps_import(
             status: Status::Error("No data".to_string()),
         }));
 
-        warps_import_infos.lock().await.insert(uid, info.clone());
+        warps_import_infos.lock().await.insert(0, info.clone());
 
-        return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
-    }
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0 }));
+    };
 
     // Wacky way to update the database in case the uid isn't in there
     if !database::mihomo::exists(uid, &pool).await?
@@ -241,15 +241,7 @@ async fn import_warps(
     let mut end_id = "0".to_string();
 
     url.query_pairs_mut()
-        .extend_pairs(&[(
-            "gacha_type",
-            match gacha_type {
-                GachaType::Standard => "1",
-                GachaType::Departure => "2",
-                GachaType::Special => "11",
-                GachaType::Lc => "12",
-            },
-        )])
+        .extend_pairs(&[("gacha_type", &gacha_type.id().to_string())])
         .finish();
 
     let mut set_all = database::warps::SetAll::default();
@@ -304,17 +296,6 @@ async fn import_warps(
             end_id.clone_from(&entry.id);
 
             let id = entry.id.parse()?;
-
-            let exists = match gacha_type {
-                GachaType::Departure => database::warps::departure::exists(id, uid, pool).await?,
-                GachaType::Standard => database::warps::standard::exists(id, uid, pool).await?,
-                GachaType::Special => database::warps::special::exists(id, uid, pool).await?,
-                GachaType::Lc => database::warps::lc::exists(id, uid, pool).await?,
-            };
-
-            if exists {
-                continue;
-            }
 
             let item: i32 = entry.item_id.parse()?;
 

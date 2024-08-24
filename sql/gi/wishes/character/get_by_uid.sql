@@ -3,6 +3,7 @@ SELECT
     gi_wishes_character.character,
     gi_wishes_character.weapon,
     gi_wishes_character.timestamp,
+    gi_wishes_character.official,
     COALESCE(gi_characters_text.name, gi_weapons_text.name) AS name,
     COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity
 FROM

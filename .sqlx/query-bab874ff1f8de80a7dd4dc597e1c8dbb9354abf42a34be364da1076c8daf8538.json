@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    warps_departure.id,\n    warps_departure.character,\n    warps_departure.light_cone,\n    warps_departure.timestamp,\n    warps_departure.official,\n    COALESCE(characters_text.name, light_cones_text.name) AS name,\n    COALESCE(characters.rarity, light_cones.rarity) AS rarity\nFROM\n    warps_departure\n    LEFT JOIN characters ON characters.id = character\n    LEFT JOIN light_cones ON light_cones.id = light_cone\n    LEFT JOIN characters_text ON characters_text.id = character\n        AND characters_text.language = $2\n    LEFT JOIN light_cones_text ON light_cones_text.id = light_cone\n        AND light_cones_text.language = $2\nWHERE\n    uid = $1\nORDER BY\n    id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "light_cone",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "official",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "bab874ff1f8de80a7dd4dc597e1c8dbb9354abf42a34be364da1076c8daf8538"
+}

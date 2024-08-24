@@ -4,6 +4,7 @@ SELECT
     NULL::integer AS bangboo,
     zzz_signals_special.w_engine,
     zzz_signals_special.timestamp,
+    zzz_signals_special.official,
     COALESCE(zzz_characters_text.name, zzz_w_engines_text.name) AS name,
     COALESCE(zzz_characters.rarity, zzz_w_engines.rarity) AS rarity
 FROM
