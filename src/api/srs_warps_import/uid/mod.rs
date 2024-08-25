@@ -84,7 +84,9 @@ async fn post_srs_warps_import(
 
     let uid = *uid;
 
-    let allowed = database::admins::exists(&username, &pool).await?
+    let admin = database::admins::exists(&username, &pool).await?;
+
+    let allowed = admin
         || database::connections::get_by_username(&username, &pool)
             .await?
             .iter()
@@ -150,9 +152,11 @@ async fn post_srs_warps_import(
         for warp in warps.iter().rev() {
             let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
 
-            if let Some(earliest_timestamp) = earliest_timestamp {
-                if timestamp >= earliest_timestamp {
-                    break;
+            if !admin {
+                if let Some(earliest_timestamp) = earliest_timestamp {
+                    if timestamp >= earliest_timestamp {
+                        break;
+                    }
                 }
             }
 

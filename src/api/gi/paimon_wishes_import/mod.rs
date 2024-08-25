@@ -81,7 +81,9 @@ async fn post_paimon_warps_import(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    let allowed = database::admins::exists(&username, &pool).await?
+    let admin = database::admins::exists(&username, &pool).await?;
+
+    let allowed = admin
         || database::gi::connections::get_by_username(&username, &pool)
             .await?
             .iter()
