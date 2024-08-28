@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
+  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $1\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $1\n    ORDER BY\n        gi_achievement_series.priority,\n        gi_achievements.priority,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "polychromes",
+        "name": "primogems",
         "type_info": "Int4"
       },
       {
@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "timegated",
-        "type_info": "Bool"
+        "type_info": "Text"
       },
       {
         "ordinal": 11,
@@ -96,7 +96,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -111,15 +110,15 @@
       true,
       true,
       false,
-      false,
+      true,
       false,
       false,
       true,
       false,
       false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "69856f2028687a27b011c59151b11aee7b0a209061eaee24f4603f3cea1d4eb6"
+  "hash": "f75cd98f37c9597f9c9be43738daa22a9f97cf3cf8642f42e38177de4589373c"
 }

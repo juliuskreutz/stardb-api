@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $1\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $1\n    ORDER BY\n        achievement_series.priority DESC,\n        series,\n        achievements.priority DESC,\n        id;\n\n",
+  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "jades",
+        "name": "polychromes",
         "type_info": "Int4"
       },
       {
@@ -96,6 +96,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Text"
       ]
     },
@@ -116,9 +117,9 @@
       true,
       false,
       false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "ad5956d2c74ad3889be2f6c7b6af3301886473718b0251a720b6bfd36d5b2d00"
+  "hash": "2dd7a1cf6d0ea09c7032c75bd578f4343ddf7bbe28518d80827cb187c03af27e"
 }

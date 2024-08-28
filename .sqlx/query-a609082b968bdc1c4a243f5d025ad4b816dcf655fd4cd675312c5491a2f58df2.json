@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $1\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $1\n    ORDER BY\n        gi_achievement_series.priority,\n        gi_achievements.priority,\n        id;\n\n",
+  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $2\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $2\nWHERE\n    gi_achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -96,6 +96,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Text"
       ]
     },
@@ -116,9 +117,9 @@
       true,
       false,
       false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "3dbb8b48796d208f789e867e44495a46228e2848a118efbdf2e078ba8438284e"
+  "hash": "a609082b968bdc1c4a243f5d025ad4b816dcf655fd4cd675312c5491a2f58df2"
 }

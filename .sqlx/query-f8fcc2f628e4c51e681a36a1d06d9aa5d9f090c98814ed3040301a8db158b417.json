@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $2\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $2\nWHERE\n    achievements.id = $1;\n\n",
+  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    COALESCE(percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $1\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $1\n    ORDER BY\n        achievement_series.priority DESC,\n        series,\n        achievements.priority DESC,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -96,7 +96,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -117,9 +116,9 @@
       true,
       false,
       false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "c24f34c909f58919a291153f156395ca7feca351c096bb077ae4ef3f1a43e985"
+  "hash": "f8fcc2f628e4c51e681a36a1d06d9aa5d9f090c98814ed3040301a8db158b417"
 }

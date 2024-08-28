@@ -15,11 +15,11 @@ SELECT
     gi_achievements.set,
     gi_achievements_text.name,
     gi_achievements_text.description,
-    percent,
+    COALESCE(percent, 0) percent,
     gi_achievement_series_text.name series_name
 FROM
     gi_achievements
-    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id
+    LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id
     JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id
         AND gi_achievements_text.language = $1
     JOIN gi_achievement_series ON series = gi_achievement_series.id

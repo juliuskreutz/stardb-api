@@ -118,7 +118,7 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
             video: db_achievement.video.clone(),
             gacha: db_achievement.gacha,
             impossible: db_achievement.impossible,
-            percent: db_achievement.percent,
+            percent: db_achievement.percent.unwrap_or_default(),
         }
     }
 }

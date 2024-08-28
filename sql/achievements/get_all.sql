@@ -15,11 +15,11 @@ SELECT
     achievements.set,
     achievements_text.name,
     achievements_text.description,
-    percent,
+    COALESCE(percent, 0) percent,
     achievement_series_text.name series_name
 FROM
     achievements
-    JOIN achievements_percent ON achievements.id = achievements_percent.id
+    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id
     JOIN achievements_text ON achievements.id = achievements_text.id
         AND achievements_text.language = $1
     JOIN achievement_series ON series = achievement_series.id

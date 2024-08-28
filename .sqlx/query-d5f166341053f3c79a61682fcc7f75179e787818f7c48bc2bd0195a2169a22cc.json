@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $2\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $2\nWHERE\n    gi_achievements.id = $1;\n\n",
+  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    COALESCE(percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $2\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $2\nWHERE\n    achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "ordinal": 2,
-        "name": "primogems",
+        "name": "jades",
         "type_info": "Int4"
       },
       {
@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "timegated",
-        "type_info": "Text"
+        "type_info": "Bool"
       },
       {
         "ordinal": 11,
@@ -111,15 +111,15 @@
       true,
       true,
       false,
+      false,
+      false,
+      false,
       true,
       false,
       false,
-      true,
-      false,
-      false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "7a22e1bfcb768815faf78932506d880a4e2947ab982e63b4eeccdc03239b97f9"
+  "hash": "d5f166341053f3c79a61682fcc7f75179e787818f7c48bc2bd0195a2169a22cc"
 }

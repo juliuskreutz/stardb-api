@@ -22,7 +22,7 @@ pub struct DbAchievement {
     pub missable: bool,
     pub impossible: bool,
     pub set: Option<i32>,
-    pub percent: f64,
+    pub percent: Option<f64>,
 }
 
 pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {

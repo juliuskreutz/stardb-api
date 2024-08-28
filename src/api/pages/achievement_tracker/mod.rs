@@ -123,7 +123,7 @@ impl From<database::achievements::DbAchievement> for Achievement {
             timegated: db_achievement.timegated,
             missable: db_achievement.missable,
             impossible: db_achievement.impossible,
-            percent: db_achievement.percent,
+            percent: db_achievement.percent.unwrap_or_default(),
         }
     }
 }
