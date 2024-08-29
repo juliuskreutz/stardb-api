@@ -76,3 +76,11 @@ pub async fn get_latest_timestamp_by_uid(
             .max,
     )
 }
+
+pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query_file!("sql/warps/special/delete_unofficial.sql", uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}

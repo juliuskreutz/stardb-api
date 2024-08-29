@@ -162,7 +162,7 @@ async fn post_gi_wishes_import(
         .json::<serde_json::Value>()
         .await?["playerInfo"]["nickname"]
         .as_str()
-        .unwrap()
+        .unwrap_or_default()
         .to_string();
 
     database::gi::profiles::set(&database::gi::profiles::DbProfile { uid, name }, &pool).await?;

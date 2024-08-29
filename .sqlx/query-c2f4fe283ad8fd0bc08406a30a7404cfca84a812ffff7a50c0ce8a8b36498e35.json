@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM warps_standard\nWHERE uid = $1\n    AND NOT official;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c2f4fe283ad8fd0bc08406a30a7404cfca84a812ffff7a50c0ce8a8b36498e35"
+}

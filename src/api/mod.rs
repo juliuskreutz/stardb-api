@@ -1,5 +1,6 @@
 mod achievement_series;
 mod achievements;
+mod admin;
 mod characters;
 mod gi;
 mod import_achievements;
@@ -82,6 +83,7 @@ fn private(ctx: &guard::GuardContext) -> bool {
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
+    openapi.merge(admin::openapi());
     openapi.merge(achievement_series::openapi());
     openapi.merge(achievements::openapi());
     openapi.merge(characters::openapi());
@@ -108,7 +110,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    cfg.configure(achievement_series::configure)
+    cfg.configure(admin::configure)
+        .configure(achievement_series::configure)
         .configure(achievements::configure)
         .configure(characters::configure)
         .configure(gi::configure)
