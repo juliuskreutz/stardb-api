@@ -7,8 +7,8 @@ use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "admin/delete-unofficial-warps/{uid}")),
-    paths(post_delete_unofficial_warps),
+    tags((name = "admin/delete-unofficial-wishes/{uid}")),
+    paths(post_delete_unofficial_wishes),
 )]
 struct ApiDoc;
 
@@ -17,21 +17,21 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(post_delete_unofficial_warps);
+    cfg.service(post_delete_unofficial_wishes);
 }
 
 #[utoipa::path(
-    tag = "admin/delete-unofficial-warps/{uid}",
+    tag = "admin/delete-unofficial-wishes/{uid}",
     post,
-    path = "/api/admin/delete-unofficial-warps/{uid}",
+    path = "/api/admin/delete-unofficial-wishes/{uid}",
     responses(
-        (status = 200, description = "Warps deleted"),
+        (status = 200, description = "Wishes delete"),
         (status = 403, description = "Not an admin"),
     ),
     security(("admin" = []))
 )]
-#[post("/api/admin/delete-unofficial-warps/{uid}")]
-async fn post_delete_unofficial_warps(
+#[post("/api/admin/delete-unofficial-wishes/{uid}")]
+async fn post_delete_unofficial_wishes(
     session: Session,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -48,10 +48,11 @@ async fn post_delete_unofficial_warps(
 
     let uid = *uid;
 
-    database::warps::departure::delete_unofficial(uid, &pool).await?;
-    database::warps::standard::delete_unofficial(uid, &pool).await?;
-    database::warps::special::delete_unofficial(uid, &pool).await?;
-    database::warps::lc::delete_unofficial(uid, &pool).await?;
+    database::gi::wishes::beginner::delete_unofficial(uid, &pool).await?;
+    database::gi::wishes::standard::delete_unofficial(uid, &pool).await?;
+    database::gi::wishes::character::delete_unofficial(uid, &pool).await?;
+    database::gi::wishes::weapon::delete_unofficial(uid, &pool).await?;
+    database::gi::wishes::chronicled::delete_unofficial(uid, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

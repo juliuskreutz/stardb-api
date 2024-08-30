@@ -1,11 +1,15 @@
 mod delete_unofficial_warps;
+mod delete_unofficial_wishes;
 
 use actix_web::web;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    delete_unofficial_warps::openapi()
+    let mut openapi = delete_unofficial_warps::openapi();
+    openapi.merge(delete_unofficial_wishes::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(delete_unofficial_warps::configure);
+    cfg.configure(delete_unofficial_warps::configure)
+        .configure(delete_unofficial_wishes::configure);
 }
