@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
+use regex::{Captures, Regex};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -27,37 +28,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct SrsWarpsImportParams {
     data: String,
-    profile: i32,
-}
-
-#[derive(serde::Deserialize)]
-struct Srs {
-    data: Data,
-}
-
-#[derive(serde::Deserialize)]
-struct Data {
-    stores: HashMap<String, serde_json::Value>,
-}
-
-#[derive(serde::Deserialize)]
-struct Warps {
-    #[serde(rename = "items_1")]
-    standard: Vec<Warp>,
-    #[serde(rename = "items_2")]
-    departure: Vec<Warp>,
-    #[serde(rename = "items_11")]
-    special: Vec<Warp>,
-    #[serde(rename = "items_12")]
-    lc: Vec<Warp>,
 }
 
 #[derive(serde::Deserialize)]
 struct Warp {
-    uid: String,
-    #[serde(rename = "itemId")]
+    uid: i64,
+    id: i32,
+    time: String,
+    #[serde(rename = "type")]
+    gacha_type: i32,
+}
+
+struct ParsedWarp {
+    id: i64,
     item_id: i32,
-    timestamp: i64,
+    time: DateTime<Utc>,
 }
 
 #[utoipa::path(
@@ -119,11 +104,29 @@ async fn post_srs_warps_import(
         database::mihomo::set(&db_mihomo, &pool).await?;
     }
 
-    let srs: Srs = serde_json::from_str(&params.data)?;
+    let mut warps_map: HashMap<_, Vec<ParsedWarp>> = HashMap::new();
 
-    let profile = params.profile;
-    let warps: Warps =
-        serde_json::from_value(srs.data.stores[&format!("{profile}_warp-v2")].clone())?;
+    let re = Regex::new(r"\(.*\)").unwrap();
+    let mut reader = csv::Reader::from_reader(params.data.as_bytes());
+    for warp in reader.deserialize() {
+        let warp: Warp = warp?;
+
+        let time = warp.time.replace("GMT", "");
+        let time = re.replace(&time, |_: &Captures| "").trim().to_string();
+
+        let time = DateTime::parse_from_str(&time, "%a %b %d %Y %H:%M:%S %z")
+            .unwrap()
+            .to_utc();
+
+        warps_map
+            .entry(warp.gacha_type)
+            .or_default()
+            .push(ParsedWarp {
+                id: warp.uid,
+                item_id: warp.id,
+                time,
+            });
+    }
 
     let mut set_all_departure = database::warps::SetAll::default();
     let mut set_all_standard = database::warps::SetAll::default();
@@ -131,11 +134,15 @@ async fn post_srs_warps_import(
     let mut set_all_lc = database::warps::SetAll::default();
 
     for (warps, gacha_type) in [
-        (&warps.departure, GachaType::Departure),
-        (&warps.standard, GachaType::Standard),
-        (&warps.special, GachaType::Special),
-        (&warps.lc, GachaType::Lc),
+        (&warps_map.get(&1), GachaType::Departure),
+        (&warps_map.get(&2), GachaType::Standard),
+        (&warps_map.get(&11), GachaType::Special),
+        (&warps_map.get(&12), GachaType::Lc),
     ] {
+        let Some(warps) = warps else {
+            continue;
+        };
+
         let earliest_timestamp = match gacha_type {
             GachaType::Departure => {
                 database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?
@@ -150,7 +157,8 @@ async fn post_srs_warps_import(
         };
 
         for warp in warps.iter().rev() {
-            let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
+            //let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
+            let timestamp = warp.time;
 
             if !admin {
                 if let Some(earliest_timestamp) = earliest_timestamp {
@@ -160,7 +168,7 @@ async fn post_srs_warps_import(
                 }
             }
 
-            let id = warp.uid.parse::<i64>().unwrap();
+            let id = warp.id;
             let (character, light_cone) = if warp.item_id < 2000 {
                 (Some(warp.item_id), None)
             } else {
