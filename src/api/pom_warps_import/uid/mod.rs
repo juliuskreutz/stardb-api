@@ -130,6 +130,19 @@ async fn post_pom_warps_import(
         (&pom.default.special, GachaType::Special),
         (&pom.default.lc, GachaType::Lc),
     ] {
+        let count = match gacha_type {
+            GachaType::Departure => {
+                database::warps::departure::get_count_by_uid(uid, &pool).await?
+            }
+            GachaType::Standard => database::warps::standard::get_count_by_uid(uid, &pool).await?,
+            GachaType::Special => database::warps::special::get_count_by_uid(uid, &pool).await?,
+            GachaType::Lc => database::warps::lc::get_count_by_uid(uid, &pool).await?,
+        };
+
+        if count as usize + warps.len() >= 50000 {
+            return Ok(HttpResponse::BadRequest().finish());
+        }
+
         let earliest_timestamp = match gacha_type {
             GachaType::Departure => {
                 database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?

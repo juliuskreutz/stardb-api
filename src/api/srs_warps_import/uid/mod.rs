@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use regex::{Captures, Regex};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -106,17 +105,11 @@ async fn post_srs_warps_import(
 
     let mut warps_map: HashMap<_, Vec<ParsedWarp>> = HashMap::new();
 
-    let re = Regex::new(r"\(.*\)").unwrap();
     let mut reader = csv::Reader::from_reader(params.data.as_bytes());
     for warp in reader.deserialize() {
         let warp: Warp = warp?;
 
-        let time = warp.time.replace("GMT", "");
-        let time = re.replace(&time, |_: &Captures| "").trim().to_string();
-
-        let time = DateTime::parse_from_str(&time, "%a %b %d %Y %H:%M:%S %z")
-            .unwrap()
-            .to_utc();
+        let time = DateTime::parse_from_rfc3339(&warp.time).unwrap().to_utc();
 
         warps_map
             .entry(warp.gacha_type)
@@ -134,14 +127,27 @@ async fn post_srs_warps_import(
     let mut set_all_lc = database::warps::SetAll::default();
 
     for (warps, gacha_type) in [
-        (&warps_map.get(&1), GachaType::Departure),
-        (&warps_map.get(&2), GachaType::Standard),
+        (&warps_map.get(&1), GachaType::Standard),
+        (&warps_map.get(&2), GachaType::Departure),
         (&warps_map.get(&11), GachaType::Special),
         (&warps_map.get(&12), GachaType::Lc),
     ] {
         let Some(warps) = warps else {
             continue;
         };
+
+        let count = match gacha_type {
+            GachaType::Departure => {
+                database::warps::departure::get_count_by_uid(uid, &pool).await?
+            }
+            GachaType::Standard => database::warps::standard::get_count_by_uid(uid, &pool).await?,
+            GachaType::Special => database::warps::special::get_count_by_uid(uid, &pool).await?,
+            GachaType::Lc => database::warps::lc::get_count_by_uid(uid, &pool).await?,
+        };
+
+        if count as usize + warps.len() >= 50000 {
+            return Ok(HttpResponse::BadRequest().finish());
+        }
 
         let earliest_timestamp = match gacha_type {
             GachaType::Departure => {
@@ -156,8 +162,7 @@ async fn post_srs_warps_import(
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
         };
 
-        for warp in warps.iter().rev() {
-            //let timestamp = DateTime::from_timestamp_millis(warp.timestamp).unwrap();
+        for warp in warps.iter() {
             let timestamp = warp.time;
 
             if !admin {

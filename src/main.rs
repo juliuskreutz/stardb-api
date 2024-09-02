@@ -99,6 +99,9 @@ impl Language {
 #[derive(
     Clone,
     Copy,
+    PartialEq,
+    Eq,
+    Hash,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
