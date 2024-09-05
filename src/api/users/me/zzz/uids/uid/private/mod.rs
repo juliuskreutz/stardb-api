@@ -40,6 +40,17 @@ async fn put_user_zzz_uid_private(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
+    let allowed = database::zzz::connections::get_by_username(&username, &pool)
+        .await?
+        .iter()
+        .find(|c| c.uid == *uid)
+        .map(|c| c.verified)
+        .unwrap_or_default();
+
+    if !allowed {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     database::zzz::connections::update_private_by_uid_and_username(*uid, &username, true, &pool)
         .await?;
 
@@ -64,6 +75,17 @@ async fn delete_user_uid_private(
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
+
+    let allowed = database::zzz::connections::get_by_username(&username, &pool)
+        .await?
+        .iter()
+        .find(|c| c.uid == *uid)
+        .map(|c| c.verified)
+        .unwrap_or_default();
+
+    if !allowed {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
 
     database::zzz::connections::update_private_by_uid_and_username(*uid, &username, false, &pool)
         .await?;
