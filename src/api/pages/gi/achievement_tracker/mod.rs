@@ -118,7 +118,9 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
             video: db_achievement.video.clone(),
             gacha: db_achievement.gacha,
             impossible: db_achievement.impossible,
-            percent: db_achievement.percent.unwrap_or_default(),
+            percent: (!db_achievement.impossible)
+                .then_some(db_achievement.percent.unwrap_or_default())
+                .unwrap_or_default(),
         }
     }
 }
@@ -126,15 +128,10 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
 pub fn cache(pool: PgPool) -> web::Data<GiAchievementTrackerCache> {
     let achievement_tracker_map = RwLock::new(
         if let Ok(file) = File::open("cache/gi_achievement_tracker_map.json") {
-            if let Ok(achievement_tracker_map) = serde_json::from_reader::<
-                _,
-                HashMap<Language, AchievementTracker>,
-            >(BufReader::new(file))
-            {
-                achievement_tracker_map
-            } else {
-                HashMap::new()
-            }
+            serde_json::from_reader::<_, HashMap<Language, AchievementTracker>>(BufReader::new(
+                file,
+            ))
+            .unwrap_or_default()
         } else {
             HashMap::new()
         },

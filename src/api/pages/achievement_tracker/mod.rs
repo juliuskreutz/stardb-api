@@ -123,7 +123,9 @@ impl From<database::achievements::DbAchievement> for Achievement {
             timegated: db_achievement.timegated,
             missable: db_achievement.missable,
             impossible: db_achievement.impossible,
-            percent: db_achievement.percent.unwrap_or_default(),
+            percent: (!db_achievement.impossible)
+                .then_some(db_achievement.percent.unwrap_or_default())
+                .unwrap_or_default(),
         }
     }
 }
@@ -131,15 +133,10 @@ impl From<database::achievements::DbAchievement> for Achievement {
 pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
     let achievement_tracker_map = RwLock::new(
         if let Ok(file) = File::open("cache/achievement_tracker_map.json") {
-            if let Ok(achievement_tracker_map) = serde_json::from_reader::<
-                _,
-                HashMap<Language, AchievementTracker>,
-            >(BufReader::new(file))
-            {
-                achievement_tracker_map
-            } else {
-                HashMap::new()
-            }
+            serde_json::from_reader::<_, HashMap<Language, AchievementTracker>>(BufReader::new(
+                file,
+            ))
+            .unwrap_or_default()
         } else {
             HashMap::new()
         },

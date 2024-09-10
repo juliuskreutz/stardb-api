@@ -74,7 +74,9 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
             impossible: db_achievement.impossible,
             set: db_achievement.set,
             related: None,
-            percent: db_achievement.percent.unwrap_or_default(),
+            percent: (!db_achievement.impossible)
+                .then_some(db_achievement.percent.unwrap_or_default())
+                .unwrap_or_default(),
         }
     }
 }
