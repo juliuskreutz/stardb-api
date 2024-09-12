@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
-use chrono::NaiveDateTime;
+use chrono::{FixedOffset, NaiveDateTime};
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -46,7 +46,7 @@ struct GachaLog {
 #[derive(Deserialize)]
 struct Data {
     list: Vec<Entry>,
-    region_time_zone: i64,
+    region_time_zone: i32,
 }
 
 #[derive(Deserialize)]
@@ -280,12 +280,13 @@ async fn import_warps(
             break;
         }
 
-        let timestamp_offset = chrono::Duration::hours(gacha_log.data.region_time_zone);
+        let tz = FixedOffset::east_opt(3600 * gacha_log.data.region_time_zone).unwrap();
 
         for entry in gacha_log.data.list {
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
-                .and_utc()
-                - timestamp_offset;
+                .and_local_timezone(tz)
+                .unwrap()
+                .to_utc();
 
             if let Some(latest_timestamp) = latest_timestamp {
                 if timestamp <= latest_timestamp {
