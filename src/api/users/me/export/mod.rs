@@ -65,6 +65,8 @@ struct Hsr {
 #[derive(serde::Serialize, utoipa::ToSchema)]
 struct HsrUid {
     uid: i32,
+    verified: bool,
+    private: bool,
     warps: Warps,
 }
 
@@ -101,6 +103,8 @@ struct Zzz {
 #[derive(serde::Serialize, utoipa::ToSchema)]
 struct ZzzUid {
     uid: i32,
+    verified: bool,
+    private: bool,
     signals: Signals,
 }
 
@@ -138,6 +142,8 @@ struct Gi {
 #[derive(serde::Serialize, utoipa::ToSchema)]
 struct GiUid {
     uid: i32,
+    verified: bool,
+    private: bool,
     wishes: Wishes,
 }
 
@@ -255,12 +261,11 @@ async fn get_export(
 
         let mut uids = Vec::new();
 
-        for uid in database::connections::get_by_username(&username, &pool)
-            .await?
-            .into_iter()
-            .filter(|c| c.verified)
-            .map(|c| c.uid)
-        {
+        for connection in database::connections::get_by_username(&username, &pool).await? {
+            let uid = connection.uid;
+            let verified = connection.verified;
+            let private = connection.private;
+
             let departure = database::warps::departure::get_by_uid(uid, Language::En, &pool)
                 .await?
                 .into_iter()
@@ -292,7 +297,12 @@ async fn get_export(
                 light_cone,
             };
 
-            uids.push(HsrUid { uid, warps });
+            uids.push(HsrUid {
+                uid,
+                verified,
+                private,
+                warps,
+            });
         }
 
         Hsr { achievements, uids }
@@ -308,12 +318,11 @@ async fn get_export(
 
         let mut uids = Vec::new();
 
-        for uid in database::zzz::connections::get_by_username(&username, &pool)
-            .await?
-            .into_iter()
-            .filter(|c| c.verified)
-            .map(|c| c.uid)
-        {
+        for connection in database::zzz::connections::get_by_username(&username, &pool).await? {
+            let uid = connection.uid;
+            let verified = connection.verified;
+            let private = connection.private;
+
             let standard = database::zzz::signals::standard::get_by_uid(uid, Language::En, &pool)
                 .await?
                 .into_iter()
@@ -345,7 +354,12 @@ async fn get_export(
                 bangboo,
             };
 
-            uids.push(ZzzUid { uid, signals });
+            uids.push(ZzzUid {
+                uid,
+                verified,
+                private,
+                signals,
+            });
         }
 
         Zzz { achievements, uids }
@@ -361,12 +375,11 @@ async fn get_export(
 
         let mut uids = Vec::new();
 
-        for uid in database::gi::connections::get_by_username(&username, &pool)
-            .await?
-            .into_iter()
-            .filter(|c| c.verified)
-            .map(|c| c.uid)
-        {
+        for connection in database::gi::connections::get_by_username(&username, &pool).await? {
+            let uid = connection.uid;
+            let verified = connection.verified;
+            let private = connection.private;
+
             let beginner = database::gi::wishes::beginner::get_by_uid(uid, Language::En, &pool)
                 .await?
                 .into_iter()
@@ -405,7 +418,12 @@ async fn get_export(
                 chronicled,
             };
 
-            uids.push(GiUid { uid, wishes });
+            uids.push(GiUid {
+                uid,
+                verified,
+                private,
+                wishes,
+            });
         }
 
         Gi { achievements, uids }
