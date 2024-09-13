@@ -33,6 +33,7 @@ struct Wish {
     pull_4: usize,
     pull_5: usize,
     timestamp: DateTime<Utc>,
+    win: Option<WinType>,
 }
 
 #[derive(Serialize)]
@@ -40,6 +41,14 @@ struct Wish {
 enum WishType {
     Character,
     Weapon,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+enum WinType {
+    Loss,
+    Win,
+    Guarantee,
 }
 
 impl From<database::gi::wishes::DbWish> for Wish {
@@ -60,6 +69,7 @@ impl From<database::gi::wishes::DbWish> for Wish {
             pull: 0,
             pull_4: 0,
             pull_5: 0,
+            win: None,
         }
     }
 }
@@ -241,6 +251,7 @@ async fn get_wish_tracker(
     let mut character_pull = 0;
     let mut character_pull_4 = 0;
     let mut character_pull_5 = 0;
+    let mut guarantee = false;
 
     for wish in database::gi::wishes::character::get_by_uid(uid, language, &pool).await? {
         let mut wish: Wish = wish.into();
@@ -257,6 +268,22 @@ async fn get_wish_tracker(
             4 => character_pull_4 = 0,
             5 => {
                 character_pull_5 = 0;
+
+                wish.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [
+                    10000042, 10000016, 10000003, 10000035, 10000069, 10000079, 10000041,
+                ]
+                .contains(&wish.item_id)
+                {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
             }
             _ => {}
         }
@@ -284,6 +311,7 @@ async fn get_wish_tracker(
     let mut weapon_pull = 0;
     let mut weapon_pull_4 = 0;
     let mut weapon_pull_5 = 0;
+    let mut guarantee = false;
 
     for wish in database::gi::wishes::weapon::get_by_uid(uid, language, &pool).await? {
         let mut wish: Wish = wish.into();
@@ -300,6 +328,22 @@ async fn get_wish_tracker(
             4 => weapon_pull_4 = 0,
             5 => {
                 weapon_pull_5 = 0;
+
+                wish.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [
+                    15502, 11501, 14502, 13505, 14501, 15501, 12501, 13502, 12502,
+                ]
+                .contains(&wish.item_id)
+                {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
             }
             _ => {}
         }

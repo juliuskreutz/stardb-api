@@ -33,6 +33,7 @@ struct Warp {
     pull_4: usize,
     pull_5: usize,
     timestamp: DateTime<Utc>,
+    win: Option<WinType>,
 }
 
 #[derive(Serialize)]
@@ -40,6 +41,14 @@ struct Warp {
 enum WarpType {
     Character,
     LightCone,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+enum WinType {
+    Loss,
+    Win,
+    Guarantee,
 }
 
 impl From<database::warps::DbWarp> for Warp {
@@ -60,6 +69,7 @@ impl From<database::warps::DbWarp> for Warp {
             pull: 0,
             pull_4: 0,
             pull_5: 0,
+            win: None,
         }
     }
 }
@@ -224,6 +234,7 @@ async fn get_warp_tracker(
     let mut special_pull = 0;
     let mut special_pull_4 = 0;
     let mut special_pull_5 = 0;
+    let mut guarantee = false;
 
     for warp in database::warps::special::get_by_uid(uid, language, &pool).await? {
         let mut warp: Warp = warp.into();
@@ -238,7 +249,21 @@ async fn get_warp_tracker(
 
         match warp.rarity {
             4 => special_pull_4 = 0,
-            5 => special_pull_5 = 0,
+            5 => {
+                special_pull_5 = 0;
+
+                warp.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [1209, 1004, 1101, 1211, 1104, 1107, 1003].contains(&warp.item_id) {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
+            }
             _ => {}
         }
 
@@ -265,6 +290,7 @@ async fn get_warp_tracker(
     let mut lc_pull = 0;
     let mut lc_pull_4 = 0;
     let mut lc_pull_5 = 0;
+    let mut guarantee = false;
 
     for warp in database::warps::lc::get_by_uid(uid, language, &pool).await? {
         let mut warp: Warp = warp.into();
@@ -279,7 +305,22 @@ async fn get_warp_tracker(
 
         match warp.rarity {
             4 => lc_pull_4 = 0,
-            5 => lc_pull_5 = 0,
+            5 => {
+                lc_pull_5 = 0;
+
+                warp.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [23000, 23002, 23003, 23004, 23005, 23012, 23013].contains(&warp.item_id)
+                {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
+            }
             _ => {}
         }
 

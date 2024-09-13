@@ -33,6 +33,7 @@ struct Signal {
     pull_4: usize,
     pull_5: usize,
     timestamp: DateTime<Utc>,
+    win: Option<WinType>,
 }
 
 #[derive(Serialize)]
@@ -41,6 +42,14 @@ enum SignalType {
     Agent,
     WEngine,
     Bangboo,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+enum WinType {
+    Loss,
+    Win,
+    Guarantee,
 }
 
 impl From<database::zzz::signals::DbSignal> for Signal {
@@ -67,6 +76,7 @@ impl From<database::zzz::signals::DbSignal> for Signal {
             pull: 0,
             pull_4: 0,
             pull_5: 0,
+            win: None,
         }
     }
 }
@@ -202,6 +212,7 @@ async fn get_signal_tracker(
     let mut special_pull = 0;
     let mut special_pull_a = 0;
     let mut special_pull_s = 0;
+    let mut guarantee = false;
 
     for signal in database::zzz::signals::special::get_by_uid(uid, language, &pool).await? {
         let mut signal: Signal = signal.into();
@@ -219,6 +230,18 @@ async fn get_signal_tracker(
             4 => {
                 special_pull_a = 0;
                 special_pull_s = 0;
+
+                signal.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [1021, 1041, 1101, 1141, 1181, 1211].contains(&signal.item_id) {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
             }
             _ => {}
         }
@@ -246,6 +269,7 @@ async fn get_signal_tracker(
     let mut w_engine_pull = 0;
     let mut w_engine_pull_a = 0;
     let mut w_engine_pull_s = 0;
+    let mut guarantee = false;
 
     for signal in database::zzz::signals::w_engine::get_by_uid(uid, language, &pool).await? {
         let mut signal: Signal = signal.into();
@@ -263,6 +287,18 @@ async fn get_signal_tracker(
             4 => {
                 w_engine_pull_a = 0;
                 w_engine_pull_s = 0;
+
+                signal.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if [14103, 14104, 14110, 14114, 14118, 14121].contains(&signal.item_id) {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
             }
             _ => {}
         }
