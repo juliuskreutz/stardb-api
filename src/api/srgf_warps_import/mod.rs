@@ -14,7 +14,7 @@ use crate::{api::ApiResult, database, mihomo, GachaType, Language};
 #[openapi(
     tags((name = "srgf-warps-import")),
     paths(post_srgf_warps_import),
-    components(schemas(Srgf))
+    components(schemas(Data))
 )]
 struct ApiDoc;
 
@@ -27,18 +27,23 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+struct Data {
+    data: String,
+}
+
+#[derive(Deserialize)]
 struct Srgf {
     info: Info,
     list: Vec<Entry>,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 struct Info {
     uid: String,
     region_time_zone: i32,
 }
 
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
 struct Entry {
     id: String,
     gacha_type: String,
@@ -66,12 +71,14 @@ struct ParsedWarp {
 #[post("/api/srgf-warps-import")]
 async fn post_srgf_warps_import(
     session: Session,
-    srgf: web::Json<Srgf>,
+    data: web::Json<Data>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
+
+    let srgf: Srgf = serde_json::from_str(&data.data)?;
 
     let uid = srgf.info.uid.parse()?;
 

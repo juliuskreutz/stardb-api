@@ -47,8 +47,8 @@ enum SignalType {
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum WinType {
-    Loss,
     Win,
+    Loss,
     Guarantee,
 }
 
