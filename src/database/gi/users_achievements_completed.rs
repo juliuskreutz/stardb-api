@@ -67,6 +67,17 @@ pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool
     Ok(())
 }
 
+pub async fn delete_by_username(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query_file!(
+        "sql/gi/users/achievements/completed/delete_by_username.sql",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn get_by_username(
     username: &str,
     pool: &PgPool,

@@ -61,7 +61,7 @@ struct ParsedWarp {
     tag = "srgf-warps-import",
     post,
     path = "/api/srgf-warps-import",
-    request_body = Srgf,
+    request_body = Data,
     responses(
         (status = 200, description = "Warps imported"),
         (status = 403, description = "Not an admin"),

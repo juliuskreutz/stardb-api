@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM gi_users_achievements_completed\nWHERE username = $1;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a502cf64080b98fc5b82ce1f8b21ba2a5306b9eb0a0eaaa52d0f6b4370e66546"
+}

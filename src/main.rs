@@ -13,7 +13,7 @@ use actix_cors::Cors;
 use actix_files::Files;
 use actix_session::{config::PersistentSession, SessionMiddleware};
 use actix_web::{
-    cookie::{time::Duration, Key},
+    cookie::time::Duration,
     middleware::Compress,
     web::{self, Data},
     App, HttpServer,
@@ -220,7 +220,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pool_data = Data::new(pool.clone());
 
-    let key = Key::from(&std::fs::read("session_key")?);
+    let session_key = session_key()?;
     let signing_key = signing_key()?;
     let signing_key_data = web::Data::new(Mutex::new(signing_key));
 
@@ -234,12 +234,12 @@ async fn main() -> anyhow::Result<()> {
             .wrap(Cors::permissive())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
-                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), session_key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .cookie_secure(false)
                     .build()
             } else {
-                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), key.clone())
+                SessionMiddleware::builder(PgSessionStore::new(pool.clone()), session_key.clone())
                     .session_lifecycle(PersistentSession::default().session_ttl(Duration::weeks(4)))
                     .build()
             })
@@ -259,15 +259,38 @@ async fn main() -> anyhow::Result<()> {
     std::process::exit(0)
 }
 
+fn session_key() -> anyhow::Result<actix_web::cookie::Key> {
+    use actix_web::cookie::Key;
+    use base64::{prelude::BASE64_STANDARD, Engine};
+
+    let key = if let Ok(bytes) = std::fs::read("session_key") {
+        let key_bytes = BASE64_STANDARD.decode(bytes)?;
+
+        Key::from(&key_bytes)
+    } else {
+        let key = Key::generate();
+        let key_bytes = key.master();
+        let bytes = BASE64_STANDARD.encode(key_bytes);
+        std::fs::write("session_key", bytes)?;
+
+        key
+    };
+
+    Ok(key)
+}
+
 fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
-    use ed25519_dalek::pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey};
+    use ed25519_dalek::{
+        pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey},
+        SigningKey,
+    };
 
     let path = Path::new("id_ed25519_sign");
 
     Ok(if path.exists() {
-        ed25519_dalek::SigningKey::read_pkcs8_pem_file(path)?
+        SigningKey::read_pkcs8_pem_file(path)?
     } else {
-        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+        let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
         signing_key.write_pkcs8_pem_file(path, LineEnding::LF)?;
         signing_key
     })

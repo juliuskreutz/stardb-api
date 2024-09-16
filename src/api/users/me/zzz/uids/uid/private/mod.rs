@@ -8,7 +8,7 @@ use crate::{api::ApiResult, database};
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "users/me/zzz/uids/{uid}/private")),
-    paths(put_user_zzz_uid_private, delete_user_uid_private),
+    paths(put_user_zzz_uid_private, delete_user_zzz_uid_private),
 )]
 struct ApiDoc;
 
@@ -18,7 +18,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_user_zzz_uid_private)
-        .service(delete_user_uid_private);
+        .service(delete_user_zzz_uid_private);
 }
 
 #[utoipa::path(
@@ -67,7 +67,7 @@ async fn put_user_zzz_uid_private(
     )
 )]
 #[delete("/api/users/me/zzz/uids/{uid}/private")]
-async fn delete_user_uid_private(
+async fn delete_user_zzz_uid_private(
     session: Session,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
