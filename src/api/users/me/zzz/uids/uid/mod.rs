@@ -45,6 +45,13 @@ async fn put_user_zzz_uid(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
+    if database::zzz::connections::get_by_uid_and_username(*uid, &username, &pool)
+        .await
+        .is_ok()
+    {
+        return Ok(HttpResponse::Ok().finish());
+    }
+
     let connection = database::zzz::connections::DbConnection {
         username,
         uid: *uid,

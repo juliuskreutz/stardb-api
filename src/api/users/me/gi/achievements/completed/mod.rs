@@ -81,7 +81,7 @@ async fn put_gi_user_achievements_completed(
     for id in ids.0 {
         complete.id = id;
 
-        database::gi::users_achievements_completed::add(&complete, &pool).await?;
+        let _ = database::gi::users_achievements_completed::add(&complete, &pool).await;
     }
 
     Ok(HttpResponse::Ok().finish())

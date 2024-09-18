@@ -51,6 +51,13 @@ async fn put_user_uid(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
+    if database::connections::get_by_uid_and_username(uid, &username, &pool)
+        .await
+        .is_ok()
+    {
+        return Ok(HttpResponse::Ok().finish());
+    }
+
     let connection = database::connections::DbConnection {
         username,
         uid,
