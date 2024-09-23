@@ -53,7 +53,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             ))?))?;
 
         info!("Starting {} achievement series", language);
-        for achievement_second_class in &configs.achievement_second_class["KHHABHLHAFG"] {
+        for achievement_second_class in &configs.achievement_second_class["JIJNDLLPCHO"] {
             let name = text_map[&achievement_second_class.name].clone();
 
             let id = achievement_second_class.id;
@@ -64,8 +64,8 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} achievements", language);
-        for achievement in &configs.achievement["KHHABHLHAFG"] {
-            let name = text_map[&achievement.name].clone();
+        for achievement in &configs.achievement["JIJNDLLPCHO"] {
+            let name = text_map.get(&achievement.name).cloned().unwrap_or_default();
 
             let description = text_map
                 .get(&achievement.description)
@@ -81,7 +81,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} avatars", language);
-        for avatar in &configs.avatar["KHHABHLHAFG"] {
+        for avatar in &configs.avatar["JIJNDLLPCHO"] {
             let name = text_map[&avatar.name].clone();
 
             let id = avatar.id;
@@ -92,10 +92,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} weapons", language);
-        for weapon in &configs.weapon["KHHABHLHAFG"] {
+        for weapon in &configs.weapon["JIJNDLLPCHO"] {
             let id = weapon.id;
 
-            let name = &configs.item["KHHABHLHAFG"]
+            let name = &configs.item["JIJNDLLPCHO"]
                 .iter()
                 .find(|i| i.id == weapon.id)
                 .unwrap()
@@ -108,10 +108,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} buddys", language);
-        for buddy in &configs.buddy["KHHABHLHAFG"] {
+        for buddy in &configs.buddy["JIJNDLLPCHO"] {
             let id = buddy.id;
 
-            let name = &configs.item["KHHABHLHAFG"]
+            let name = &configs.item["JIJNDLLPCHO"]
                 .iter()
                 .find(|i| i.id == buddy.id)
                 .map(|i| i.name.clone())

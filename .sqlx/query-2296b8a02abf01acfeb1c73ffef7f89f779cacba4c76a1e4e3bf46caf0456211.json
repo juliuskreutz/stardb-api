@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            light_cones.id,\n            light_cones.rarity,\n            light_cones_text.name,\n            light_cones_text.path,\n            light_cones_text_en.path as path_id\n        FROM\n            light_cones\n        INNER JOIN\n            light_cones_text\n        ON\n            light_cones_text.id = light_cones.id AND light_cones_text.language = $1\n        INNER JOIN\n            light_cones_text AS light_cones_text_en\n        ON\n            light_cones_text_en.id = light_cones.id AND light_cones_text_en.language = 'en'\n        ORDER BY\n            id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "path_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2296b8a02abf01acfeb1c73ffef7f89f779cacba4c76a1e4e3bf46caf0456211"
+}

@@ -5,6 +5,7 @@ use crate::Language;
 
 pub struct DbLightCone {
     pub id: i32,
+    pub rarity: i32,
     pub name: String,
     pub path: String,
     pub path_id: String,
@@ -41,6 +42,7 @@ pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbLightCon
         "
         SELECT
             light_cones.id,
+            light_cones.rarity,
             light_cones_text.name,
             light_cones_text.path,
             light_cones_text_en.path as path_id
@@ -71,6 +73,7 @@ pub async fn get_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbL
         "
         SELECT
             light_cones.id,
+            light_cones.rarity,
             light_cones_text.name,
             light_cones_text.path,
             light_cones_text_en.path as path_id

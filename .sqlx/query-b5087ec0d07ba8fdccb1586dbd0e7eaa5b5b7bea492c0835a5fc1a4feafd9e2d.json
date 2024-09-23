@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    gi_weapons\nWHERE\n    EXISTS (\n        SELECT\n            *\n        FROM\n            gi_weapons_text\n        WHERE\n            gi_weapons.id = gi_weapons_text.id);\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b5087ec0d07ba8fdccb1586dbd0e7eaa5b5b7bea492c0835a5fc1a4feafd9e2d"
+}

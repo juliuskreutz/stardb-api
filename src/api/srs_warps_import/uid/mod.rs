@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
+use rand::seq::SliceRandom;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -33,6 +34,7 @@ struct SrsWarpsImportParams {
 struct Warp {
     uid: i64,
     id: i32,
+    rarity: i32,
     time: String,
     #[serde(rename = "type")]
     gacha_type: i32,
@@ -40,6 +42,7 @@ struct Warp {
 
 struct ParsedWarp {
     id: i64,
+    rarity: i32,
     item_id: i32,
     time: DateTime<Utc>,
 }
@@ -116,10 +119,23 @@ async fn post_srs_warps_import(
             .or_default()
             .push(ParsedWarp {
                 id: warp.uid,
+                rarity: warp.rarity,
                 item_id: warp.id,
                 time,
             });
     }
+
+    let db_light_cones = database::light_cones::get_all(Language::En, &pool).await?;
+
+    let light_cone_3_ids: Vec<i32> = db_light_cones
+        .iter()
+        .filter_map(|lc| (lc.rarity == 3).then_some(lc.id))
+        .collect();
+
+    let light_cone_4_ids: Vec<i32> = db_light_cones
+        .iter()
+        .filter_map(|lc| (lc.rarity == 4).then_some(lc.id))
+        .collect();
 
     let mut set_all_departure = database::warps::SetAll::default();
     let mut set_all_standard = database::warps::SetAll::default();
@@ -162,6 +178,8 @@ async fn post_srs_warps_import(
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
         };
 
+        let mut pity = 0;
+
         for warp in warps.iter() {
             let timestamp = warp.time;
 
@@ -173,11 +191,31 @@ async fn post_srs_warps_import(
                 }
             }
 
-            let id = warp.id;
-            let (character, light_cone) = if warp.item_id < 2000 {
-                (Some(warp.item_id), None)
+            let mut item_id = warp.item_id;
+            let mut rarity = warp.rarity;
+
+            if item_id == 0 {
+                if pity >= 9 {
+                    item_id = *light_cone_4_ids.choose(&mut rand::thread_rng()).unwrap();
+                    rarity = 4;
+                } else {
+                    item_id = *light_cone_3_ids.choose(&mut rand::thread_rng()).unwrap();
+                    rarity = 3;
+                }
+            }
+
+            if rarity == 4 {
+                pity = 0;
             } else {
-                (None, Some(warp.item_id))
+                pity += 1;
+            }
+
+            let id = warp.id;
+
+            let (character, light_cone) = if item_id < 2000 {
+                (Some(item_id), None)
+            } else {
+                (None, Some(item_id))
             };
 
             let set_all = match gacha_type {

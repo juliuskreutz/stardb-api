@@ -14,6 +14,12 @@ pub async fn set_all(id: &[i32], rarity: &[i32], pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWeapon>> {
+    Ok(sqlx::query_file_as!(DbWeapon, "sql/gi/weapons/get_all.sql")
+        .fetch_all(pool)
+        .await?)
+}
+
 pub async fn get_by_paimon_moe_id(id: &str, pool: &PgPool) -> Result<DbWeapon> {
     Ok(
         sqlx::query_file_as!(DbWeapon, "sql/gi/weapons/get_by_paimon_moe_id.sql", id)
