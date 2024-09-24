@@ -10,6 +10,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut achievements_polychromes = Vec::new();
     let mut achievements_hidden = Vec::new();
     let mut achievements_priority = Vec::new();
+    let mut achievements_arcade = Vec::new();
 
     for achievement_data in &configs.achievement["JIJNDLLPCHO"] {
         let id = achievement_data.id;
@@ -31,6 +32,27 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         achievements_polychromes.push(polychromes);
         achievements_hidden.push(hidden);
         achievements_priority.push(priority);
+        achievements_arcade.push(false);
+    }
+
+    for arcade_achievement_data in &configs.arcade_achievement["JIJNDLLPCHO"] {
+        let id = arcade_achievement_data.id;
+
+        let series = arcade_achievement_data.series;
+
+        let rewards = configs.once_reward["JIJNDLLPCHO"]
+            .iter()
+            .find(|r| r.id == arcade_achievement_data.reward)
+            .unwrap();
+
+        let polychromes = rewards.rewards.iter().find(|r| r.id == 100).unwrap().amount;
+
+        achievements_id.push(id);
+        achievements_series.push(series);
+        achievements_polychromes.push(polychromes);
+        achievements_hidden.push(false);
+        achievements_priority.push(id);
+        achievements_arcade.push(true);
     }
 
     database::zzz::achievements::set_all(
@@ -39,6 +61,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         &achievements_polychromes,
         &achievements_hidden,
         &achievements_priority,
+        &achievements_arcade,
         pool,
     )
     .await?;

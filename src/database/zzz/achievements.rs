@@ -23,6 +23,7 @@ pub struct DbAchievement {
     pub impossible: bool,
     pub set: Option<i32>,
     pub percent: Option<f64>,
+    pub arcade: bool,
 }
 
 pub async fn set_all(
@@ -31,6 +32,7 @@ pub async fn set_all(
     polychromes: &[i32],
     hidden: &[bool],
     priority: &[i32],
+    arcade: &[bool],
     pool: &PgPool,
 ) -> Result<()> {
     sqlx::query_file!(
@@ -40,6 +42,7 @@ pub async fn set_all(
         polychromes,
         hidden,
         priority,
+        arcade,
     )
     .execute(pool)
     .await?;

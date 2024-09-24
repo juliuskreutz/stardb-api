@@ -54,9 +54,13 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {} achievement series", language);
         for achievement_second_class in &configs.achievement_second_class["JIJNDLLPCHO"] {
-            let name = text_map[&achievement_second_class.name].clone();
-
             let id = achievement_second_class.id;
+
+            let name = if id == 3002 {
+                "Ridu Journey".to_string()
+            } else {
+                text_map[&achievement_second_class.name].clone()
+            };
 
             achievement_series_id.push(id);
             achievement_series_language.push(language);
@@ -73,6 +77,37 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 .unwrap_or_default();
 
             let id = achievement.id;
+
+            achievements_id.push(id);
+            achievements_language.push(language);
+            achievements_name.push(name);
+            achievements_description.push(description);
+        }
+
+        info!("Starting {} arcade achievement series", language);
+        for arcade_achievement_group in &configs.arcade_achievement_group["JIJNDLLPCHO"] {
+            let name = text_map[&arcade_achievement_group.name].clone();
+
+            let id = arcade_achievement_group.id;
+
+            achievement_series_id.push(id);
+            achievement_series_language.push(language);
+            achievement_series_name.push(name);
+        }
+
+        info!("Starting {} arcade achievements", language);
+        for arcade_achievement in &configs.arcade_achievement["JIJNDLLPCHO"] {
+            let name = text_map
+                .get(&arcade_achievement.name)
+                .cloned()
+                .unwrap_or_default();
+
+            let description = text_map
+                .get(&arcade_achievement.description)
+                .cloned()
+                .unwrap_or_default();
+
+            let id = arcade_achievement.id;
 
             achievements_id.push(id);
             achievements_language.push(language);

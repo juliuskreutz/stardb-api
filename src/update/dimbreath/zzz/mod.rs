@@ -47,6 +47,28 @@ struct Achievement {
 }
 
 #[derive(serde::Deserialize)]
+struct ArcadeAchievementGroup {
+    #[serde(rename = "DKDDFEIAMIF")]
+    id: i32,
+    #[serde(rename = "ONKJEIPPFDA")]
+    name: String,
+}
+
+#[derive(serde::Deserialize)]
+struct ArcadeAchievement {
+    #[serde(rename = "FJHNKFLGHNO")]
+    id: i32,
+    #[serde(rename = "JOEDOKGOGFI")]
+    series: i32,
+    #[serde(rename = "LGLIOMELNFL")]
+    name: String,
+    #[serde(rename = "HJJOIEPGDAE")]
+    description: String,
+    #[serde(rename = "LIAHOJOIDMJ")]
+    reward: i32,
+}
+
+#[derive(serde::Deserialize)]
 struct Rewards {
     #[serde(rename = "LIAHOJOIDMJ")]
     id: i32,
@@ -95,6 +117,8 @@ struct Buddy {
 struct Configs {
     achievement_second_class: HashMap<String, Vec<AchieveSecondClass>>,
     achievement: HashMap<String, Vec<Achievement>>,
+    arcade_achievement_group: HashMap<String, Vec<ArcadeAchievementGroup>>,
+    arcade_achievement: HashMap<String, Vec<ArcadeAchievement>>,
     once_reward: HashMap<String, Vec<Rewards>>,
     item: HashMap<String, Vec<Item>>,
     avatar: HashMap<String, Vec<Avatar>>,
@@ -171,6 +195,16 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
         File::open("dimbreath/ZenlessData/FileCfg/AchievementTemplateTb.json")?,
     ))?;
 
+    let arcade_achievement_group: HashMap<String, Vec<ArcadeAchievementGroup>> =
+        serde_json::from_reader(BufReader::new(File::open(
+            "dimbreath/ZenlessData/FileCfg/ArcadeAchievementGroupTemplateTb.json",
+        )?))?;
+
+    let arcade_achievement: HashMap<String, Vec<ArcadeAchievement>> =
+        serde_json::from_reader(BufReader::new(File::open(
+            "dimbreath/ZenlessData/FileCfg/ArcadeAchievementConfigTemplateTb.json",
+        )?))?;
+
     let once_reward: HashMap<String, Vec<Rewards>> = serde_json::from_reader(BufReader::new(
         File::open("dimbreath/ZenlessData/FileCfg/OnceRewardTemplateTb.json")?,
     ))?;
@@ -194,6 +228,8 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
     let configs = Configs {
         achievement_second_class,
         achievement,
+        arcade_achievement_group,
+        arcade_achievement,
         once_reward,
         item,
         avatar,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
+  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements.arcade,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -75,21 +75,26 @@
       },
       {
         "ordinal": 14,
+        "name": "arcade",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 15,
         "name": "name",
         "type_info": "Text"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "description",
         "type_info": "Text"
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "percent",
         "type_info": "Float8"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "series_name",
         "type_info": "Text"
       }
@@ -117,9 +122,10 @@
       true,
       false,
       false,
+      false,
       null,
       false
     ]
   },
-  "hash": "2dd7a1cf6d0ea09c7032c75bd578f4343ddf7bbe28518d80827cb187c03af27e"
+  "hash": "2b1e07088adc4430f6d1a698b0cb28ff686a173f0e1a4054ed89d98a8a33c541"
 }

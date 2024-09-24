@@ -97,6 +97,7 @@ struct Achievement {
     gacha: bool,
     impossible: bool,
     percent: f64,
+    arcade: bool,
 }
 
 impl From<database::zzz::achievements::DbAchievement> for Achievement {
@@ -121,6 +122,7 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
             percent: (!db_achievement.impossible)
                 .then_some(db_achievement.percent.unwrap_or_default())
                 .unwrap_or_default(),
+            arcade: db_achievement.arcade,
         }
     }
 }

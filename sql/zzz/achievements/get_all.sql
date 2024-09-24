@@ -13,6 +13,7 @@ SELECT
     zzz_achievements.missable,
     zzz_achievements.impossible,
     zzz_achievements.set,
+    zzz_achievements.arcade,
     zzz_achievements_text.name,
     zzz_achievements_text.description,
     COALESCE(percent, 0) percent,
@@ -26,6 +27,7 @@ FROM
     JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id
         AND zzz_achievement_series_text.language = $1
     ORDER BY
+        arcade,
         series,
         zzz_achievements.priority DESC,
         id;

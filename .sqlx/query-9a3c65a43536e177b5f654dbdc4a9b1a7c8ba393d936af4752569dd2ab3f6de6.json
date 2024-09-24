@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_achievements (id, series, polychromes, hidden, priority, arcade)\nSELECT\n    *\nFROM\n    UNNEST($1::integer[], $2::integer[], $3::integer[], $4::bool[], $5::integer[], $6::boolean[])\nON CONFLICT (id)\n    DO UPDATE SET\n        series = EXCLUDED.series,\n        polychromes = EXCLUDED.polychromes,\n        hidden = EXCLUDED.hidden,\n        priority = EXCLUDED.priority,\n        arcade = EXCLUDED.arcade;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "BoolArray",
+        "Int4Array",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9a3c65a43536e177b5f654dbdc4a9b1a7c8ba393d936af4752569dd2ab3f6de6"
+}

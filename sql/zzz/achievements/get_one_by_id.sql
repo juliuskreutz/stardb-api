@@ -13,6 +13,7 @@ SELECT
     zzz_achievements.missable,
     zzz_achievements.impossible,
     zzz_achievements.set,
+    zzz_achievements.arcade,
     zzz_achievements_text.name,
     zzz_achievements_text.description,
     COALESCE(percent, 0) percent,
