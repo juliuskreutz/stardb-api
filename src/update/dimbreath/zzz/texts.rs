@@ -55,12 +55,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         info!("Starting {} achievement series", language);
         for achievement_second_class in &configs.achievement_second_class["JIJNDLLPCHO"] {
             let id = achievement_second_class.id;
-
-            let name = if id == 3002 {
-                "Ridu Journey".to_string()
-            } else {
-                text_map[&achievement_second_class.name].clone()
-            };
+            let name = text_map[&achievement_second_class.name].clone();
 
             achievement_series_id.push(id);
             achievement_series_language.push(language);
