@@ -20,7 +20,6 @@ dotenv = "0.15.0"
 ed25519-dalek = { version = "2.1.1", features = ["pem", "rand_core"] }
 futures = "0.3.30"
 image = "0.25.2"
-indexmap = "2.5.0"
 lazy_static = "1.5.0"
 lettre = { version = "0.11.9", default-features = false, features = [
   "tokio1-rustls-tls",
