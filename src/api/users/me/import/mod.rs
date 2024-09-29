@@ -1,21 +1,15 @@
-use std::io::BufReader;
-
-use actix_multipart::form::MultipartForm;
 use actix_session::Session;
 use actix_web::{put, web, HttpResponse, Responder};
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{
-    api::{ApiResult, File},
-    database,
-};
+use crate::{api::ApiResult, database};
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "users/me/import"), (name = "users/me/import-file")),
-    paths(import, import_file),
+    tags((name = "users/me/import")),
+    paths(import),
     components(schemas(
         ImportData,
     ))
@@ -27,12 +21,13 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(import).service(import_file);
+    cfg.service(import);
 }
 
 #[derive(Deserialize, ToSchema)]
 struct ImportData {
-    achievements: Option<Vec<i32>>,
+    hsr_achievements: Option<Vec<i32>>,
+    gi_achievements: Option<Vec<i32>>,
 }
 
 #[utoipa::path(
@@ -55,7 +50,7 @@ async fn import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if let Some(achievements) = &import_data.achievements {
+    if let Some(achievements) = &import_data.hsr_achievements {
         database::users_achievements_completed::delete_by_username(&username, &pool).await?;
         let mut achievement_completed =
             database::users_achievements_completed::DbUserAchievementCompleted {
@@ -69,42 +64,17 @@ async fn import(
         }
     }
 
-    Ok(HttpResponse::Ok().finish())
-}
-
-#[utoipa::path(
-    tag = "users/me/import-file",
-    put,
-    path = "/api/users/me/import-file",
-    request_body(content = File, content_type = "multipart/form-data"),
-    responses(
-        (status = 200, description = "Successfully imported"),
-        (status = 400, description = "Not logged in"),
-    )
-)]
-#[put("/api/users/me/import-file")]
-async fn import_file(
-    session: Session,
-    file: MultipartForm<File>,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let import_data: ImportData = serde_json::from_reader(BufReader::new(&file.file.file))?;
-
-    if let Some(achievements) = &import_data.achievements {
-        database::users_achievements_completed::delete_by_username(&username, &pool).await?;
+    if let Some(achievements) = &import_data.gi_achievements {
+        database::gi::users_achievements_completed::delete_by_username(&username, &pool).await?;
         let mut achievement_completed =
-            database::users_achievements_completed::DbUserAchievementCompleted {
+            database::gi::users_achievements_completed::DbUserAchievementCompleted {
                 username: username.clone(),
                 id: 0,
             };
         for &achievement in achievements {
             achievement_completed.id = achievement;
 
-            database::users_achievements_completed::add(&achievement_completed, &pool).await?;
+            database::gi::users_achievements_completed::add(&achievement_completed, &pool).await?;
         }
     }
 
