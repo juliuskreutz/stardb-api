@@ -1,11 +1,3 @@
-mod comment;
-mod difficulty;
-mod gacha;
-mod impossible;
-mod reference;
-mod version;
-mod video;
-
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
@@ -24,26 +16,11 @@ use crate::{
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    let mut openapi = ApiDoc::openapi();
-    openapi.merge(comment::openapi());
-    openapi.merge(difficulty::openapi());
-    openapi.merge(gacha::openapi());
-    openapi.merge(impossible::openapi());
-    openapi.merge(reference::openapi());
-    openapi.merge(version::openapi());
-    openapi.merge(video::openapi());
-    openapi
+    ApiDoc::openapi()
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.configure(comment::configure)
-        .configure(difficulty::configure)
-        .configure(gacha::configure)
-        .configure(impossible::configure)
-        .configure(reference::configure)
-        .configure(version::configure)
-        .configure(video::configure)
-        .service(get_achievement);
+    cfg.service(get_achievement);
 }
 
 #[utoipa::path(

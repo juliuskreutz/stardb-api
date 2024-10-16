@@ -30,7 +30,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Deserialize)]
 struct Achievement {
     #[serde(rename = "Version")]
-    version: String,
+    version: Option<String>,
     #[serde(rename = "Key")]
     key: i32,
     #[serde(rename = "Requirements (if different) / Comments")]
@@ -80,28 +80,24 @@ async fn import_gi_achievements(
 
         database::gi::achievements::update_version_by_id(
             achievement.key,
-            &achievement.version,
+            achievement.version.as_deref(),
             &pool,
         )
         .await?;
 
-        if let Some(difficulty) = &achievement.difficulty {
-            database::gi::achievements::update_difficulty_by_id(
-                achievement.key,
-                &difficulty.to_lowercase(),
-                &pool,
-            )
-            .await?
-        } else {
-            database::gi::achievements::delete_difficulty_by_id(achievement.key, &pool).await?;
-        }
+        database::gi::achievements::update_difficulty_by_id(
+            achievement.key,
+            achievement.difficulty.map(|d| d.to_lowercase()).as_deref(),
+            &pool,
+        )
+        .await?;
 
-        if let Some(comment) = &achievement.comment {
-            database::gi::achievements::update_comment_by_id(achievement.key, comment, &pool)
-                .await?
-        } else {
-            database::gi::achievements::delete_comment_by_id(achievement.key, &pool).await?;
-        }
+        database::gi::achievements::update_comment_by_id(
+            achievement.key,
+            achievement.comment.as_deref(),
+            &pool,
+        )
+        .await?;
 
         database::gi::achievements::update_impossible_by_id(
             achievement.key,

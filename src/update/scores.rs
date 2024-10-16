@@ -77,29 +77,45 @@ async fn update_top_100(pool: PgPool) -> Result<()> {
             .json()
             .await?;
 
-    update(scores, pool).await?;
+    update(scores, &pool).await?;
 
     Ok(())
 }
 
 async fn update_lower_100(pool: PgPool) -> Result<()> {
-    let scores: Vec<Score> =
-        reqwest::get("http://localhost:8000/api/scores/achievements?offset=100")
-            .await?
-            .json()
-            .await?;
+    for i in 0.. {
+        let start = Instant::now();
 
-    update(scores, pool).await?;
+        let offset = (i + 1) * 100;
+
+        let scores: Vec<Score> = reqwest::get(format!(
+            "http://localhost:8000/api/scores/achievements?offset={offset}&limit=100"
+        ))
+        .await?
+        .json()
+        .await?;
+
+        if scores.is_empty() {
+            break;
+        }
+
+        update(scores, &pool).await?;
+
+        info!(
+            "Scores lower 100 offset {offset} update succeeded in {}s",
+            start.elapsed().as_secs_f64()
+        );
+    }
 
     Ok(())
 }
 
-async fn update(scores: Vec<Score>, pool: PgPool) -> Result<()> {
+async fn update(scores: Vec<Score>, pool: &PgPool) -> Result<()> {
     for score in scores {
         loop {
             rt::time::sleep(std::time::Duration::from_secs(5)).await;
 
-            if mihomo::update_and_get(score.uid, Language::En, &pool)
+            if mihomo::update_and_get(score.uid, Language::En, pool)
                 .await
                 .is_ok()
             {

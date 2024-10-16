@@ -1,7 +1,10 @@
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
-use crate::api::{warps_import::WarpsImportInfos, ApiResult};
+use crate::api::{
+    warps_import::{WarpsImportInfo, WarpsImportInfos},
+    ApiResult,
+};
 
 #[derive(OpenApi)]
 #[openapi(

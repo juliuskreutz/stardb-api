@@ -1,7 +1,10 @@
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
-use crate::api::{gi::wishes_import::WishesImportInfos, ApiResult};
+use crate::api::{
+    gi::wishes_import::{WishesImportInfo, WishesImportInfos},
+    ApiResult,
+};
 
 #[derive(OpenApi)]
 #[openapi(

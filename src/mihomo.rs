@@ -17,7 +17,7 @@ pub struct Mihomo {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct Player {
     pub nickname: String,
     pub level: i32,
@@ -26,12 +26,12 @@ pub struct Player {
     pub space_info: SpaceInfo,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct Avatar {
     pub icon: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct SpaceInfo {
     pub achievement_count: i32,
 }

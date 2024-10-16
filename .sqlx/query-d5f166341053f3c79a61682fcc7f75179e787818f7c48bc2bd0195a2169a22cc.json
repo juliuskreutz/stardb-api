@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "timegated",
-        "type_info": "Bool"
+        "type_info": "Text"
       },
       {
         "ordinal": 11,

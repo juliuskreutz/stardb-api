@@ -30,7 +30,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Deserialize)]
 struct Achievement {
     #[serde(rename = "Ver")]
-    version: String,
+    version: Option<String>,
     #[serde(rename = "Key")]
     key: i32,
     #[serde(rename = "Meow Comments")]
@@ -88,41 +88,38 @@ async fn import_zzz_achievements(
 
         database::zzz::achievements::update_version_by_id(
             achievement.key,
-            &achievement.version,
+            achievement.version.as_deref(),
             &pool,
         )
         .await?;
 
-        if let Some(difficulty) = &achievement.difficulty {
-            database::zzz::achievements::update_difficulty_by_id(
-                achievement.key,
-                &difficulty.to_lowercase(),
-                &pool,
-            )
-            .await?
-        } else {
-            database::zzz::achievements::delete_difficulty_by_id(achievement.key, &pool).await?;
-        }
+        database::zzz::achievements::update_difficulty_by_id(
+            achievement.key,
+            achievement.difficulty.map(|d| d.to_lowercase()).as_deref(),
+            &pool,
+        )
+        .await?;
 
-        if let Some(comment) = &achievement.comment {
-            database::zzz::achievements::update_comment_by_id(achievement.key, comment, &pool)
-                .await?
-        } else {
-            database::zzz::achievements::delete_comment_by_id(achievement.key, &pool).await?;
-        }
+        database::zzz::achievements::update_comment_by_id(
+            achievement.key,
+            achievement.comment.as_deref(),
+            &pool,
+        )
+        .await?;
 
-        if let Some(reference) = &achievement.reference {
-            database::zzz::achievements::update_reference_by_id(achievement.key, reference, &pool)
-                .await?
-        } else {
-            database::zzz::achievements::delete_reference_by_id(achievement.key, &pool).await?;
-        }
+        database::zzz::achievements::update_reference_by_id(
+            achievement.key,
+            achievement.reference.as_deref(),
+            &pool,
+        )
+        .await?;
 
-        if let Some(video) = &achievement.video {
-            database::zzz::achievements::update_video_by_id(achievement.key, video, &pool).await?
-        } else {
-            database::zzz::achievements::delete_video_by_id(achievement.key, &pool).await?;
-        }
+        database::zzz::achievements::update_video_by_id(
+            achievement.key,
+            achievement.video.as_deref(),
+            &pool,
+        )
+        .await?;
 
         database::zzz::achievements::update_gacha_by_id(
             achievement.key,
@@ -140,7 +137,7 @@ async fn import_zzz_achievements(
 
         database::zzz::achievements::update_timegated_by_id(
             achievement.key,
-            achievement.timegated.is_some(),
+            achievement.timegated.as_deref(),
             &pool,
         )
         .await?;

@@ -1,7 +1,7 @@
 mod id;
 
 use actix_session::Session;
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, put, web, HttpResponse, Responder};
 use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -14,8 +14,8 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "zzz/achievements")),
-    paths(get_zzz_achievements),
-    components(schemas(Achievement))
+    paths(get_zzz_achievements, put_zzz_achievements),
+    components(schemas(Achievement, UpdateAchievement))
 )]
 struct ApiDoc;
 
@@ -39,7 +39,7 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     video: Option<String>,
     gacha: bool,
-    timegated: bool,
+    timegated: String,
     missable: bool,
     impossible: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -89,7 +89,9 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_zzz_achievements).configure(id::configure);
+    cfg.service(get_zzz_achievements)
+        .service(put_zzz_achievements)
+        .configure(id::configure);
 }
 
 #[utoipa::path(
@@ -135,4 +137,67 @@ async fn get_zzz_achievements(
     }
 
     Ok(HttpResponse::Ok().json(achievements))
+}
+
+#[derive(serde::Deserialize, ToSchema)]
+struct UpdateAchievement {
+    id: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    difficulty: Option<Difficulty>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    video: Option<String>,
+    gacha: Option<bool>,
+    timegated: Option<String>,
+    missable: Option<bool>,
+    impossible: Option<bool>,
+}
+
+#[utoipa::path(
+    tag = "zzz/achievements",
+    put,
+    path = "/api/zzz/achievements",
+    responses(
+        (status = 200, description = "Updated Achievement", body = Vec<UpdateAchievement>),
+    )
+)]
+#[put("/api/zzz/achievements")]
+async fn put_zzz_achievements(
+    session: Session,
+    achievements: web::Json<Vec<UpdateAchievement>>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    let admin = if let Ok(Some(username)) = session.get::<String>("username") {
+        database::admins::exists(&username, &pool).await?
+    } else {
+        false
+    };
+
+    if !admin {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    for achievement in achievements.iter() {
+        let update_achievement = database::zzz::achievements::DbUpdateAchievement {
+            id: achievement.id,
+            version: achievement.version.clone(),
+            comment: achievement.comment.clone(),
+            reference: achievement.reference.clone(),
+            difficulty: achievement.difficulty.map(|d| d.to_string()),
+            video: achievement.video.clone(),
+            gacha: achievement.gacha,
+            timegated: achievement.timegated.clone(),
+            missable: achievement.missable,
+            impossible: achievement.impossible,
+        };
+
+        database::zzz::achievements::update_achievement_by_id(&update_achievement, &pool).await?;
+    }
+
+    Ok(HttpResponse::Ok().finish())
 }

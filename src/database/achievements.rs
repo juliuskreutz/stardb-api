@@ -18,7 +18,7 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub video: Option<String>,
     pub gacha: bool,
-    pub timegated: bool,
+    pub timegated: String,
     pub missable: bool,
     pub impossible: bool,
     pub set: Option<i32>,
@@ -98,7 +98,43 @@ pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result
     .await?)
 }
 
-pub async fn update_version_by_id(id: i32, version: &str, pool: &PgPool) -> Result<()> {
+pub struct DbUpdateAchievement {
+    pub id: i32,
+    pub version: Option<String>,
+    pub comment: Option<String>,
+    pub reference: Option<String>,
+    pub difficulty: Option<String>,
+    pub video: Option<String>,
+    pub gacha: Option<bool>,
+    pub timegated: Option<String>,
+    pub missable: Option<bool>,
+    pub impossible: Option<bool>,
+}
+
+pub async fn update_achievement_by_id(
+    achievement: &DbUpdateAchievement,
+    pool: &PgPool,
+) -> Result<()> {
+    sqlx::query_file!(
+        "sql/achievements/update_achievement_by_id.sql",
+        achievement.id,
+        achievement.version,
+        achievement.comment,
+        achievement.reference,
+        achievement.difficulty,
+        achievement.video,
+        achievement.gacha,
+        achievement.timegated,
+        achievement.missable,
+        achievement.impossible
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn update_version_by_id(id: i32, version: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/achievements/update_version_by_id.sql", id, version)
         .execute(pool)
         .await?;
@@ -106,7 +142,7 @@ pub async fn update_version_by_id(id: i32, version: &str, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn update_comment_by_id(id: i32, comment: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_comment_by_id(id: i32, comment: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/achievements/update_comment_by_id.sql", id, comment)
         .execute(pool)
         .await?;
@@ -114,7 +150,7 @@ pub async fn update_comment_by_id(id: i32, comment: &str, pool: &PgPool) -> Resu
     Ok(())
 }
 
-pub async fn update_reference_by_id(id: i32, reference: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_reference_by_id(id: i32, reference: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/achievements/update_reference_by_id.sql", id, reference)
         .execute(pool)
         .await?;
@@ -122,7 +158,11 @@ pub async fn update_reference_by_id(id: i32, reference: &str, pool: &PgPool) -> 
     Ok(())
 }
 
-pub async fn update_difficulty_by_id(id: i32, difficulty: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_difficulty_by_id(
+    id: i32,
+    difficulty: Option<&str>,
+    pool: &PgPool,
+) -> Result<()> {
     sqlx::query_file!(
         "sql/achievements/update_difficulty_by_id.sql",
         id,
@@ -142,7 +182,7 @@ pub async fn update_gacha_by_id(id: i32, gacha: bool, pool: &PgPool) -> Result<(
     Ok(())
 }
 
-pub async fn update_timegated_by_id(id: i32, timegated: bool, pool: &PgPool) -> Result<()> {
+pub async fn update_timegated_by_id(id: i32, timegated: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/achievements/update_timegated_by_id.sql", id, timegated)
         .execute(pool)
         .await?;
@@ -170,48 +210,8 @@ pub async fn update_impossible_by_id(id: i32, impossible: bool, pool: &PgPool) -
     Ok(())
 }
 
-pub async fn update_video_by_id(id: i32, video: &str, pool: &PgPool) -> Result<()> {
+pub async fn update_video_by_id(id: i32, video: Option<&str>, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/achievements/update_video_by_id.sql", id, video)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_version_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/delete_version_by_id.sql", id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_comment_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/delete_comment_by_id.sql", id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_reference_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/delete_reference_by_id.sql", id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_difficulty_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/delete_difficulty_by_id.sql", id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn delete_video_by_id(id: i32, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/delete_video_by_id.sql", id)
         .execute(pool)
         .await?;
 

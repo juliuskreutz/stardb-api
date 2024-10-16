@@ -1,7 +1,10 @@
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
-use crate::api::{zzz::signals_import::SignalsImportInfos, ApiResult};
+use crate::api::{
+    zzz::signals_import::{SignalsImportInfo, SignalsImportInfos},
+    ApiResult,
+};
 
 #[derive(OpenApi)]
 #[openapi(
