@@ -39,7 +39,7 @@ struct Achievement {
     #[serde(skip_serializing_if = "Option::is_none")]
     video: Option<String>,
     gacha: bool,
-    timegated: String,
+    timegated: Option<String>,
     missable: bool,
     impossible: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

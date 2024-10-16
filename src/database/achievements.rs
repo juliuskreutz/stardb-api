@@ -18,7 +18,7 @@ pub struct DbAchievement {
     pub difficulty: Option<String>,
     pub video: Option<String>,
     pub gacha: bool,
-    pub timegated: String,
+    pub timegated: Option<String>,
     pub missable: bool,
     pub impossible: bool,
     pub set: Option<i32>,
