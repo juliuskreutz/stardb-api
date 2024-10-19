@@ -2,15 +2,11 @@ use std::time::{Duration, Instant};
 
 use actix_web::rt::{self, Runtime};
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use chrono::Utc;
+use regex::{Captures, Regex};
 use sqlx::PgPool;
 
-use crate::{mihomo, Language};
-
-#[derive(Serialize, Deserialize)]
-struct Score {
-    uid: i32,
-}
+use crate::database;
 
 pub async fn spawn(pool: PgPool) {
     {
@@ -71,13 +67,13 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update_top_100(pool: PgPool) -> Result<()> {
-    let scores: Vec<Score> =
-        reqwest::get("http://localhost:8000/api/scores/achievements?limit=100")
-            .await?
-            .json()
-            .await?;
+    let uids = database::achievement_scores::get(None, None, Some(100), None, &pool)
+        .await?
+        .into_iter()
+        .map(|s| s.uid)
+        .collect();
 
-    update(scores, &pool).await?;
+    update_scores(uids, &pool).await?;
 
     Ok(())
 }
@@ -88,18 +84,18 @@ async fn update_lower_100(pool: PgPool) -> Result<()> {
 
         let offset = (i + 1) * 100;
 
-        let scores: Vec<Score> = reqwest::get(format!(
-            "http://localhost:8000/api/scores/achievements?offset={offset}&limit=100"
-        ))
-        .await?
-        .json()
-        .await?;
+        let uids: Vec<_> =
+            database::achievement_scores::get(None, None, Some(100), Some(offset), &pool)
+                .await?
+                .into_iter()
+                .map(|s| s.uid)
+                .collect();
 
-        if scores.is_empty() {
+        if uids.is_empty() {
             break;
         }
 
-        update(scores, &pool).await?;
+        update_scores(uids, &pool).await?;
 
         info!(
             "Scores lower 100 offset {offset} update succeeded in {}s",
@@ -110,19 +106,107 @@ async fn update_lower_100(pool: PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn update(scores: Vec<Score>, pool: &PgPool) -> Result<()> {
-    for score in scores {
-        loop {
-            rt::time::sleep(std::time::Duration::from_secs(5)).await;
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Enka {
+    detail_info: DetailInfo,
+}
 
-            if mihomo::update_and_get(score.uid, Language::En, pool)
-                .await
-                .is_ok()
-            {
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DetailInfo {
+    nickname: String,
+    level: i32,
+    signature: String,
+    head_icon: i32,
+    record_info: RecordInfo,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RecordInfo {
+    achievement_count: i32,
+}
+
+async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
+    for uid in uids {
+        loop {
+            rt::time::sleep(std::time::Duration::from_secs(1)).await;
+
+            if update_score(uid, pool).await.is_ok() {
                 break;
             }
         }
     }
+
+    Ok(())
+}
+
+async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
+    let now = Utc::now();
+
+    let enka: Enka = reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info",))
+        .await?
+        .json()
+        .await?;
+
+    let re = Regex::new(r"<[^>]*>")?;
+
+    let name = re
+        .replace_all(&enka.detail_info.nickname, |_: &Captures| "")
+        .to_string();
+    let region = match uid.to_string().chars().next() {
+        Some('6') => "na",
+        Some('7') => "eu",
+        Some('8') | Some('9') => "asia",
+        _ => "cn",
+    }
+    .to_string();
+    let level = enka.detail_info.level;
+    let avatar_icon = format!("icon/avatar/{}.png", enka.detail_info.head_icon);
+    let signature = re
+        .replace_all(&enka.detail_info.signature, |_: &Captures| "")
+        .to_string();
+    let achievement_count = enka.detail_info.record_info.achievement_count;
+    let updated_at = now;
+    let timestamp = database::achievement_scores::get_timestamp_by_uid(uid, pool)
+        .await
+        .ok()
+        .and_then(|sd| {
+            if sd.achievement_count == achievement_count {
+                Some(sd.timestamp)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(
+            now + match region.as_str() {
+                "na" => chrono::Duration::try_hours(-5).unwrap(),
+                "eu" => chrono::Duration::try_hours(1).unwrap(),
+                _ => chrono::Duration::try_hours(8).unwrap(),
+            },
+        );
+
+    let db_mihomo = database::mihomo::DbMihomo {
+        uid,
+        region,
+        name,
+        level,
+        signature,
+        avatar_icon,
+        achievement_count,
+        updated_at,
+    };
+
+    database::mihomo::set(&db_mihomo, pool).await?;
+
+    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
+        uid,
+        timestamp,
+        ..Default::default()
+    };
+
+    database::achievement_scores::set(&db_score_achievement, pool).await?;
 
     Ok(())
 }

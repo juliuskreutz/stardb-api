@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     time::{Duration, Instant},
 };
@@ -81,10 +82,12 @@ async fn standard(pool: &PgPool) -> Result<()> {
     sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_4
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_5
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
@@ -150,10 +153,12 @@ async fn special(pool: &PgPool) -> Result<()> {
     sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_4
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_5
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
@@ -219,10 +224,12 @@ async fn lc(pool: &PgPool) -> Result<()> {
     sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_4
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap());
+    sorted_luck_5
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()

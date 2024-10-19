@@ -37,10 +37,12 @@ pub struct SpaceInfo {
 }
 
 pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
-    let path = format!("mihomo/{}_{uid}.json", language.mihomo());
+    let path = format!("mihomo/{}_{uid}.br", language.mihomo());
 
     if PathBuf::from(&path).exists() {
-        Ok(serde_json::from_reader(File::open(&path)?)?)
+        let decompressor = brotli::Decompressor::new(File::open(&path)?, 4096);
+
+        Ok(serde_json::from_reader(decompressor)?)
     } else {
         update_and_get(uid, language, pool).await
     }
@@ -60,10 +62,11 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
     }
 
     if serde_json::from_value::<Mihomo>(json.clone()).is_ok() {
-        serde_json::to_writer(
-            &mut File::create(format!("mihomo/{}_{uid}.json", language.mihomo()))?,
-            &json,
-        )?;
+        let file = File::create(format!("mihomo/{}_{uid}.br", language.mihomo()))?;
+
+        let writer = brotli::CompressorWriter::new(file, 4096, 4, 22);
+
+        serde_json::to_writer(writer, &json)?;
     }
 
     let mihomo: Mihomo = serde_json::from_value(json.clone())?;
