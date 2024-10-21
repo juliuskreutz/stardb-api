@@ -159,13 +159,13 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
-    if !Path::new("dimbreath").join("StarRailData").exists() {
+    if !Path::new("dimbreath").join("TurnBasedGameData").exists() {
         Command::new("git")
             .args([
                 "clone",
                 "--depth",
                 "1",
-                "https://github.com/Dimbreath/StarRailData",
+                "https://gitlab.com/Dimbreath/TurnBasedGameData",
             ])
             .current_dir("dimbreath")
             .output()
@@ -177,7 +177,7 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     let output = String::from_utf8(
         Command::new("git")
             .arg("pull")
-            .current_dir(Path::new("dimbreath").join("StarRailData"))
+            .current_dir(Path::new("dimbreath").join("TurnBasedGameData"))
             .output()
             .await?
             .stdout,
@@ -192,35 +192,35 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     }
 
     let achievement_data: Vec<AchievementData> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/AchievementData.json")?,
+        File::open("dimbreath/TurnBasedGameData/ExcelOutput/AchievementData.json")?,
     ))?;
 
     let achievement_series: Vec<AchievementSeries> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/AchievementSeries.json")?,
+        File::open("dimbreath/TurnBasedGameData/ExcelOutput/AchievementSeries.json")?,
     ))?;
 
     let quest_data: Vec<QuestData> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/StarRailData/ExcelOutput/QuestData.json",
+        "dimbreath/TurnBasedGameData/ExcelOutput/QuestData.json",
     )?))?;
 
     let reward_data: Vec<RewardData> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/StarRailData/ExcelOutput/RewardData.json",
+        "dimbreath/TurnBasedGameData/ExcelOutput/RewardData.json",
     )?))?;
 
     let avatar_config: Vec<AvatarConfig> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/StarRailData/ExcelOutput/AvatarConfig.json",
+        "dimbreath/TurnBasedGameData/ExcelOutput/AvatarConfig.json",
     )?))?;
 
     let avatar_base_type: Vec<AvatarBaseType> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/AvatarBaseType.json")?,
+        File::open("dimbreath/TurnBasedGameData/ExcelOutput/AvatarBaseType.json")?,
     ))?;
 
     let damage_type: Vec<DamageType> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/StarRailData/ExcelOutput/DamageType.json",
+        "dimbreath/TurnBasedGameData/ExcelOutput/DamageType.json",
     )?))?;
 
     let equipment_config: Vec<EquipmentConfig> = serde_json::from_reader(BufReader::new(
-        File::open("dimbreath/StarRailData/ExcelOutput/EquipmentConfig.json")?,
+        File::open("dimbreath/TurnBasedGameData/ExcelOutput/EquipmentConfig.json")?,
     ))?;
 
     let configs = Configs {

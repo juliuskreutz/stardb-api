@@ -49,7 +49,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         let text_map: HashMap<String, String> =
             serde_json::from_reader(BufReader::new(File::open(format!(
-                "dimbreath/StarRailData/TextMap/TextMap{language_str}.json",
+                "dimbreath/TurnBasedGameData/TextMap/TextMap{language_str}.json",
             ))?))?;
 
         info!("Starting {} achievement series", language);

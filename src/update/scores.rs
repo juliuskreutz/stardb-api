@@ -117,7 +117,7 @@ struct Enka {
 struct DetailInfo {
     nickname: String,
     level: i32,
-    signature: String,
+    signature: Option<String>,
     head_icon: i32,
     record_info: RecordInfo,
 }
@@ -165,7 +165,10 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let level = enka.detail_info.level;
     let avatar_icon = format!("icon/avatar/{}.png", enka.detail_info.head_icon);
     let signature = re
-        .replace_all(&enka.detail_info.signature, |_: &Captures| "")
+        .replace_all(
+            &enka.detail_info.signature.unwrap_or_default(),
+            |_: &Captures| "",
+        )
         .to_string();
     let achievement_count = enka.detail_info.record_info.achievement_count;
     let updated_at = now;
