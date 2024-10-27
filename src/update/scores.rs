@@ -145,10 +145,28 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
-    let enka: Enka = reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info",))
-        .await?
-        .json()
-        .await?;
+    //let Ok(enka: Enka) = let Ok(response) = reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info",)).await
+
+    let enka: Enka =
+        match reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info")).await {
+            Ok(r) => {
+                error!("{:?}", r);
+
+                match r.json().await {
+                    Ok(enka) => enka,
+                    Err(e) => {
+                        error!("{e}");
+                        return Ok(());
+                    }
+                }
+            }
+            Err(e) => {
+                error!("{e}");
+                return Ok(());
+            }
+        };
+
+    info!("Enka of {uid}");
 
     let re = Regex::new(r"<[^>]*>")?;
 
@@ -210,6 +228,8 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
+
+    info!("Done!");
 
     Ok(())
 }
