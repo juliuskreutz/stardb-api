@@ -75,14 +75,15 @@ async fn post_paimon_warps_import(
         wish_uid.as_str().unwrap().parse()?
     };
 
-    if database::gi::profiles::get_by_uid(uid, &pool)
-        .await
-        .is_err()
+    let admin = database::admins::exists(&username, &pool).await?;
+
+    if !admin
+        && database::gi::profiles::get_by_uid(uid, &pool)
+            .await
+            .is_err()
     {
         return Ok(HttpResponse::BadRequest().finish());
     }
-
-    let admin = database::admins::exists(&username, &pool).await?;
 
     let allowed = admin
         || database::gi::connections::get_by_username(&username, &pool)
