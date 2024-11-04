@@ -42,7 +42,7 @@ struct Achievement {
     reward: i32,
     #[serde(rename = "NDFEPHHEKDD")]
     hidden: i32,
-    #[serde(rename = "BNJMODNCHPA")]
+    #[serde(rename = "BCIKJKKCKJD")]
     priority: i32,
 }
 
