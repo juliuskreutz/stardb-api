@@ -8,10 +8,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut bangboos_id = Vec::new();
     let mut bangboos_rarity = Vec::new();
 
-    for buddy in &configs.buddy["JIJNDLLPCHO"] {
+    for buddy in &configs.buddy["PEPPKLMFFBD"] {
         let id = buddy.id;
 
-        let rarity = configs.item["JIJNDLLPCHO"]
+        let rarity = configs.item["PEPPKLMFFBD"]
             .iter()
             .find(|i| i.id == id)
             .map(|i| i.rarity)
