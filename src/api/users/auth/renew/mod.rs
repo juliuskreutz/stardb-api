@@ -21,7 +21,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[utoipa::path(
     tag = "users/auth/renew",
-    get,
+    post,
     path = "/api/users/auth/renew",
     responses(
         (status = 200, description = "Successfully renewed", body = String),
