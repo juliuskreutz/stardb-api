@@ -4,6 +4,7 @@ mod export;
 mod gi;
 mod import;
 mod password;
+mod renew;
 mod uids;
 mod username;
 mod zzz;
@@ -35,6 +36,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(gi::openapi());
     openapi.merge(import::openapi());
     openapi.merge(password::openapi());
+    openapi.merge(renew::openapi());
     openapi.merge(uids::openapi());
     openapi.merge(username::openapi());
     openapi.merge(zzz::openapi());
@@ -49,6 +51,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(gi::configure)
         .configure(import::configure)
         .configure(password::configure)
+        .configure(renew::configure)
         .configure(uids::configure)
         .configure(username::configure)
         .configure(zzz::configure);
