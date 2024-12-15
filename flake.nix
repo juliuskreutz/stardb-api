@@ -5,20 +5,24 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = {
-    nixpkgs,
-    rust-overlay,
-    flake-utils,
-    ...
-  }:
+  outputs =
+    {
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
+      system:
+      let
+        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-      in {
-        devShells.default = with pkgs;
+      in
+      {
+        devShells.default =
+          with pkgs;
           mkShell {
             buildInputs = [
               pkgsStatic.buildPackages.rust-bin.stable.latest.default
@@ -29,7 +33,7 @@
               schemacrawler
             ];
 
-            hardeningDisable = ["fortify"];
+            hardeningDisable = [ "fortify" ];
 
             CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
           };

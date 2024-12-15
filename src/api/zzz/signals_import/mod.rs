@@ -528,7 +528,7 @@ async fn calculate_stats_w_engine(uid: i32, pool: &PgPool) -> anyhow::Result<()>
                 } else {
                     count_win += 1;
 
-                    if [14103, 14104, 14110, 14114, 14118, 14121]
+                    if [14102, 14104, 14110, 14114, 14118, 14121]
                         .contains(&signal.w_engine.unwrap())
                     {
                         win_streak = 0;

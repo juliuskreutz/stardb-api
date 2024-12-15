@@ -237,7 +237,7 @@ impl From<database::gi::wishes::DbWish> for Wish {
     get,
     path = "/api/users/me/export",
     responses(
-        (status = 200, description = "Email", body = Export),
+        (status = 200, description = "Export", body = Export),
         (status = 400, description = "Not logged in"),
     )
 )]
