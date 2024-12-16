@@ -57,7 +57,6 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             let id = achievement_series.id;
 
             let name = html(&text_map[&achievement_series.title.hash.to_string()])?;
-            let name = gender(&name)?;
 
             achievement_series_id.push(id);
             achievement_series_language.push(language);
@@ -72,7 +71,6 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             let name = gender(&name)?;
 
             let description = html(&text_map[&achievement_data.description.hash.to_string()])?;
-            let description = gender(&description)?;
             let description = layout(&description)?;
 
             // Idk what's happening here. Leave this as is

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs::File, io::BufReader};
 
+use regex::{Captures, Regex};
 use sqlx::PgPool;
 
 use crate::{database, Language};
@@ -65,6 +66,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         info!("Starting {} achievements", language);
         for achievement in &configs.achievement["PEPPKLMFFBD"] {
             let name = text_map.get(&achievement.name).cloned().unwrap_or_default();
+            let name = gender(&name)?;
 
             let description = text_map
                 .get(&achievement.description)
@@ -196,4 +198,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         .await?;
 
     Ok(())
+}
+
+fn gender(s: &str) -> anyhow::Result<String> {
+    Ok(Regex::new(r"\{(M|F)#([^}]*)\}\s*\{(F|M)#([^}]*)\}")?
+        .replace_all(s, |c: &Captures| {
+            c.get(2).unwrap().as_str().to_string() + "/" + c.get(4).unwrap().as_str()
+        })
+        .to_string())
 }
