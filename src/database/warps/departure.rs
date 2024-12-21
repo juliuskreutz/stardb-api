@@ -35,6 +35,17 @@ pub async fn get_by_uid(
     )
 }
 
+pub async fn get_ids_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<i64>> {
+    Ok(
+        sqlx::query_file!("sql/warps/departure/get_ids_by_uid.sql", uid)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .map(|r| r.id)
+            .collect(),
+    )
+}
+
 pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
     Ok(
         sqlx::query_file!("sql/warps/departure/get_count_by_uid.sql", uid)

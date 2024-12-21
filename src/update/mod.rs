@@ -1,7 +1,7 @@
 pub mod achievements_percent;
 pub mod dimbreath;
 pub mod gi_achievements_percent;
-pub mod scores;
+//pub mod scores;
 pub mod signals_stats;
 pub mod star_rail_res;
 pub mod warps_stats;
