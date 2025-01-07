@@ -99,8 +99,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(scores::openapi());
     openapi.merge(select_all::openapi());
     openapi.merge(sitemap::openapi());
-    openapi.merge(srs_warps_import::openapi());
     openapi.merge(srgf_warps_import::openapi());
+    openapi.merge(srs_warps_import::openapi());
     openapi.merge(stats::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());

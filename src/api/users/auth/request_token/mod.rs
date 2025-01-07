@@ -73,11 +73,11 @@ async fn request_token(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let to = format!("<{email}>").parse()?;
+    let to = format!("{username} <{email}>").parse()?;
 
     let token = Uuid::new_v4();
     let email = Message::builder()
-        .from("Julius Kreutz <noreply@kreutz.dev>".parse()?)
+        .from("stardb <noreply@stardb.gg>".parse()?)
         .to(to)
         .subject("StarDB.GG Emergency Login")
         .body(format!(
@@ -86,7 +86,7 @@ async fn request_token(
 
     let credentials = Credentials::new(env::var("SMTP_USERNAME")?, env::var("SMTP_PASSWORD")?);
 
-    let mailer = SmtpTransport::relay("mail.hosting.de")?
+    let mailer = SmtpTransport::relay("smtppro.zoho.eu")?
         .credentials(credentials)
         .build();
 
