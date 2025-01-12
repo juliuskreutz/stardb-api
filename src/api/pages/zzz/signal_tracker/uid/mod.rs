@@ -149,7 +149,9 @@ async fn get_signal_tracker(
 
     if forbidden {
         if let Ok(Some(username)) = session.get::<String>("username") {
-            if let Ok(connection) =
+            if database::admins::exists(&username, &pool).await? {
+                forbidden = false;
+            } else if let Ok(connection) =
                 database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
             {
                 forbidden = !connection.verified;
