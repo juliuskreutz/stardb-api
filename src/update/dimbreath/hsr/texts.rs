@@ -8,6 +8,8 @@ use crate::{database, Language};
 use super::Configs;
 
 pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
+    let param_re = Regex::new(r"#(\d+)(\[i\])?(%?)")?;
+
     let mut achievement_series_id = Vec::new();
     let mut achievement_series_language = Vec::new();
     let mut achievement_series_name = Vec::new();
@@ -70,22 +72,27 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             let name = html(&text_map[&achievement_data.title.hash.to_string()])?;
             let name = gender(&name)?;
 
+            let name = if id == 4074007 && language == Language::En {
+                "The Conqueror King".to_string()
+            } else {
+                name
+            };
+
             let description = html(&text_map[&achievement_data.description.hash.to_string()])?;
             let description = layout(&description)?;
 
             // Idk what's happening here. Leave this as is
-            let param_re = Regex::new(r"#(\d+)(\[i\])?(%?)")?;
             let mut description = param_re
                 .replace_all(&description, |c: &Captures| {
                     let m = c.get(1).unwrap();
                     let i: usize = m.as_str().parse().unwrap();
 
                     if let Some(param) = achievement_data.param_list.get(i - 1) {
-                        if c.get(2).map_or(false, |m| !m.is_empty())
-                            && c.get(3).map_or(false, |m| !m.is_empty())
+                        if c.get(2).is_some_and(|m| !m.is_empty())
+                            && c.get(3).is_some_and(|m| !m.is_empty())
                         {
                             ((param.value * 100.0) as i32).to_string() + "%"
-                        } else if c.get(3).map_or(false, |m| !m.is_empty()) {
+                        } else if c.get(3).is_some_and(|m| !m.is_empty()) {
                             param.value.to_string() + "%"
                         } else {
                             param.value.to_string()
