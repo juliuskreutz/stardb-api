@@ -78,6 +78,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 name
             };
 
+            let name = if id == 4054010 && language == Language::Fr {
+                "Danse avec les vagues et les bêtes".to_string()
+            } else {
+                name
+            };
+
             let description = html(&text_map[&achievement_data.description.hash.to_string()])?;
             let description = layout(&description)?;
 
