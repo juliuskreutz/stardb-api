@@ -78,6 +78,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 name
             };
 
+            let name = if id == 4074020 && language == Language::En {
+                "Truth is the Eternal Ultimate".to_string()
+            } else {
+                name
+            };
+
             let name = if id == 4054010 && language == Language::Fr {
                 "Danse avec les vagues et les bêtes".to_string()
             } else {
