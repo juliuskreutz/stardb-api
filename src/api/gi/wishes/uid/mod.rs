@@ -23,6 +23,7 @@ struct Wishes {
     standard: Vec<Wish>,
     character: Vec<Wish>,
     weapon: Vec<Wish>,
+    chronicled: Vec<Wish>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -128,12 +129,18 @@ async fn get_gi_wishes(
         .into_iter()
         .map(Wish::from)
         .collect();
+    let chronicled = database::gi::wishes::chronicled::get_by_uid(uid, language, &pool)
+        .await?
+        .into_iter()
+        .map(Wish::from)
+        .collect();
 
     let wishes = Wishes {
         beginner,
         standard,
         character,
         weapon,
+        chronicled,
     };
 
     Ok(HttpResponse::Ok().json(wishes))
