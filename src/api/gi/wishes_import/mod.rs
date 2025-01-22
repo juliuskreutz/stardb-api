@@ -84,6 +84,8 @@ struct WishesImportInfo {
 #[derive(Deserialize, ToSchema)]
 struct WishesImportParams {
     url: String,
+    #[serde(default)]
+    ignore_timestamps: bool,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -199,7 +201,16 @@ async fn post_gi_wishes_import(
         for gacha_type in GiGachaType::iter() {
             info.lock().await.gacha_type = gacha_type;
 
-            if let Err(e) = import_wishes(uid, &url, gacha_type, &info, &pool).await {
+            if let Err(e) = import_wishes(
+                uid,
+                &url,
+                params.ignore_timestamps,
+                gacha_type,
+                &info,
+                &pool,
+            )
+            .await
+            {
                 error = Err(e);
 
                 break;
@@ -227,6 +238,7 @@ async fn post_gi_wishes_import(
 async fn import_wishes(
     uid: i32,
     url: &Url,
+    ignore_timestamps: bool,
     gacha_type: GiGachaType,
     info: &Arc<Mutex<WishesImportInfo>>,
     pool: &PgPool,
@@ -302,9 +314,11 @@ async fn import_wishes(
                 .unwrap()
                 .to_utc();
 
-            if let Some(latest_timestamp) = latest_timestamp {
-                if timestamp <= latest_timestamp {
-                    break 'outer;
+            if !ignore_timestamps {
+                if let Some(latest_timestamp) = latest_timestamp {
+                    if timestamp <= latest_timestamp {
+                        break 'outer;
+                    }
                 }
             }
 
