@@ -114,7 +114,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {} avatars", language);
         for avatar in &configs.avatar["HBEGBJCAGAJ"] {
-            let name = text_map[&avatar.name].clone();
+            let name = text_map
+                .get(&avatar.name)
+                .cloned()
+                .unwrap_or("EMPTY".to_string());
 
             let id = avatar.id;
 
