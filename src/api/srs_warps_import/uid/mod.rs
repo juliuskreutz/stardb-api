@@ -54,9 +54,8 @@ struct ParsedWarp {
     request_body = SrsWarpsImportParams,
     responses(
         (status = 200, description = "Warps imported"),
-        (status = 403, description = "Not an admin"),
-    ),
-    security(("admin" = []))
+        (status = 403, description = "Not verified"),
+    )
 )]
 #[post("/api/srs-warps-import/{uid}")]
 async fn post_srs_warps_import(

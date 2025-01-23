@@ -12,3 +12,11 @@ pub async fn set(uid: &DbUid, pool: &PgPool) -> Result<()> {
 
     Ok(())
 }
+
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbUid> {
+    Ok(
+        sqlx::query_file_as!(DbUid, "sql/zzz/uids/get_by_uid.sql", uid)
+            .fetch_one(pool)
+            .await?,
+    )
+}

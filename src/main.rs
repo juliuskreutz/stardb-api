@@ -148,6 +148,17 @@ enum ZzzGachaType {
     Bangboo,
 }
 
+impl ZzzGachaType {
+    pub fn id(self) -> i32 {
+        match self {
+            ZzzGachaType::Standard => 1001,
+            ZzzGachaType::Special => 2001,
+            ZzzGachaType::WEngine => 3001,
+            ZzzGachaType::Bangboo => 5001,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

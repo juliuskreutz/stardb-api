@@ -125,7 +125,7 @@ async fn post_zzz_signals_import(
 
     let mut uid = 0;
 
-    for gacha_type in [1001, 2001, 3001, 5001] {
+    for gacha_type in ZzzGachaType::iter().map(|gt| gt.id()) {
         let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0"))
             .await?
             .json()
@@ -220,15 +220,7 @@ async fn import_signals(
     let mut end_id = "0".to_string();
 
     url.query_pairs_mut()
-        .extend_pairs(&[(
-            "gacha_type",
-            match gacha_type {
-                ZzzGachaType::Standard => "1001",
-                ZzzGachaType::Special => "2001",
-                ZzzGachaType::WEngine => "3001",
-                ZzzGachaType::Bangboo => "5001",
-            },
-        )])
+        .extend_pairs(&[("gacha_type", gacha_type.id().to_string())])
         .finish();
 
     let mut set_all = database::zzz::signals::SetAll::default();
