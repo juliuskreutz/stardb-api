@@ -76,7 +76,7 @@ async fn register(
         return Ok(HttpResponse::Conflict().finish());
     }
 
-    let salt = rand::thread_rng().gen::<[u8; 32]>();
+    let salt = rand::rng().random::<[u8; 32]>();
 
     let password = argon2::hash_encoded(
         password.as_bytes(),

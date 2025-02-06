@@ -18,8 +18,10 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
+use ed25519_dalek::SecretKey;
 use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
+use rand::RngCore;
 use sqlx::postgres::PgPoolOptions;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -304,7 +306,9 @@ fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
     Ok(if path.exists() {
         SigningKey::read_pkcs8_pem_file(path)?
     } else {
-        let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
+        let mut secret_key = SecretKey::default();
+        rand::rng().fill_bytes(&mut secret_key);
+        let signing_key = SigningKey::from_bytes(&secret_key);
         signing_key.write_pkcs8_pem_file(path, LineEnding::LF)?;
         signing_key
     })

@@ -50,7 +50,7 @@ async fn put_password(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let salt = rand::thread_rng().gen::<[u8; 32]>();
+    let salt = rand::rng().random::<[u8; 32]>();
 
     let password = argon2::hash_encoded(
         password_update.password.as_bytes(),

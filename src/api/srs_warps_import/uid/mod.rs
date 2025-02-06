@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom as _;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -195,10 +195,10 @@ async fn post_srs_warps_import(
 
             if item_id == 0 {
                 if pity >= 9 {
-                    item_id = *light_cone_4_ids.choose(&mut rand::thread_rng()).unwrap();
+                    item_id = *light_cone_4_ids.choose(&mut rand::rng()).unwrap();
                     rarity = 4;
                 } else {
-                    item_id = *light_cone_3_ids.choose(&mut rand::thread_rng()).unwrap();
+                    item_id = *light_cone_3_ids.choose(&mut rand::rng()).unwrap();
                     rarity = 3;
                 }
             }

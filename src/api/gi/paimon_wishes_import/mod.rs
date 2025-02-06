@@ -1,7 +1,7 @@
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom as _;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
@@ -179,16 +179,8 @@ async fn post_paimon_warps_import(
             }
 
             let (character, weapon, rarity) = match wish.id.as_str() {
-                "unknown_3_star" => (
-                    None,
-                    weapons_3_ids.choose(&mut rand::thread_rng()).copied(),
-                    3,
-                ),
-                "unknown_4_star" => (
-                    None,
-                    weapons_4_ids.choose(&mut rand::thread_rng()).copied(),
-                    4,
-                ),
+                "unknown_3_star" => (None, weapons_3_ids.choose(&mut rand::rng()).copied(), 3),
+                "unknown_4_star" => (None, weapons_4_ids.choose(&mut rand::rng()).copied(), 4),
                 _ => match wish.r#type.as_str() {
                     "character" => {
                         let character =
@@ -240,13 +232,13 @@ async fn post_paimon_warps_import(
                     set_all.official.push(false);
 
                     if pity_4 < 10 {
-                        let id = weapons_3_ids.choose(&mut rand::thread_rng()).copied();
+                        let id = weapons_3_ids.choose(&mut rand::rng()).copied();
 
                         set_all.weapon.push(id);
 
                         pity_4 += 1;
                     } else {
-                        let id = weapons_4_ids.choose(&mut rand::thread_rng()).copied();
+                        let id = weapons_4_ids.choose(&mut rand::rng()).copied();
 
                         set_all.weapon.push(id);
 
