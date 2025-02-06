@@ -34,23 +34,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[get("/api/achievements/{id}")]
 async fn get_achievement(
-    session: Session,
     id: web::Path<i32>,
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let admin = if let Ok(Some(username)) = session.get::<String>("username") {
-        database::admins::exists(&username, &pool).await?
-    } else {
-        false
-    };
-
     let db_achievement =
         database::achievements::get_one_by_id(*id, language_params.lang, &pool).await?;
-
-    if (db_achievement.impossible && db_achievement.hidden) && !admin {
-        return Ok(HttpResponse::NotFound().finish());
-    }
 
     let mut achievement = Achievement::from(db_achievement);
 

@@ -209,10 +209,7 @@ async fn update_achievement_tracker(
         let mut current_series = None;
         let mut current_set = None;
 
-        for achievement in achievements
-            .into_iter()
-            .filter(|a| !(a.hidden && a.impossible))
-        {
+        for achievement in achievements {
             versions.insert(achievement.version.clone().unwrap_or_default());
 
             if current_series != Some(achievement.series_name.clone()) {
