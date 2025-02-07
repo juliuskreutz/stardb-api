@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use actix_web::rt::{self, Runtime};
 use anyhow::Result;
@@ -16,11 +16,7 @@ pub async fn spawn(pool: PgPool) {
             let rt = Runtime::new().unwrap();
 
             let handle = rt.spawn(async move {
-                let mut interval = rt::time::interval(Duration::from_secs(60 * 20));
-
                 loop {
-                    interval.tick().await;
-
                     let start = Instant::now();
 
                     if let Err(e) = update_top_100(pool.clone()).await {
@@ -153,24 +149,18 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
         .send()
         .await
     {
-        Ok(r) => {
-            error!("{:?}", r);
-
-            match r.json().await {
-                Ok(enka) => enka,
-                Err(e) => {
-                    error!("{e}");
-                    return Ok(());
-                }
+        Ok(r) => match r.json().await {
+            Ok(enka) => enka,
+            Err(e) => {
+                error!("{e}");
+                return Ok(());
             }
-        }
+        },
         Err(e) => {
             error!("{e}");
             return Ok(());
         }
     };
-
-    info!("Enka of {uid}");
 
     let re = Regex::new(r"<[^>]*>")?;
 
@@ -232,8 +222,6 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
-
-    info!("Done!");
 
     Ok(())
 }
