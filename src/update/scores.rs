@@ -131,7 +131,7 @@ struct RecordInfo {
 async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     for uid in uids {
         loop {
-            rt::time::sleep(std::time::Duration::from_secs(1)).await;
+            rt::time::sleep(std::time::Duration::from_secs(5)).await;
 
             if update_score(uid, pool).await.is_ok() {
                 break;
@@ -145,26 +145,30 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
-    //let Ok(enka: Enka) = let Ok(response) = reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info",)).await
+    let client = reqwest::Client::new();
 
-    let enka: Enka =
-        match reqwest::get(format!("https://enka.network/api/hsr/uid/{uid}?info")).await {
-            Ok(r) => {
-                error!("{:?}", r);
+    let enka: Enka = match client
+        .get(format!("https://enka.network/api/hsr/uid/{uid}?info"))
+        .header(reqwest::header::USER_AGENT, "stardb")
+        .send()
+        .await
+    {
+        Ok(r) => {
+            error!("{:?}", r);
 
-                match r.json().await {
-                    Ok(enka) => enka,
-                    Err(e) => {
-                        error!("{e}");
-                        return Ok(());
-                    }
+            match r.json().await {
+                Ok(enka) => enka,
+                Err(e) => {
+                    error!("{e}");
+                    return Ok(());
                 }
             }
-            Err(e) => {
-                error!("{e}");
-                return Ok(());
-            }
-        };
+        }
+        Err(e) => {
+            error!("{e}");
+            return Ok(());
+        }
+    };
 
     info!("Enka of {uid}");
 
