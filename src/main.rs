@@ -229,7 +229,7 @@ async fn main() -> anyhow::Result<()> {
     update::dimbreath::zzz::spawn(pool.clone()).await;
     update::dimbreath::gi::spawn(pool.clone()).await;
     update::star_rail_res::spawn().await;
-    //update::scores::spawn(pool.clone()).await;
+    update::scores::spawn(pool.clone()).await;
     update::warps_stats::spawn(pool.clone()).await;
     update::signals_stats::spawn(pool.clone()).await;
     update::wishes_stats::spawn(pool.clone()).await;
