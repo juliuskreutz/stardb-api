@@ -6,7 +6,7 @@ use chrono::Utc;
 use regex::{Captures, Regex};
 use sqlx::PgPool;
 
-use crate::database;
+use crate::{database, mihomo, Language};
 
 pub async fn spawn(pool: PgPool) {
     {
@@ -141,6 +141,13 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
+    if mihomo::update_and_get(uid, Language::En, pool)
+        .await
+        .is_ok()
+    {
+        return Ok(());
+    }
+
     let client = reqwest::Client::new();
 
     let enka: Enka = match client
@@ -175,13 +182,17 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     }
     .to_string();
     let level = enka.detail_info.level;
-    let avatar_icon = format!("icon/avatar/{}.png", enka.detail_info.head_icon);
     let signature = re
         .replace_all(
             &enka.detail_info.signature.unwrap_or_default(),
             |_: &Captures| "",
         )
         .to_string();
+    let avatar_icon = mihomo::get(uid, Language::En, pool)
+        .await
+        .and_then(|v| serde_json::from_value::<mihomo::Mihomo>(v).map_err(Into::into))
+        .map(|m| m.player.avatar.icon)
+        .unwrap_or(format!("icon/avatar/{}.png", enka.detail_info.head_icon));
     let achievement_count = enka.detail_info.record_info.achievement_count;
     let updated_at = now;
     let timestamp = database::achievement_scores::get_timestamp_by_uid(uid, pool)

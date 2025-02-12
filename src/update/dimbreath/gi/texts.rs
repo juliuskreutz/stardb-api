@@ -50,7 +50,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         } else {
             let mut text_map = HashMap::new();
 
-            for i in 1.. {
+            for i in 0.. {
                 let Ok(file) = File::open(format!(
                     "dimbreath/AnimeGameData/TextMap/TextMap{language_str}_{i}.json",
                 )) else {
