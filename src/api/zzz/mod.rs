@@ -1,5 +1,6 @@
 mod achievements;
 mod rng_import;
+mod signals;
 mod signals_import;
 
 use actix_web::web;
@@ -13,6 +14,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
     openapi.merge(rng_import::openapi());
+    openapi.merge(signals::openapi());
     openapi.merge(signals_import::openapi());
     openapi
 }
@@ -20,5 +22,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(achievements::configure)
         .configure(rng_import::configure)
+        .configure(signals::configure)
         .configure(signals_import::configure);
 }
