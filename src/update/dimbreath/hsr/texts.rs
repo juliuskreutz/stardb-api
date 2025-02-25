@@ -113,8 +113,8 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                         c.get(0).unwrap().as_str().to_string()
                     }
                 })
-                // -2090701432 = Trailblazer
-                .replace("{NICKNAME}", &text_map["-2090701432"]);
+                // 6354779731002018877 = Trailblazer
+                .replace("{NICKNAME}", &text_map["6354779731002018877"]);
 
             if language == Language::En {
                 description = description.replace("{TEXTJOIN#54}", "Chris P. Bacon (Trotter)");
@@ -141,8 +141,8 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
             let name = match avatar_config.id {
                 id if id > 8000 => {
-                    // -2090701432 = Trailblazer
-                    let trail_blazer = text_map["-2090701432"].clone();
+                    // 6354779731002018877 = Trailblazer
+                    let trail_blazer = text_map["6354779731002018877"].clone();
 
                     format!("{trail_blazer} ({element})")
                 }
