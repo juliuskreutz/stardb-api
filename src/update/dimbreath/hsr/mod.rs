@@ -112,7 +112,7 @@ struct EquipmentConfig {
 #[derive(Deserialize)]
 struct TextHash {
     #[serde(rename = "Hash")]
-    hash: i64,
+    hash: u64,
 }
 
 struct Configs {
