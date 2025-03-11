@@ -55,3 +55,11 @@ pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
             .unwrap(),
     )
 }
+
+pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query_file!("sql/zzz/signals/special/delete_unofficial.sql", uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
