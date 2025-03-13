@@ -5,3 +5,17 @@
 You can read API specifications at https://stardb.gg/api/swagger-ui/
 
 ![Database](./graph.svg)
+
+## Developing
+
+You need:
+
+- [direnv](https://direnv.net)
+- [devenv](https://devenv.sh)
+
+```sh
+cd stardb-api
+devenv up
+```
+
+And you're ready to go :D

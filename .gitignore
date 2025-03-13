@@ -1,5 +1,6 @@
 /target/
 /.direnv/
+/.devenv/
 
 /.env
 /session_key
