@@ -118,8 +118,14 @@ async fn post_gi_wishes_import(
         )
     });
 
-    let mut url =
-        Url::parse("https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog")?;
+    let mut url = match url.domain() {
+        Some("public-operation-hk4e.mihoyo.com") => {
+            Url::parse("https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog")?
+        }
+        _ => {
+            Url::parse("https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog")?
+        }
+    };
 
     url.query_pairs_mut()
         .extend_pairs(query)
