@@ -49,69 +49,64 @@ pub async fn spawn(pool: PgPool) {
 
 #[derive(serde::Deserialize)]
 struct AchievementGoalData {
-    #[serde(rename = "ELKKIAIGOBK")]
     id: Option<i32>,
-    #[serde(rename = "DNINKKHEILA")]
+    #[serde(rename = "nameTextMapHash")]
     name: i64,
-    #[serde(rename = "PCKPEAHOKCC")]
+    #[serde(rename = "orderId")]
     order: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct AchievementData {
-    #[serde(rename = "ELKKIAIGOBK")]
     id: i32,
-    #[serde(rename = "KHGMBHKIAEK")]
+    #[serde(rename = "goalId")]
     goal: Option<i32>,
-    #[serde(rename = "CEDPMADOGBL")]
+    #[serde(rename = "titleTextMapHash")]
     name: i64,
-    #[serde(rename = "PGEPICIANFN")]
+    #[serde(rename = "descTextMapHash")]
     description: i64,
-    #[serde(rename = "PDGIGBABMAO")]
+    #[serde(rename = "finishRewardId")]
     reward: i32,
-    #[serde(rename = "OGOPEHEKDAG")]
+    #[serde(rename = "isShow")]
     show: Option<String>,
-    #[serde(rename = "PCKPEAHOKCC")]
+    #[serde(rename = "orderId")]
     order: Option<i32>,
-    #[serde(rename = "ECCONDIOCKF")]
+    #[serde(rename = "isDisuse")]
     disuse: Option<bool>,
-    #[serde(rename = "BHBMNAFHPAN")]
     progress: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct RewardData {
-    #[serde(rename = "JICDGOLKLNC")]
+    #[serde(rename = "rewardId")]
     id: i32,
-    #[serde(rename = "FDBIKNCLKAG")]
-    rewards: Option<Vec<Reward>>,
+    #[serde(rename = "rewardItemList")]
+    rewards: Vec<Reward>,
 }
 
 #[derive(serde::Deserialize)]
 struct Reward {
-    #[serde(rename = "JIOHEGJODPF")]
+    #[serde(rename = "itemId")]
     id: Option<i32>,
-    #[serde(rename = "DDLIPFNCOMP")]
+    #[serde(rename = "itemCount")]
     count: Option<i32>,
 }
 
 #[derive(serde::Deserialize)]
 struct AvatarData {
-    #[serde(rename = "ELKKIAIGOBK")]
     id: i32,
-    #[serde(rename = "DNINKKHEILA")]
+    #[serde(rename = "nameTextMapHash")]
     name: i64,
-    #[serde(rename = "ADLDGBEKECJ")]
+    #[serde(rename = "qualityType")]
     quality: String,
 }
 
 #[derive(serde::Deserialize)]
 struct WeaponData {
-    #[serde(rename = "ELKKIAIGOBK")]
     id: i32,
-    #[serde(rename = "DNINKKHEILA")]
+    #[serde(rename = "nameTextMapHash")]
     name: i64,
-    #[serde(rename = "IMNCLIODOBL")]
+    #[serde(rename = "rankLevel")]
     rank: i32,
 }
 

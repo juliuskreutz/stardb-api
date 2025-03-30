@@ -24,10 +24,13 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             .reward_data
             .iter()
             .find(|r| r.id == achievement_data.reward)
-            .and_then(|r| r.rewards.as_ref())
-            .and_then(|rewards| rewards.iter().find(|r| r.id == Some(201)))
-            .and_then(|reward| reward.count)
-            .unwrap_or(0);
+            .unwrap()
+            .rewards
+            .iter()
+            .find(|r| r.id == Some(201))
+            .unwrap()
+            .count
+            .unwrap();
 
         let hidden = achievement_data.show.as_deref() == Some("SHOWTYPE_HIDE");
 
