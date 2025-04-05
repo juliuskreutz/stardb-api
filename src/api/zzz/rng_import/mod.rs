@@ -115,7 +115,15 @@ async fn post_rng_signals_import(
                 character = Some(signal.id);
             }
 
-            let timestamp = chrono::DateTime::from_timestamp(signal.timestamp, 0).unwrap();
+            let timestamp = chrono::DateTime::from_timestamp(
+                if signal.timestamp > 1_000_000_000_000 {
+                    signal.timestamp / 1000
+                } else {
+                    signal.timestamp
+                },
+                0,
+            )
+            .unwrap();
 
             set_all.id.push(id);
             set_all.uid.push(uid);
