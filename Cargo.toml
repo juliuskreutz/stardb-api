@@ -52,3 +52,4 @@ utoipa-swagger-ui = { version = "9.0.0", features = ["actix-web", "reqwest"] }
 uuid = { version = "1.15.1", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 webp = "0.3.0"
+tokio = "1.44.0"
