@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fs::File, io::BufReader};
-
+use std::path::Path;
 use regex::{Captures, Regex};
 use sqlx::PgPool;
 
@@ -48,10 +48,20 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {}", language);
 
-        let text_map: HashMap<String, String> =
+        let mut text_map: HashMap<String, String> =
             serde_json::from_reader(BufReader::new(File::open(format!(
                 "dimbreath/ZenlessData/TextMap/TextMap{language_str}TemplateTb.json",
             ))?))?;
+
+        let overwrite_path = format!(
+            "dimbreath/ZenlessData/TextMap/TextMap{language_str}OverwriteTemplateTb.json"
+        );
+
+        if Path::new(&overwrite_path).exists() {
+            let overwrite_map: HashMap<String, String> =
+                serde_json::from_reader(BufReader::new(File::open(overwrite_path)?))?;
+            text_map.extend(overwrite_map);
+        }
 
         info!("Starting {} achievement series", language);
         for achievement_second_class in &configs.achievement_second_class["MCOOHPLIKCF"] {
