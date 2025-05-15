@@ -84,13 +84,17 @@ async fn post_rng_signals_import(
     let signals = profile["stores"]["0"]["items"].clone();
 
     let standard_signals: Vec<Signal> =
-        serde_json::from_value(signals[&ZzzGachaType::Standard.id().to_string()].clone())?;
+        signals.get(&ZzzGachaType::Standard.id().to_string())
+            .map_or_else(|| Vec::new(), |value| serde_json::from_value(value.clone()).unwrap());
     let special_signals: Vec<Signal> =
-        serde_json::from_value(signals[&ZzzGachaType::Special.id().to_string()].clone())?;
+        signals.get(&ZzzGachaType::Special.id().to_string())
+            .map_or_else(|| Vec::new(), |value| serde_json::from_value(value.clone()).unwrap());
     let w_engine_signals: Vec<Signal> =
-        serde_json::from_value(signals[&ZzzGachaType::WEngine.id().to_string()].clone())?;
+        signals.get(&ZzzGachaType::WEngine.id().to_string())
+            .map_or_else(|| Vec::new(), |value| serde_json::from_value(value.clone()).unwrap());
     let bangboo_signals: Vec<Signal> =
-        serde_json::from_value(signals[&ZzzGachaType::Bangboo.id().to_string()].clone())?;
+        signals.get(&ZzzGachaType::Bangboo.id().to_string())
+            .map_or_else(|| Vec::new(), |value| serde_json::from_value(value.clone()).unwrap());
 
     for (signals, gacha_type) in [
         (standard_signals, ZzzGachaType::Standard),
