@@ -90,14 +90,3 @@ pub async fn get_by_username(
     .fetch_all(pool)
     .await?)
 }
-
-pub async fn count_users(threshhold: i64, pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query_file!(
-        "sql/gi/users/achievements/completed/count_users.sql",
-        threshhold
-    )
-    .fetch_one(pool)
-    .await?
-    .count
-    .unwrap())
-}

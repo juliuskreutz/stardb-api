@@ -1,6 +1,7 @@
 mod achievement_series;
 mod achievements;
 mod admin;
+mod banners;
 mod characters;
 mod gi;
 mod import_achievements;
@@ -16,7 +17,6 @@ mod select_all;
 mod sitemap;
 mod srgf_warps_import;
 mod srs_warps_import;
-mod stats;
 mod users;
 mod warps;
 mod warps_import;
@@ -86,6 +86,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(admin::openapi());
     openapi.merge(achievement_series::openapi());
     openapi.merge(achievements::openapi());
+    openapi.merge(banners::openapi());
     openapi.merge(characters::openapi());
     openapi.merge(gi::openapi());
     openapi.merge(import_achievements::openapi());
@@ -101,7 +102,6 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(sitemap::openapi());
     openapi.merge(srgf_warps_import::openapi());
     openapi.merge(srs_warps_import::openapi());
-    openapi.merge(stats::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi.merge(warps_import::openapi());
@@ -113,6 +113,7 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
     cfg.configure(admin::configure)
         .configure(achievement_series::configure)
         .configure(achievements::configure)
+        .configure(banners::configure)
         .configure(characters::configure)
         .configure(gi::configure)
         .configure(import_achievements::configure)
@@ -128,7 +129,6 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(|sc| sitemap::configure(sc, pool.clone()))
         .configure(srgf_warps_import::configure)
         .configure(srs_warps_import::configure)
-        .configure(stats::configure)
         .configure(users::configure)
         .configure(warps::configure)
         .configure(warps_import::configure)

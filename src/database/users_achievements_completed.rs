@@ -95,14 +95,3 @@ pub async fn user_count(pool: &PgPool) -> Result<i64> {
             .unwrap_or_default(),
     )
 }
-
-pub async fn count_users(threshhold: i64, pool: &PgPool) -> Result<i64> {
-    Ok(sqlx::query_file!(
-        "sql/users/achievements/completed/count_users.sql",
-        threshhold
-    )
-    .fetch_one(pool)
-    .await?
-    .count
-    .unwrap())
-}

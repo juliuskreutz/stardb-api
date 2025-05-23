@@ -42,11 +42,3 @@ pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
         .map(|r| r.uid)
         .collect())
 }
-
-pub async fn count_uids(pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(sqlx::query_file!("sql/zzz/signals/count_uids.sql")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
-}
