@@ -485,25 +485,30 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
                 } else {
                     count_win += 1;
 
-                    if [
-                        10000042, 10000016, 10000003, 10000035, 10000069, 10000079, 10000041,
-                    ]
-                    .contains(&wish.character.unwrap())
+                    let banners =
+                        database::gi::banners::get_by_character(wish.character.unwrap(), pool)
+                            .await?;
+
+                    if banners
+                        .iter()
+                        .any(|b| (b.start..b.end).contains(&wish.timestamp))
                     {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
                         sum_win += 1;
 
                         loss_streak = 0;
 
                         win_streak += 1;
                         max_win_streak = max_win_streak.max(win_streak);
+
+                        continue;
                     }
+
+                    win_streak = 0;
+
+                    loss_streak += 1;
+                    max_loss_streak = max_loss_streak.max(loss_streak);
+
+                    guarantee = true;
                 }
             }
             _ => {}
@@ -572,25 +577,30 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    if [
-                        15502, 11501, 14502, 13505, 14501, 15501, 12501, 13502, 12502,
-                    ]
-                    .contains(&wish.weapon.unwrap())
+                    let banners =
+                        database::gi::banners::get_all_light_cone(wish.weapon.unwrap(), pool)
+                            .await?;
+
+                    if banners
+                        .iter()
+                        .any(|b| (b.start..b.end).contains(&wish.timestamp))
                     {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
                         sum_win += 1;
 
                         loss_streak = 0;
 
                         win_streak += 1;
                         max_win_streak = max_win_streak.max(win_streak);
+
+                        continue;
                     }
+
+                    win_streak = 0;
+
+                    loss_streak += 1;
+                    max_loss_streak = max_loss_streak.max(loss_streak);
+
+                    guarantee = true;
                 }
             }
             _ => {}

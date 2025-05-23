@@ -22,7 +22,7 @@ pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
         connection.uid,
         connection.username,
         connection.verified,
-        false,
+        connection.private,
     )
     .execute(pool)
     .await?;

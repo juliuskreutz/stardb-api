@@ -1,7 +1,8 @@
 SELECT
     gi_wishes_standard.character,
     gi_wishes_standard.weapon,
-    COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity
+    COALESCE(gi_characters.rarity, gi_weapons.rarity) AS rarity,
+    gi_wishes_standard.timestamp
 FROM
     gi_wishes_standard
     LEFT JOIN gi_characters ON gi_characters.id = character

@@ -21,6 +21,7 @@ pub struct DbWishInfo {
     pub character: Option<i32>,
     pub weapon: Option<i32>,
     pub rarity: Option<i32>,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Default)]
