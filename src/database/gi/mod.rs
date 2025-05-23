@@ -3,6 +3,7 @@ pub mod achievement_series_text;
 pub mod achievements;
 pub mod achievements_percent;
 pub mod achievements_text;
+pub mod banners;
 pub mod characters;
 pub mod characters_text;
 pub mod connections;

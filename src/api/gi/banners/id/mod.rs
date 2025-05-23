@@ -6,14 +6,14 @@ use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{banners::Banner, ApiResult},
+    api::{gi::banners::GiBanner, ApiResult},
     database,
 };
 
 #[derive(OpenApi)]
 #[openapi(
-    tags((name = "banners/{id}")),
-    paths(get_banner, put_banner, delete_banner)
+    tags((name = "gi/banners/{id}")),
+    paths(get_gi_banner, put_gi_banner, delete_gi_banner)
 )]
 struct ApiDoc;
 
@@ -22,48 +22,45 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_banner)
-        .service(put_banner)
-        .service(delete_banner);
+    cfg.service(get_gi_banner)
+        .service(put_gi_banner)
+        .service(delete_gi_banner);
 }
 
 #[utoipa::path(
-    tag = "banners/{id}",
+    tag = "gi/banners/{id}",
     get,
-    path = "/api/banners/{id}",
+    path = "/api/gi/banners/{id}",
     responses(
-        (status = 200, description = "Banner", body = Banner),
+        (status = 200, description = "GiBanner", body = GiBanner),
     )
 )]
 #[get("/api/banners/{id}")]
-async fn get_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let banner: Banner = database::banners::get_by_id(*id, &pool).await?.into();
+async fn get_gi_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+    let banner: GiBanner = database::gi::banners::get_by_id(*id, &pool).await?.into();
 
     Ok(HttpResponse::Ok().json(banner))
 }
 
 #[derive(Deserialize, ToSchema)]
-struct PutBanner {
+struct PutGiBanner {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
-    light_cone: Option<i32>,
+    weapon: Option<i32>,
 }
 
 #[utoipa::path(
-    tag = "banners/{id}",
+    tag = "gi/banners/{id}",
     put,
-    path = "/api/banners/{id}",
-    responses(
-        (status = 201),
-        (status = 403),
-    ),
+    path = "/api/gi/banners/{id}",
+    responses((status = 201)),
 )]
-#[put("/api/banners/{id}")]
-async fn put_banner(
+#[put("/api/gi/banners/{id}")]
+async fn put_gi_banner(
     session: Session,
     id: web::Path<i32>,
-    banner: web::Json<PutBanner>,
+    banner: web::Json<PutGiBanner>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
@@ -76,30 +73,27 @@ async fn put_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let db_banner = database::banners::DbBanner {
+    let db_banner = database::gi::banners::DbBanner {
         id: *id,
         start: banner.start,
         end: banner.end,
         character: banner.character,
-        light_cone: banner.light_cone,
+        weapon: banner.weapon,
     };
 
-    database::banners::set(&db_banner, &pool).await?;
+    database::gi::banners::set(&db_banner, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
 #[utoipa::path(
-    tag = "banners/{id}",
+    tag = "gi/banners/{id}",
     delete,
-    path = "/api/banners/{id}",
-    responses(
-        (status = 200),
-        (status = 403),
-    ),
+    path = "/api/gi/banners/{id}",
+    responses((status = 200)),
 )]
-#[delete("/api/banners/{id}")]
-async fn delete_banner(
+#[delete("/api/gi/banners/{id}")]
+async fn delete_gi_banner(
     session: Session,
     id: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -114,7 +108,7 @@ async fn delete_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::banners::delete_by_id(*id, &pool).await?;
+    database::gi::banners::delete_by_id(*id, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
