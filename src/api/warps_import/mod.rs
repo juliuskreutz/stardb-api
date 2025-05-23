@@ -457,22 +457,29 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
                 } else {
                     count_win += 1;
 
-                    if [1209, 1004, 1101, 1211, 1104, 1107, 1003].contains(&warp.character.unwrap())
+                    let banners =
+                        database::banners::get_by_character(warp.character.unwrap(), pool).await?;
+
+                    if banners
+                        .iter()
+                        .any(|b| (b.start..b.end).contains(&warp.timestamp))
                     {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
                         sum_win += 1;
 
                         loss_streak = 0;
 
                         win_streak += 1;
                         max_win_streak = max_win_streak.max(win_streak);
+
+                        continue;
                     }
+
+                    win_streak = 0;
+
+                    loss_streak += 1;
+                    max_loss_streak = max_loss_streak.max(loss_streak);
+
+                    guarantee = true;
                 }
             }
             _ => {}
@@ -541,23 +548,30 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    if [23000, 23002, 23003, 23004, 23005, 23012, 23013]
-                        .contains(&warp.light_cone.unwrap())
+                    let banners =
+                        database::banners::get_all_light_cone(warp.light_cone.unwrap(), pool)
+                            .await?;
+
+                    if banners
+                        .iter()
+                        .any(|b| (b.start..b.end).contains(&warp.timestamp))
                     {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
                         sum_win += 1;
 
                         loss_streak = 0;
 
                         win_streak += 1;
                         max_win_streak = max_win_streak.max(win_streak);
+
+                        continue;
                     }
+
+                    win_streak = 0;
+
+                    loss_streak += 1;
+                    max_loss_streak = max_loss_streak.max(loss_streak);
+
+                    guarantee = true;
                 }
             }
             _ => {}
