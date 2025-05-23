@@ -4,6 +4,7 @@ use sqlx::PgPool;
 
 pub struct DbBanner {
     pub id: i32,
+    pub name: String,
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub character: Option<i32>,
@@ -14,6 +15,7 @@ pub async fn set(banner: &DbBanner, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/banners/set.sql",
         banner.id,
+        banner.name,
         banner.start,
         banner.end,
         banner.character,

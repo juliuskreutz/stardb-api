@@ -27,6 +27,11 @@
         "ordinal": 4,
         "name": "weapon",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -39,7 +44,8 @@
       false,
       false,
       true,
-      true
+      true,
+      false
     ]
   },
   "hash": "1e992b33faae7dde8f6fd42b1ad282f3eadc2749186375814eb0131174ae79ad"

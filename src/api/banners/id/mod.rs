@@ -44,6 +44,7 @@ async fn get_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<im
 
 #[derive(Deserialize, ToSchema)]
 struct PutBanner {
+    name: String,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
@@ -78,6 +79,7 @@ async fn put_banner(
 
     let db_banner = database::banners::DbBanner {
         id: *id,
+        name: banner.name.clone(),
         start: banner.start,
         end: banner.end,
         character: banner.character,

@@ -1,11 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO banners (id, start, \"end\", character, light_cone)\n    VALUES ($1, $2, $3, $4, $5);\n\n",
+  "query": "INSERT INTO banners (id, name, start, \"end\", character, light_cone)\n    VALUES ($1, $2, $3, $4, $5, $6);\n\n",
   "describe": {
     "columns": [],
     "parameters": {
       "Left": [
         "Int4",
+        "Text",
         "Timestamptz",
         "Timestamptz",
         "Int4",
@@ -14,5 +15,5 @@
     },
     "nullable": []
   },
-  "hash": "3148b345ecc03829b259db7aba9f44abe5dd925f16329d3274e31348d3d47d74"
+  "hash": "beb1d1660dd1a847d949dfe6e616358b6f98c83f38d656d7da994f88487c757c"
 }

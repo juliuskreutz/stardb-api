@@ -27,6 +27,11 @@
         "ordinal": 4,
         "name": "light_cone",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -39,7 +44,8 @@
       false,
       false,
       true,
-      true
+      true,
+      false
     ]
   },
   "hash": "01a057b3b3468b254c2b62d3c3410e469406b7f7eb1bb47371e81d2028ec259e"

@@ -21,6 +21,7 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct GiBanner {
     id: i32,
+    name: String,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
@@ -31,6 +32,7 @@ impl From<database::gi::banners::DbBanner> for GiBanner {
     fn from(banner: database::gi::banners::DbBanner) -> Self {
         Self {
             id: banner.id,
+            name: banner.name,
             start: banner.start,
             end: banner.end,
             character: banner.character,

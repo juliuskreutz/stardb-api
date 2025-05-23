@@ -1,11 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO gi_banners (id, start, \"end\", character, weapon)\n    VALUES ($1, $2, $3, $4, $5);\n\n",
+  "query": "INSERT INTO gi_banners (id, name, start, \"end\", character, weapon)\n    VALUES ($1, $2, $3, $4, $5, $6);\n\n",
   "describe": {
     "columns": [],
     "parameters": {
       "Left": [
         "Int4",
+        "Text",
         "Timestamptz",
         "Timestamptz",
         "Int4",
@@ -14,5 +15,5 @@
     },
     "nullable": []
   },
-  "hash": "64670e6389ec5d66452d7ec7c2081058807ed2fe889fdbb436762efd7eae3b89"
+  "hash": "d929d12dbe58dbe44c77d6c15901da85ab31946adb0f8f85dcb007974f4d9838"
 }

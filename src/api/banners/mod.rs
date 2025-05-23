@@ -21,6 +21,7 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct Banner {
     id: i32,
+    name: String,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
@@ -31,6 +32,7 @@ impl From<database::banners::DbBanner> for Banner {
     fn from(banner: database::banners::DbBanner) -> Self {
         Self {
             id: banner.id,
+            name: banner.name,
             start: banner.start,
             end: banner.end,
             character: banner.character,

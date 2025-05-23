@@ -44,6 +44,7 @@ async fn get_gi_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult
 
 #[derive(Deserialize, ToSchema)]
 struct PutGiBanner {
+    name: String,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
@@ -75,6 +76,7 @@ async fn put_gi_banner(
 
     let db_banner = database::gi::banners::DbBanner {
         id: *id,
+        name: banner.name.clone(),
         start: banner.start,
         end: banner.end,
         character: banner.character,
