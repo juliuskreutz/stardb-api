@@ -578,8 +578,7 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                     count_win += 1;
 
                     let banners =
-                        database::gi::banners::get_all_light_cone(wish.weapon.unwrap(), pool)
-                            .await?;
+                        database::gi::banners::get_by_weapon(wish.weapon.unwrap(), pool).await?;
 
                     if banners
                         .iter()

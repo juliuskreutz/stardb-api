@@ -549,7 +549,7 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                     count_win += 1;
 
                     let banners =
-                        database::banners::get_all_light_cone(warp.light_cone.unwrap(), pool)
+                        database::banners::get_by_light_cone(warp.light_cone.unwrap(), pool)
                             .await?;
 
                     if banners

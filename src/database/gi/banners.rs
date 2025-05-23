@@ -49,7 +49,7 @@ pub async fn get_by_character(character: i32, pool: &PgPool) -> Result<Vec<DbBan
     )
 }
 
-pub async fn get_all_light_cone(light_cone: i32, pool: &PgPool) -> Result<Vec<DbBanner>> {
+pub async fn get_by_weapon(light_cone: i32, pool: &PgPool) -> Result<Vec<DbBanner>> {
     Ok(
         sqlx::query_file_as!(DbBanner, "sql/gi/banners/get_by_weapon.sql", light_cone)
             .fetch_all(pool)
