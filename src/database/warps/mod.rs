@@ -23,6 +23,7 @@ pub struct DbWarpInfo {
     pub character: Option<i32>,
     pub light_cone: Option<i32>,
     pub rarity: Option<i32>,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Default)]
@@ -42,14 +43,6 @@ pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
         .into_iter()
         .map(|r| r.uid)
         .collect())
-}
-
-pub async fn count_uids(pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(sqlx::query_file!("sql/warps/count_uids.sql")
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
 }
 
 pub struct DbCharacterCount {

@@ -1,7 +1,8 @@
 SELECT
     warps_lc.character,
     warps_lc.light_cone,
-    COALESCE(characters.rarity, light_cones.rarity) AS rarity
+    COALESCE(characters.rarity, light_cones.rarity) AS rarity,
+    warps_lc.timestamp
 FROM
     warps_lc
     LEFT JOIN characters ON characters.id = character
