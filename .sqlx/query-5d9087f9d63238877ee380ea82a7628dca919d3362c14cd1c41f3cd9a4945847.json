@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    warps_special.character,\n    warps_special.light_cone,\n    COALESCE(characters.rarity, light_cones.rarity) AS rarity,\n    warps_special.timestamp\nFROM\n    warps_special\n    LEFT JOIN characters ON characters.id = character\n    LEFT JOIN light_cones ON light_cones.id = light_cone\nWHERE\n    uid = $1\nORDER BY\n    warps_special.id;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "light_cone",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      false
+    ]
+  },
+  "hash": "5d9087f9d63238877ee380ea82a7628dca919d3362c14cd1c41f3cd9a4945847"
+}

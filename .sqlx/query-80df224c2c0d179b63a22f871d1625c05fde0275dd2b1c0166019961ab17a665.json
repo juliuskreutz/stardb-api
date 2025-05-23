@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    *\nFROM\n    banners\nWHERE\n    id = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "start",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "light_cone",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "80df224c2c0d179b63a22f871d1625c05fde0275dd2b1c0166019961ab17a665"
+}
