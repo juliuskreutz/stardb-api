@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -158,9 +160,27 @@ async fn get_wish_tracker(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    let language = language_params.lang;
+
     let name = database::gi::profiles::get_by_uid(uid, &pool).await?.name;
 
-    let language = language_params.lang;
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::gi::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(weapon) = banner.weapon {
+            banners
+                .entry(weapon)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
 
     // Beginner
     let mut beginner = Wishes::default();
@@ -275,16 +295,16 @@ async fn get_wish_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [
-                    10000042, 10000016, 10000003, 10000035, 10000069, 10000079, 10000041,
-                ]
-                .contains(&wish.item_id)
+                } else if banners
+                    .get(&wish.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
+                    .unwrap_or_default()
                 {
+                    Some(WinType::Win)
+                } else {
                     guarantee = true;
 
                     Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
                 };
             }
             _ => {}
@@ -335,16 +355,16 @@ async fn get_wish_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [
-                    15502, 11501, 14502, 13505, 14501, 15501, 12501, 13502, 12502,
-                ]
-                .contains(&wish.item_id)
+                } else if banners
+                    .get(&wish.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
+                    .unwrap_or_default()
                 {
+                    Some(WinType::Win)
+                } else {
                     guarantee = true;
 
                     Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
                 };
             }
             _ => {}

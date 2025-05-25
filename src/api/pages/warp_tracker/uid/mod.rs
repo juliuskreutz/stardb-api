@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -161,6 +163,24 @@ async fn get_warp_tracker(
 
     let name = database::mihomo::get_one_by_uid(uid, &pool).await?.name;
 
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(light_cone) = banner.light_cone {
+            banners
+                .entry(light_cone)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
+
     // Departure
     let mut departure = Warps::default();
     let mut departure_pull = 0;
@@ -258,12 +278,16 @@ async fn get_warp_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [1209, 1004, 1101, 1211, 1104, 1107, 1003].contains(&warp.item_id) {
+                } else if banners
+                    .get(&warp.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                    .unwrap_or_default()
+                {
+                    Some(WinType::Win)
+                } else {
                     guarantee = true;
 
                     Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
                 };
             }
             _ => {}
@@ -314,13 +338,16 @@ async fn get_warp_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [23000, 23002, 23003, 23004, 23005, 23012, 23013].contains(&warp.item_id)
+                } else if banners
+                    .get(&warp.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                    .unwrap_or_default()
                 {
+                    Some(WinType::Win)
+                } else {
                     guarantee = true;
 
                     Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
                 };
             }
             _ => {}
