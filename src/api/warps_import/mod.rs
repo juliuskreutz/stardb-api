@@ -416,6 +416,24 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
 }
 
 async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(light_cone) = banner.light_cone {
+            banners
+                .entry(light_cone)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
+
     let warps = database::warps::special::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -457,12 +475,10 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
                 } else {
                     count_win += 1;
 
-                    let banners =
-                        database::banners::get_by_character(warp.character.unwrap(), pool).await?;
-
                     if banners
-                        .iter()
-                        .any(|b| (b.start..b.end).contains(&warp.timestamp))
+                        .get(&warp.character.unwrap())
+                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                        .unwrap_or_default()
                     {
                         sum_win += 1;
 
@@ -507,6 +523,24 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
 }
 
 async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(light_cone) = banner.light_cone {
+            banners
+                .entry(light_cone)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
+
     let warps = database::warps::lc::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -548,13 +582,10 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    let banners =
-                        database::banners::get_by_light_cone(warp.light_cone.unwrap(), pool)
-                            .await?;
-
                     if banners
-                        .iter()
-                        .any(|b| (b.start..b.end).contains(&warp.timestamp))
+                        .get(&warp.light_cone.unwrap())
+                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                        .unwrap_or_default()
                     {
                         sum_win += 1;
 
