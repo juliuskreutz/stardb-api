@@ -110,6 +110,12 @@ async fn post_paimon_warps_import(
     let wish_counter_chronicled: Option<Wishes> =
         serde_json::from_value(json[format!("{}wish-counter-chronicled", params.profile)].clone())?;
 
+    let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
+        Some('6') => -5,
+        Some('7') => 1,
+        _ => 8,
+    });
+
     let db_weapons = database::gi::weapons::get_all(&pool).await?;
 
     let weapons_3_ids: Vec<_> = db_weapons
@@ -162,8 +168,9 @@ async fn post_paimon_warps_import(
 
         let mut id = 0;
         for wish in wishes.pulls.iter() {
-            let timestamp =
-                NaiveDateTime::parse_from_str(&wish.time, "%Y-%m-%d %H:%M:%S")?.and_utc();
+            let timestamp = NaiveDateTime::parse_from_str(&wish.time, "%Y-%m-%d %H:%M:%S")?
+                .and_utc()
+                - timestamp_offset;
 
             if let Some(earliest_timestamp) = earliest_timestamp {
                 if timestamp >= earliest_timestamp {

@@ -444,6 +444,24 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
 }
 
 async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::gi::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(weapon) = banner.weapon {
+            banners
+                .entry(weapon)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
+
     let wishes = database::gi::wishes::character::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -485,13 +503,10 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
                 } else {
                     count_win += 1;
 
-                    let banners =
-                        database::gi::banners::get_by_character(wish.character.unwrap(), pool)
-                            .await?;
-
                     if banners
-                        .iter()
-                        .any(|b| (b.start..b.end).contains(&wish.timestamp))
+                        .get(&wish.character.unwrap())
+                        .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
+                        .unwrap_or_default()
                     {
                         sum_win += 1;
 
@@ -536,6 +551,24 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
 }
 
 async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
+
+    for banner in database::gi::banners::get_all(&pool).await? {
+        if let Some(character) = banner.character {
+            banners
+                .entry(character)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+
+        if let Some(weapon) = banner.weapon {
+            banners
+                .entry(weapon)
+                .or_default()
+                .push(banner.start..banner.end);
+        }
+    }
+
     let wishes = database::gi::wishes::weapon::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -577,12 +610,10 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    let banners =
-                        database::gi::banners::get_by_weapon(wish.weapon.unwrap(), pool).await?;
-
                     if banners
-                        .iter()
-                        .any(|b| (b.start..b.end).contains(&wish.timestamp))
+                        .get(&wish.weapon.unwrap())
+                        .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
+                        .unwrap_or_default()
                     {
                         sum_win += 1;
 
