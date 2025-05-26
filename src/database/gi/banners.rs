@@ -41,22 +41,6 @@ pub async fn get_by_id(id: i32, pool: &PgPool) -> Result<DbBanner> {
     )
 }
 
-pub async fn get_by_character(character: i32, pool: &PgPool) -> Result<Vec<DbBanner>> {
-    Ok(
-        sqlx::query_file_as!(DbBanner, "sql/gi/banners/get_by_character.sql", character)
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
-pub async fn get_by_weapon(light_cone: i32, pool: &PgPool) -> Result<Vec<DbBanner>> {
-    Ok(
-        sqlx::query_file_as!(DbBanner, "sql/gi/banners/get_by_weapon.sql", light_cone)
-            .fetch_all(pool)
-            .await?,
-    )
-}
-
 pub async fn delete_by_id(id: i32, pool: &PgPool) -> Result<()> {
     sqlx::query_file_as!(DbBanner, "sql/gi/banners/delete_by_id.sql", id)
         .execute(pool)

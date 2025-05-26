@@ -446,7 +446,7 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
 async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let mut banners: HashMap<_, Vec<_>> = HashMap::new();
 
-    for banner in database::gi::banners::get_all(&pool).await? {
+    for banner in database::gi::banners::get_all(pool).await? {
         if let Some(character) = banner.character {
             banners
                 .entry(character)
@@ -553,7 +553,7 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
 async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let mut banners: HashMap<_, Vec<_>> = HashMap::new();
 
-    for banner in database::gi::banners::get_all(&pool).await? {
+    for banner in database::gi::banners::get_all(pool).await? {
         if let Some(character) = banner.character {
             banners
                 .entry(character)
