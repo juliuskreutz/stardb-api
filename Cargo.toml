@@ -58,3 +58,4 @@ utoipa-swagger-ui = { git = "https://github.com/juhaku/utoipa", features = [
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 webp = "0.3.0"
+tokio = "1.44.0"
