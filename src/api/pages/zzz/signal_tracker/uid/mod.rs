@@ -294,7 +294,7 @@ async fn get_signal_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [14103, 14104, 14110, 14114, 14118, 14121].contains(&signal.item_id) {
+                } else if [14102, 14104, 14110, 14114, 14118, 14121].contains(&signal.item_id) {
                     guarantee = true;
 
                     Some(WinType::Loss)
