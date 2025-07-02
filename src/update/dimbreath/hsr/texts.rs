@@ -69,7 +69,17 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         for achievement_data in &configs.achievement_data {
             let id = achievement_data.id;
 
-            let name = html(&text_map[&achievement_data.title.hash.to_string()])?;
+            let name_key = &achievement_data.title.hash.to_string();
+            let name = match text_map.get(name_key) {
+                Some(val) => html(val)?,
+                None => {
+                    warn!(
+                        "Missing achievement name hash: {} (id: {})",
+                        name_key, id
+                    );
+                    "UNKNOWN".to_string()
+                }
+            };
             let name = gender(&name)?;
 
             let name = if id == 4074007 && language == Language::En {
@@ -90,7 +100,17 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 name
             };
 
-            let description = html(&text_map[&achievement_data.description.hash.to_string()])?;
+            let description_key = &achievement_data.description.hash.to_string();
+            let description = match text_map.get(description_key) {
+                Some(val) => html(val)?,
+                None => {
+                    warn!(
+                        "Missing achievement description hash: {} (id: {})",
+                        description_key, id
+                    );
+                    "UNKNOWN".to_string()
+                }
+            };
             let description = layout(&description)?;
 
             // Idk what's happening here. Leave this as is
