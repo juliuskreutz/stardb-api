@@ -52,6 +52,8 @@ async fn post_delete_unofficial_warps(
     database::warps::standard::delete_unofficial(uid, &pool).await?;
     database::warps::special::delete_unofficial(uid, &pool).await?;
     database::warps::lc::delete_unofficial(uid, &pool).await?;
+    database::warps::collab::delete_unofficial(uid, &pool).await?;
+    database::warps::collab_lc::delete_unofficial(uid, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

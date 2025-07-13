@@ -123,6 +123,8 @@ async fn post_pom_warps_import(
     let mut set_all_standard = database::warps::SetAll::default();
     let mut set_all_special = database::warps::SetAll::default();
     let mut set_all_lc = database::warps::SetAll::default();
+    let mut set_all_collab = database::warps::SetAll::default();
+    let mut set_all_collab_lc = database::warps::SetAll::default();
 
     for (warps, gacha_type) in [
         (&pom.default.departure, GachaType::Departure),
@@ -137,6 +139,8 @@ async fn post_pom_warps_import(
             GachaType::Standard => database::warps::standard::get_count_by_uid(uid, &pool).await?,
             GachaType::Special => database::warps::special::get_count_by_uid(uid, &pool).await?,
             GachaType::Lc => database::warps::lc::get_count_by_uid(uid, &pool).await?,
+            GachaType::Collab => database::warps::collab::get_count_by_uid(uid, &pool).await?,
+            GachaType::CollabLc => database::warps::collab_lc::get_count_by_uid(uid, &pool).await?,
         };
 
         if count as usize + warps.len() >= 50000 {
@@ -154,6 +158,12 @@ async fn post_pom_warps_import(
                 database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?
             }
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            GachaType::Collab => {
+                database::warps::collab::get_earliest_timestamp_by_uid(uid, &pool).await?
+            },
+            GachaType::CollabLc => {
+                database::warps::collab_lc::get_earliest_timestamp_by_uid(uid, &pool).await?
+            },
         };
 
         for warp in warps {
@@ -182,6 +192,8 @@ async fn post_pom_warps_import(
                 GachaType::Standard => &mut set_all_standard,
                 GachaType::Special => &mut set_all_special,
                 GachaType::Lc => &mut set_all_lc,
+                GachaType::Collab => &mut set_all_collab,
+                GachaType::CollabLc => &mut set_all_collab_lc,
             };
 
             set_all.id.push(id);
@@ -197,6 +209,8 @@ async fn post_pom_warps_import(
     database::warps::standard::set_all(&set_all_standard, &pool).await?;
     database::warps::special::set_all(&set_all_special, &pool).await?;
     database::warps::lc::set_all(&set_all_lc, &pool).await?;
+    database::warps::collab::set_all(&set_all_collab, &pool).await?;
+    database::warps::collab_lc::set_all(&set_all_collab_lc, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

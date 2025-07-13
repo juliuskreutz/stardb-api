@@ -25,7 +25,17 @@ WHERE
             SELECT
                 uid
             FROM
-                warps_lc) warps
+                warps_lc
+            UNION ALL
+            SELECT
+                uid
+            FROM
+                warps_collab
+            UNION ALL
+            SELECT
+                uid
+            FROM
+                warps_collab_lc) warps
         WHERE
             mihomo.uid = warps.uid)
     AND NOT EXISTS (

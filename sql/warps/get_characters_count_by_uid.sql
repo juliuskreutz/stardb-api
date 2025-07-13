@@ -30,7 +30,19 @@ FROM (
         uid,
         character
     FROM
-        warps_lc) warps
+        warps_lc
+    UNION ALL
+    SELECT
+        uid,
+        character
+    FROM
+        warps_collab
+    UNION ALL
+    SELECT
+        uid,
+        character
+    FROM
+        warps_collab_lc) warps
     LEFT JOIN characters ON characters.id = character
     LEFT JOIN characters_text ON characters_text.id = character
         AND characters_text.language = $2

@@ -126,6 +126,8 @@ async fn post_srgf_warps_import(
             "2" => GachaType::Departure,
             "11" => GachaType::Special,
             "12" => GachaType::Lc,
+            "21" => GachaType::Collab,
+            "22" => GachaType::CollabLc,
             _ => return Ok(HttpResponse::BadRequest().finish()),
         };
 
@@ -145,6 +147,8 @@ async fn post_srgf_warps_import(
     let mut set_all_standard = database::warps::SetAll::default();
     let mut set_all_special = database::warps::SetAll::default();
     let mut set_all_lc = database::warps::SetAll::default();
+    let mut set_all_collab = database::warps::SetAll::default();
+    let mut set_all_collab_lc = database::warps::SetAll::default();
 
     for gacha_type in GachaType::iter() {
         let Some(warps) = warps_map.get(&gacha_type) else {
@@ -162,6 +166,12 @@ async fn post_srgf_warps_import(
                 database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?
             }
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
+            GachaType::Collab => {
+                database::warps::collab::get_earliest_timestamp_by_uid(uid, &pool).await?
+            },
+            GachaType::CollabLc => {
+                database::warps::collab_lc::get_earliest_timestamp_by_uid(uid, &pool).await?
+            },
         };
 
         let count = match gacha_type {
@@ -171,6 +181,8 @@ async fn post_srgf_warps_import(
             GachaType::Standard => database::warps::standard::get_count_by_uid(uid, &pool).await?,
             GachaType::Special => database::warps::special::get_count_by_uid(uid, &pool).await?,
             GachaType::Lc => database::warps::lc::get_count_by_uid(uid, &pool).await?,
+            GachaType::Collab => database::warps::collab::get_count_by_uid(uid, &pool).await?,
+            GachaType::CollabLc => database::warps::collab_lc::get_count_by_uid(uid, &pool).await?,
         };
 
         if count as usize + warps.len() >= 50000 {
@@ -200,6 +212,8 @@ async fn post_srgf_warps_import(
                 GachaType::Standard => &mut set_all_standard,
                 GachaType::Special => &mut set_all_special,
                 GachaType::Lc => &mut set_all_lc,
+                GachaType::Collab => &mut set_all_collab,
+                GachaType::CollabLc => &mut set_all_collab_lc,
             };
 
             set_all.id.push(id);
@@ -215,6 +229,8 @@ async fn post_srgf_warps_import(
     database::warps::standard::set_all(&set_all_standard, &pool).await?;
     database::warps::special::set_all(&set_all_special, &pool).await?;
     database::warps::lc::set_all(&set_all_lc, &pool).await?;
+    database::warps::collab::set_all(&set_all_collab, &pool).await?;
+    database::warps::collab_lc::set_all(&set_all_collab_lc, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
