@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    characters.id,\n    characters.rarity,\n    characters_text.name,\n    characters_text.path,\n    characters_text.element,\n    characters_text_en.path path_id,\n    characters_text_en.element element_id,\n    COUNT(*)\nFROM (\n    SELECT\n        uid,\n        character\n    FROM\n        warps_departure\n    UNION ALL\n    SELECT\n        uid,\n        character\n    FROM\n        warps_standard\n    UNION ALL\n    SELECT\n        uid,\n        character\n    FROM\n        warps_special\n    UNION ALL\n    SELECT\n        uid,\n        character\n    FROM\n        warps_lc\n    UNION ALL\n    SELECT\n        uid,\n        character\n    FROM\n        warps_collab\n    UNION ALL\n    SELECT\n        uid,\n        character\n    FROM\n        warps_collab_lc) warps\n    LEFT JOIN characters ON characters.id = character\n    LEFT JOIN characters_text ON characters_text.id = character\n        AND characters_text.language = $2\n    LEFT JOIN characters_text AS characters_text_en ON characters_text_en.id = character\n        AND characters_text_en.language = 'en'\nWHERE\n    uid = $1\n    AND character IS NOT NULL\nGROUP BY\n    characters.id,\n    characters.rarity,\n    characters_text.name,\n    characters_text.path,\n    characters_text.element,\n    characters_text_en.path,\n    characters_text_en.element\nORDER BY\n    rarity DESC,\n    id DESC;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "element",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "path_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "element_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "f8a31018c4b621c51b087fc9d0a3f60392389e0c10b8706ddfdf4fe1d65a81f4"
+}

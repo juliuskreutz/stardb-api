@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    light_cones.id,\n    light_cones.rarity,\n    light_cones_text.name,\n    light_cones_text.path,\n    light_cones_text_en.path AS path_id,\n    COUNT(*)\nFROM (\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_departure\n    UNION ALL\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_standard\n    UNION ALL\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_special\n    UNION ALL\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_lc\n    UNION ALL\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_collab\n    UNION ALL\n    SELECT\n        uid,\n        light_cone\n    FROM\n        warps_collab_lc) warps\n    LEFT JOIN light_cones ON light_cones.id = light_cone\n    LEFT JOIN light_cones_text ON light_cones_text.id = light_cone\n        AND light_cones_text.language = $2\n    LEFT JOIN light_cones_text AS light_cones_text_en ON light_cones_text_en.id = light_cone\n        AND light_cones_text_en.language = 'en'\nWHERE\n    uid = $1\n    AND light_cone IS NOT NULL\nGROUP BY\n    light_cones.id,\n    light_cones.rarity,\n    light_cones_text.name,\n    light_cones_text.path,\n    light_cones_text_en.path\nORDER BY\n    rarity DESC,\n    id DESC;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "path_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "74994607cf1da4f5941d6853922c8cbf8b14465bec7a568c43f65c170642391a"
+}
