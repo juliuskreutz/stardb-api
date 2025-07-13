@@ -28,7 +28,19 @@ FROM (
         uid,
         light_cone
     FROM
-        warps_lc) warps
+        warps_lc
+    UNION ALL
+    SELECT
+        uid,
+        light_cone
+    FROM
+        warps_collab
+    UNION ALL
+    SELECT
+        uid,
+        light_cone
+    FROM
+        warps_collab_lc) warps
     LEFT JOIN light_cones ON light_cones.id = light_cone
     LEFT JOIN light_cones_text ON light_cones_text.id = light_cone
         AND light_cones_text.language = $2

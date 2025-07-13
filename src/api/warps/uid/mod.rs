@@ -23,6 +23,8 @@ struct Warps {
     standard: Vec<Warp>,
     character: Vec<Warp>,
     light_cone: Vec<Warp>,
+    collab: Vec<Warp>,
+    collab_lc: Vec<Warp>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -128,12 +130,24 @@ async fn get_warps(
         .into_iter()
         .map(Warp::from)
         .collect();
+    let collab = database::warps::collab::get_by_uid(uid, language, &pool)
+        .await?
+        .into_iter()
+        .map(Warp::from)
+        .collect();
+    let collab_lc = database::warps::collab_lc::get_by_uid(uid, language, &pool)
+        .await?
+        .into_iter()
+        .map(Warp::from)
+        .collect();
 
     let warps = Warps {
         departure,
         standard,
         character,
         light_cone,
+        collab,
+        collab_lc,
     };
 
     Ok(HttpResponse::Ok().json(warps))

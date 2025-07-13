@@ -118,6 +118,8 @@ enum GachaType {
     Departure,
     Special,
     Lc,
+    Collab,
+    CollabLc,
 }
 
 impl GachaType {
@@ -127,6 +129,8 @@ impl GachaType {
             GachaType::Departure => 2,
             GachaType::Special => 11,
             GachaType::Lc => 12,
+            GachaType::Collab => 21,
+            GachaType::CollabLc => 22,
         }
     }
 }

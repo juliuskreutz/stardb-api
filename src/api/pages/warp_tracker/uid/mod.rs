@@ -82,6 +82,8 @@ struct WarpTracker {
     departure: Warps,
     special: Warps,
     lc: Warps,
+    collab: Warps,
+    collab_lc: Warps,
     name: String,
 }
 
@@ -181,7 +183,7 @@ async fn get_warp_tracker(
         }
     }
 
-    // Departure
+    // region Departure
     let mut departure = Warps::default();
     let mut departure_pull = 0;
     let mut departure_pull_4 = 0;
@@ -208,9 +210,9 @@ async fn get_warp_tracker(
     }
 
     departure.count = departure.warps.len();
-    // Departure
+    // endregion Departure
 
-    // Standard
+    // region Standard
     let mut standard = Warps::default();
     let mut standard_pull = 0;
     let mut standard_pull_4 = 0;
@@ -249,9 +251,9 @@ async fn get_warp_tracker(
     };
 
     standard.count = standard.warps.len();
-    // Standard
+    // endregion Standard
 
-    // Special
+    // region Special
     let mut special = Warps::default();
     let mut special_pull = 0;
     let mut special_pull_4 = 0;
@@ -309,9 +311,9 @@ async fn get_warp_tracker(
     };
 
     special.count = special.warps.len();
-    // Special
+    // endregion Special
 
-    // Lc
+    // region Lc
     let mut lc = Warps::default();
     let mut lc_pull = 0;
     let mut lc_pull_4 = 0;
@@ -369,8 +371,125 @@ async fn get_warp_tracker(
     };
 
     lc.count = lc.warps.len();
-    // Lc
+    // endregion Lc
 
+    // region Collab
+    let mut collab = Warps::default();
+    let mut collab_pull = 0;
+    let mut collab_pull_4 = 0;
+    let mut collab_pull_5 = 0;
+    let mut collab_guarantee = false;
+
+    for warp in database::warps::collab::get_by_uid(uid, language, &pool).await? {
+        let mut warp: Warp = warp.into();
+
+        collab_pull += 1;
+        collab_pull_4 += 1;
+        collab_pull_5 += 1;
+
+        warp.pull = collab_pull;
+        warp.pull_4 = collab_pull_4;
+        warp.pull_5 = collab_pull_5;
+
+        match warp.rarity {
+            4 => collab_pull_4 = 0,
+            5 => {
+                collab_pull_5 = 0;
+
+                warp.win = if collab_guarantee {
+                    collab_guarantee = false;
+                    Some(WinType::Guarantee)
+                } else if banners
+                    .get(&warp.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                    .unwrap_or_default()
+                {
+                    Some(WinType::Win)
+                } else {
+                    collab_guarantee = true;
+                    Some(WinType::Loss)
+                };
+            }
+            _ => {}
+        }
+
+        collab.warps.push(warp);
+    }
+
+    collab.pull_4 = collab_pull_4;
+    collab.max_pull_4 = 10;
+    collab.probability_4 = if collab_pull_4 < 9 { 5.1 } else { 100.0 };
+
+    collab.pull_5 = collab_pull_5;
+    collab.max_pull_5 = 90;
+    collab.probability_5 = if collab_pull_5 < 89 {
+        0.6 + 6.0 * collab_pull_5.saturating_sub(72) as f64
+    } else {
+        100.0
+    };
+
+    collab.count = collab.warps.len();
+    // endregion Collab
+
+    // region Collab LC
+    let mut collab_lc = Warps::default();
+    let mut collab_lc_pull = 0;
+    let mut collab_lc_pull_4 = 0;
+    let mut collab_lc_pull_5 = 0;
+    let mut collab_lc_guarantee = false;
+
+    for warp in database::warps::collab_lc::get_by_uid(uid, language, &pool).await? {
+        let mut warp: Warp = warp.into();
+
+        collab_lc_pull += 1;
+        collab_lc_pull_4 += 1;
+        collab_lc_pull_5 += 1;
+
+        warp.pull = collab_lc_pull;
+        warp.pull_4 = collab_lc_pull_4;
+        warp.pull_5 = collab_lc_pull_5;
+
+        match warp.rarity {
+            4 => collab_lc_pull_4 = 0,
+            5 => {
+                collab_lc_pull_5 = 0;
+
+                warp.win = if collab_lc_guarantee {
+                    collab_lc_guarantee = false;
+                    Some(WinType::Guarantee)
+                } else if banners
+                    .get(&warp.item_id)
+                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
+                    .unwrap_or_default()
+                {
+                    Some(WinType::Win)
+                } else {
+                    collab_lc_guarantee = true;
+                    Some(WinType::Loss)
+                };
+            }
+            _ => {}
+        }
+
+        collab_lc.warps.push(warp);
+    }
+
+    collab_lc.pull_4 = collab_lc_pull_4;
+    collab_lc.max_pull_4 = 10;
+    collab_lc.probability_4 = if collab_lc_pull_4 < 9 { 6.6 } else { 100.0 };
+
+    collab_lc.pull_5 = collab_lc_pull_5;
+    collab_lc.max_pull_5 = 80;
+    collab_lc.probability_5 = if collab_lc_pull_5 < 79 {
+        0.8 + 7.0 * collab_lc_pull_5.saturating_sub(64) as f64
+    } else {
+        100.0
+    };
+
+    collab_lc.count = collab_lc.warps.len();
+    // endregion Collab LC
+
+    // region Stats
     if let Some(stats) = database::warps_stats::standard::get_by_uid(uid, &pool).await? {
         let global_stats = database::warps_stats_global::standard::get_by_uid(uid, &pool)
             .await?
@@ -434,11 +553,60 @@ async fn get_warp_tracker(
         });
     }
 
+    if let Some(stats) = database::warps_stats::collab::get_by_uid(uid, &pool).await? {
+        let win_stats = Some(WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        });
+
+        let global_stats = database::warps_stats_global::collab::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
+        collab.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats,
+            global_stats,
+        });
+    }
+
+    if let Some(stats) = database::warps_stats::collab_lc::get_by_uid(uid, &pool).await? {
+        let win_stats = Some(WinStats {
+            win_rate: stats.win_rate,
+            win_streak: stats.win_streak,
+            loss_streak: stats.loss_streak,
+        });
+
+        let global_stats = database::warps_stats_global::collab_lc::get_by_uid(uid, &pool)
+            .await?
+            .map(|stats| GlobalStats {
+                count_percentile: stats.count_percentile,
+                luck_4_percentile: stats.luck_4_percentile,
+                luck_5_percentile: stats.luck_5_percentile,
+            });
+
+        collab_lc.stats = Some(Stats {
+            luck_4: stats.luck_4,
+            luck_5: stats.luck_5,
+            win_stats,
+            global_stats,
+        });
+    }
+    // endregion Stats
+
     let warp_tracker = WarpTracker {
         standard,
         departure,
         special,
         lc,
+        collab,
+        collab_lc,
         name,
     };
 
