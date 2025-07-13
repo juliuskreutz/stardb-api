@@ -109,28 +109,16 @@ async fn post_warps_import(
     warps_import_infos: web::Data<WarpsImportInfos>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let url = Url::parse(&params.url)?;
-
-    let query = url.query_pairs().filter(|(name, _)| {
-        matches!(
-            name.to_string().as_str(),
-            "authkey" | "authkey_ver" | "sign_type"
-        )
-    });
-
-    let mut url = Url::parse(
-        "https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_record/api/getGachaLog",
-    )?;
-
-    url.query_pairs_mut()
-        .extend_pairs(query)
-        .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
-        .finish();
+    let original_url = Url::parse(&params.url)?;
 
     let mut uid = None;
 
-    for gacha_type in GachaType::iter().map(|gt| gt.id()) {
-        let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0"))
+    // try to find the users uid. check each until we find one
+    for gacha_type in GachaType::iter() {
+        let gacha_type_id = gacha_type.id();
+        let url = gacha_log_url(gacha_type, &original_url)?;
+
+        let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0"))
             .await?
             .json()
             .await?;
@@ -215,7 +203,7 @@ async fn post_warps_import(
 
             if let Err(e) = import_warps(
                 uid,
-                &url,
+                &original_url,
                 params.ignore_timestamps,
                 gacha_type,
                 &info,
@@ -249,13 +237,13 @@ async fn post_warps_import(
 
 async fn import_warps(
     uid: i32,
-    url: &Url,
+    original_url: &Url,
     ignore_timestamps: bool,
     gacha_type: GachaType,
     info: &Arc<Mutex<WarpsImportInfo>>,
     pool: &PgPool,
 ) -> ApiResult<()> {
-    let mut url = url.clone();
+    let mut url = gacha_log_url(gacha_type, original_url)?;
     let mut end_id = "0".to_string();
 
     url.query_pairs_mut()
@@ -390,6 +378,39 @@ async fn calculate_stats(
     calculate_stats_collab_lc(uid, pool).await?;
 
     Ok(())
+}
+
+fn gacha_log_url(
+    gacha_type: GachaType,
+    original_url: &Url,
+) -> Result<Url, url::ParseError> {
+    let endpoint = gacha_log_endpoint(gacha_type);
+    let query = original_url.query_pairs().filter(|(name, _)| {
+        matches!(
+            name.to_string().as_str(),
+            "authkey" | "authkey_ver" | "sign_type"
+        )
+    });
+
+    let mut url = Url::parse(&format!(
+        "https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_record/api/{}",
+        endpoint
+    ))?;
+
+    url.query_pairs_mut()
+        .extend_pairs(query)
+        .extend_pairs(&[("lang", "en"), ("game_biz", "hkrpg_global"), ("size", "20")])
+        .finish();
+
+    Ok(url)
+}
+
+fn gacha_log_endpoint(gacha_type: GachaType) -> &'static str {
+    match gacha_type {
+        // Collab banners have a different endpoint
+        GachaType::Collab | GachaType::CollabLc => "getLdGachaLog",
+        _ => "getGachaLog",
+    }
 }
 
 async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
