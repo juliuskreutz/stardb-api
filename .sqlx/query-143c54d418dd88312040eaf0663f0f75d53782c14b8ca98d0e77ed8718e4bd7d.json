@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    *\nFROM\n    warps_stats_special;\n\n",
+  "query": "WITH warp_counts AS (\n    SELECT uid, COUNT(*) AS warp_count\n    FROM warps_special\n    GROUP BY uid\n)\nSELECT\n    stats.uid,\n    stats.luck_4,\n    stats.luck_5,\n    COALESCE(wc.warp_count, 0) AS warp_count\nFROM warps_stats_special stats\n         LEFT JOIN warp_counts wc ON stats.uid = wc.uid\nWHERE wc.warp_count >= 100;",
   "describe": {
     "columns": [
       {
@@ -20,18 +20,8 @@
       },
       {
         "ordinal": 3,
-        "name": "win_rate",
-        "type_info": "Float8"
-      },
-      {
-        "ordinal": 4,
-        "name": "win_streak",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 5,
-        "name": "loss_streak",
-        "type_info": "Int4"
+        "name": "warp_count",
+        "type_info": "Int8"
       }
     ],
     "parameters": {
@@ -41,10 +31,8 @@
       false,
       false,
       false,
-      false,
-      false,
-      false
+      null
     ]
   },
-  "hash": "638f11a501bdfadbf92e6e9ee7bf28f1d787ed7a67fac69d06549678a13faa7c"
+  "hash": "143c54d418dd88312040eaf0663f0f75d53782c14b8ca98d0e77ed8718e4bd7d"
 }
