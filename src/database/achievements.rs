@@ -109,6 +109,7 @@ pub struct DbUpdateAchievement {
     pub timegated: Option<String>,
     pub missable: Option<bool>,
     pub impossible: Option<bool>,
+    pub set: Option<i32>,
 }
 
 pub async fn update_achievement_by_id(
@@ -126,7 +127,8 @@ pub async fn update_achievement_by_id(
         achievement.gacha,
         achievement.timegated,
         achievement.missable,
-        achievement.impossible
+        achievement.impossible,
+        achievement.set
     )
     .execute(pool)
     .await?;

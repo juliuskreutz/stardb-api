@@ -156,6 +156,7 @@ struct UpdateAchievement {
     timegated: Option<String>,
     missable: Option<bool>,
     impossible: Option<bool>,
+    set: Option<i32>,
 }
 
 #[utoipa::path(
@@ -194,6 +195,7 @@ async fn put_zzz_achievements(
             timegated: achievement.timegated.clone(),
             missable: achievement.missable,
             impossible: achievement.impossible,
+            set: achievement.set,
         };
 
         database::zzz::achievements::update_achievement_by_id(&update_achievement, &pool).await?;
