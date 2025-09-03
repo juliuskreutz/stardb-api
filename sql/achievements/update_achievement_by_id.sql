@@ -9,7 +9,8 @@ SET
     gacha = $7,
     timegated = $8,
     missable = $9,
-    impossible = $10
+    impossible = $10,
+    "set" = $11
 WHERE
     id = $1;
 
