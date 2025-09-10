@@ -7,6 +7,7 @@ use std::{
 use actix_web::rt;
 use anyhow::Result;
 use sqlx::PgPool;
+use tokio::time::timeout;
 
 use crate::database;
 
@@ -23,20 +24,36 @@ pub async fn spawn(pool: PgPool) {
 
             let start = Instant::now();
 
-            if let Err(e) = update(pool.clone()).await {
-                error!(
-                    "Signals stats update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
+            // Set a 10-minute timeout for the update task
+            match timeout(Duration::from_secs(10 * 60), update(pool.clone())).await {
+                Ok(result) => {
+                    match result {
+                        Ok(_) => {
+                            info!(
+                                "Signals stats update succeeded in {}s",
+                                start.elapsed().as_secs_f64()
+                            );
 
-                success = false;
-            } else {
-                info!(
-                    "Signals stats update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
+                            success = true;
+                        }
+                        Err(e) => {
+                            error!(
+                                "Signals stats update failed with {e} in {}s",
+                                start.elapsed().as_secs_f64()
+                            );
 
-                success = true;
+                            success = false;
+                        }
+                    }
+                }
+                Err(_) => {
+                    error!(
+                        "Signals stats update timed out after {}s",
+                        start.elapsed().as_secs_f64()
+                    );
+
+                    success = false;
+                }
             }
         }
     });

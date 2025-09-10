@@ -3631,6 +3631,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "strum",
+ "tokio",
  "tracing",
  "tracing-subscriber",
  "url",
