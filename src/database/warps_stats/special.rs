@@ -1,16 +1,9 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-pub struct DbWarpsStatSpecial {
-    pub uid: i32,
-    pub luck_4: f64,
-    pub luck_5: f64,
-    pub win_rate: f64,
-    pub win_streak: i32,
-    pub loss_streak: i32,
-}
+use crate::database::warps_stats::{DbWarpsStat, DbWarpsStatCount};
 
-pub async fn set(stat: &DbWarpsStatSpecial, pool: &PgPool) -> Result<()> {
+pub async fn set(stat: &DbWarpsStat, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/warps_stats/special/set.sql",
         stat.uid,
@@ -26,17 +19,17 @@ pub async fn set(stat: &DbWarpsStatSpecial, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatSpecial>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatCount>> {
     Ok(
-        sqlx::query_file_as!(DbWarpsStatSpecial, "sql/warps_stats/special/get_all.sql")
+        sqlx::query_file_as!(DbWarpsStatCount, "sql/warps_stats/special/get_all_count.sql")
             .fetch_all(pool)
             .await?,
     )
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStatSpecial>> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStat>> {
     Ok(sqlx::query_file_as!(
-        DbWarpsStatSpecial,
+        DbWarpsStat,
         "sql/warps_stats/special/get_by_uid.sql",
         uid,
     )
