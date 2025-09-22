@@ -74,9 +74,11 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
             impossible: db_achievement.impossible,
             set: db_achievement.set,
             related: None,
-            percent: (!db_achievement.impossible)
-                .then_some(db_achievement.percent.unwrap_or_default())
-                .unwrap_or_default(),
+            percent: if !db_achievement.impossible {
+                db_achievement.percent.unwrap_or_default()
+            } else {
+                0.0
+            },
             arcade: db_achievement.arcade,
         }
     }

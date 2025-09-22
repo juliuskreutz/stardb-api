@@ -119,9 +119,11 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
             video: db_achievement.video.clone(),
             gacha: db_achievement.gacha,
             impossible: db_achievement.impossible,
-            percent: (!db_achievement.impossible)
-                .then_some(db_achievement.percent.unwrap_or_default())
-                .unwrap_or_default(),
+            percent: if !db_achievement.impossible {
+                db_achievement.percent.unwrap_or_default()
+            } else {
+                0.0
+            },
             arcade: db_achievement.arcade,
         }
     }
