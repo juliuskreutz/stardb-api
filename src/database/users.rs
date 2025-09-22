@@ -28,6 +28,14 @@ pub async fn get_one_by_username(username: &str, pool: &PgPool) -> Result<DbUser
     )
 }
 
+pub async fn get_by_email(email: &str, pool: &PgPool) -> Result<Vec<DbUser>> {
+    Ok(
+        sqlx::query_file_as!(DbUser, "sql/users/get_by_email.sql", email)
+            .fetch_all(pool)
+            .await?,
+    )
+}
+
 pub async fn update_email_by_username(username: &str, email: &str, pool: &PgPool) -> Result<()> {
     sqlx::query_file!("sql/users/update_email_by_username.sql", username, email,)
         .execute(pool)

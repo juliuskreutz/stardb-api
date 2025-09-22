@@ -40,7 +40,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 #[derive(Deserialize, ToSchema)]
 pub struct RequestToken {
-    username: String,
+    email: String,
 }
 
 #[utoipa::path(
@@ -59,46 +59,49 @@ async fn request_token(
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let username = request_token.username.trim().to_lowercase();
+    let email = request_token.email.trim().to_string();
 
-    if tokens.lock().await.values().any(|s| s == &username) {
+    let users = database::users::get_by_email(&email, &pool).await?;
+
+    if users.is_empty() {
         return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    for user in users {
+        let username = user.username.clone();
+
+        if tokens.lock().await.values().any(|s| s == &username) {
+            continue;
+        }
+
+        let to = format!("{username} <{email}>").parse()?;
+
+        let token = Uuid::new_v4();
+        let email = Message::builder()
+            .from("stardb <noreply@stardb.gg>".parse()?)
+            .to(to)
+            .subject("StarDB.GG Emergency Login")
+            .body(format!(
+                "Use the following link to login:\nhttps://stardb.gg/login?token={token}"
+            ))?;
+
+        let credentials = Credentials::new(env::var("SMTP_USERNAME")?, env::var("SMTP_PASSWORD")?);
+
+        let mailer = SmtpTransport::relay("smtppro.zoho.eu")?
+            .credentials(credentials)
+            .build();
+
+        mailer.send(&email)?;
+
+        tokens.lock().await.insert(token, username.clone());
+
+        let tokens = tokens.clone();
+        rt::spawn(async move {
+            rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+
+            tokens.lock().await.remove(&token);
+        });
     }
-
-    let Ok(user) = database::users::get_one_by_username(&username, &pool).await else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let Some(email) = user.email else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
-    let to = format!("{username} <{email}>").parse()?;
-
-    let token = Uuid::new_v4();
-    let email = Message::builder()
-        .from("stardb <noreply@stardb.gg>".parse()?)
-        .to(to)
-        .subject("StarDB.GG Emergency Login")
-        .body(format!(
-            "Use the following link to login:\nhttps://stardb.gg/login?token={token}"
-        ))?;
-
-    let credentials = Credentials::new(env::var("SMTP_USERNAME")?, env::var("SMTP_PASSWORD")?);
-
-    let mailer = SmtpTransport::relay("smtppro.zoho.eu")?
-        .credentials(credentials)
-        .build();
-
-    mailer.send(&email)?;
-
-    tokens.lock().await.insert(token, username.clone());
-
-    rt::spawn(async move {
-        rt::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
-
-        tokens.lock().await.remove(&token);
-    });
 
     Ok(HttpResponse::Ok().finish())
 }
