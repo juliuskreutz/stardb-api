@@ -12,7 +12,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut achievements_priority = Vec::new();
     let mut achievements_arcade = Vec::new();
 
-    for achievement_data in &configs.achievement["IBHONBJMECB"] {
+    for achievement_data in &configs.achievement["MOFGFFKBLLC"] {
         let id = achievement_data.id;
 
         let series = achievement_data.series;
@@ -35,7 +35,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         achievements_arcade.push(false);
     }
 
-    for arcade_achievement_data in &configs.arcade_achievement["IBHONBJMECB"] {
+    for arcade_achievement_data in &configs.arcade_achievement["MOFGFFKBLLC"] {
         let id = arcade_achievement_data.id;
 
         let series = arcade_achievement_data.series;
