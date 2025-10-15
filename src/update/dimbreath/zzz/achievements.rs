@@ -17,7 +17,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         let series = achievement_data.series;
 
-        let rewards = configs.once_reward["IBHONBJMECB"]
+        let rewards = configs.once_reward["MOFGFFKBLLC"]
             .iter()
             .find(|r| r.id == achievement_data.reward)
             .unwrap();
@@ -40,7 +40,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         let series = arcade_achievement_data.series;
 
-        let rewards = configs.once_reward["IBHONBJMECB"]
+        let rewards = configs.once_reward["MOFGFFKBLLC"]
             .iter()
             .find(|r| r.id == arcade_achievement_data.reward)
             .unwrap();
