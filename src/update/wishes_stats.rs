@@ -86,11 +86,11 @@ async fn standard(pool: &PgPool) -> Result<()> {
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
@@ -157,11 +157,11 @@ async fn character(pool: &PgPool) -> Result<()> {
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
@@ -228,11 +228,11 @@ async fn weapon(pool: &PgPool) -> Result<()> {
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
@@ -299,11 +299,11 @@ async fn chronicled(pool: &PgPool) -> Result<()> {
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()

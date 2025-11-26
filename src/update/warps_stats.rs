@@ -46,25 +46,11 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(pool: PgPool) -> Result<()> {
-    if let Err(e) = standard(&pool).await {
-        error!("standard warps stats update failed: {e}");
-    }
-
-    if let Err(e) = special(&pool).await {
-        error!("special warps stats update failed: {e}");
-    }
-
-    if let Err(e) = lc(&pool).await {
-        error!("lc warps stats update failed: {e}");
-    }
-
-    if let Err(e) = collab(&pool).await {
-        error!("collab warps stats update failed: {e}");
-    }
-
-    if let Err(e) = collab_lc(&pool).await {
-        error!("collab_lc warps stats update failed: {e}");
-    }
+    standard(&pool).await?;
+    special(&pool).await?;
+    lc(&pool).await?;
+    collab(&pool).await?;
+    collab_lc(&pool).await?;
 
     Ok(())
 }
