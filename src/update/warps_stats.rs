@@ -220,12 +220,14 @@ fn calculate_stats(banner_type: &str, stats: Vec<database::warps_stats::DbWarpsS
     sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
+    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
     sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
+    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
     sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.partial_cmp(v2).unwrap_or(Ordering::Equal));
+        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()
