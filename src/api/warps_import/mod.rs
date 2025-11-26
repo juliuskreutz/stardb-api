@@ -446,10 +446,14 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
     let luck_4 = sum_4 as f64 / count_4 as f64;
     let luck_5 = sum_5 as f64 / count_5 as f64;
 
-    let stat = database::warps_stats::standard::DbWarpsStatStandard {
+    let stat = database::warps_stats::DbWarpsStat {
         uid,
         luck_4,
         luck_5,
+        // these don't apply to standard warps
+        win_rate: 0.0,
+        win_streak: 0,
+        loss_streak: 0,
     };
     database::warps_stats::standard::set(&stat, pool).await?;
 
@@ -550,7 +554,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let stat = database::warps_stats::special::DbWarpsStatSpecial {
+    let stat = database::warps_stats::DbWarpsStat {
         uid,
         luck_4,
         luck_5,
@@ -657,7 +661,7 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let stat = database::warps_stats::lc::DbWarpsStatLc {
+    let stat = database::warps_stats::DbWarpsStat {
         uid,
         luck_4,
         luck_5,
@@ -764,7 +768,7 @@ async fn calculate_stats_collab(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let stat = database::warps_stats::collab::DbWarpsStatCollab {
+    let stat = database::warps_stats::DbWarpsStat {
         uid,
         luck_4,
         luck_5,
@@ -871,7 +875,7 @@ async fn calculate_stats_collab_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()
     let luck_5 = sum_5 as f64 / count_5 as f64;
     let win_rate = sum_win as f64 / count_win as f64;
 
-    let stat = database::warps_stats::collab_lc::DbWarpsStatCollabLc {
+    let stat = database::warps_stats::DbWarpsStat {
         uid,
         luck_4,
         luck_5,
