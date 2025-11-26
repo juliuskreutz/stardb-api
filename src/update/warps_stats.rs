@@ -79,8 +79,10 @@ async fn standard(pool: &PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let stats = calculate_stats(warp_stats);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+    let stats = calculate_stats("standard", warp_stats);
+    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "standard");
         database::warps_stats_global::standard::set_bulk(batch, pool).await?;
     }
 
@@ -103,8 +105,10 @@ async fn special(pool: &PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let stats = calculate_stats(warp_stats);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+    let stats = calculate_stats("special", warp_stats);
+    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "special");
         database::warps_stats_global::special::set_bulk(batch, pool).await?;
     }
 
@@ -127,8 +131,10 @@ async fn lc(pool: &PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let stats = calculate_stats(warp_stats);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+    let stats = calculate_stats("lc", warp_stats);
+    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "lc");
         database::warps_stats_global::lc::set_bulk(batch, pool).await?;
     }
 
@@ -151,8 +157,10 @@ async fn collab(pool: &PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let stats = calculate_stats(warp_stats);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+    let stats = calculate_stats("collab", warp_stats);
+    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "collab");
         database::warps_stats_global::collab::set_bulk(batch, pool).await?;
     }
 
@@ -175,8 +183,10 @@ async fn collab_lc(pool: &PgPool) -> Result<()> {
         return Ok(());
     }
 
-    let stats = calculate_stats(warp_stats);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+    let stats = calculate_stats("collab lc", warp_stats);
+    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "collab lc");
         database::warps_stats_global::collab_lc::set_bulk(batch, pool).await?;
     }
 
@@ -189,7 +199,8 @@ async fn collab_lc(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-fn calculate_stats(stats: Vec<database::warps_stats::DbWarpsStatCount>) -> Vec<DbWarpsStatGlobal> {
+fn calculate_stats(banner_type: &str, stats: Vec<database::warps_stats::DbWarpsStatCount>) -> Vec<DbWarpsStatGlobal> {
+    info!("Calculating {} warp stats for banner: {}", stats.len(), banner_type);
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
