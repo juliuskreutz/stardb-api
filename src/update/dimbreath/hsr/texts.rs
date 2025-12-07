@@ -73,10 +73,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
             let name = match text_map.get(name_key) {
                 Some(val) => html(val)?,
                 None => {
-                    warn!(
-                        "Missing achievement name hash: {} (id: {})",
-                        name_key, id
-                    );
+                    warn!("Missing achievement name hash: {} (id: {})", name_key, id);
                     "UNKNOWN".to_string()
                 }
             };

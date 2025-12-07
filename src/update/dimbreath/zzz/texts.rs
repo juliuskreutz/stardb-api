@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fs::File, io::BufReader};
-use std::path::Path;
 use regex::{Captures, Regex};
 use sqlx::PgPool;
+use std::path::Path;
+use std::{collections::HashMap, fs::File, io::BufReader};
 
 use crate::{database, Language};
 
@@ -53,9 +53,8 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 "dimbreath/ZenlessData/TextMap/TextMap{language_str}TemplateTb.json",
             ))?))?;
 
-        let overwrite_path = format!(
-            "dimbreath/ZenlessData/TextMap/TextMap{language_str}OverwriteTemplateTb.json"
-        );
+        let overwrite_path =
+            format!("dimbreath/ZenlessData/TextMap/TextMap{language_str}OverwriteTemplateTb.json");
 
         if Path::new(&overwrite_path).exists() {
             let overwrite_map: HashMap<String, String> =

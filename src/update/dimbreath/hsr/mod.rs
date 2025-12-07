@@ -207,9 +207,9 @@ async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
         "dimbreath/TurnBasedGameData/ExcelOutput/RewardData.json",
     )?))?;
 
-    let mut avatar_config: Vec<AvatarConfig> = serde_json::from_reader(BufReader::new(File::open(
-        "dimbreath/TurnBasedGameData/ExcelOutput/AvatarConfig.json",
-    )?))?;
+    let mut avatar_config: Vec<AvatarConfig> = serde_json::from_reader(BufReader::new(
+        File::open("dimbreath/TurnBasedGameData/ExcelOutput/AvatarConfig.json")?,
+    ))?;
 
     // collab characters avatar data (fate collab)
     let avatar_config_ld: Vec<AvatarConfig> = serde_json::from_reader(BufReader::new(File::open(

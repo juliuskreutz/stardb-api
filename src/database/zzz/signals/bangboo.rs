@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::Language;
@@ -54,6 +53,14 @@ pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
             .count
             .unwrap(),
     )
+}
+
+pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query_file!("sql/zzz/signals/bangboo/delete_all.sql", uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {

@@ -68,10 +68,14 @@ async fn standard(pool: &PgPool) -> Result<()> {
     let stats = calculate_stats("standard", warp_stats);
     let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "standard");
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            "standard"
+        );
         database::warps_stats_global::standard::set_bulk(batch, pool).await?;
     }
-
 
     info!(
         "Standard warps stats updated: {} in {}s",
@@ -94,7 +98,12 @@ async fn special(pool: &PgPool) -> Result<()> {
     let stats = calculate_stats("special", warp_stats);
     let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "special");
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            "special"
+        );
         database::warps_stats_global::special::set_bulk(batch, pool).await?;
     }
 
@@ -120,7 +129,12 @@ async fn lc(pool: &PgPool) -> Result<()> {
     let stats = calculate_stats("lc", warp_stats);
     let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "lc");
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            "lc"
+        );
         database::warps_stats_global::lc::set_bulk(batch, pool).await?;
     }
 
@@ -146,7 +160,12 @@ async fn collab(pool: &PgPool) -> Result<()> {
     let stats = calculate_stats("collab", warp_stats);
     let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "collab");
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            "collab"
+        );
         database::warps_stats_global::collab::set_bulk(batch, pool).await?;
     }
 
@@ -172,7 +191,12 @@ async fn collab_lc(pool: &PgPool) -> Result<()> {
     let stats = calculate_stats("collab lc", warp_stats);
     let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!("processing batch {} of {} for banner {}", i + 1, total_batches, "collab lc");
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            "collab lc"
+        );
         database::warps_stats_global::collab_lc::set_bulk(batch, pool).await?;
     }
 
@@ -185,8 +209,15 @@ async fn collab_lc(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-fn calculate_stats(banner_type: &str, stats: Vec<database::warps_stats::DbWarpsStatCount>) -> Vec<DbWarpsStatGlobal> {
-    info!("Calculating {} warp stats for banner: {}", stats.len(), banner_type);
+fn calculate_stats(
+    banner_type: &str,
+    stats: Vec<database::warps_stats::DbWarpsStatCount>,
+) -> Vec<DbWarpsStatGlobal> {
+    info!(
+        "Calculating {} warp stats for banner: {}",
+        stats.len(),
+        banner_type
+    );
     let mut count_map = HashMap::new();
     let mut luck_4_map = HashMap::new();
     let mut luck_5_map = HashMap::new();
@@ -207,13 +238,11 @@ fn calculate_stats(banner_type: &str, stats: Vec<database::warps_stats::DbWarpsS
 
     let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
     // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_4
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
+    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
     // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_5
-        .sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
+    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
 
     let count_percentiles: HashMap<_, _> = sorted_count
         .into_iter()

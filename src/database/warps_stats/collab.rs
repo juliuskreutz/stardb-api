@@ -28,11 +28,9 @@ pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatCount>> {
 }
 
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStat>> {
-    Ok(sqlx::query_file_as!(
-        DbWarpsStat,
-        "sql/warps_stats/collab/get_by_uid.sql",
-        uid,
+    Ok(
+        sqlx::query_file_as!(DbWarpsStat, "sql/warps_stats/collab/get_by_uid.sql", uid,)
+            .fetch_optional(pool)
+            .await?,
     )
-    .fetch_optional(pool)
-    .await?)
 }

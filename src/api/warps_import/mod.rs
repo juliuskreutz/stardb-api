@@ -118,10 +118,11 @@ async fn post_warps_import(
         let gacha_type_id = gacha_type.id();
         let url = gacha_log_url(gacha_type, &original_url)?;
 
-        let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0"))
-            .await?
-            .json()
-            .await?;
+        let gacha_log: GachaLog =
+            reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0"))
+                .await?
+                .json()
+                .await?;
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = Some(entry.uid.parse()?);
@@ -265,10 +266,10 @@ async fn import_warps(
         GachaType::Lc => database::warps::lc::get_latest_timestamp_by_uid(uid, pool).await?,
         GachaType::Collab => {
             database::warps::collab::get_latest_timestamp_by_uid(uid, pool).await?
-        },
+        }
         GachaType::CollabLc => {
             database::warps::collab_lc::get_latest_timestamp_by_uid(uid, pool).await?
-        },
+        }
     };
 
     'outer: loop {
@@ -380,10 +381,7 @@ async fn calculate_stats(
     Ok(())
 }
 
-fn gacha_log_url(
-    gacha_type: GachaType,
-    original_url: &Url,
-) -> Result<Url, url::ParseError> {
+fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::ParseError> {
     let endpoint = gacha_log_endpoint(gacha_type);
     let query = original_url.query_pairs().filter(|(name, _)| {
         matches!(

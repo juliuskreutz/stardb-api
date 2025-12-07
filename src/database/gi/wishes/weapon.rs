@@ -78,6 +78,14 @@ pub async fn get_latest_timestamp_by_uid(
     )
 }
 
+pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query_file!("sql/gi/wishes/weapon/delete_all.sql", uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!("sql/gi/wishes/weapon/delete_unofficial.sql", uid)
         .execute(pool)

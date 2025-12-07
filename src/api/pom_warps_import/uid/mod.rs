@@ -160,10 +160,10 @@ async fn post_pom_warps_import(
             GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
             GachaType::Collab => {
                 database::warps::collab::get_earliest_timestamp_by_uid(uid, &pool).await?
-            },
+            }
             GachaType::CollabLc => {
                 database::warps::collab_lc::get_earliest_timestamp_by_uid(uid, &pool).await?
-            },
+            }
         };
 
         for warp in warps {

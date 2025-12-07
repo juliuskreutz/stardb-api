@@ -44,11 +44,13 @@ pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbW
 }
 
 pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(sqlx::query_file!("sql/warps/collab_lc/get_count_by_uid.sql", uid)
-        .fetch_one(pool)
-        .await?
-        .count
-        .unwrap())
+    Ok(
+        sqlx::query_file!("sql/warps/collab_lc/get_count_by_uid.sql", uid)
+            .fetch_one(pool)
+            .await?
+            .count
+            .unwrap(),
+    )
 }
 
 pub async fn get_earliest_timestamp_by_uid(
@@ -73,6 +75,14 @@ pub async fn get_latest_timestamp_by_uid(
             .await?
             .max,
     )
+}
+
+pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query_file!("sql/warps/collab_lc/delete_all.sql", uid)
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {

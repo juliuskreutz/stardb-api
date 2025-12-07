@@ -34,8 +34,8 @@ pub async fn set_bulk(stats: &[DbWarpsStatGlobal], pool: &PgPool) -> Result<()> 
         &luck_4_percentiles,
         &luck_5_percentiles,
     )
-        .execute(pool)
-        .await?;
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
