@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     time::{Duration, Instant},
 };
@@ -66,7 +65,7 @@ async fn standard(pool: &PgPool) -> Result<()> {
     }
 
     let stats = calculate_stats("standard", warp_stats);
-    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
         info!(
             "processing batch {} of {} for banner {}",
@@ -96,7 +95,7 @@ async fn special(pool: &PgPool) -> Result<()> {
     }
 
     let stats = calculate_stats("special", warp_stats);
-    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
         info!(
             "processing batch {} of {} for banner {}",
@@ -127,7 +126,7 @@ async fn lc(pool: &PgPool) -> Result<()> {
     }
 
     let stats = calculate_stats("lc", warp_stats);
-    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
         info!(
             "processing batch {} of {} for banner {}",
@@ -158,7 +157,7 @@ async fn collab(pool: &PgPool) -> Result<()> {
     }
 
     let stats = calculate_stats("collab", warp_stats);
-    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
         info!(
             "processing batch {} of {} for banner {}",
@@ -189,7 +188,7 @@ async fn collab_lc(pool: &PgPool) -> Result<()> {
     }
 
     let stats = calculate_stats("collab lc", warp_stats);
-    let total_batches = (stats.len() + UPDATE_BATCH_SIZE - 1) / UPDATE_BATCH_SIZE;
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
     for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
         info!(
             "processing batch {} of {} for banner {}",

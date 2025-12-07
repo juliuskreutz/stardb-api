@@ -3,20 +3,6 @@ use sqlx::PgPool;
 
 use crate::database::warps_stats_global::DbWarpsStatGlobal;
 
-pub async fn set(stat: &DbWarpsStatGlobal, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/warps_stats_global/collab/set.sql",
-        stat.uid,
-        stat.count_percentile,
-        stat.luck_4_percentile,
-        stat.luck_5_percentile,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
 pub async fn set_bulk(stats: &[DbWarpsStatGlobal], pool: &PgPool) -> Result<()> {
     if stats.is_empty() {
         return Ok(());
