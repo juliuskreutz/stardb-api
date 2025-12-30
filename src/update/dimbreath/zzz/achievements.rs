@@ -12,12 +12,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
     let mut achievements_priority = Vec::new();
     let mut achievements_arcade = Vec::new();
 
-    for achievement_data in &configs.achievement["OOFFGGKCDID"] {
+    for achievement_data in &configs.achievement["CAHPHFENANN"] {
         let id = achievement_data.id;
 
         let series = achievement_data.series;
 
-        let rewards = configs.once_reward["OOFFGGKCDID"]
+        let rewards = configs.once_reward["CAHPHFENANN"]
             .iter()
             .find(|r| r.id == achievement_data.reward)
             .unwrap();
@@ -35,12 +35,12 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         achievements_arcade.push(false);
     }
 
-    for arcade_achievement_data in &configs.arcade_achievement["OOFFGGKCDID"] {
+    for arcade_achievement_data in &configs.arcade_achievement["CAHPHFENANN"] {
         let id = arcade_achievement_data.id;
 
         let series = arcade_achievement_data.series;
 
-        let rewards = configs.once_reward["OOFFGGKCDID"]
+        let rewards = configs.once_reward["CAHPHFENANN"]
             .iter()
             .find(|r| r.id == arcade_achievement_data.reward)
             .unwrap();
