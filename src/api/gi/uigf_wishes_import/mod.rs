@@ -179,13 +179,17 @@ async fn post_uigf_warps_import(
                 let id = wish.id;
                 let item_id = wish.item_id;
 
-                let (character, light_cone) = if wish.item_type == "Character" {
-                    (Some(item_id), None)
-                } else if wish.item_type == "Weapons" {
-                    (None, Some(item_id))
-                } else {
-                    return Ok(HttpResponse::BadRequest().finish());
-                };
+                let (character, light_cone) =
+                    if wish.item_type == "Character" || wish.item_type == "角色" {
+                        (Some(item_id), None)
+                    } else if wish.item_type == "Weapon"
+                        || wish.item_type == "Weapons"  // Weapons should never happen but it does not hurt
+                        || wish.item_type == "武器"
+                    {
+                        (None, Some(item_id))
+                    } else {
+                        return Ok(HttpResponse::BadRequest().finish());
+                    };
 
                 let set_all = match gacha_type {
                     GiGachaType::Beginner => &mut set_all_beginner,
