@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM zzz_signals_w_engine_reverberation\nWHERE uid = $1\n    AND NOT official;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "698d602045120a24c46e39674b05432c398b2e8ec8c3ff7511e7fe95f17b7aec"
+}

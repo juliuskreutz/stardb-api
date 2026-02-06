@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    count(*)\nFROM\n    zzz_signals_exclusive_rescreening\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "675e9ab123416b5a7a9805c92eb2e198cbd5ff857c4373e35002280a6de5a698"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    count(*)\nFROM\n    zzz_signals_w_engine_reverberation\nWHERE\n    uid = $1;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "faeea28bdc785db3c4661273d307d7efd11a3400cb4c45e73768daa35b18437d"
+}
