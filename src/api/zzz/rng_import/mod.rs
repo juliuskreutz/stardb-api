@@ -99,12 +99,22 @@ async fn post_rng_signals_import(
         .get(ZzzGachaType::Bangboo.id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
+    let exclusive_rescreening_signals: Vec<Signal> = signals
+        .get(ZzzGachaType::ExclusiveRescreening.id().to_string())
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    let w_engine_reverberation_signals: Vec<Signal> = signals
+        .get(ZzzGachaType::WEngineReverberation.id().to_string())
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
 
     for (signals, gacha_type) in [
         (standard_signals, ZzzGachaType::Standard),
         (special_signals, ZzzGachaType::Special),
         (w_engine_signals, ZzzGachaType::WEngine),
         (bangboo_signals, ZzzGachaType::Bangboo),
+        (exclusive_rescreening_signals, ZzzGachaType::ExclusiveRescreening),
+        (w_engine_reverberation_signals, ZzzGachaType::WEngineReverberation),
     ] {
         let mut set_all = database::zzz::signals::SetAll::default();
 
@@ -154,7 +164,13 @@ async fn post_rng_signals_import(
             }
             ZzzGachaType::Bangboo => {
                 database::zzz::signals::bangboo::set_all(&set_all, &pool).await?
-            }
+            },
+            ZzzGachaType::ExclusiveRescreening => {
+                database::zzz::signals::exclusive_rescreening::set_all(&set_all, &pool).await?
+            },
+            ZzzGachaType::WEngineReverberation => {
+                database::zzz::signals::w_engine_reverberation::set_all(&set_all, &pool).await?
+            },
         }
     }
 

@@ -3,6 +3,10 @@ pub mod special;
 pub mod standard;
 pub mod w_engine;
 
+pub mod exclusive_rescreening;
+
+pub mod w_engine_reverberation;
+
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 

@@ -152,6 +152,8 @@ enum ZzzGachaType {
     Special,
     WEngine,
     Bangboo,
+    ExclusiveRescreening,
+    WEngineReverberation,
 }
 
 impl ZzzGachaType {
@@ -161,6 +163,8 @@ impl ZzzGachaType {
             ZzzGachaType::Special => 2001,
             ZzzGachaType::WEngine => 3001,
             ZzzGachaType::Bangboo => 5001,
+            ZzzGachaType::ExclusiveRescreening => 12001,
+            ZzzGachaType::WEngineReverberation => 13001,
         }
     }
 }

@@ -76,6 +76,8 @@ struct SignalsImportInfo {
     special: usize,
     w_engine: usize,
     bangboo: usize,
+    exclusive_rescreening: usize,
+    w_engine_reverberation: usize,
     status: Status,
 }
 
@@ -144,6 +146,8 @@ async fn post_zzz_signals_import(
             bangboo: 0,
             special: 0,
             w_engine: 0,
+            exclusive_rescreening: 0,
+            w_engine_reverberation: 0,
             status: Status::Error("No data".to_string()),
         }));
 
@@ -174,6 +178,8 @@ async fn post_zzz_signals_import(
         bangboo: 0,
         special: 0,
         w_engine: 0,
+        exclusive_rescreening: 0,
+        w_engine_reverberation: 0,
         status: Status::Pending,
     }));
 
@@ -291,6 +297,8 @@ async fn import_signals(
                 ZzzGachaType::Special => info.lock().await.special += 1,
                 ZzzGachaType::WEngine => info.lock().await.w_engine += 1,
                 ZzzGachaType::Bangboo => info.lock().await.bangboo += 1,
+                ZzzGachaType::ExclusiveRescreening => info.lock().await.exclusive_rescreening += 1,
+                ZzzGachaType::WEngineReverberation => info.lock().await.w_engine_reverberation += 1,
             }
         }
     }
@@ -300,6 +308,8 @@ async fn import_signals(
         ZzzGachaType::Special => database::zzz::signals::special::set_all(&set_all, pool).await?,
         ZzzGachaType::WEngine => database::zzz::signals::w_engine::set_all(&set_all, pool).await?,
         ZzzGachaType::Bangboo => database::zzz::signals::bangboo::set_all(&set_all, pool).await?,
+        ZzzGachaType::ExclusiveRescreening => database::zzz::signals::exclusive_rescreening::set_all(&set_all, pool).await?,
+        ZzzGachaType::WEngineReverberation => database::zzz::signals::w_engine_reverberation::set_all(&set_all, pool).await?,
     }
 
     Ok(())

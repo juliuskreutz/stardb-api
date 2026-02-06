@@ -52,6 +52,8 @@ async fn post_delete_all_signals(
     database::zzz::signals::standard::delete_all(uid, &pool).await?;
     database::zzz::signals::special::delete_all(uid, &pool).await?;
     database::zzz::signals::w_engine::delete_all(uid, &pool).await?;
+    database::zzz::signals::exclusive_rescreening::delete_all(uid, &pool).await?;
+    database::zzz::signals::w_engine_reverberation::delete_all(uid, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

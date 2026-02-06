@@ -52,6 +52,8 @@ async fn post_delete_unofficial_signals(
     database::zzz::signals::standard::delete_unofficial(uid, &pool).await?;
     database::zzz::signals::special::delete_unofficial(uid, &pool).await?;
     database::zzz::signals::w_engine::delete_unofficial(uid, &pool).await?;
+    database::zzz::signals::exclusive_rescreening::delete_unofficial(uid, &pool).await?;
+    database::zzz::signals::w_engine_reverberation::delete_unofficial(uid, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
