@@ -49,10 +49,27 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {}", language);
 
-        let text_map: HashMap<String, String> =
-            serde_json::from_reader(BufReader::new(File::open(format!(
-                "dimbreath/TurnBasedGameData/TextMap/TextMap{language_str}.json",
-            ))?))?;
+        let text_map: HashMap<String, String> = if let Ok(file) = File::open(format!(
+            "dimbreath/TurnBasedGameData/TextMap/TextMap{language_str}.json",
+        )) {
+            serde_json::from_reader(BufReader::new(file))?
+        } else {
+            let mut text_map = HashMap::new();
+
+            for i in 0.. {
+                let Ok(file) = File::open(format!(
+                    "dimbreath/TurnBasedGameData/TextMap/TextMap{language_str}_{i}.json",
+                )) else {
+                    break;
+                };
+
+                let text_map_part: HashMap<String, String> =
+                    serde_json::from_reader(BufReader::new(file))?;
+                text_map.extend(text_map_part);
+            }
+
+            text_map
+        };
 
         info!("Starting {} achievement series", language);
         for achievement_series in &configs.achievement_series {
