@@ -25,6 +25,22 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_uigf_warps_import);
 }
 
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum StringOrInt {
+    String(String),
+    Int(i32),
+}
+
+impl StringOrInt {
+    fn parse(self) -> Result<i32, std::num::ParseIntError> {
+        match self {
+            StringOrInt::String(s) => s.parse(),
+            StringOrInt::Int(i) => Ok(i),
+        }
+    }
+}
+
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct UigfWishesImportParams {
     data: String,
@@ -37,7 +53,7 @@ struct Uigf {
 
 #[derive(serde::Deserialize)]
 struct Hk4e {
-    uid: String,
+    uid: StringOrInt,
     timezone: i32,
     list: Vec<Pull>,
 }
