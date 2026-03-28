@@ -36,13 +36,42 @@ pub struct SpaceInfo {
     pub achievement_count: i32,
 }
 
+fn cache_path(language: &Language, uid: i32) -> String {
+    format!("mihomo/{}_{uid}.br", language.mihomo())
+}
+
+fn load_cached(language: &Language, uid: i32) -> Result<Option<Mihomo>> {
+    let path = cache_path(language, uid);
+    if PathBuf::from(&path).exists() {
+        let decompressor = brotli::Decompressor::new(File::open(&path)?, 4096);
+        Ok(Some(serde_json::from_reader(decompressor)?))
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
-    let path = format!("mihomo/{}_{uid}.br", language.mihomo());
+    let path = cache_path(&language, uid);
 
     if PathBuf::from(&path).exists() {
         let decompressor = brotli::Decompressor::new(File::open(&path)?, 4096);
+        let cached_json: Value = serde_json::from_reader(decompressor)?;
+        let cached: Mihomo = serde_json::from_value(cached_json.clone())?;
 
-        Ok(serde_json::from_reader(decompressor)?)
+        let should_update = if language == Language::En {
+            false
+        } else {
+            match load_cached(&Language::En, uid)? {
+                Some(en) => cached.updated_at < en.updated_at,
+                None => true,
+            }
+        };
+
+        if should_update {
+            update_and_get(uid, language, pool).await
+        } else {
+            Ok(cached_json)
+        }
     } else {
         update_and_get(uid, language, pool).await
     }
@@ -61,15 +90,35 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
         o.insert("updated_at".to_string(), serde_json::to_value(now)?);
     }
 
+    let (en_json, is_english) = if language == Language::En {
+        (json.clone(), true)
+    } else {
+        let en_url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang=en&version=v2",);
+
+        let mut en_json: Value = reqwest::get(&en_url).await?.json().await?;
+        if let Some(o) = en_json.as_object_mut() {
+            o.insert("updated_at".to_string(), serde_json::to_value(now)?);
+        }
+        (en_json, false)
+    };
+
     if serde_json::from_value::<Mihomo>(json.clone()).is_ok() {
-        let file = File::create(format!("mihomo/{}_{uid}.br", language.mihomo()))?;
+        let file = File::create(cache_path(&language, uid))?;
 
         let writer = brotli::CompressorWriter::new(file, 4096, 4, 22);
 
         serde_json::to_writer(writer, &json)?;
     }
 
-    let mihomo: Mihomo = serde_json::from_value(json.clone())?;
+    if !is_english && serde_json::from_value::<Mihomo>(en_json.clone()).is_ok() {
+        let file = File::create(cache_path(&Language::En, uid))?;
+
+        let writer = brotli::CompressorWriter::new(file, 4096, 4, 22);
+
+        serde_json::to_writer(writer, &en_json)?;
+    }
+
+    let mihomo: Mihomo = serde_json::from_value(en_json)?;
 
     let re = Regex::new(r"<[^>]*>")?;
 
