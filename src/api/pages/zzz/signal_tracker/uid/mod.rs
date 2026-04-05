@@ -10,6 +10,9 @@ use crate::{
     database,
 };
 
+const AGENT_LOSS_IDS: &[i32] = &[1021, 1041, 1101, 1141, 1181, 1211];
+const W_ENGINE_LOSS_IDS: &[i32] = &[14102, 14104, 14110, 14114, 14118, 14121];
+
 #[derive(OpenApi)]
 #[openapi(paths(get_signal_tracker))]
 struct ApiDoc;
@@ -87,6 +90,8 @@ struct SignalTracker {
     special: Signals,
     w_engine: Signals,
     bangboo: Signals,
+    exclusive_rescreening: Signals,
+    w_engine_reverberation: Signals,
 }
 
 #[derive(Default, Serialize)]
@@ -237,7 +242,7 @@ async fn get_signal_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [1021, 1041, 1101, 1141, 1181, 1211].contains(&signal.item_id) {
+                } else if AGENT_LOSS_IDS.contains(&signal.item_id) {
                     guarantee = true;
 
                     Some(WinType::Loss)
@@ -294,7 +299,7 @@ async fn get_signal_tracker(
                     guarantee = false;
 
                     Some(WinType::Guarantee)
-                } else if [14102, 14104, 14110, 14114, 14118, 14121].contains(&signal.item_id) {
+                } else if W_ENGINE_LOSS_IDS.contains(&signal.item_id) {
                     guarantee = true;
 
                     Some(WinType::Loss)
@@ -366,6 +371,120 @@ async fn get_signal_tracker(
 
     bangboo.count = bangboo.signals.len();
     // Bangboo
+
+    // Exclusive Rescreening
+    let mut exclusive_rescreening = Signals::default();
+    let mut exclusive_rescreening_pull = 0;
+    let mut exclusive_rescreening_pull_a = 0;
+    let mut exclusive_rescreening_pull_s = 0;
+    let mut guarantee = false;
+
+    for signal in database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool).await? {
+        let mut signal: Signal = signal.into();
+
+        exclusive_rescreening_pull += 1;
+        exclusive_rescreening_pull_a += 1;
+        exclusive_rescreening_pull_s += 1;
+
+        signal.pull = exclusive_rescreening_pull;
+        signal.pull_4 = exclusive_rescreening_pull_a;
+        signal.pull_5 = exclusive_rescreening_pull_s;
+
+        match signal.rarity {
+            3 => exclusive_rescreening_pull_a = 0,
+            4 => {
+                exclusive_rescreening_pull_a = 0;
+                exclusive_rescreening_pull_s = 0;
+
+                signal.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if AGENT_LOSS_IDS.contains(&signal.item_id) {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
+            }
+            _ => {}
+        }
+
+        exclusive_rescreening.signals.push(signal);
+    }
+
+    exclusive_rescreening.pull_4 = exclusive_rescreening_pull_a;
+    exclusive_rescreening.max_pull_4 = 10;
+    exclusive_rescreening.probability_4 = if exclusive_rescreening_pull_a < 9 { 9.4 } else { 100.0 };
+
+    exclusive_rescreening.pull_5 = exclusive_rescreening_pull_s;
+    exclusive_rescreening.max_pull_5 = 90;
+    exclusive_rescreening.probability_5 = if exclusive_rescreening_pull_s < 89 {
+        0.6 + 6.0 * exclusive_rescreening_pull_s.saturating_sub(72) as f64
+    } else {
+        100.0
+    };
+
+    exclusive_rescreening.count = exclusive_rescreening.signals.len();
+    // Exclusive Rescreening
+
+    // WEngine Reverberation
+    let mut w_engine_reverberation = Signals::default();
+    let mut w_engine_reverberation_pull = 0;
+    let mut w_engine_reverberation_pull_a = 0;
+    let mut w_engine_reverberation_pull_s = 0;
+    let mut guarantee = false;
+
+    for signal in database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool).await? {
+        let mut signal: Signal = signal.into();
+
+        w_engine_reverberation_pull += 1;
+        w_engine_reverberation_pull_a += 1;
+        w_engine_reverberation_pull_s += 1;
+
+        signal.pull = w_engine_reverberation_pull;
+        signal.pull_4 = w_engine_reverberation_pull_a;
+        signal.pull_5 = w_engine_reverberation_pull_s;
+
+        match signal.rarity {
+            3 => w_engine_reverberation_pull_a = 0,
+            4 => {
+                w_engine_reverberation_pull_a = 0;
+                w_engine_reverberation_pull_s = 0;
+
+                signal.win = if guarantee {
+                    guarantee = false;
+
+                    Some(WinType::Guarantee)
+                } else if W_ENGINE_LOSS_IDS.contains(&signal.item_id) {
+                    guarantee = true;
+
+                    Some(WinType::Loss)
+                } else {
+                    Some(WinType::Win)
+                };
+            }
+            _ => {}
+        }
+
+        w_engine_reverberation.signals.push(signal);
+    }
+
+    w_engine_reverberation.pull_4 = w_engine_reverberation_pull_a;
+    w_engine_reverberation.max_pull_4 = 10;
+    w_engine_reverberation.probability_4 = if w_engine_reverberation_pull_a < 9 { 15.0 } else { 100.0 };
+
+    w_engine_reverberation.pull_5 = w_engine_reverberation_pull_s;
+    w_engine_reverberation.max_pull_5 = 80;
+    w_engine_reverberation.probability_5 = if w_engine_reverberation_pull_s < 79 {
+        1.0 + 7.0 * w_engine_reverberation_pull_s.saturating_sub(64) as f64
+    } else {
+        100.0
+    };
+
+    w_engine_reverberation.count = w_engine_reverberation.signals.len();
+    // WEngine Reverberation
 
     if let Some(stats) = database::zzz::signals_stats::standard::get_by_uid(uid, &pool).await? {
         let global_stats = database::zzz::signals_stats_global::standard::get_by_uid(uid, &pool)
@@ -452,6 +571,8 @@ async fn get_signal_tracker(
         special,
         w_engine,
         bangboo,
+        exclusive_rescreening,
+        w_engine_reverberation,
     };
 
     Ok(HttpResponse::Ok().json(signal_tracker))
