@@ -167,6 +167,17 @@ impl ZzzGachaType {
             ZzzGachaType::WEngineReverberation => 103,
         }
     }
+
+    pub fn old_id(self) -> i32 {
+        match self {
+            ZzzGachaType::Standard => 1001,
+            ZzzGachaType::Special => 2001,
+            ZzzGachaType::WEngine => 3001,
+            ZzzGachaType::Bangboo => 5001,
+            ZzzGachaType::ExclusiveRescreening => 12001,
+            ZzzGachaType::WEngineReverberation => 13001,
+        }
+    }
 }
 
 #[derive(

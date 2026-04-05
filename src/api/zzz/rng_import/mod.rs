@@ -84,27 +84,27 @@ async fn post_rng_signals_import(
     let signals = profile["stores"]["0"]["items"].clone();
 
     let standard_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Standard.id().to_string())
+        .get(ZzzGachaType::Standard.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     let special_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Special.id().to_string())
+        .get(ZzzGachaType::Special.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     let w_engine_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::WEngine.id().to_string())
+        .get(ZzzGachaType::WEngine.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     let bangboo_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Bangboo.id().to_string())
+        .get(ZzzGachaType::Bangboo.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     let exclusive_rescreening_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::ExclusiveRescreening.id().to_string())
+        .get(ZzzGachaType::ExclusiveRescreening.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     let w_engine_reverberation_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::WEngineReverberation.id().to_string())
+        .get(ZzzGachaType::WEngineReverberation.old_id().to_string())
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
 
