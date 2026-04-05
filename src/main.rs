@@ -159,12 +159,12 @@ enum ZzzGachaType {
 impl ZzzGachaType {
     pub fn id(self) -> i32 {
         match self {
-            ZzzGachaType::Standard => 1001,
-            ZzzGachaType::Special => 2001,
-            ZzzGachaType::WEngine => 3001,
-            ZzzGachaType::Bangboo => 5001,
-            ZzzGachaType::ExclusiveRescreening => 12001,
-            ZzzGachaType::WEngineReverberation => 13001,
+            ZzzGachaType::Standard => 1,
+            ZzzGachaType::Special => 2,
+            ZzzGachaType::WEngine => 3,
+            ZzzGachaType::Bangboo => 5,
+            ZzzGachaType::ExclusiveRescreening => 102,
+            ZzzGachaType::WEngineReverberation => 103,
         }
     }
 }
