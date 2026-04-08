@@ -82,7 +82,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 continue;
             }
 
-            let name = text_map[&achievement.name.to_string()].clone();
+            let name = text_map.get(&achievement.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
             let mut description = text_map[&achievement.description.to_string()].clone();
 
             if description.contains("{param0}") {
