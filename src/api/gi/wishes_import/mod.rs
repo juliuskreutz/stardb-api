@@ -308,7 +308,7 @@ async fn import_wishes(
 
         let region_time_zone = match gacha_log.data.region.as_str() {
             "os_usa" => -5,
-            "os_eu" => 1,
+            "os_euro" => 1,
             _ => 8,
         };
 
