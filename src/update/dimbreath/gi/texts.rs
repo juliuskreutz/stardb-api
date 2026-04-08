@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::BufReader};
+use std::{collections::HashMap, fs::{self, File}, io::BufReader};
 
 use sqlx::PgPool;
 
@@ -43,27 +43,30 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {}", language);
 
-        let text_map: HashMap<String, String> = if let Ok(file) = File::open(format!(
-            "dimbreath/AnimeGameData/TextMap/TextMap{language_str}.json",
-        )) {
-            serde_json::from_reader(BufReader::new(file))?
-        } else {
-            let mut text_map = HashMap::new();
+        // Find all text maps for the language, can be multiple files such as TextMapEN, TextMapRU_01, TextMapRU_0, TextMap_MediumRU_1, etc.
+        let mut text_map = HashMap::new();
+        let mut text_map_files = fs::read_dir("dimbreath/AnimeGameData/TextMap")?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| ext == "json")
+                    && path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| name.contains(language_str))
+            })
+            .collect::<Vec<_>>();
 
-            for i in 0.. {
-                let Ok(file) = File::open(format!(
-                    "dimbreath/AnimeGameData/TextMap/TextMap{language_str}_{i}.json",
-                )) else {
-                    break;
-                };
+        text_map_files.sort();
 
-                let text_map_part: HashMap<String, String> =
-                    serde_json::from_reader(BufReader::new(file))?;
-                text_map.extend(text_map_part);
-            }
-
-            text_map
-        };
+        for path in text_map_files {
+            let text_map_part: HashMap<String, String> = serde_json::from_reader(BufReader::new(File::open(path)?))?;
+            text_map.extend(text_map_part);
+        }
 
         info!("Starting {} achievement series", language);
         for achievement_goal in &configs.achievement_goal_data {
