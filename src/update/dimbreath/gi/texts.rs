@@ -99,7 +99,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {} avatars", language);
         for avatar in &configs.avatar_data {
-            let name = text_map[&avatar.name.to_string()].clone();
+            let name = text_map.get(&avatar.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
 
             let id = avatar.id;
 
@@ -112,9 +112,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         for weapon in &configs.weapon_data {
             let id = weapon.id;
 
-            let Some(name) = text_map.get(&weapon.name.to_string()).cloned() else {
-                continue;
-            };
+            let name = text_map.get(&weapon.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
 
             weapons_id.push(id);
             weapons_language.push(language);
