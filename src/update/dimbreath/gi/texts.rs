@@ -67,7 +67,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {} achievement series", language);
         for achievement_goal in &configs.achievement_goal_data {
-            let name = text_map[&achievement_goal.name.to_string()].clone();
+            let name = text_map.get(&achievement_goal.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
 
             let id = achievement_goal.id.unwrap_or_default();
 
