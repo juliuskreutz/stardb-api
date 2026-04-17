@@ -23,6 +23,7 @@ use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
 use rand::RngCore;
 use sqlx::postgres::PgPoolOptions;
+use tracing_subscriber::prelude::*;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(
@@ -220,12 +221,43 @@ enum Difficulty {
     Hard,
 }
 
-#[actix_web::main]
-async fn main() -> anyhow::Result<()> {
+// Manual runtime setup (instead of #[actix_web::main]) so Sentry inits before the actix runtime —
+// the guard must outlive main and the panic handler must be installed pre-runtime.
+fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
 
-    tracing_subscriber::fmt::init();
+    // Sentry only activates when SENTRY_DSN is set. No DSN = no-op, guard is None.
+    // Guard flushes pending events on drop at the end of main.
+    let _sentry_guard = env::var("SENTRY_DSN").ok().map(|dsn| {
+        sentry::init((
+            dsn,
+            sentry::ClientOptions {
+                release: sentry::release_name!(),
+                environment: Some(
+                    if cfg!(debug_assertions) { "development" } else { "production" }.into(),
+                ),
+                traces_sample_rate: 0.0,
+                attach_stacktrace: true,
+                ..Default::default()
+            },
+        ))
+    });
 
+    // sentry_tracing layer forwards `error!` events (and panics) to Sentry.
+    // Inert if Sentry wasn't initialized above.
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with(sentry_tracing::layer())
+        .init();
+
+    actix_web::rt::System::new().block_on(async_main())
+}
+
+async fn async_main() -> anyhow::Result<()> {
     info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
@@ -266,6 +298,8 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::JsonConfig::default().limit(5 * 1024 * 1024))
             .app_data(pool_data.clone())
             .app_data(signing_key_data.clone())
+            // Captures request context + errors per-request. No-op if no SENTRY_DSN.
+            .wrap(sentry_actix::Sentry::new())
             .wrap(Cors::permissive())
             .wrap(Compress::default())
             .wrap(if cfg!(debug_assertions) {
