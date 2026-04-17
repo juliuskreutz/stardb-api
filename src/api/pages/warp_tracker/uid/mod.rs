@@ -8,7 +8,11 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{private, ApiResult, LanguageParams},
+    api::{
+        private,
+        banner_helpers::{self, HSR_STANDARD},
+        ApiResult, LanguageParams,
+    },
     database,
 };
 
@@ -183,6 +187,8 @@ async fn get_warp_tracker(
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+
     // region Departure
     let mut departure = Warps::default();
     let mut departure_pull = 0;
@@ -276,21 +282,15 @@ async fn get_warp_tracker(
             5 => {
                 special_pull_5 = 0;
 
-                warp.win = if guarantee {
+                warp.win = Some(if guarantee {
                     guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&warp.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(warp.item_id, warp.timestamp) {
+                    WinType::Win
                 } else {
                     guarantee = true;
-
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }
@@ -336,21 +336,15 @@ async fn get_warp_tracker(
             5 => {
                 lc_pull_5 = 0;
 
-                warp.win = if guarantee {
+                warp.win = Some(if guarantee {
                     guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&warp.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(warp.item_id, warp.timestamp) {
+                    WinType::Win
                 } else {
                     guarantee = true;
-
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }
@@ -396,19 +390,15 @@ async fn get_warp_tracker(
             5 => {
                 collab_pull_5 = 0;
 
-                warp.win = if collab_guarantee {
+                warp.win = Some(if collab_guarantee {
                     collab_guarantee = false;
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&warp.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(warp.item_id, warp.timestamp) {
+                    WinType::Win
                 } else {
                     collab_guarantee = true;
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }
@@ -454,19 +444,15 @@ async fn get_warp_tracker(
             5 => {
                 collab_lc_pull_5 = 0;
 
-                warp.win = if collab_lc_guarantee {
+                warp.win = Some(if collab_lc_guarantee {
                     collab_lc_guarantee = false;
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&warp.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(warp.item_id, warp.timestamp) {
+                    WinType::Win
                 } else {
                     collab_lc_guarantee = true;
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }

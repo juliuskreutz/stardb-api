@@ -12,7 +12,13 @@ use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database, mihomo, GachaType, Language};
+use crate::{
+    api::{
+        banner_helpers::{self, HSR_STANDARD},
+        ApiResult,
+    },
+    database, mihomo, GachaType, Language,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -477,6 +483,8 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+
     let warps = database::warps::special::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -518,11 +526,7 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&warp.character.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(warp.character.unwrap(), warp.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -584,6 +588,8 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+
     let warps = database::warps::lc::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -625,11 +631,7 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&warp.light_cone.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -691,6 +693,8 @@ async fn calculate_stats_collab(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+
     let warps = database::warps::collab::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -732,11 +736,7 @@ async fn calculate_stats_collab(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&warp.character.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(warp.character.unwrap(), warp.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -798,6 +798,8 @@ async fn calculate_stats_collab_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+
     let warps = database::warps::collab_lc::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -839,11 +841,7 @@ async fn calculate_stats_collab_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&warp.light_cone.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&warp.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;

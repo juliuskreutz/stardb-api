@@ -13,7 +13,13 @@ use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database, GiGachaType};
+use crate::{
+    api::{
+        banner_helpers::{self, GI_STANDARD},
+        ApiResult,
+    },
+    database, GiGachaType,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -462,6 +468,8 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
+
     let wishes = database::gi::wishes::character::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -503,11 +511,7 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&wish.character.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(wish.character.unwrap(), wish.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -569,6 +573,8 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
+
     let wishes = database::gi::wishes::weapon::get_infos_by_uid(uid, pool).await?;
 
     let mut pull_4 = 0;
@@ -610,11 +616,7 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
                 } else {
                     count_win += 1;
 
-                    if banners
-                        .get(&wish.weapon.unwrap())
-                        .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
-                        .unwrap_or_default()
-                    {
+                    if is_win(wish.weapon.unwrap(), wish.timestamp) {
                         sum_win += 1;
 
                         loss_streak = 0;

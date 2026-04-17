@@ -20,6 +20,7 @@ mod srs_warps_import;
 mod users;
 mod warps;
 mod warps_import;
+mod banner_helpers;
 mod zzz;
 
 use std::env;

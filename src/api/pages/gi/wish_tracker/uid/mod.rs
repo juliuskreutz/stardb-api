@@ -8,7 +8,11 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{private, ApiResult, LanguageParams},
+    api::{
+        private,
+        banner_helpers::{self, GI_STANDARD},
+        ApiResult, LanguageParams,
+    },
     database,
 };
 
@@ -182,6 +186,8 @@ async fn get_wish_tracker(
         }
     }
 
+    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
+
     // Beginner
     let mut beginner = Wishes::default();
     let mut beginner_pull = 0;
@@ -291,21 +297,15 @@ async fn get_wish_tracker(
             5 => {
                 character_pull_5 = 0;
 
-                wish.win = if guarantee {
+                wish.win = Some(if guarantee {
                     guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&wish.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(wish.item_id, wish.timestamp) {
+                    WinType::Win
                 } else {
                     guarantee = true;
-
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }
@@ -351,21 +351,15 @@ async fn get_wish_tracker(
             5 => {
                 weapon_pull_5 = 0;
 
-                wish.win = if guarantee {
+                wish.win = Some(if guarantee {
                     guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if banners
-                    .get(&wish.item_id)
-                    .map(|v| v.iter().any(|r| r.contains(&wish.timestamp)))
-                    .unwrap_or_default()
-                {
-                    Some(WinType::Win)
+                    WinType::Guarantee
+                } else if is_win(wish.item_id, wish.timestamp) {
+                    WinType::Win
                 } else {
                     guarantee = true;
-
-                    Some(WinType::Loss)
-                };
+                    WinType::Loss
+                });
             }
             _ => {}
         }
