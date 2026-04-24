@@ -5,6 +5,7 @@ pub mod achievements_percent;
 pub mod achievements_text;
 pub mod bangboos;
 pub mod bangboos_text;
+pub mod banners;
 pub mod characters;
 pub mod characters_text;
 pub mod connections;
