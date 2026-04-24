@@ -26,6 +26,7 @@ use rand::RngCore;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tracing_subscriber::prelude::*;
+use sentry_tracing::EventFilter;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(
@@ -263,7 +264,15 @@ fn main() -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
-        .with(sentry_tracing::layer())
+        .with(
+            sentry_tracing::layer().event_filter(|md| match *md.level() {
+                tracing::Level::ERROR => EventFilter::Event,
+                tracing::Level::WARN
+                | tracing::Level::INFO
+                | tracing::Level::DEBUG => EventFilter::Breadcrumb,
+                tracing::Level::TRACE => EventFilter::Ignore,
+            }),
+        )
         .init();
 
     actix_web::rt::System::new().block_on(async_main())
