@@ -183,6 +183,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 _ => text_map[&avatar_config.name.hash.to_string()].clone(),
             };
 
+            let name = html(&name)?;
             let name = gender(&name)?;
             let name = ruby(&name)?;
 
