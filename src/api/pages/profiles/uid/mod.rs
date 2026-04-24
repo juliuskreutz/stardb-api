@@ -134,7 +134,9 @@ async fn get_profile(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let profile = get_profile_json(false, uid, language_params.lang, &pool).await?;
+    let Some(profile) = get_profile_json(false, uid, language_params.lang, &pool).await? else {
+        return Ok(HttpResponse::InternalServerError().body("failed fetching profile data"));
+    };
 
     Ok(HttpResponse::Ok().json(profile))
 }
@@ -177,7 +179,9 @@ async fn update_profile(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let profile = get_profile_json(true, uid, language_params.lang, &pool).await?;
+    let Some(profile) = get_profile_json(true, uid, language_params.lang, &pool).await? else {
+        return Ok(HttpResponse::InternalServerError().body("failed fetching profile data"));
+    };
 
     Ok(HttpResponse::Ok().json(profile))
 }
@@ -187,11 +191,14 @@ async fn get_profile_json(
     uid: i32,
     lang: Language,
     pool: &PgPool,
-) -> ApiResult<Profile> {
-    let mihomo = if update {
+) -> ApiResult<Option<Profile>> {
+    let Some(mihomo) = (if update {
         mihomo::update_and_get(uid, lang, pool).await?
     } else {
         mihomo::get(uid, lang, pool).await?
+    })
+    else {
+        return Ok(None);
     };
 
     let score_achievement = database::achievement_scores::get_by_uid(uid, pool).await?;
@@ -243,5 +250,5 @@ async fn get_profile_json(
         collection,
     };
 
-    Ok(profile)
+    Ok(Some(profile))
 }

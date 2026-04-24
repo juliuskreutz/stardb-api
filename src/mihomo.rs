@@ -7,7 +7,7 @@ use serde_json::Value;
 use sqlx::PgPool;
 use utoipa::ToSchema;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use crate::{database, Language};
 
@@ -50,7 +50,7 @@ fn load_cached(language: &Language, uid: i32) -> Result<Option<Mihomo>> {
     }
 }
 
-async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Result<Value> {
+async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Result<Option<Value>> {
     let response = reqwest::get(url)
         .await
         .with_context(|| format!("{label} request failed for uid {uid} language {language}"))?;
@@ -67,18 +67,16 @@ async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Res
             label,
             "response was not successful"
         );
-        bail!(
-            "{label} request returned non-success status {status} for uid {uid} language {language}"
-        );
+        return Ok(None);
     }
 
     let text = response
         .text()
         .await
-        .with_context(|| format!("mihomo {label} body read failed for uid {uid} language {language}"))?;
+        .with_context(|| format!("{label} response text retrieval failed for uid {uid} language {language}"))?;
 
     match serde_json::from_str(&text) {
-        Ok(json) => Ok(json),
+        Ok(json) => Ok(Some(json)),
         Err(err) => {
             warn!(
                 uid,
@@ -90,16 +88,14 @@ async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Res
                 error = %err,
                 "response decode failed"
             );
-            Err(err).with_context(|| {
-                format!(
-                    "{label} json decode failed for uid {uid} language {language} status {status}"
-                )
+            Err(anyhow!("mihomo response body parsing failed")).with_context(|| {
+                format!("{label} json decode failed for uid {uid} language {language}")
             })
         }
     }
 }
 
-pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
+pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<Value>> {
     let path = cache_path(&language, uid);
 
     if PathBuf::from(&path).exists() {
@@ -119,14 +115,14 @@ pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
         if should_update {
             update_and_get(uid, language, pool).await
         } else {
-            Ok(cached_json)
+            Ok(Some(cached_json))
         }
     } else {
         update_and_get(uid, language, pool).await
     }
 }
 
-pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Result<Value> {
+pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<Value>> {
     let now = Utc::now();
     debug!(uid, language = %language, "mihomo update_and_get start");
 
@@ -134,15 +130,12 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
         "https://api.mihomo.me/sr_info_parsed/{uid}?lang={}&version=v2",
         language.mihomo()
     );
-    debug!(uid, language = %language, url = %url, "fetching mihomo payload");
 
-    let mut json: Value = match fetch_json(&url, uid, language, "localized").await {
-        Ok(json) => json,
-        Err(err) => {
-            warn!(uid, language = %language, url = %url, error = %err, "mihomo localized fetch failed");
-            return Err(err);
-        }
+    let mut json = match fetch_json(&url, uid, language, "localized").await? {
+        Some(json) => json,
+        None => return Ok(None),
     };
+
     debug!(uid, language = %language, "fetched mihomo payload");
     if let Some(o) = json.as_object_mut() {
         o.insert("updated_at".to_string(), serde_json::to_value(now)?);
@@ -155,13 +148,11 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
         let en_url = format!("https://api.mihomo.me/sr_info_parsed/{uid}?lang=en&version=v2",);
         debug!(uid, language = %language, url = %en_url, "fetching english mihomo payload");
 
-        let mut en_json: Value = match fetch_json(&en_url, uid, language, "english").await {
-            Ok(json) => json,
-            Err(err) => {
-                warn!(uid, language = %language, url = %en_url, error = %err, "mihomo english fetch failed");
-                return Err(err);
-            }
+        let mut en_json = match fetch_json(&en_url, uid, language, "english").await? {
+            Some(json) => json,
+            None => return Ok(None),
         };
+
         debug!(uid, language = %language, "fetched english mihomo payload");
         if let Some(o) = en_json.as_object_mut() {
             o.insert("updated_at".to_string(), serde_json::to_value(now)?);
@@ -252,5 +243,5 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
     database::achievement_scores::set(&db_score_achievement, pool).await?;
     debug!(uid, language = %language, timestamp = %timestamp, "mihomo update_and_get complete");
 
-    Ok(json)
+    Ok(Some(json))
 }

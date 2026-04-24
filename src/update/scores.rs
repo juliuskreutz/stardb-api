@@ -141,10 +141,7 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
-    if mihomo::update_and_get(uid, Language::En, pool)
-        .await
-        .is_ok()
-    {
+    if let Some(_) = mihomo::update_and_get(uid, Language::En, pool).await? {
         return Ok(());
     }
 
@@ -189,8 +186,8 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
         )
         .to_string();
     let avatar_icon = mihomo::get(uid, Language::En, pool)
-        .await
-        .and_then(|v| serde_json::from_value::<mihomo::Mihomo>(v).map_err(Into::into))
+        .await?
+        .and_then(|v| serde_json::from_value::<mihomo::Mihomo>(v).ok())
         .map(|m| m.player.avatar.icon)
         .unwrap_or(format!("icon/avatar/{}.png", enka.detail_info.head_icon));
     let achievement_count = enka.detail_info.record_info.achievement_count;

@@ -37,7 +37,9 @@ async fn get_mihomo(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let json = mihomo::get(*uid, language_params.lang, &pool).await?;
+    let Some(json) = mihomo::get(*uid, language_params.lang, &pool).await? else {
+        return Ok(HttpResponse::InternalServerError().body("mihomo data unavailable"));
+    };
 
     Ok(HttpResponse::Ok().json(json))
 }
@@ -59,7 +61,9 @@ async fn put_mihomo(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let json = mihomo::update_and_get(uid, language_params.lang, &pool).await?;
+    let Some(json) = mihomo::update_and_get(uid, language_params.lang, &pool).await? else {
+        return Ok(HttpResponse::InternalServerError().body("mihomo data unavailable"));
+    };
 
     Ok(HttpResponse::Ok().json(json))
 }

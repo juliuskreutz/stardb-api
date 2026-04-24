@@ -92,7 +92,7 @@ async fn post_pom_warps_import(
 
     // Wacky way to update the database in case the uid isn't in there
     if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await.is_err()
+        && mihomo::get(uid, Language::En, &pool).await?.is_none()
     {
         let region = match uid.to_string().chars().next() {
             Some('6') => "na",
