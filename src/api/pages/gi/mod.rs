@@ -1,8 +1,10 @@
 mod achievement_tracker;
 mod wish_tracker;
 
+use crate::app_config::AppConfig;
 use actix_web::web;
 use sqlx::PgPool;
+use std::sync::Arc;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -16,7 +18,11 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    cfg.configure(|sc| achievement_tracker::configure(sc, pool))
+pub fn configure(
+    cfg: &mut web::ServiceConfig,
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) {
+    cfg.configure(|sc| achievement_tracker::configure(sc, pool, app_config))
         .configure(wish_tracker::configure);
 }

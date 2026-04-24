@@ -128,10 +128,11 @@ async fn post_zzz_signals_import(
     let mut uid = 0;
 
     for gacha_type in ZzzGachaType::iter().map(|gt| gt.id()) {
-        let gacha_log: GachaLog = reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0"))
-            .await?
-            .json()
-            .await?;
+        let gacha_log: GachaLog =
+            reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0"))
+                .await?
+                .json()
+                .await?;
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = entry.uid.parse()?;
@@ -308,8 +309,12 @@ async fn import_signals(
         ZzzGachaType::Special => database::zzz::signals::special::set_all(&set_all, pool).await?,
         ZzzGachaType::WEngine => database::zzz::signals::w_engine::set_all(&set_all, pool).await?,
         ZzzGachaType::Bangboo => database::zzz::signals::bangboo::set_all(&set_all, pool).await?,
-        ZzzGachaType::ExclusiveRescreening => database::zzz::signals::exclusive_rescreening::set_all(&set_all, pool).await?,
-        ZzzGachaType::WEngineReverberation => database::zzz::signals::w_engine_reverberation::set_all(&set_all, pool).await?,
+        ZzzGachaType::ExclusiveRescreening => {
+            database::zzz::signals::exclusive_rescreening::set_all(&set_all, pool).await?
+        }
+        ZzzGachaType::WEngineReverberation => {
+            database::zzz::signals::w_engine_reverberation::set_all(&set_all, pool).await?
+        }
     }
 
     Ok(())

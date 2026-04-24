@@ -1,7 +1,4 @@
-use std::{
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use actix_web::{
     get,
@@ -12,10 +9,12 @@ use sqlx::PgPool;
 use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
+use crate::app_config::AppConfig;
 use crate::{api::ApiResult, database, Language};
+use std::sync::{Arc, Mutex};
 
 lazy_static::lazy_static! {
-    static ref CACHE: Mutex<Option<()>> = Mutex::new(None);
+    pub static ref CACHE: Mutex<Option<()>> = Mutex::new(None);
 }
 
 #[derive(OpenApi)]
@@ -29,9 +28,14 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    CACHE.lock().unwrap().get_or_insert_with(|| cache(pool));
-
+pub fn configure(
+    cfg: &mut web::ServiceConfig,
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) {
+    if app_config.enable_update_sitemaps {
+        CACHE.lock().unwrap().get_or_insert_with(|| cache(pool));
+    }
     cfg.service(sitemaps);
 }
 

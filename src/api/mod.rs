@@ -1,6 +1,7 @@
 mod achievement_series;
 mod achievements;
 mod admin;
+mod banner_helpers;
 mod banners;
 mod characters;
 mod gi;
@@ -20,15 +21,16 @@ mod srs_warps_import;
 mod users;
 mod warps;
 mod warps_import;
-mod banner_helpers;
 mod zzz;
 
 use std::env;
 
+use crate::app_config::AppConfig;
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{guard, web};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use std::sync::Arc;
 use strum::{Display, EnumString};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -110,7 +112,11 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+pub fn configure(
+    cfg: &mut web::ServiceConfig,
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) {
     cfg.configure(admin::configure)
         .configure(achievement_series::configure)
         .configure(achievements::configure)
@@ -123,11 +129,11 @@ pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
-        .configure(|sc| pages::configure(sc, pool.clone()))
+        .configure(|sc| pages::configure(sc, pool.clone(), app_config.clone()))
         .configure(pom_warps_import::configure)
         .configure(scores::configure)
         .configure(select_all::configure)
-        .configure(|sc| sitemap::configure(sc, pool.clone()))
+        .configure(|sc| sitemap::configure(sc, pool.clone(), app_config.clone()))
         .configure(srgf_warps_import::configure)
         .configure(srs_warps_import::configure)
         .configure(users::configure)

@@ -20,8 +20,10 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{private, ApiResult, Language, LanguageParams},
+    app_config::AppConfig,
     database, Difficulty,
 };
+use std::sync::Arc;
 
 lazy_static::lazy_static! {
     static ref CACHE: Mutex<Option<web::Data<AchievementTrackerCache>>> = Mutex::new(None);
@@ -35,11 +37,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
+pub fn configure(
+    cfg: &mut web::ServiceConfig,
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) {
     let data = CACHE
         .lock()
         .unwrap()
-        .get_or_insert_with(|| cache(pool))
+        .get_or_insert_with(|| cache(pool, app_config))
         .clone();
 
     cfg.service(get_achievement_tracker).app_data(data);
@@ -132,7 +138,10 @@ impl From<database::achievements::DbAchievement> for Achievement {
     }
 }
 
-pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
+pub fn cache(
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) -> web::Data<AchievementTrackerCache> {
     let achievement_tracker_map = RwLock::new(
         if let Ok(file) = File::open("cache/achievement_tracker_map.json") {
             serde_json::from_reader::<_, HashMap<Language, AchievementTracker>>(BufReader::new(
@@ -151,44 +160,48 @@ pub fn cache(pool: PgPool) -> web::Data<AchievementTrackerCache> {
     {
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
-        std::thread::spawn(move || {
-            let rt = Runtime::new().unwrap();
+        if app_config.enable_update_achievement_trackers {
+            std::thread::spawn(move || {
+                let rt = Runtime::new().unwrap();
 
-            let handle = rt.spawn(async move {
-                let mut success = true;
+                let handle = rt.spawn(async move {
+                    let mut success = true;
 
-                let mut interval = rt::time::interval(Duration::from_secs(60));
+                    let mut interval = rt::time::interval(Duration::from_secs(60));
 
-                loop {
-                    if success {
-                        interval.tick().await;
+                    loop {
+                        if success {
+                            interval.tick().await;
+                        }
+
+                        let start = Instant::now();
+
+                        if let Err(e) = update_achievement_tracker(
+                            achievement_tracker_cache.clone(),
+                            pool.clone(),
+                        )
+                        .await
+                        {
+                            success = false;
+
+                            error!(
+                                "Achievement Tracker update failed with {e} in {}s",
+                                start.elapsed().as_secs_f64()
+                            );
+                        } else {
+                            success = true;
+
+                            info!(
+                                "Achievement Tracker update succeeded in {}s",
+                                start.elapsed().as_secs_f64()
+                            );
+                        }
                     }
+                });
 
-                    let start = Instant::now();
-
-                    if let Err(e) =
-                        update_achievement_tracker(achievement_tracker_cache.clone(), pool.clone())
-                            .await
-                    {
-                        success = false;
-
-                        error!(
-                            "Achievement Tracker update failed with {e} in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    } else {
-                        success = true;
-
-                        info!(
-                            "Achievement Tracker update succeeded in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    }
-                }
+                rt.block_on(handle).unwrap();
             });
-
-            rt.block_on(handle).unwrap();
-        });
+        }
     }
 
     achievement_tracker_cache

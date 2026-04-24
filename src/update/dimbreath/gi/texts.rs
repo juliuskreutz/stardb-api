@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fs::{self, File}, io::BufReader};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+    io::BufReader,
+};
 
 use sqlx::PgPool;
 
@@ -64,13 +68,17 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         text_map_files.sort();
 
         for path in text_map_files {
-            let text_map_part: HashMap<String, String> = serde_json::from_reader(BufReader::new(File::open(path)?))?;
+            let text_map_part: HashMap<String, String> =
+                serde_json::from_reader(BufReader::new(File::open(path)?))?;
             text_map.extend(text_map_part);
         }
 
         info!("Starting {} achievement series", language);
         for achievement_goal in &configs.achievement_goal_data {
-            let name = text_map.get(&achievement_goal.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
+            let name = text_map
+                .get(&achievement_goal.name.to_string())
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
 
             let id = achievement_goal.id.unwrap_or_default();
 
@@ -85,8 +93,14 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
                 continue;
             }
 
-            let name = text_map.get(&achievement.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
-            let mut description = text_map.get(&achievement.description.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
+            let name = text_map
+                .get(&achievement.name.to_string())
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
+            let mut description = text_map
+                .get(&achievement.description.to_string())
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
 
             if description.contains("{param0}") {
                 description = description.replace("{param0}", &achievement.progress.to_string());
@@ -102,7 +116,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
 
         info!("Starting {} avatars", language);
         for avatar in &configs.avatar_data {
-            let name = text_map.get(&avatar.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
+            let name = text_map
+                .get(&avatar.name.to_string())
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
 
             let id = avatar.id;
 
@@ -115,7 +132,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         for weapon in &configs.weapon_data {
             let id = weapon.id;
 
-            let name = text_map.get(&weapon.name.to_string()).cloned().unwrap_or_else(|| "Unknown".to_string());
+            let name = text_map
+                .get(&weapon.name.to_string())
+                .cloned()
+                .unwrap_or_else(|| "Unknown".to_string());
 
             weapons_id.push(id);
             weapons_language.push(language);

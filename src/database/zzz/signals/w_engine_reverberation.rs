@@ -39,21 +39,24 @@ pub async fn get_by_uid(
 }
 
 pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbSignalInfo>> {
-    Ok(
-        sqlx::query_file_as!(DbSignalInfo, "sql/zzz/signals/w_engine_reverberation/get_infos.sql", uid)
-            .fetch_all(pool)
-            .await?,
+    Ok(sqlx::query_file_as!(
+        DbSignalInfo,
+        "sql/zzz/signals/w_engine_reverberation/get_infos.sql",
+        uid
     )
+    .fetch_all(pool)
+    .await?)
 }
 
 pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(
-        sqlx::query_file!("sql/zzz/signals/w_engine_reverberation/get_count_by_uid.sql", uid)
-            .fetch_one(pool)
-            .await?
-            .count
-            .unwrap(),
+    Ok(sqlx::query_file!(
+        "sql/zzz/signals/w_engine_reverberation/get_count_by_uid.sql",
+        uid
     )
+    .fetch_one(pool)
+    .await?
+    .count
+    .unwrap())
 }
 
 pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
@@ -65,9 +68,12 @@ pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
 }
 
 pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query_file!("sql/zzz/signals/w_engine_reverberation/delete_unofficial.sql", uid)
-        .execute(pool)
-        .await?;
+    sqlx::query_file!(
+        "sql/zzz/signals/w_engine_reverberation/delete_unofficial.sql",
+        uid
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }

@@ -2,6 +2,7 @@
 extern crate tracing;
 
 mod api;
+mod app_config;
 mod database;
 mod mihomo;
 mod pg_session_store;
@@ -23,6 +24,7 @@ use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
 use rand::RngCore;
 use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
 use tracing_subscriber::prelude::*;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -224,7 +226,12 @@ enum Difficulty {
 // Manual runtime setup (instead of #[actix_web::main]) so Sentry inits before the actix runtime —
 // the guard must outlive main and the panic handler must be installed pre-runtime.
 fn main() -> anyhow::Result<()> {
-    dotenv::dotenv()?;
+    let dotenv_path = dotenv::dotenv().ok();
+    if let Some(path) = dotenv_path {
+        tracing::debug!("Loaded .env file from: {:?}", path);
+    } else {
+        tracing::debug!("No .env file loaded");
+    }
 
     // Sentry only activates when SENTRY_DSN is set. No DSN = no-op, guard is None.
     // Guard flushes pending events on drop at the end of main.
@@ -234,7 +241,12 @@ fn main() -> anyhow::Result<()> {
             sentry::ClientOptions {
                 release: sentry::release_name!(),
                 environment: Some(
-                    if cfg!(debug_assertions) { "development" } else { "production" }.into(),
+                    if cfg!(debug_assertions) {
+                        "development"
+                    } else {
+                        "production"
+                    }
+                    .into(),
                 ),
                 traces_sample_rate: 0.0,
                 attach_stacktrace: true,
@@ -258,6 +270,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn async_main() -> anyhow::Result<()> {
+    let app_config = load_app_config()?;
     info!("Starting api!");
 
     let _ = fs::create_dir("mihomo");
@@ -273,23 +286,46 @@ async fn async_main() -> anyhow::Result<()> {
         .await?;
     sqlx::migrate!().run(&pool).await?;
 
-    update::achievements_percent::spawn(pool.clone()).await;
-    update::zzz_achievements_percent::spawn(pool.clone()).await;
-    update::gi_achievements_percent::spawn(pool.clone()).await;
-    update::dimbreath::hsr::spawn(pool.clone()).await;
-    update::dimbreath::zzz::spawn(pool.clone()).await;
-    update::dimbreath::gi::spawn(pool.clone()).await;
-    update::star_rail_res::spawn().await;
-    update::scores::spawn(pool.clone()).await;
-    update::warps_stats::spawn(pool.clone()).await;
-    update::signals_stats::spawn(pool.clone()).await;
-    update::wishes_stats::spawn(pool.clone()).await;
-
-    let pool_data = Data::new(pool.clone());
+    if app_config.enable_update_hsr_achievements_percent {
+        update::achievements_percent::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_zzz_achievements_percent {
+        update::zzz_achievements_percent::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_gi_achievements_percent {
+        update::gi_achievements_percent::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_dimbreath_hsr {
+        update::dimbreath::hsr::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_dimbreath_zzz {
+        update::dimbreath::zzz::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_dimbreath_gi {
+        update::dimbreath::gi::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_star_rail_res {
+        update::star_rail_res::spawn().await;
+    }
+    if app_config.enable_update_scores {
+        update::scores::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_warps_stats {
+        update::warps_stats::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_signals_stats {
+        update::signals_stats::spawn(pool.clone()).await;
+    }
+    if app_config.enable_update_wishes_stats {
+        update::wishes_stats::spawn(pool.clone()).await;
+    }
 
     let session_key = session_key()?;
     let signing_key = signing_key()?;
+
     let signing_key_data = web::Data::new(Mutex::new(signing_key));
+    let pool_data = Data::new(pool.clone());
+    let app_config_data = Data::new(app_config.clone());
 
     let openapi = api::openapi();
 
@@ -298,6 +334,7 @@ async fn async_main() -> anyhow::Result<()> {
             .app_data(web::JsonConfig::default().limit(5 * 1024 * 1024))
             .app_data(pool_data.clone())
             .app_data(signing_key_data.clone())
+            .app_data(app_config_data.clone())
             // Captures request context + errors per-request. No-op if no SENTRY_DSN.
             .wrap(sentry_actix::Sentry::new())
             .wrap(Cors::permissive())
@@ -317,7 +354,7 @@ async fn async_main() -> anyhow::Result<()> {
                 SwaggerUi::new("/api/swagger-ui/{_:.*}")
                     .url("/api-doc/openapi.json", openapi.clone()),
             )
-            .configure(|sc| api::configure(sc, pool.clone()))
+            .configure(|sc| api::configure(sc, pool.clone(), app_config_data.clone()))
     })
     .bind(("localhost", 8000))?
     .run()
@@ -365,4 +402,10 @@ fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
         signing_key.write_pkcs8_pem_file(path, LineEnding::LF)?;
         signing_key
     })
+}
+
+fn load_app_config() -> anyhow::Result<Arc<app_config::AppConfig>> {
+    let config = envy::from_env::<app_config::AppConfig>()?;
+    tracing::debug!("AppConfig loaded: {:#?}", config);
+    Ok(Arc::new(config))
 }

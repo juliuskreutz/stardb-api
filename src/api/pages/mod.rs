@@ -5,8 +5,10 @@ mod profiles;
 mod warp_tracker;
 mod zzz;
 
+use crate::app_config::AppConfig;
 use actix_web::web;
 use sqlx::PgPool;
+use std::sync::Arc;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -24,11 +26,15 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig, pool: PgPool) {
-    cfg.configure(|sc| achievement_tracker::configure(sc, pool.clone()))
+pub fn configure(
+    cfg: &mut web::ServiceConfig,
+    pool: PgPool,
+    app_config: web::Data<Arc<AppConfig>>,
+) {
+    cfg.configure(|sc| achievement_tracker::configure(sc, pool.clone(), app_config.clone()))
         .configure(leaderboard::configure)
         .configure(profiles::configure)
         .configure(warp_tracker::configure)
-        .configure(|sc| gi::configure(sc, pool.clone()))
-        .configure(|sc| zzz::configure(sc, pool.clone()));
+        .configure(|sc| gi::configure(sc, pool.clone(), app_config.clone()))
+        .configure(|sc| zzz::configure(sc, pool.clone(), app_config.clone()));
 }

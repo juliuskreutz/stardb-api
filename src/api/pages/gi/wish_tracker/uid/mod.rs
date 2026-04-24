@@ -9,9 +9,8 @@ use utoipa::OpenApi;
 
 use crate::{
     api::{
-        private,
         banner_helpers::{self, GI_STANDARD},
-        ApiResult, LanguageParams,
+        private, ApiResult, LanguageParams,
     },
     database,
 };

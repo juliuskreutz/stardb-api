@@ -379,7 +379,9 @@ async fn get_signal_tracker(
     let mut exclusive_rescreening_pull_s = 0;
     let mut guarantee = false;
 
-    for signal in database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool).await? {
+    for signal in
+        database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool).await?
+    {
         let mut signal: Signal = signal.into();
 
         exclusive_rescreening_pull += 1;
@@ -416,7 +418,11 @@ async fn get_signal_tracker(
 
     exclusive_rescreening.pull_4 = exclusive_rescreening_pull_a;
     exclusive_rescreening.max_pull_4 = 10;
-    exclusive_rescreening.probability_4 = if exclusive_rescreening_pull_a < 9 { 9.4 } else { 100.0 };
+    exclusive_rescreening.probability_4 = if exclusive_rescreening_pull_a < 9 {
+        9.4
+    } else {
+        100.0
+    };
 
     exclusive_rescreening.pull_5 = exclusive_rescreening_pull_s;
     exclusive_rescreening.max_pull_5 = 90;
@@ -436,7 +442,9 @@ async fn get_signal_tracker(
     let mut w_engine_reverberation_pull_s = 0;
     let mut guarantee = false;
 
-    for signal in database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool).await? {
+    for signal in
+        database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool).await?
+    {
         let mut signal: Signal = signal.into();
 
         w_engine_reverberation_pull += 1;
@@ -473,7 +481,11 @@ async fn get_signal_tracker(
 
     w_engine_reverberation.pull_4 = w_engine_reverberation_pull_a;
     w_engine_reverberation.max_pull_4 = 10;
-    w_engine_reverberation.probability_4 = if w_engine_reverberation_pull_a < 9 { 15.0 } else { 100.0 };
+    w_engine_reverberation.probability_4 = if w_engine_reverberation_pull_a < 9 {
+        15.0
+    } else {
+        100.0
+    };
 
     w_engine_reverberation.pull_5 = w_engine_reverberation_pull_s;
     w_engine_reverberation.max_pull_5 = 80;

@@ -137,16 +137,18 @@ async fn get_zzz_signals(
         .into_iter()
         .map(Signal::from)
         .collect();
-    let exclusive_rescreening = database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
-        .await?
-        .into_iter()
-        .map(Signal::from)
-        .collect();
-    let w_engine_reverberation = database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
-        .await?
-        .into_iter()
-        .map(Signal::from)
-        .collect();
+    let exclusive_rescreening =
+        database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(Signal::from)
+            .collect();
+    let w_engine_reverberation =
+        database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(Signal::from)
+            .collect();
 
     let signals = Signals {
         standard,
