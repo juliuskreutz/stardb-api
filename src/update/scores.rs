@@ -153,13 +153,21 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
         .send()
         .await
     {
-        Ok(r) => match r.json().await {
-            Ok(enka) => enka,
-            Err(e) => {
-                error!("{e}");
+        Ok(r) => {
+            let status = r.status();
+            if !status.is_success() {
+                warn!("Enka request for uid {uid} failed with status {status}");
                 return Ok(());
             }
-        },
+
+            match r.json().await {
+                Ok(enka) => enka,
+                Err(e) => {
+                    warn!("{e}");
+                    return Ok(());
+                }
+            }
+        }
         Err(e) => {
             error!("{e}");
             return Ok(());
