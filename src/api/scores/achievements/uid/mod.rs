@@ -36,9 +36,10 @@ async fn get_score_achievement(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let score: ScoreAchievement = database::achievement_scores::get_by_uid(*uid, &pool)
-        .await?
-        .into();
+    let Some(score) = database::achievement_scores::get_by_uid(*uid, &pool).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+    let score: ScoreAchievement = score.into();
 
     Ok(HttpResponse::Ok().json(score))
 }
@@ -60,9 +61,10 @@ async fn put_score_achievement(
 ) -> ApiResult<impl Responder> {
     let _ = mihomo::update_and_get(*uid, language_param.lang, &pool).await?;
 
-    let score: ScoreAchievement = database::achievement_scores::get_by_uid(*uid, &pool)
-        .await?
-        .into();
+    let Some(score) = database::achievement_scores::get_by_uid(*uid, &pool).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+    let score: ScoreAchievement = score.into();
 
     Ok(HttpResponse::Ok().json(score))
 }

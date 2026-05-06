@@ -61,9 +61,10 @@ async fn get_leaderboard_entry(
         database::mihomo::set(&db_mihomo, &pool).await?;
     }
 
-    let score = database::achievement_scores::get_by_uid(uid, &pool)
-        .await?
-        .into();
+    let Some(score) = database::achievement_scores::get_by_uid(uid, &pool).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+    let score = score.into();
 
     let count_na =
         database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;

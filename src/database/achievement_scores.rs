@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
@@ -36,7 +36,9 @@ pub async fn set(score: &DbScoreAchievement, pool: &PgPool) -> Result<DbScoreAch
     .execute(pool)
     .await?;
 
-    get_by_uid(score.uid, pool).await
+    get_by_uid(score.uid, pool)
+        .await?
+        .ok_or_else(|| anyhow!("score achievement unavailable after set"))
 }
 
 pub async fn get(
@@ -94,7 +96,7 @@ pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> 
     .unwrap())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievement> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "
@@ -116,7 +118,7 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievement> {
         ",
         uid,
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?)
 }
 

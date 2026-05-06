@@ -200,7 +200,9 @@ async fn get_profile_json(
         return Ok(None);
     };
 
-    let score_achievement = database::achievement_scores::get_by_uid(uid, pool).await?;
+    let Some(score_achievement) = database::achievement_scores::get_by_uid(uid, pool).await? else {
+        return Ok(None);
+    };
 
     let rank_global = score_achievement.global_rank.unwrap_or_default();
     let rank_regional = score_achievement.regional_rank.unwrap_or_default();
