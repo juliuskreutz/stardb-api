@@ -196,8 +196,7 @@ async fn get_profile_json(
         mihomo::update_and_get(uid, lang, pool).await?
     } else {
         mihomo::get(uid, lang, pool).await?
-    })
-    else {
+    }) else {
         return Ok(None);
     };
 

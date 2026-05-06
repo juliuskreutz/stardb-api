@@ -70,10 +70,9 @@ async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Res
         return Ok(None);
     }
 
-    let text = response
-        .text()
-        .await
-        .with_context(|| format!("{label} response text retrieval failed for uid {uid} language {language}"))?;
+    let text = response.text().await.with_context(|| {
+        format!("{label} response text retrieval failed for uid {uid} language {language}")
+    })?;
 
     match serde_json::from_str(&text) {
         Ok(json) => Ok(Some(json)),

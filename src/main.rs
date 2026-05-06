@@ -23,10 +23,10 @@ use ed25519_dalek::SecretKey;
 use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
 use rand::RngCore;
+use sentry_tracing::EventFilter;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use tracing_subscriber::prelude::*;
-use sentry_tracing::EventFilter;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(
@@ -267,9 +267,9 @@ fn main() -> anyhow::Result<()> {
         .with(
             sentry_tracing::layer().event_filter(|md| match *md.level() {
                 tracing::Level::ERROR => EventFilter::Event,
-                tracing::Level::WARN
-                | tracing::Level::INFO
-                | tracing::Level::DEBUG => EventFilter::Breadcrumb,
+                tracing::Level::WARN | tracing::Level::INFO | tracing::Level::DEBUG => {
+                    EventFilter::Breadcrumb
+                }
                 tracing::Level::TRACE => EventFilter::Ignore,
             }),
         )
