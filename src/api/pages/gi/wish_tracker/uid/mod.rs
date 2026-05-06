@@ -165,7 +165,10 @@ async fn get_wish_tracker(
 
     let language = language_params.lang;
 
-    let name = database::gi::profiles::get_by_uid(uid, &pool).await?.name;
+    let Some(profile) = database::gi::profiles::get_by_uid(uid, &pool).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+    let name = profile.name;
 
     let mut banners: HashMap<_, Vec<_>> = HashMap::new();
 

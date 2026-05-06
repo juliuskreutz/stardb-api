@@ -104,8 +104,8 @@ async fn post_uigf_warps_import(
 
         if !admin
             && database::gi::profiles::get_by_uid(uid, &pool)
-                .await
-                .is_err()
+                .await?
+                .is_none()
         {
             return Ok(HttpResponse::BadRequest().finish());
         }

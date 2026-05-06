@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
@@ -29,13 +29,15 @@ pub async fn set(mihomo: &DbMihomo, pool: &PgPool) -> Result<DbMihomo> {
     .execute(pool)
     .await?;
 
-    get_one_by_uid(mihomo.uid, pool).await
+    get_one_by_uid(mihomo.uid, pool)
+        .await?
+        .ok_or_else(|| anyhow!("mihomo unavailable after set"))
 }
 
-pub async fn get_one_by_uid(uid: i32, pool: &PgPool) -> Result<DbMihomo> {
+pub async fn get_one_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbMihomo>> {
     Ok(
         sqlx::query_file_as!(DbMihomo, "sql/mihomo/get_one_by_uid.sql", uid)
-            .fetch_one(pool)
+            .fetch_optional(pool)
             .await?,
     )
 }

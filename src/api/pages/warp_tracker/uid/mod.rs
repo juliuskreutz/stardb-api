@@ -166,7 +166,10 @@ async fn get_warp_tracker(
 
     let language = language_params.lang;
 
-    let name = database::mihomo::get_one_by_uid(uid, &pool).await?.name;
+    let Some(mihomo) = database::mihomo::get_one_by_uid(uid, &pool).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+    let name = mihomo.name;
 
     let mut banners: HashMap<_, Vec<_>> = HashMap::new();
 

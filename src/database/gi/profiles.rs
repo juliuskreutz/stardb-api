@@ -13,10 +13,10 @@ pub async fn set(profile: &DbProfile, pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<DbProfile> {
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Option<DbProfile>> {
     Ok(
         sqlx::query_file_as!(DbProfile, "sql/gi/profiles/get_by_uid.sql", uid)
-            .fetch_one(pool)
+            .fetch_optional(pool)
             .await?,
     )
 }
