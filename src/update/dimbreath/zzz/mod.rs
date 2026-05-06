@@ -20,97 +20,97 @@ use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 struct AchieveSecondClass {
-    #[serde(rename = "FFIGJCOPDML")]
+    #[serde(rename = "FNKFPHIAJPI")]
     id: i32,
-    #[serde(rename = "HBDIAGDHOGC")]
+    #[serde(rename = "PHJOEHFCGEG")]
     name: String,
-    #[serde(rename = "PKGOEGLACEA")]
+    #[serde(rename = "MBLLDMPCCGJ")]
     priority: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Achievement {
-    #[serde(rename = "IHGLMFBJOCK")]
+    #[serde(rename = "GAPDDOJPFGI")]
     id: i32,
-    #[serde(rename = "AJHAKEJBLNC")]
+    #[serde(rename = "CPPKNLEMEKF")]
     series: i32,
-    #[serde(rename = "ANNFLJKJJKC")]
+    #[serde(rename = "BMBBBEIBOLE")]
     name: String,
-    #[serde(rename = "PIGHACIOCEP")]
+    #[serde(rename = "MCAHHIIMKLP")]
     description: String,
-    #[serde(rename = "FGAMMAAKLCP")]
+    #[serde(rename = "NGHJAKHBFPJ")]
     reward: i32,
-    #[serde(rename = "MMLEIBKHJMD")]
+    #[serde(rename = "JHCBGJLLKAI")]
     hidden: i32,
-    #[serde(rename = "BNACJKEFOBG")]
+    #[serde(rename = "FPALAHAIBDN")]
     priority: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct ArcadeAchievementGroup {
-    #[serde(rename = "HHPGHOAKJJO")]
+    #[serde(rename = "GLIOLCPJPHL")]
     id: i32,
-    #[serde(rename = "GBGJIILHPNO")]
+    #[serde(rename = "LLMPDAAGDLA")]
     name: String,
 }
 
 #[derive(serde::Deserialize)]
 struct ArcadeAchievement {
-    #[serde(rename = "MIGFHHOKGDE")]
+    #[serde(rename = "JABHLOJLDCK")]
     id: i32,
-    #[serde(rename = "ANNFLJKJJKC")]
+    #[serde(rename = "BMBBBEIBOLE")]
     name: String,
-    #[serde(rename = "ALPCJODPNBM")]
+    #[serde(rename = "JBJAIOOAOBP")]
     description: String,
-    #[serde(rename = "EHFCGOBAPLN")]
+    #[serde(rename = "BDKOMNEMMHC")]
     series: i32,
-    #[serde(rename = "EKOCDDBENHL")]
+    #[serde(rename = "DGMBMALHADF")]
     reward: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Rewards {
-    #[serde(rename = "EKOCDDBENHL")]
+    #[serde(rename = "DGMBMALHADF")]
     id: i32,
-    #[serde(rename = "NKBOJFJHONP")]
+    #[serde(rename = "OMOEAIHDHOB")]
     rewards: Vec<Reward>,
 }
 
 #[derive(serde::Deserialize)]
 struct Reward {
-    #[serde(rename = "BALDAPBGEPK")]
+    #[serde(rename = "JNPJPHIPBCJ")]
     id: i32,
-    #[serde(rename = "NBDEIPLCPOM")]
+    #[serde(rename = "BOPJHFMBALC")]
     amount: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Item {
-    #[serde(rename = "HHPGHOAKJJO")]
+    #[serde(rename = "GLIOLCPJPHL")]
     id: i32,
-    #[serde(rename = "FIGNNPMIBCG")]
+    #[serde(rename = "NNHBPEEMLOI")]
     name: String,
-    #[serde(rename = "DIAIMJJLKBG")]
+    #[serde(rename = "DENHDJGILAG")]
     rarity: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Avatar {
-    #[serde(rename = "HHPGHOAKJJO")]
+    #[serde(rename = "GLIOLCPJPHL")]
     id: i32,
-    #[serde(rename = "FIGNNPMIBCG")]
+    #[serde(rename = "NNHBPEEMLOI")]
     name: String,
 }
 
 #[derive(serde::Deserialize)]
 struct Weapon {
-    #[serde(rename = "BALDAPBGEPK")]
+    #[serde(rename = "JNPJPHIPBCJ")]
     id: i32,
 }
 
 #[derive(serde::Deserialize)]
 struct Buddy {
-    #[serde(rename = "HHPGHOAKJJO")]
+    #[serde(rename = "GLIOLCPJPHL")]
     id: i32,
 }
 
