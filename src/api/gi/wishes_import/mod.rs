@@ -16,7 +16,7 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{
         banner_helpers::{self, GI_STANDARD},
-        ApiResult,
+        validate_import_url, ApiResult,
     },
     database, GiGachaType,
 };
@@ -106,6 +106,7 @@ struct WishesImport {
     request_body = WishesImportParams,
     responses(
         (status = 200, description = "WishesImport", body = WishesImport),
+        (status = 400, description = "Invalid URL"),
     )
 )]
 #[post("/api/gi/wishes-import")]
@@ -115,7 +116,10 @@ async fn post_gi_wishes_import(
     wishes_import_infos: web::Data<WishesImportInfos>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let url = Url::parse(&params.url)?;
+    let url = match validate_import_url(&params.url) {
+        Ok(url) => url,
+        Err(response) => return Ok(response),
+    };
 
     let query = url.query_pairs().filter(|(name, _)| {
         matches!(

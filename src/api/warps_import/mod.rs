@@ -15,7 +15,7 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{
         banner_helpers::{self, HSR_STANDARD},
-        ApiResult,
+        validate_import_url, ApiResult,
     },
     database, mihomo, GachaType, Language,
 };
@@ -106,6 +106,7 @@ struct WarpsImport {
     request_body = WarpsImportParams,
     responses(
         (status = 200, description = "WarpsImport", body = WarpsImport),
+        (status = 400, description = "Invalid URL"),
     )
 )]
 #[post("/api/warps-import")]
@@ -115,7 +116,10 @@ async fn post_warps_import(
     warps_import_infos: web::Data<WarpsImportInfos>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let original_url = Url::parse(&params.url)?;
+    let original_url = match validate_import_url(&params.url) {
+        Ok(url) => url,
+        Err(response) => return Ok(response),
+    };
 
     let mut uid = None;
 

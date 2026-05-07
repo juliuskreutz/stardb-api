@@ -12,7 +12,10 @@ use strum::IntoEnumIterator;
 use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::{api::ApiResult, database, ZzzGachaType};
+use crate::{
+    api::{validate_import_url, ApiResult},
+    database, ZzzGachaType,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -98,6 +101,7 @@ struct SignalsImport {
     request_body = SignalsImportParams,
     responses(
         (status = 200, description = "SignalsImport", body = SignalsImport),
+        (status = 400, description = "Invalid URL"),
     )
 )]
 #[post("/api/zzz/signals-import")]
@@ -107,7 +111,10 @@ async fn post_zzz_signals_import(
     signals_import_infos: web::Data<SignalsImportInfos>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let url = Url::parse(&params.url)?;
+    let url = match validate_import_url(&params.url) {
+        Ok(url) => url,
+        Err(response) => return Ok(response),
+    };
 
     let query = url.query_pairs().filter(|(name, _)| {
         matches!(

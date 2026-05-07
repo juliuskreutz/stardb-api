@@ -27,11 +27,12 @@ use std::env;
 
 use crate::app_config::AppConfig;
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
-use actix_web::{guard, web};
+use actix_web::{guard, web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
 use strum::{Display, EnumString};
+use url::Url;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     IntoParams, Modify, OpenApi, ToSchema,
@@ -40,6 +41,18 @@ use utoipa::{
 use crate::{Difficulty, GachaType, GiGachaType, Language, ZzzGachaType};
 
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
+
+pub(crate) fn validate_import_url(raw_url: &str) -> Result<Url, HttpResponse> {
+    let Ok(url) = Url::parse(raw_url) else {
+        return Err(HttpResponse::BadRequest().body("Invalid URL"));
+    };
+
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return Err(HttpResponse::BadRequest().body("Invalid URL"));
+    }
+
+    Ok(url)
+}
 
 #[derive(OpenApi)]
 #[openapi(tags((name = "pinned")), components(schemas(Language, GachaType, ZzzGachaType, GiGachaType, File, Difficulty)), modifiers(&PrivateAddon))]
