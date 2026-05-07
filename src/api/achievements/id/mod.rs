@@ -29,6 +29,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     params(LanguageParams),
     responses(
         (status = 200, description = "Achievement", body = Achievement),
+        (status = 404, description = "Achievement not found"),
     )
 )]
 #[get("/api/achievements/{id}")]
@@ -37,8 +38,11 @@ async fn get_achievement(
     language_params: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let db_achievement =
-        database::achievements::get_one_by_id(*id, language_params.lang, &pool).await?;
+    let Some(db_achievement) =
+        database::achievements::get_one_by_id(*id, language_params.lang, &pool).await?
+    else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
 
     let mut achievement = Achievement::from(db_achievement);
 

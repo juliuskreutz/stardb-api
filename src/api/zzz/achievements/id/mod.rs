@@ -27,6 +27,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     params(LanguageParams),
     responses(
         (status = 200, description = "Achievement", body = Achievement),
+        (status = 404, description = "Achievement not found"),
     )
 )]
 #[get("/api/zzz/achievements/{id}")]
@@ -42,8 +43,11 @@ async fn get_zzz_achievement(
         false
     };
 
-    let db_achievement =
-        database::zzz::achievements::get_one_by_id(*id, language_params.lang, &pool).await?;
+    let Some(db_achievement) =
+        database::zzz::achievements::get_one_by_id(*id, language_params.lang, &pool).await?
+    else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
 
     if (db_achievement.impossible && db_achievement.hidden) && !admin {
         return Ok(HttpResponse::NotFound().finish());

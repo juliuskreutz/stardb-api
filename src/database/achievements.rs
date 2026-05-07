@@ -85,7 +85,11 @@ pub async fn get_all_related_ids(id: i32, set: i32, pool: &PgPool) -> Result<Vec
     )
 }
 
-pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievement> {
+pub async fn get_one_by_id(
+    id: i32,
+    language: Language,
+    pool: &PgPool,
+) -> Result<Option<DbAchievement>> {
     let language = language.to_string();
 
     Ok(sqlx::query_file_as!(
@@ -94,7 +98,7 @@ pub async fn get_one_by_id(id: i32, language: Language, pool: &PgPool) -> Result
         id,
         language,
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?)
 }
 
