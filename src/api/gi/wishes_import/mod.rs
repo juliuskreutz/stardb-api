@@ -139,12 +139,25 @@ async fn post_gi_wishes_import(
         .finish();
 
     let mut uid = 0;
+    let mut import_error = None;
 
     for gacha_type in [100, 200, 301, 302, 500] {
-        let gacha_log: GachaLog = reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0"))
-            .await?
-            .json()
-            .await?;
+        // User-provided wish URLs can point at expired or malformed upstream responses.
+        // Keep those as import status errors instead of bubbling reqwest decode errors.
+        let gacha_log = match reqwest::get(format!("{url}&gacha_type={gacha_type}&end_id=0")).await
+        {
+            Ok(response) => match response.json::<GachaLog>().await {
+                Ok(gacha_log) => gacha_log,
+                Err(_) => {
+                    import_error = Some("Unable to fetch wish history".to_string());
+                    continue;
+                }
+            },
+            Err(_) => {
+                import_error = Some("Unable to fetch wish history".to_string());
+                continue;
+            }
+        };
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = entry.uid.parse()?;
@@ -160,7 +173,7 @@ async fn post_gi_wishes_import(
             character: 0,
             weapon: 0,
             chronicled: 0,
-            status: Status::Error("No data".to_string()),
+            status: Status::Error(import_error.unwrap_or_else(|| "No data".to_string())),
         }));
 
         wishes_import_infos.lock().await.insert(uid, info.clone());
@@ -168,16 +181,22 @@ async fn post_gi_wishes_import(
         return Ok(HttpResponse::Ok().json(WishesImport { uid }));
     }
 
-    let name = reqwest::Client::new()
+    // Enka is only used to populate a display name. The import can continue without it.
+    let name = match reqwest::Client::new()
         .get(format!("https://enka.network/api/uid/{uid}?info"))
         .header(header::USER_AGENT, "stardb")
         .send()
-        .await?
-        .json::<serde_json::Value>()
-        .await?["playerInfo"]["nickname"]
-        .as_str()
-        .unwrap_or_default()
-        .to_string();
+        .await
+    {
+        Ok(response) => match response.json::<serde_json::Value>().await {
+            Ok(json) => json["playerInfo"]["nickname"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            Err(_) => String::new(),
+        },
+        Err(_) => String::new(),
+    };
 
     database::gi::profiles::set(&database::gi::profiles::DbProfile { uid, name }, &pool).await?;
     if let Ok(Some(username)) = session.get::<String>("username") {
