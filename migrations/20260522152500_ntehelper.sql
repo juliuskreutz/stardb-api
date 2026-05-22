@@ -1,0 +1,58 @@
+ALTER TABLE users
+    ADD COLUMN id bigserial;
+
+ALTER TABLE users
+    ADD CONSTRAINT users_id_key UNIQUE (id);
+
+CREATE TABLE ntehelper_user_completion (
+    user_id bigint NOT NULL,
+    kind text NOT NULL,
+    id text NOT NULL,
+    completed_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, kind, id),
+    CONSTRAINT ntehelper_user_completion_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT ntehelper_user_completion_kind_check CHECK (kind IN ('task', 'quest', 'achievement', 'marker'))
+);
+
+CREATE TABLE ntehelper_user_settings (
+    user_id bigint NOT NULL,
+    namespace text NOT NULL,
+    data jsonb NOT NULL DEFAULT '{}'::jsonb,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, namespace),
+    CONSTRAINT ntehelper_user_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT ntehelper_user_settings_namespace_check CHECK (namespace IN ('tasks', 'quests', 'achievements', 'map', 'stamina', 'global'))
+);
+
+CREATE TABLE ntehelper_marker_comment (
+    id bigserial PRIMARY KEY,
+    marker_key text NOT NULL,
+    user_id bigint NOT NULL,
+    body text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    deleted_at timestamptz,
+    CONSTRAINT ntehelper_marker_comment_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ntehelper_marker_comment_visible_marker_idx
+    ON ntehelper_marker_comment (marker_key, created_at)
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE ntehelper_marker_screenshot (
+    id bigserial PRIMARY KEY,
+    marker_key text NOT NULL,
+    user_id bigint NOT NULL,
+    storage_key text NOT NULL,
+    mime_type text NOT NULL,
+    width integer NOT NULL,
+    height integer NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    status text NOT NULL DEFAULT 'visible',
+    CONSTRAINT ntehelper_marker_screenshot_user_id_fkey FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT ntehelper_marker_screenshot_status_check CHECK (status IN ('visible', 'hidden', 'deleted'))
+);
+
+CREATE INDEX ntehelper_marker_screenshot_visible_marker_idx
+    ON ntehelper_marker_screenshot (marker_key, created_at)
+    WHERE status = 'visible';

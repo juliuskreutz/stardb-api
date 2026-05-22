@@ -50,6 +50,7 @@ serde_json = "1.0.145"
 sqlx = { version = "0.8.6", features = [
   "postgres",
   "chrono",
+  "json",
   "uuid",
   "runtime-tokio-rustls",
 ] }

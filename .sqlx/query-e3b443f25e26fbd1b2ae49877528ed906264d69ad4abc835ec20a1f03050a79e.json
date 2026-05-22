@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ntehelper_user_completion (user_id, kind, id) VALUES ($1, $2, $3)\n         ON CONFLICT (user_id, kind, id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3b443f25e26fbd1b2ae49877528ed906264d69ad4abc835ec20a1f03050a79e"
+}
