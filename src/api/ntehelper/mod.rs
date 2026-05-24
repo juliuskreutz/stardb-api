@@ -18,6 +18,10 @@ const SETTING_NAMESPACES: [&str; 6] = [
     "stamina",
     "global",
 ];
+const MAX_COMPLETION_ID_LEN: usize = 256;
+const MAX_COMPLETIONS_PER_KIND: usize = 5_000;
+const MAX_PATCH_OPERATIONS: usize = 5_000;
+const MAX_SETTING_BYTES: usize = 256 * 1024;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -168,7 +172,10 @@ async fn put_state(
     };
 
     let completions = state.completions.to_db();
-    if completions.iter().any(|c| !valid_completion_id(&c.id)) || !state.settings.is_valid() {
+    if !state.completions.is_valid()
+        || completions.iter().any(|c| !valid_completion_id(&c.id))
+        || !state.settings.is_valid()
+    {
         return Ok(HttpResponse::BadRequest().finish());
     }
 
@@ -199,7 +206,8 @@ async fn patch_completions(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if !patch.add.iter().all(CompletionOperation::is_valid)
+    if patch.add.len() + patch.remove.len() > MAX_PATCH_OPERATIONS
+        || !patch.add.iter().all(CompletionOperation::is_valid)
         || !patch.remove.iter().all(CompletionOperation::is_valid)
     {
         return Ok(HttpResponse::BadRequest().finish());
@@ -242,7 +250,7 @@ async fn put_setting(
     };
 
     let namespace = namespace.into_inner();
-    if !valid_setting_namespace(&namespace) || !data.is_object() {
+    if !valid_setting_namespace(&namespace) || !valid_setting_value(&data) {
         return Ok(HttpResponse::BadRequest().finish());
     }
 
@@ -296,11 +304,23 @@ fn valid_completion_kind(kind: &str) -> bool {
 }
 
 fn valid_completion_id(id: &str) -> bool {
-    !id.trim().is_empty()
+    let id = id.trim();
+    !id.is_empty()
+        && id.len() <= MAX_COMPLETION_ID_LEN
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.' | '/'))
 }
 
 fn valid_setting_namespace(namespace: &str) -> bool {
     SETTING_NAMESPACES.contains(&namespace)
+}
+
+fn valid_setting_value(data: &Value) -> bool {
+    data.is_object()
+        && serde_json::to_vec(data)
+            .map(|data| data.len() <= MAX_SETTING_BYTES)
+            .unwrap_or(false)
 }
 
 impl CompletionOperation {
@@ -350,6 +370,13 @@ impl StateCompletions {
 
         completions
     }
+
+    fn is_valid(&self) -> bool {
+        self.task.len() <= MAX_COMPLETIONS_PER_KIND
+            && self.quest.len() <= MAX_COMPLETIONS_PER_KIND
+            && self.achievement.len() <= MAX_COMPLETIONS_PER_KIND
+            && self.marker.len() <= MAX_COMPLETIONS_PER_KIND
+    }
 }
 
 impl StateSettings {
@@ -383,12 +410,12 @@ impl StateSettings {
     }
 
     fn is_valid(&self) -> bool {
-        self.tasks.is_object()
-            && self.quests.is_object()
-            && self.achievements.is_object()
-            && self.map.is_object()
-            && self.stamina.is_object()
-            && self.global.is_object()
+        valid_setting_value(&self.tasks)
+            && valid_setting_value(&self.quests)
+            && valid_setting_value(&self.achievements)
+            && valid_setting_value(&self.map)
+            && valid_setting_value(&self.stamina)
+            && valid_setting_value(&self.global)
     }
 
     fn to_db(&self) -> Vec<database::ntehelper::DbSetting> {
