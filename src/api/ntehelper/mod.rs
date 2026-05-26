@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{get, patch, put, web, HttpResponse, Responder};
+use actix_web::{get, patch, put, web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,6 +22,7 @@ const MAX_COMPLETION_ID_LEN: usize = 256;
 const MAX_COMPLETIONS_PER_KIND: usize = 5_000;
 const MAX_PATCH_OPERATIONS: usize = 5_000;
 const MAX_SETTING_BYTES: usize = 256 * 1024;
+const PUBLIC_NTE_ORIGIN: &str = "https://nte.stardb.gg";
 
 #[derive(OpenApi)]
 #[openapi(
@@ -124,7 +125,11 @@ struct AchievementStatsResponse {
     responses((status = 200, description = "Current NTE Helper auth state", body = MeResponse))
 )]
 #[get("/api/ntehelper/me")]
-async fn get_me(session: Session) -> ApiResult<impl Responder> {
+async fn get_me(request: HttpRequest, session: Session) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let username = session.get::<String>("username").ok().flatten();
 
     Ok(HttpResponse::Ok().json(MeResponse {
@@ -143,7 +148,15 @@ async fn get_me(session: Session) -> ApiResult<impl Responder> {
     )
 )]
 #[get("/api/ntehelper/state")]
-async fn get_state(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
+async fn get_state(
+    request: HttpRequest,
+    session: Session,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -163,10 +176,15 @@ async fn get_state(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl 
 )]
 #[put("/api/ntehelper/state")]
 async fn put_state(
+    request: HttpRequest,
     session: Session,
     state: web::Json<StateResponse>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -198,10 +216,15 @@ async fn put_state(
 )]
 #[patch("/api/ntehelper/completions")]
 async fn patch_completions(
+    request: HttpRequest,
     session: Session,
     patch: web::Json<CompletionPatch>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -240,11 +263,16 @@ async fn patch_completions(
 )]
 #[put("/api/ntehelper/settings/{namespace}")]
 async fn put_setting(
+    request: HttpRequest,
     session: Session,
     namespace: web::Path<String>,
     data: web::Json<Value>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -320,6 +348,44 @@ fn valid_setting_value(data: &Value) -> bool {
     data.is_object()
         && serde_json::to_vec(data)
             .map(|data| data.len() <= MAX_SETTING_BYTES)
+            .unwrap_or(false)
+}
+
+fn valid_nte_origin(request: &HttpRequest) -> bool {
+    let Some(origin) = request.headers().get("Origin") else {
+        return true;
+    };
+
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
+
+    valid_nte_origin_value(origin)
+}
+
+fn valid_nte_origin_value(origin: &str) -> bool {
+    if origin == PUBLIC_NTE_ORIGIN {
+        return true;
+    }
+
+    let Ok(url) = url::Url::parse(origin) else {
+        return false;
+    };
+
+    if url.scheme() != "http" {
+        return false;
+    }
+
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+
+    let normalized_host = host.trim_start_matches('[').trim_end_matches(']');
+
+    normalized_host.eq_ignore_ascii_case("localhost")
+        || normalized_host
+            .parse::<std::net::IpAddr>()
+            .map(|address| address.is_loopback())
             .unwrap_or(false)
 }
 
@@ -445,5 +511,45 @@ impl StateSettings {
                 data: self.global.clone(),
             },
         ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::valid_nte_origin;
+    use super::valid_nte_origin_value;
+    use actix_web::test::TestRequest;
+
+    #[test]
+    fn accepts_public_nte_origin() {
+        assert!(valid_nte_origin_value("https://nte.stardb.gg"));
+    }
+
+    #[test]
+    fn accepts_missing_origin_header() {
+        let request = TestRequest::default().to_http_request();
+        assert!(valid_nte_origin(&request));
+    }
+
+    #[test]
+    fn accepts_http_loopback_origins() {
+        assert!(valid_nte_origin_value("http://localhost:5173"));
+        assert!(valid_nte_origin_value("http://127.0.0.1:4173"));
+        assert!(valid_nte_origin_value("http://[::1]:4173"));
+    }
+
+    #[test]
+    fn rejects_https_loopback_origins() {
+        assert!(!valid_nte_origin_value("https://localhost"));
+        assert!(!valid_nte_origin_value("https://127.0.0.1"));
+        assert!(!valid_nte_origin_value("https://[::1]"));
+    }
+
+    #[test]
+    fn rejects_malformed_or_foreign_origins() {
+        assert!(!valid_nte_origin_value("not a url"));
+        assert!(!valid_nte_origin_value("https://stardb.gg"));
+        assert!(!valid_nte_origin_value("https://example.com"));
+        assert!(!valid_nte_origin_value("ftp://localhost"));
     }
 }
