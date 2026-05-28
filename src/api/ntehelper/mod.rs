@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{get, patch, put, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, patch, post, put, web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -23,13 +23,35 @@ const MAX_COMPLETIONS_PER_KIND: usize = 5_000;
 const MAX_PATCH_OPERATIONS: usize = 5_000;
 const MAX_SETTING_BYTES: usize = 256 * 1024;
 const PUBLIC_NTE_ORIGIN: &str = "https://nte.stardb.gg";
+const DEFAULT_MARKER_COMMENT_LIMIT: i64 = 10;
+const MAX_MARKER_COMMENT_LIMIT: i64 = 50;
+const MAX_MARKER_COMMENT_BODY_CHARS: usize = 250;
+const MARKER_COMMENT_CREATE_LIMIT_PER_WINDOW: i64 = 60;
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "ntehelper")),
-    paths(get_me, get_state, put_state, patch_completions, put_setting, get_achievement_stats),
+    paths(
+        get_me,
+        get_state,
+        put_state,
+        patch_completions,
+        put_setting,
+        get_achievement_stats,
+        get_marker_comments,
+        post_marker_comment,
+        patch_marker_comment,
+        delete_marker_comment,
+        put_marker_comment_vote
+    ),
     components(schemas(
         MeResponse,
+        MarkerCommentCreateRequest,
+        MarkerCommentListQuery,
+        MarkerCommentListResponse,
+        MarkerCommentResponse,
+        MarkerCommentUpdateRequest,
+        MarkerCommentVoteRequest,
         StateResponse,
         StateCompletions,
         StateSettings,
@@ -51,7 +73,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(put_state)
         .service(patch_completions)
         .service(put_setting)
-        .service(get_achievement_stats);
+        .service(get_achievement_stats)
+        .service(get_marker_comments)
+        .service(post_marker_comment)
+        .service(patch_marker_comment)
+        .service(delete_marker_comment)
+        .service(put_marker_comment_vote);
 }
 
 #[derive(Serialize, ToSchema)]
@@ -116,6 +143,58 @@ struct AchievementStats {
 #[derive(Serialize, ToSchema)]
 struct AchievementStatsResponse {
     achievements: HashMap<String, AchievementStats>,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct MarkerCommentListQuery {
+    #[serde(rename = "markerKey")]
+    marker_key: String,
+    limit: Option<i64>,
+    cursor: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct MarkerCommentListResponse {
+    comments: Vec<MarkerCommentResponse>,
+    #[serde(rename = "nextCursor")]
+    next_cursor: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+struct MarkerCommentResponse {
+    id: String,
+    #[serde(rename = "markerKey")]
+    marker_key: String,
+    username: String,
+    body: String,
+    #[serde(rename = "createdAt")]
+    created_at: chrono::DateTime<chrono::Utc>,
+    #[serde(rename = "updatedAt")]
+    updated_at: chrono::DateTime<chrono::Utc>,
+    score: i64,
+    upvotes: i64,
+    downvotes: i64,
+    #[serde(rename = "viewerVote")]
+    viewer_vote: i32,
+    #[serde(rename = "ownedByViewer")]
+    owned_by_viewer: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct MarkerCommentCreateRequest {
+    #[serde(rename = "markerKey")]
+    marker_key: String,
+    body: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct MarkerCommentUpdateRequest {
+    body: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct MarkerCommentVoteRequest {
+    value: i32,
 }
 
 #[utoipa::path(
@@ -316,6 +395,217 @@ async fn get_achievement_stats(pool: web::Data<PgPool>) -> ApiResult<impl Respon
     }))
 }
 
+#[utoipa::path(
+    tag = "ntehelper",
+    get,
+    path = "/api/ntehelper/marker-comments",
+    responses((status = 200, description = "Marker comments", body = MarkerCommentListResponse))
+)]
+#[get("/api/ntehelper/marker-comments")]
+async fn get_marker_comments(
+    query: web::Query<MarkerCommentListQuery>,
+    session: Session,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_marker_key(&query.marker_key) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
+    let viewer_username = session.get::<String>("username").ok().flatten();
+    let limit = query
+        .limit
+        .unwrap_or(DEFAULT_MARKER_COMMENT_LIMIT)
+        .clamp(1, MAX_MARKER_COMMENT_LIMIT);
+    let offset = query
+        .cursor
+        .as_deref()
+        .and_then(|cursor| cursor.parse::<i64>().ok())
+        .filter(|offset| *offset >= 0)
+        .unwrap_or(0);
+
+    let mut comments = database::ntehelper::list_marker_comments(
+        &query.marker_key,
+        viewer_username.as_deref(),
+        limit + 1,
+        offset,
+        &pool,
+    )
+    .await?;
+    let next_cursor = if comments.len() > limit as usize {
+        comments.truncate(limit as usize);
+        Some((offset + limit).to_string())
+    } else {
+        None
+    };
+
+    Ok(HttpResponse::Ok().json(MarkerCommentListResponse {
+        comments: comments
+            .into_iter()
+            .map(MarkerCommentResponse::from)
+            .collect(),
+        next_cursor,
+    }))
+}
+
+#[utoipa::path(
+    tag = "ntehelper",
+    post,
+    path = "/api/ntehelper/marker-comments",
+    request_body = MarkerCommentCreateRequest,
+    responses(
+        (status = 200, description = "Created marker comment", body = MarkerCommentResponse),
+        (status = 400, description = "Not logged in or invalid comment"),
+        (status = 429, description = "Comment rate limit reached"),
+    )
+)]
+#[post("/api/ntehelper/marker-comments")]
+async fn post_marker_comment(
+    request: HttpRequest,
+    session: Session,
+    data: web::Json<MarkerCommentCreateRequest>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let body = data.body.trim();
+    if !valid_marker_key(&data.marker_key) || !valid_marker_comment_body(body) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
+    if let Some(retry_after) = database::ntehelper::marker_comment_retry_after(
+        &username,
+        MARKER_COMMENT_CREATE_LIMIT_PER_WINDOW,
+        &pool,
+    )
+    .await?
+    {
+        return Ok(HttpResponse::TooManyRequests()
+            .append_header(("Retry-After", retry_after.to_string()))
+            .finish());
+    }
+
+    let comment =
+        database::ntehelper::create_marker_comment(&username, &data.marker_key, body, &pool)
+            .await?;
+
+    Ok(HttpResponse::Ok().json(MarkerCommentResponse::from(comment)))
+}
+
+#[utoipa::path(
+    tag = "ntehelper",
+    patch,
+    path = "/api/ntehelper/marker-comments/{commentId}",
+    request_body = MarkerCommentUpdateRequest,
+    responses((status = 200, description = "Updated marker comment", body = MarkerCommentResponse))
+)]
+#[patch("/api/ntehelper/marker-comments/{comment_id}")]
+async fn patch_marker_comment(
+    request: HttpRequest,
+    session: Session,
+    comment_id: web::Path<i64>,
+    data: web::Json<MarkerCommentUpdateRequest>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    let body = data.body.trim();
+    if !valid_marker_comment_body(body) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
+    let Some(comment) =
+        database::ntehelper::update_marker_comment(comment_id.into_inner(), &username, body, &pool)
+            .await?
+    else {
+        return Ok(HttpResponse::Forbidden().finish());
+    };
+
+    Ok(HttpResponse::Ok().json(MarkerCommentResponse::from(comment)))
+}
+
+#[utoipa::path(
+    tag = "ntehelper",
+    delete,
+    path = "/api/ntehelper/marker-comments/{commentId}",
+    responses((status = 200, description = "Deleted marker comment"))
+)]
+#[delete("/api/ntehelper/marker-comments/{comment_id}")]
+async fn delete_marker_comment(
+    request: HttpRequest,
+    session: Session,
+    comment_id: web::Path<i64>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !database::ntehelper::delete_marker_comment(comment_id.into_inner(), &username, &pool)
+        .await?
+    {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    Ok(HttpResponse::Ok().json(json!({ "deleted": true })))
+}
+
+#[utoipa::path(
+    tag = "ntehelper",
+    put,
+    path = "/api/ntehelper/marker-comments/{commentId}/vote",
+    request_body = MarkerCommentVoteRequest,
+    responses((status = 200, description = "Updated marker comment vote", body = MarkerCommentResponse))
+)]
+#[put("/api/ntehelper/marker-comments/{comment_id}/vote")]
+async fn put_marker_comment_vote(
+    request: HttpRequest,
+    session: Session,
+    comment_id: web::Path<i64>,
+    data: web::Json<MarkerCommentVoteRequest>,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
+    if !valid_nte_origin(&request) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let Ok(Some(username)) = session.get::<String>("username") else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+
+    if !matches!(data.value, -1 | 0 | 1) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
+    let Some(comment) = database::ntehelper::set_marker_comment_vote(
+        comment_id.into_inner(),
+        &username,
+        data.value,
+        &pool,
+    )
+    .await?
+    else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+
+    Ok(HttpResponse::Ok().json(MarkerCommentResponse::from(comment)))
+}
+
 async fn load_state(username: &str, pool: &PgPool) -> ApiResult<StateResponse> {
     let completions =
         StateCompletions::from_db(database::ntehelper::get_completions(username, pool).await?);
@@ -338,6 +628,15 @@ fn valid_completion_id(id: &str) -> bool {
         && id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | ':' | '.' | '/'))
+}
+
+fn valid_marker_key(marker_key: &str) -> bool {
+    valid_completion_id(marker_key)
+}
+
+fn valid_marker_comment_body(body: &str) -> bool {
+    let char_count = body.chars().count();
+    char_count >= 1 && char_count <= MAX_MARKER_COMMENT_BODY_CHARS
 }
 
 fn valid_setting_namespace(namespace: &str) -> bool {
@@ -511,6 +810,24 @@ impl StateSettings {
                 data: self.global.clone(),
             },
         ]
+    }
+}
+
+impl From<database::ntehelper::DbMarkerComment> for MarkerCommentResponse {
+    fn from(comment: database::ntehelper::DbMarkerComment) -> Self {
+        MarkerCommentResponse {
+            id: comment.id.to_string(),
+            marker_key: comment.marker_key,
+            username: comment.username,
+            body: comment.body,
+            created_at: comment.created_at,
+            updated_at: comment.updated_at,
+            score: comment.score,
+            upvotes: comment.upvotes,
+            downvotes: comment.downvotes,
+            viewer_vote: comment.viewer_vote,
+            owned_by_viewer: comment.owned_by_viewer,
+        }
     }
 }
 
