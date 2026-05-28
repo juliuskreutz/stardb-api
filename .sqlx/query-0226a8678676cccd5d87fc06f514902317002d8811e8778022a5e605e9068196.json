@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH total AS (\n             SELECT COUNT(DISTINCT user_id)::bigint AS total_users\n             FROM ntehelper_user_completion\n             WHERE kind = 'achievement'\n         )\n         SELECT\n             id AS \"id!\",\n             COUNT(DISTINCT user_id)::bigint AS \"completed_users!\",\n             total.total_users AS \"total_users!\",\n             CASE\n                 WHEN total.total_users = 0 THEN 0::float8\n                 ELSE COUNT(DISTINCT user_id)::float8 / total.total_users::float8\n             END AS \"percent!\"\n         FROM ntehelper_user_completion\n         CROSS JOIN total\n         WHERE kind = 'achievement'\n         GROUP BY id, total.total_users\n         ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "completed_users!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_users!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "percent!",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0226a8678676cccd5d87fc06f514902317002d8811e8778022a5e605e9068196"
+}

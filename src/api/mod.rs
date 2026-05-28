@@ -11,6 +11,7 @@ mod import_zzz_achievements;
 mod languages;
 mod light_cones;
 mod mihomo;
+mod ntehelper;
 mod pages;
 mod pom_warps_import;
 mod scores;
@@ -115,6 +116,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(languages::openapi());
     openapi.merge(light_cones::openapi());
     openapi.merge(mihomo::openapi());
+    openapi.merge(ntehelper::openapi());
     openapi.merge(pages::openapi());
     openapi.merge(pom_warps_import::openapi());
     openapi.merge(scores::openapi());
@@ -146,6 +148,7 @@ pub fn configure(
         .configure(languages::configure)
         .configure(light_cones::configure)
         .configure(mihomo::configure)
+        .configure(ntehelper::configure)
         .configure(|sc| pages::configure(sc, pool.clone(), app_config.clone()))
         .configure(pom_warps_import::configure)
         .configure(scores::configure)
