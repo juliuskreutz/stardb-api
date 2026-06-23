@@ -4,7 +4,6 @@ use sqlx::{FromRow, PgPool};
 use std::{
     error::Error,
     fmt,
-    sync::atomic::{AtomicI64, Ordering},
 };
 
 #[derive(Debug, FromRow, Clone)]
@@ -425,6 +424,7 @@ mod tests {
     use super::*;
     use crate::database::users::{self, DbUser};
     use sqlx::postgres::PgPoolOptions;
+    use std::sync::atomic::{AtomicI64, Ordering};
     use uuid::Uuid;
 
     static NEXT_UID_OFFSET: AtomicI64 = AtomicI64::new(0);
