@@ -1,3 +1,5 @@
+mod tracker;
+
 use actix_session::Session;
 use actix_web::{delete, get, patch, post, put, web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
@@ -27,6 +29,8 @@ const DEFAULT_MARKER_COMMENT_LIMIT: i64 = 10;
 const MAX_MARKER_COMMENT_LIMIT: i64 = 50;
 const MAX_MARKER_COMMENT_BODY_CHARS: usize = 250;
 const MARKER_COMMENT_CREATE_LIMIT_PER_WINDOW: i64 = 60;
+const MAX_MARKER_COMMENT_SCREENSHOT_URLS: usize = 4;
+const MAX_MARKER_COMMENT_SCREENSHOT_URL_CHARS: usize = 2048;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -64,7 +68,9 @@ const MARKER_COMMENT_CREATE_LIMIT_PER_WINDOW: i64 = 60;
 struct ApiDoc;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
-    ApiDoc::openapi()
+    let mut openapi = ApiDoc::openapi();
+    openapi.merge(tracker::openapi());
+    openapi
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -78,7 +84,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(post_marker_comment)
         .service(patch_marker_comment)
         .service(delete_marker_comment)
-        .service(put_marker_comment_vote);
+        .service(put_marker_comment_vote)
+        .configure(tracker::configure);
 }
 
 #[derive(Serialize, ToSchema)]
@@ -167,6 +174,8 @@ struct MarkerCommentResponse {
     marker_key: String,
     username: String,
     body: String,
+    #[serde(rename = "screenshotUrls")]
+    screenshot_urls: Vec<String>,
     #[serde(rename = "createdAt")]
     created_at: chrono::DateTime<chrono::Utc>,
     #[serde(rename = "updatedAt")]
@@ -185,11 +194,15 @@ struct MarkerCommentCreateRequest {
     #[serde(rename = "markerKey")]
     marker_key: String,
     body: String,
+    #[serde(rename = "screenshotUrls", default)]
+    screenshot_urls: Vec<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
 struct MarkerCommentUpdateRequest {
     body: String,
+    #[serde(rename = "screenshotUrls", default)]
+    screenshot_urls: Vec<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -474,6 +487,9 @@ async fn post_marker_comment(
     };
 
     let body = data.body.trim();
+    let Some(screenshot_urls) = valid_marker_comment_screenshot_urls(&data.screenshot_urls) else {
+        return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
+    };
     if !valid_marker_key(&data.marker_key) || !valid_marker_comment_body(body) {
         return Ok(HttpResponse::BadRequest().finish());
     }
@@ -490,9 +506,19 @@ async fn post_marker_comment(
             .finish());
     }
 
-    let comment =
-        database::ntehelper::create_marker_comment(&username, &data.marker_key, body, &pool)
-            .await?;
+    let comment = database::ntehelper::create_marker_comment(
+        &username,
+        &data.marker_key,
+        body,
+        &Value::Array(
+            screenshot_urls
+                .into_iter()
+                .map(Value::String)
+                .collect(),
+        ),
+        &pool,
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().json(MarkerCommentResponse::from(comment)))
 }
@@ -521,13 +547,26 @@ async fn patch_marker_comment(
     };
 
     let body = data.body.trim();
+    let Some(screenshot_urls) = valid_marker_comment_screenshot_urls(&data.screenshot_urls) else {
+        return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
+    };
     if !valid_marker_comment_body(body) {
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    let Some(comment) =
-        database::ntehelper::update_marker_comment(comment_id.into_inner(), &username, body, &pool)
-            .await?
+    let Some(comment) = database::ntehelper::update_marker_comment(
+        comment_id.into_inner(),
+        &username,
+        body,
+        &Value::Array(
+            screenshot_urls
+                .into_iter()
+                .map(Value::String)
+                .collect(),
+        ),
+        &pool,
+    )
+    .await?
     else {
         return Ok(HttpResponse::Forbidden().finish());
     };
@@ -639,6 +678,38 @@ fn valid_marker_comment_body(body: &str) -> bool {
     char_count >= 1 && char_count <= MAX_MARKER_COMMENT_BODY_CHARS
 }
 
+fn valid_marker_comment_screenshot_urls(urls: &[String]) -> Option<Vec<String>> {
+    if urls.len() > MAX_MARKER_COMMENT_SCREENSHOT_URLS {
+        return None;
+    }
+
+    let mut normalized = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for url in urls {
+        let trimmed = url.trim();
+        if trimmed.is_empty() || trimmed.chars().count() > MAX_MARKER_COMMENT_SCREENSHOT_URL_CHARS {
+            return None;
+        }
+
+        let parsed = url::Url::parse(trimmed).ok()?;
+        let extension = parsed.path().rsplit('.').next()?.to_ascii_lowercase();
+        if !matches!(parsed.scheme(), "http" | "https")
+            || !matches!(extension.as_str(), "png" | "jpg" | "jpeg" | "webp" | "gif" | "avif")
+        {
+            return None;
+        }
+
+        let value = parsed.to_string();
+        if !seen.insert(value.clone()) {
+            continue;
+        }
+        normalized.push(value);
+    }
+
+    Some(normalized)
+}
+
 fn valid_setting_namespace(namespace: &str) -> bool {
     SETTING_NAMESPACES.contains(&namespace)
 }
@@ -650,7 +721,7 @@ fn valid_setting_value(data: &Value) -> bool {
             .unwrap_or(false)
 }
 
-fn valid_nte_origin(request: &HttpRequest) -> bool {
+pub(super) fn valid_nte_origin(request: &HttpRequest) -> bool {
     let Some(origin) = request.headers().get("Origin") else {
         return true;
     };
@@ -820,6 +891,13 @@ impl From<database::ntehelper::DbMarkerComment> for MarkerCommentResponse {
             marker_key: comment.marker_key,
             username: comment.username,
             body: comment.body,
+            screenshot_urls: comment
+                .screenshot_urls
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect(),
             created_at: comment.created_at,
             updated_at: comment.updated_at,
             score: comment.score,

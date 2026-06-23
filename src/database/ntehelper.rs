@@ -2,7 +2,6 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
-
 #[derive(FromRow)]
 pub struct DbCompletion {
     pub kind: String,
@@ -29,6 +28,7 @@ pub struct DbMarkerComment {
     pub marker_key: String,
     pub username: String,
     pub body: String,
+    pub screenshot_urls: Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub score: i64,
@@ -193,6 +193,7 @@ pub async fn list_marker_comments(
              c.marker_key,
              u.username,
              c.body,
+             c.screenshot_urls,
              c.created_at,
              c.updated_at,
              COALESCE(SUM(v.value), 0)::bigint AS score,
@@ -206,7 +207,7 @@ pub async fn list_marker_comments(
            LEFT JOIN ntehelper_marker_comment_vote viewer_vote
              ON viewer_vote.comment_id = c.id AND viewer_vote.user_id = $2
            WHERE c.marker_key = $1 AND c.deleted_at IS NULL
-           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.created_at, c.updated_at, viewer_vote.value
+           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value
            ORDER BY score DESC, c.created_at DESC, c.id DESC
            OFFSET $3
            LIMIT $4"#,
@@ -223,15 +224,17 @@ pub async fn create_marker_comment(
     username: &str,
     marker_key: &str,
     body: &str,
+    screenshot_urls: &Value,
     pool: &PgPool,
 ) -> Result<DbMarkerComment> {
     let user_id = get_user_id(username, pool).await?;
     let comment_id = sqlx::query_scalar::<_, i64>(
-        "INSERT INTO ntehelper_marker_comment (marker_key, user_id, body) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO ntehelper_marker_comment (marker_key, user_id, body, screenshot_urls) VALUES ($1, $2, $3, $4) RETURNING id",
     )
     .bind(marker_key)
     .bind(user_id)
     .bind(body)
+    .bind(screenshot_urls)
     .fetch_one(pool)
     .await?;
 
@@ -244,17 +247,19 @@ pub async fn update_marker_comment(
     comment_id: i64,
     username: &str,
     body: &str,
+    screenshot_urls: &Value,
     pool: &PgPool,
 ) -> Result<Option<DbMarkerComment>> {
     let user_id = get_user_id(username, pool).await?;
     let updated_id = sqlx::query_scalar::<_, i64>(
-        "UPDATE ntehelper_marker_comment SET body = $3, updated_at = now()
+        "UPDATE ntehelper_marker_comment SET body = $3, screenshot_urls = $4, updated_at = now()
          WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
          RETURNING id",
     )
     .bind(comment_id)
     .bind(user_id)
     .bind(body)
+    .bind(screenshot_urls)
     .fetch_optional(pool)
     .await?;
 
@@ -374,6 +379,7 @@ async fn get_marker_comment(
              c.marker_key,
              u.username,
              c.body,
+             c.screenshot_urls,
              c.created_at,
              c.updated_at,
              COALESCE(SUM(v.value), 0)::bigint AS score,
@@ -387,7 +393,7 @@ async fn get_marker_comment(
            LEFT JOIN ntehelper_marker_comment_vote viewer_vote
              ON viewer_vote.comment_id = c.id AND viewer_vote.user_id = $2
            WHERE c.id = $1 AND c.deleted_at IS NULL
-           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.created_at, c.updated_at, viewer_vote.value"#,
+           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value"#,
     )
     .bind(comment_id)
     .bind(viewer_user_id)
