@@ -2,8 +2,11 @@ mod tracker;
 
 use actix_session::Session;
 use actix_web::{delete, get, patch, post, put, web, HttpRequest, HttpResponse, Responder};
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::net::ToSocketAddrs;
+use std::time::Duration;
 
 use serde_json::{json, Value};
 use sqlx::PgPool;
@@ -31,6 +34,7 @@ const MAX_MARKER_COMMENT_BODY_CHARS: usize = 250;
 const MARKER_COMMENT_CREATE_LIMIT_PER_WINDOW: i64 = 60;
 const MAX_MARKER_COMMENT_SCREENSHOT_URLS: usize = 4;
 const MAX_MARKER_COMMENT_SCREENSHOT_URL_CHARS: usize = 2048;
+const MARKER_COMMENT_SCREENSHOT_VALIDATE_TIMEOUT_SECS: u64 = 8;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -487,7 +491,11 @@ async fn post_marker_comment(
     };
 
     let body = data.body.trim();
-    let Some(screenshot_urls) = valid_marker_comment_screenshot_urls(&data.screenshot_urls) else {
+    let Some(screenshot_urls) = normalize_marker_comment_screenshot_urls(&data.screenshot_urls)
+    else {
+        return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
+    };
+    if !validate_marker_comment_screenshot_urls(&screenshot_urls).await {
         return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
     };
     if !valid_marker_key(&data.marker_key) || !valid_marker_comment_body(body) {
@@ -547,7 +555,11 @@ async fn patch_marker_comment(
     };
 
     let body = data.body.trim();
-    let Some(screenshot_urls) = valid_marker_comment_screenshot_urls(&data.screenshot_urls) else {
+    let Some(screenshot_urls) = normalize_marker_comment_screenshot_urls(&data.screenshot_urls)
+    else {
+        return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
+    };
+    if !validate_marker_comment_screenshot_urls(&screenshot_urls).await {
         return Ok(HttpResponse::BadRequest().body("Invalid screenshot URLs"));
     };
     if !valid_marker_comment_body(body) {
@@ -678,7 +690,7 @@ fn valid_marker_comment_body(body: &str) -> bool {
     char_count >= 1 && char_count <= MAX_MARKER_COMMENT_BODY_CHARS
 }
 
-fn valid_marker_comment_screenshot_urls(urls: &[String]) -> Option<Vec<String>> {
+fn normalize_marker_comment_screenshot_urls(urls: &[String]) -> Option<Vec<String>> {
     if urls.len() > MAX_MARKER_COMMENT_SCREENSHOT_URLS {
         return None;
     }
@@ -708,6 +720,167 @@ fn valid_marker_comment_screenshot_urls(urls: &[String]) -> Option<Vec<String>> 
     }
 
     Some(normalized)
+}
+
+async fn validate_marker_comment_screenshot_urls(urls: &[String]) -> bool {
+    if urls.is_empty() {
+        return true;
+    }
+
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(
+            MARKER_COMMENT_SCREENSHOT_VALIDATE_TIMEOUT_SECS,
+        ))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+
+    for url in urls {
+        if !validate_marker_comment_screenshot_url(&client, url).await {
+            return false;
+        }
+    }
+
+    true
+}
+
+async fn validate_marker_comment_screenshot_url(client: &reqwest::Client, url: &str) -> bool {
+    let mut current = match url::Url::parse(url) {
+        Ok(url) => url,
+        Err(_) => return false,
+    };
+
+    for _ in 0..=3 {
+        if !url_targets_public_host(&current) {
+            return false;
+        }
+
+        let head = match client.head(current.clone()).send().await {
+            Ok(response) => response,
+            Err(_) => return false,
+        };
+
+        if let Some(next) = redirect_target(&current, &head) {
+            current = next;
+            continue;
+        }
+        if response_has_image_content_type(&head) {
+            return true;
+        }
+
+        let get = match client
+            .get(current.clone())
+            .header(header::RANGE, "bytes=0-0")
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(_) => return false,
+        };
+
+        if let Some(next) = redirect_target(&current, &get) {
+            current = next;
+            continue;
+        }
+
+        return response_has_image_content_type(&get);
+    }
+
+    false
+}
+
+fn redirect_target(current: &url::Url, response: &reqwest::Response) -> Option<url::Url> {
+    if !response.status().is_redirection() {
+        return None;
+    }
+
+    let location = response.headers().get(header::LOCATION)?.to_str().ok()?;
+    current.join(location).ok()
+}
+
+fn response_has_image_content_type(response: &reqwest::Response) -> bool {
+    if !response.status().is_success() {
+        return false;
+    }
+
+    response
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .is_some_and(|value| value.starts_with("image/"))
+}
+
+fn url_targets_public_host(url: &url::Url) -> bool {
+    if !url.username().is_empty() || url.password().is_some() {
+        return false;
+    }
+
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let normalized_host = host.trim_start_matches('[').trim_end_matches(']');
+    if !valid_public_hostname(normalized_host) {
+        return false;
+    }
+
+    let port = url.port_or_known_default().unwrap_or(80);
+    let Ok(addresses) = (normalized_host, port).to_socket_addrs() else {
+        return false;
+    };
+
+    let mut resolved_any = false;
+    for address in addresses {
+        resolved_any = true;
+        if !is_public_ip(address.ip()) {
+            return false;
+        }
+    }
+
+    resolved_any
+}
+
+fn valid_public_hostname(host: &str) -> bool {
+    if host.eq_ignore_ascii_case("localhost")
+        || host.eq_ignore_ascii_case("localhost.localdomain")
+        || host.ends_with(".local")
+        || host.ends_with(".internal")
+    {
+        return false;
+    }
+
+    true
+}
+
+fn is_public_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ip) => {
+            let [a, b, ..] = ip.octets();
+            !ip.is_private()
+                && !ip.is_loopback()
+                && !ip.is_link_local()
+                && !ip.is_broadcast()
+                && !ip.is_documentation()
+                && !ip.is_unspecified()
+                && !ip.is_multicast()
+                && !(a == 100 && (64..=127).contains(&b))
+                && !(a == 198 && matches!(b, 18 | 19))
+                && !(a >= 240)
+        }
+        std::net::IpAddr::V6(ip) => {
+            let segments = ip.segments();
+            !ip.is_loopback()
+                && !ip.is_unspecified()
+                && !ip.is_multicast()
+                && !ip.is_unique_local()
+                && !ip.is_unicast_link_local()
+                && !(segments[0] == 0x2001 && segments[1] == 0x0db8)
+        }
+    }
 }
 
 fn valid_setting_namespace(namespace: &str) -> bool {
@@ -913,7 +1086,9 @@ impl From<database::ntehelper::DbMarkerComment> for MarkerCommentResponse {
 mod tests {
     use super::valid_nte_origin;
     use super::valid_nte_origin_value;
+    use super::{is_public_ip, valid_public_hostname};
     use actix_web::test::TestRequest;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     #[test]
     fn accepts_public_nte_origin() {
@@ -946,5 +1121,28 @@ mod tests {
         assert!(!valid_nte_origin_value("https://stardb.gg"));
         assert!(!valid_nte_origin_value("https://example.com"));
         assert!(!valid_nte_origin_value("ftp://localhost"));
+    }
+
+    #[test]
+    fn rejects_local_or_internal_marker_screenshot_hosts() {
+        assert!(!valid_public_hostname("localhost"));
+        assert!(!valid_public_hostname("printer.local"));
+        assert!(!valid_public_hostname("api.internal"));
+        assert!(valid_public_hostname("i.imgur.com"));
+    }
+
+    #[test]
+    fn rejects_non_public_marker_screenshot_ips() {
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))));
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1))));
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 1))));
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(172, 16, 0, 1))));
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(169, 254, 1, 1))));
+        assert!(!is_public_ip(IpAddr::V4(Ipv4Addr::new(100, 64, 0, 1))));
+        assert!(!is_public_ip(IpAddr::V6(Ipv6Addr::LOCALHOST)));
+        assert!(!is_public_ip(IpAddr::V6(Ipv6Addr::UNSPECIFIED)));
+        assert!(!is_public_ip(IpAddr::V6(
+            "fc00::1".parse().expect("valid unique-local IPv6 address"),
+        )));
     }
 }
