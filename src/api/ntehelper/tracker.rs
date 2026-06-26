@@ -663,9 +663,6 @@ fn normalize_tracker_exports(
                     "Invalid timestamp group ordinal",
                 ));
             }
-            if record.roll_result.is_some_and(|value| value < 0) {
-                return Err(TrackerImportError::bad_request("Invalid roll result"));
-            }
             if record.quantity.is_some_and(|value| value < 0) {
                 return Err(TrackerImportError::bad_request("Invalid quantity"));
             }
