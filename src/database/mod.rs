@@ -14,6 +14,7 @@ pub mod light_cones;
 pub mod light_cones_text;
 pub mod mihomo;
 pub mod ntehelper;
+pub mod ntehelper_tracker;
 pub mod sessions;
 pub mod users;
 pub mod users_achievements_completed;
