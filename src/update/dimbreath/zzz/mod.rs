@@ -1,9 +1,7 @@
 use std::{
     collections::HashMap,
-    env,
     fs::File,
     io::BufReader,
-    path::Path,
     time::{Duration, Instant},
 };
 
@@ -15,8 +13,12 @@ mod texts;
 mod w_engines;
 
 use actix_web::rt::{self, Runtime};
-use async_process::Command;
 use sqlx::PgPool;
+
+use super::git_data;
+
+const DATA_REPO_URL: &str = "https://github.com/stardb-gg/zenless-data";
+const DATA_DIR: &str = "ZenlessData";
 
 #[derive(serde::Deserialize)]
 struct AchieveSecondClass {
@@ -159,26 +161,7 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if !Path::new("dimbreath").join("ZenlessData").exists() {
-        Command::new("git")
-            .args(["clone", "--depth", "1", &env::var("ZENLESS_REPO")?])
-            .current_dir("dimbreath")
-            .output()
-            .await?;
-
-        *up_to_date = false;
-    }
-
-    let output = String::from_utf8(
-        Command::new("git")
-            .arg("pull")
-            .current_dir(Path::new("dimbreath").join("ZenlessData"))
-            .output()
-            .await?
-            .stdout,
-    )?;
-
-    if !output.contains("Already up to date.") {
+    if git_data::sync_data_repo(DATA_REPO_URL, DATA_DIR).await? {
         *up_to_date = false;
     }
 

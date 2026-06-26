@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::BufReader,
-    path::Path,
     time::{Duration, Instant},
 };
 
@@ -12,8 +11,12 @@ mod texts;
 mod weapons;
 
 use actix_web::rt::{self, Runtime};
-use async_process::Command;
 use sqlx::PgPool;
+
+use super::git_data;
+
+const DATA_REPO_URL: &str = "https://github.com/stardb-gg/genshin-data";
+const DATA_DIR: &str = "AnimeGameData";
 
 pub async fn spawn(pool: PgPool) {
     std::thread::spawn(move || {
@@ -119,31 +122,7 @@ struct Configs {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if !Path::new("dimbreath").join("AnimeGameData").exists() {
-        Command::new("git")
-            .args([
-                "clone",
-                "--depth",
-                "1",
-                "https://gitlab.com/Dimbreath/AnimeGameData",
-            ])
-            .current_dir("dimbreath")
-            .output()
-            .await?;
-
-        *up_to_date = false;
-    }
-
-    let output = String::from_utf8(
-        Command::new("git")
-            .arg("pull")
-            .current_dir(Path::new("dimbreath").join("AnimeGameData"))
-            .output()
-            .await?
-            .stdout,
-    )?;
-
-    if !output.contains("Already up to date.") {
+    if git_data::sync_data_repo(DATA_REPO_URL, DATA_DIR).await? {
         *up_to_date = false;
     }
 
