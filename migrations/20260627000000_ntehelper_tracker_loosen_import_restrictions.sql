@@ -1,0 +1,2 @@
+ALTER TABLE ntehelper_tracker_pull
+DROP CONSTRAINT IF EXISTS ntehelper_tracker_pull_roll_result_check;
