@@ -10,6 +10,7 @@ use std::{
 pub struct DbTrackerUidClaim {
     pub uid: i64,
     pub nickname: String,
+    pub region: String,
     pub owner_user_id: Option<i64>,
     pub owner_username: Option<String>,
     pub claim_source: String,
@@ -81,6 +82,7 @@ pub async fn tracker_claims_for_user(
         r#"SELECT
              c.uid,
              c.nickname,
+             c.region,
              c.owner_user_id,
              u.username AS owner_username,
              c.claim_source,
@@ -102,6 +104,7 @@ pub async fn get_tracker_claim(uid: i64, pool: &PgPool) -> Result<Option<DbTrack
         r#"SELECT
              c.uid,
              c.nickname,
+             c.region,
              c.owner_user_id,
              u.username AS owner_username,
              c.claim_source,
@@ -208,20 +211,24 @@ pub async fn claim_tracker_uid(
         .expect("created tracker claim should load")))
 }
 
-pub async fn update_tracker_claim_nickname(
+pub async fn update_tracker_claim(
     owner_user_id: i64,
     uid: i64,
-    nickname: &str,
+    nickname: Option<&str>,
+    region: Option<&str>,
     pool: &PgPool,
 ) -> Result<std::result::Result<DbTrackerUidClaim, TrackerClaimError>> {
     let result = sqlx::query(
         "UPDATE ntehelper_tracker_uid_claim
-         SET nickname = $3, updated_at = now()
+         SET nickname = COALESCE($3, nickname),
+             region = COALESCE($4, region),
+             updated_at = now()
          WHERE uid = $1 AND owner_user_id = $2",
     )
     .bind(uid)
     .bind(owner_user_id)
     .bind(nickname)
+    .bind(region)
     .execute(pool)
     .await?;
 
