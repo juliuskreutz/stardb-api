@@ -80,6 +80,7 @@ struct TrackerClaimsResponse {
 struct TrackerUidClaimResponse {
     uid: String,
     nickname: String,
+    region: String,
     owner_username: Option<String>,
     claim_source: String,
     has_profile: bool,
@@ -90,7 +91,8 @@ struct TrackerUidClaimResponse {
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 struct TrackerClaimUpdateRequest {
-    nickname: String,
+    nickname: Option<String>,
+    region: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -285,15 +287,30 @@ async fn put_tracker_uid_claim(
     let Some(uid) = validate_tracker_uid(&uid) else {
         return Ok(HttpResponse::BadRequest().body("Invalid tracker UID"));
     };
-    let Some(nickname) = validate_tracker_nickname(&body.nickname) else {
-        return Ok(HttpResponse::BadRequest().body("Invalid tracker nickname"));
+    let nickname = match body.nickname.as_deref() {
+        Some(value) => match validate_tracker_nickname(value) {
+            Some(value) => Some(value),
+            None => return Ok(HttpResponse::BadRequest().body("Invalid tracker nickname")),
+        },
+        None => None,
     };
+    let region = match body.region.as_deref() {
+        Some(value) => match validate_tracker_region(value) {
+            Some(value) => Some(value),
+            None => return Ok(HttpResponse::BadRequest().body("Invalid tracker region")),
+        },
+        None => None,
+    };
+    if nickname.is_none() && region.is_none() {
+        return Ok(HttpResponse::BadRequest().body("Tracker claim update is empty"));
+    }
 
     let user_id = database::ntehelper_tracker::get_tracker_user_id(&username, &pool).await?;
-    let claim = match database::ntehelper_tracker::update_tracker_claim_nickname(
+    let claim = match database::ntehelper_tracker::update_tracker_claim(
         user_id,
         uid,
         nickname,
+        region,
         &pool,
     )
             .await?
@@ -554,6 +571,13 @@ fn validate_tracker_uid(value: &str) -> Option<i64> {
     trimmed.parse::<i64>().ok()
 }
 
+fn validate_tracker_region(value: &str) -> Option<&str> {
+    match value.trim() {
+        "asia" | "europe" | "america" | "china" => Some(value.trim()),
+        _ => None,
+    }
+}
+
 fn validate_tracker_nickname(value: &str) -> Option<&str> {
     let trimmed = value.trim();
     if trimmed.chars().count() > TRACKER_NICKNAME_MAX_CHARS {
@@ -662,9 +686,6 @@ fn normalize_tracker_exports(
                 return Err(TrackerImportError::bad_request(
                     "Invalid timestamp group ordinal",
                 ));
-            }
-            if record.roll_result.is_some_and(|value| value < 0) {
-                return Err(TrackerImportError::bad_request("Invalid roll result"));
             }
             if record.quantity.is_some_and(|value| value < 0) {
                 return Err(TrackerImportError::bad_request("Invalid quantity"));
@@ -820,6 +841,7 @@ impl From<database::ntehelper_tracker::DbTrackerUidClaim> for TrackerUidClaimRes
         TrackerUidClaimResponse {
             uid: claim.uid.to_string(),
             nickname: claim.nickname,
+            region: claim.region,
             owner_username: claim.owner_username,
             claim_source: claim.claim_source,
             has_profile: claim.has_profile,
