@@ -22,6 +22,7 @@ struct ApiDoc;
 #[derive(Serialize, ToSchema)]
 struct LightCone {
     id: i32,
+    rarity: i32,
     name: String,
     path: String,
     path_id: String,
@@ -31,6 +32,7 @@ impl From<database::light_cones::DbLightCone> for LightCone {
     fn from(db_light_cone: database::light_cones::DbLightCone) -> Self {
         Self {
             id: db_light_cone.id,
+            rarity: db_light_cone.rarity,
             name: db_light_cone.name,
             path: db_light_cone.path,
             path_id: db_light_cone.path_id,
