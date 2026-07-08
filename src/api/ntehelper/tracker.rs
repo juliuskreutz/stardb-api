@@ -657,13 +657,13 @@ fn normalize_tracker_exports(
 
             let record_uid =
                 safe_identifier(&record.uid, TRACKER_RECORD_UID_MAX_CHARS, "record UID")?;
-            let reward_type =
-                safe_text(&record.reward_type, TRACKER_TEXT_MAX_CHARS, "reward type")?;
             let reward_id = safe_text(
                 &record.reward_id,
                 TRACKER_REWARD_TEXT_MAX_CHARS,
                 "reward ID",
             )?;
+            let reward_type =
+                safe_text(&record.reward_type, TRACKER_TEXT_MAX_CHARS, "reward type")?;
             let reward_name = safe_display_text(
                 &record.reward_name,
                 TRACKER_REWARD_TEXT_MAX_CHARS,
@@ -917,7 +917,7 @@ mod tests {
             exports: vec![
                 sample_export("Lottery_LimitedCharacter", Some("S")),
                 sample_export("Lottery_Permanent", Some("A")),
-                sample_export("Arc_MiracleBox", None),
+                sample_export("Arc_MiracleBox", Some("B")),
             ],
         };
 
@@ -927,8 +927,47 @@ mod tests {
         assert_eq!(pulls.len(), 1);
         let pull = pulls.first().unwrap();
         assert_eq!(pull.uid, uid);
-        assert_eq!(pull.star_rank, None);
+        assert_eq!(pull.star_rank, Some(3));
         assert_eq!(pull.banner_type, "arc");
+    }
+
+    #[test]
+    fn preserves_export_metadata_for_unknown_reward_ids() {
+        let uid = 211234567890;
+        let body = TrackerImportRequest {
+            exports: vec![RawTrackerExport {
+                format: "nte-history-export".to_string(),
+                format_version: 1,
+                user_uid: "211234567890".to_string(),
+                banner: RawTrackerBanner {
+                    id: "Lottery_LimitedCharacter".to_string(),
+                },
+                records: vec![RawTrackerRecord {
+                    uid: "unknownrewardrecord".to_string(),
+                    pool_group_id: "Lottery_LimitedCharacter".to_string(),
+                    timestamp: "2026-07-08 07:12:37".to_string(),
+                    timestamp_group_ordinal: 3,
+                    roll_result: Some(1),
+                    result_type: Some("dice".to_string()),
+                    reward_type: "item".to_string(),
+                    reward_id: "mystery_reward".to_string(),
+                    reward_name: "Mystery Reward".to_string(),
+                    reward_rank: Some("A".to_string()),
+                    quantity: Some(1),
+                }],
+            }],
+        };
+
+        let (pulls, received) = normalize_tracker_exports(uid, body).unwrap();
+
+        assert_eq!(received, 1);
+        assert_eq!(pulls.len(), 1);
+        let pull = pulls.first().unwrap();
+        assert_eq!(pull.reward_type, "item");
+        assert_eq!(pull.reward_id, "mystery_reward");
+        assert_eq!(pull.reward_name, "Mystery Reward");
+        assert_eq!(pull.reward_rank, Some("A".to_string()));
+        assert_eq!(pull.star_rank, Some(4));
     }
 
     #[test]

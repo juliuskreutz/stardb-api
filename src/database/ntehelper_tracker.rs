@@ -374,7 +374,11 @@ pub async fn import_tracker_pulls(
                  star_rank,
                  quantity
                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-               ON CONFLICT (uid, record_uid) DO NOTHING"#,
+               ON CONFLICT (uid, record_uid) DO UPDATE SET
+                 reward_type = EXCLUDED.reward_type,
+                 reward_name = EXCLUDED.reward_name,
+                 reward_rank = EXCLUDED.reward_rank,
+                 star_rank = EXCLUDED.star_rank"#,
         )
         .bind(pull.uid)
         .bind(&pull.record_uid)
@@ -670,6 +674,69 @@ mod tests {
                 .expect("pull count should load"),
             2
         );
+
+        delete_test_user(&username, &pool).await;
+    }
+
+    #[actix_web::test]
+    async fn reimport_updates_only_derived_reward_fields_for_existing_pull() {
+        let pool = test_pool().await;
+        let (username, user_id) = create_test_user(&pool).await;
+        let uid = next_uid();
+
+        claim_tracker_uid(user_id, uid, 3, &pool)
+            .await
+            .expect("claim should succeed")
+            .expect("claim should be created");
+
+        let mut original_pull = sample_pull(uid, "repair-1");
+        original_pull.reward_type = "unknown".to_string();
+        original_pull.reward_id = "1076".to_string();
+        original_pull.reward_name = "1076".to_string();
+        original_pull.reward_rank = None;
+        original_pull.star_rank = None;
+        import_tracker_pulls(uid, std::slice::from_ref(&original_pull), 10, &pool)
+            .await
+            .expect("initial import should succeed")
+            .expect("initial import should not hit the limit");
+
+        let mut repaired_pull = original_pull.clone();
+        repaired_pull.reward_type = "character".to_string();
+        repaired_pull.reward_name = "Shinku".to_string();
+        repaired_pull.reward_rank = Some("S".to_string());
+        repaired_pull.star_rank = Some(5);
+        repaired_pull.timestamp_raw = "2030-01-01 00:00:00".to_string();
+        repaired_pull.timestamp_group_ordinal = Some(99);
+        repaired_pull.roll_result = Some(99);
+        repaired_pull.result_type = Some("dice".to_string());
+        repaired_pull.quantity = Some(9);
+
+        import_tracker_pulls(uid, &[repaired_pull], 10, &pool)
+            .await
+            .expect("repair import should succeed")
+            .expect("repair import should not hit the limit");
+
+        let pulls = tracker_pulls_for_uid(uid, &pool)
+            .await
+            .expect("pulls should load");
+        let stored = pulls
+            .into_iter()
+            .find(|pull| pull.record_uid == "repair-1")
+            .expect("repaired pull should exist");
+
+        assert_eq!(stored.reward_type, "character");
+        assert_eq!(stored.reward_id, "1076");
+        assert_eq!(stored.reward_name, "Shinku");
+        assert_eq!(stored.reward_rank, Some("S".to_string()));
+        assert_eq!(stored.star_rank, Some(5));
+        assert_eq!(stored.timestamp_raw, original_pull.timestamp_raw);
+        assert_eq!(
+            stored.timestamp_group_ordinal,
+            original_pull.timestamp_group_ordinal
+        );
+        assert_eq!(stored.roll_result, original_pull.roll_result);
+        assert_eq!(stored.result_type, original_pull.result_type);
+        assert_eq!(stored.quantity, original_pull.quantity);
 
         delete_test_user(&username, &pool).await;
     }
