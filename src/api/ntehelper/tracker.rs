@@ -657,26 +657,35 @@ fn normalize_tracker_exports(
 
             let record_uid =
                 safe_identifier(&record.uid, TRACKER_RECORD_UID_MAX_CHARS, "record UID")?;
-            let reward_type =
-                safe_text(&record.reward_type, TRACKER_TEXT_MAX_CHARS, "reward type")?;
             let reward_id = safe_text(
                 &record.reward_id,
                 TRACKER_REWARD_TEXT_MAX_CHARS,
                 "reward ID",
             )?;
-            let reward_name = safe_display_text(
-                &record.reward_name,
-                TRACKER_REWARD_TEXT_MAX_CHARS,
-                "reward name",
-            )?;
+            let reward_metadata = tracker_reward_metadata_for_id(&reward_id);
+            let reward_type = match reward_metadata {
+                Some(metadata) => metadata.reward_type.to_string(),
+                None => safe_text(&record.reward_type, TRACKER_TEXT_MAX_CHARS, "reward type")?,
+            };
+            let reward_name = match reward_metadata {
+                Some(metadata) => metadata.reward_name.to_string(),
+                None => safe_display_text(
+                    &record.reward_name,
+                    TRACKER_REWARD_TEXT_MAX_CHARS,
+                    "reward name",
+                )?,
+            };
             let result_type = record
                 .result_type
                 .map(|value| safe_text(&value, TRACKER_TEXT_MAX_CHARS, "result type"))
                 .transpose()?;
-            let reward_rank = record
-                .reward_rank
-                .map(|rank| normalize_rank(&rank))
-                .transpose()?;
+            let reward_rank = match reward_metadata {
+                Some(metadata) => metadata.reward_rank.map(str::to_string),
+                None => record
+                    .reward_rank
+                    .map(|rank| normalize_rank(&rank))
+                    .transpose()?,
+            };
             let star_rank = star_rank_for_reward_rank(reward_rank.as_deref());
 
             if !valid_timestamp(&record.timestamp) {
@@ -734,6 +743,140 @@ fn star_rank_for_reward_rank(rank: Option<&str>) -> Option<i32> {
         _ => None,
     }
 }
+
+#[derive(Clone, Copy)]
+struct TrackerRewardMetadata {
+    reward_type: &'static str,
+    reward_name: &'static str,
+    reward_rank: Option<&'static str>,
+}
+
+fn tracker_reward_metadata_for_id(reward_id: &str) -> Option<TrackerRewardMetadata> {
+    let normalized_id = reward_id.trim();
+
+    for (id, reward_name, reward_rank) in TRACKER_CHARACTER_REWARDS {
+        if id.eq_ignore_ascii_case(normalized_id) {
+            return Some(TrackerRewardMetadata {
+                reward_type: "character",
+                reward_name,
+                reward_rank: Some(reward_rank),
+            });
+        }
+    }
+
+    for (id, reward_name) in TRACKER_FEATURED_ARC_REWARDS {
+        if id.eq_ignore_ascii_case(normalized_id) {
+            return Some(TrackerRewardMetadata {
+                reward_type: "arc",
+                reward_name,
+                reward_rank: Some("S"),
+            });
+        }
+    }
+
+    for (id, reward_type, reward_name, reward_rank) in TRACKER_ADDITIONAL_REWARDS {
+        if id.eq_ignore_ascii_case(normalized_id) {
+            return Some(TrackerRewardMetadata {
+                reward_type,
+                reward_name,
+                reward_rank: Some(reward_rank),
+            });
+        }
+    }
+
+    None
+}
+
+const TRACKER_CHARACTER_REWARDS: &[(&str, &str, &str)] = &[
+    ("1033", "Adler", "A"),
+    ("1070", "Aurelia", "A"),
+    ("1023", "Baicang", "S"),
+    ("1071", "Chaos", "S"),
+    ("1073", "Chiz", "S"),
+    ("1076", "Shinku", "S"),
+    ("1054", "Daffodill", "S"),
+    ("1021", "Edgar", "A"),
+    ("1039", "Fadia", "S"),
+    ("1020", "Haniel", "A"),
+    ("1025", "Hathor", "S"),
+    ("1052", "Hotori", "S"),
+    ("1055", "Jiuyuan", "S"),
+    ("1004", "Lacrimosa", "S"),
+    ("1019", "Mint", "A"),
+    ("1010", "Nanally", "S"),
+    ("1003", "Sakiri", "S"),
+    ("1008", "Skia", "A"),
+];
+
+const TRACKER_FEATURED_ARC_REWARDS: &[(&str, &str)] = &[
+    ("fork_BitGame", "Blow up the Crowd"),
+    ("fork_jingmotingyuan", "Camellia Society"),
+    ("fork_mamen", "Contemplative Cat"),
+    ("fork_rishi", "Day Off"),
+    ("fork_Arachne", "Eternal Waltz"),
+    ("fork_BlastCandy", "Fluff of Fearlessness"),
+    ("fork_KnightCandy", "Fluff of Ferocity"),
+    ("fork_ThiefCandy", "Fluff of Finesse"),
+    ("fork_MotorCandy", "Fluff of Fleetness"),
+    ("fork_BoxingCandy", "Fluff of Fortitude"),
+    ("fork_mofeikesi", "Good Boy's Grand Adventure"),
+    ("fork_PoliceRat", "Hethereau's Keeper"),
+    ("fork_Time", "Marching Beyond Time"),
+    ("fork_wushoutieyu", "Raging Flames"),
+    ("fork_TigerTally", "Ready-Ready"),
+    ("fork_Butterfly", "Reality Refuge"),
+    ("fork_LunarPhase", "Blushing Mirage"),
+    ("fork_Whale", "Song of the Whale"),
+    ("fork_moon", "Stellar Veil"),
+    ("fork_NestBird", "Tears Beneath the Mask"),
+    ("fork_Rose", "The Last Rose"),
+    ("fork_worldrain", "The Rain That Shook the World"),
+    ("fork_GoldWool", "What's Desired"),
+    ("fork_Nakupeda", "Your Happiness is Priceless"),
+    ("fork_BlackBook", "Youthful Fantasy"),
+];
+
+const TRACKER_ADDITIONAL_REWARDS: &[(&str, &str, &str, &str)] = &[
+    ("Fashion_glide_1010", "cosmetic", "Underboss-of-the-Underboss", "A"),
+    ("Fashion_glide_1052", "cosmetic", "Orchid Breeze", "A"),
+    ("Fashion_glide_1004", "cosmetic", "Tomato Duo", "A"),
+    ("Fashion_glide_1071", "cosmetic", "Skyrider", "A"),
+    ("Fashion_glide_1076", "cosmetic", "Overcast Canopy", "A"),
+    ("Fashion_character_1010", "cosmetic", "Phoenix Kick", "S"),
+    ("Fashion_character_1052_01", "cosmetic", "Priceless Orchid", "S"),
+    ("Fashion_character_1004_01", "cosmetic", "Gilded Rhapsody", "S"),
+    ("Fashion_character_1071_01", "cosmetic", "Clear Skies", "S"),
+    ("Fashion_character_1076_01", "cosmetic", "Student of Terrasea", "S"),
+    ("Fashion_vehicle_1010_V008", "cosmetic", "Tiger Incoming! - Livery", "S"),
+    ("Fashion_vehicle_1052_V024", "cosmetic", "Autumn Haze - Livery", "S"),
+    ("Fashion_vehicle_1004_V021", "cosmetic", "Tomato Cruise - Livery", "S"),
+    ("Fashion_vehicle_1071_V010", "cosmetic", "Hound Blitz - Livery", "S"),
+    ("Fashion_vehicle_1076_V024", "cosmetic", "Hidden Dragon - Livery", "S"),
+    ("Fashion_Glide_1010", "cosmetic", "Underboss-of-the-Underboss", "A"),
+    ("Fashion_Glide_1052", "cosmetic", "Orchid Breeze", "A"),
+    ("Fashion_Glide_1071", "cosmetic", "Skyrider", "A"),
+    ("Fashion_Glide_1076", "cosmetic", "Overcast Canopy", "A"),
+    ("Fashion_1010_2", "cosmetic", "Phoenix Kick", "S"),
+    ("Fashion_1052_1", "cosmetic", "Priceless Orchid", "S"),
+    ("Fashion_1004_1", "cosmetic", "Gilded Rhapsody", "S"),
+    ("Fashion_1076_1", "cosmetic", "Student of Terrasea", "S"),
+    ("Likeprice_1010_0", "cosmetic", "Underboss-of-the-Underboss", "A"),
+    ("Dice_ticket_01", "item", "Warp Piece", "S"),
+    ("Dice_ticket_02", "item", "Lost Piece", "A"),
+    ("Dicelimite", "item", "Solid Dice", "S"),
+    ("DiceNormal", "item", "Fabricated Dice", "S"),
+    ("fork_appliance", "arc", "\"Real Music\"", "B"),
+    ("fork_dustbin", "arc", "Dangerous Game", "B"),
+    ("fork_HugVine", "arc", "Be Happy", "B"),
+    ("fork_Kite", "arc", "Watch Your Heads!", "A"),
+    ("fork_nonos", "arc", "First Step to Success", "B"),
+    ("fork_PaperPlane", "arc", "Clear Skies", "A"),
+    ("fork_Prokaryon", "arc", "Us.", "B"),
+    ("fork_vine", "arc", "Be Happy", "B"),
+    ("fork_wuhuakuang", "arc", "The Forgotten", "A"),
+    ("fork_yaodao", "arc", "Drawn Blade", "A"),
+    ("fork_yuren", "arc", "Umbrella", "A"),
+];
 
 fn normalize_rank(rank: &str) -> Result<String, TrackerImportError> {
     match rank.trim() {
@@ -927,8 +1070,91 @@ mod tests {
         assert_eq!(pulls.len(), 1);
         let pull = pulls.first().unwrap();
         assert_eq!(pull.uid, uid);
-        assert_eq!(pull.star_rank, None);
+        assert_eq!(pull.star_rank, Some(3));
         assert_eq!(pull.banner_type, "arc");
+    }
+
+    #[test]
+    fn repairs_stale_export_metadata_from_current_reward_catalog() {
+        let uid = 211234567890;
+        let body = TrackerImportRequest {
+            exports: vec![RawTrackerExport {
+                format: "nte-history-export".to_string(),
+                format_version: 1,
+                user_uid: "211234567890".to_string(),
+                banner: RawTrackerBanner {
+                    id: "Lottery_LimitedCharacter".to_string(),
+                },
+                records: vec![RawTrackerRecord {
+                    uid: "stale1076record".to_string(),
+                    pool_group_id: "Lottery_LimitedCharacter".to_string(),
+                    timestamp: "2026-07-08 07:12:37".to_string(),
+                    timestamp_group_ordinal: 8,
+                    roll_result: Some(2),
+                    result_type: Some("dice".to_string()),
+                    reward_type: "unknown".to_string(),
+                    reward_id: "1076".to_string(),
+                    reward_name: "1076".to_string(),
+                    reward_rank: None,
+                    quantity: Some(1),
+                }],
+            }],
+        };
+
+        let (pulls, received) = normalize_tracker_exports(uid, body).unwrap();
+
+        assert_eq!(received, 1);
+        assert_eq!(pulls.len(), 1);
+        let pull = pulls.first().unwrap();
+        assert_eq!(pull.reward_type, "character");
+        assert_eq!(pull.reward_id, "1076");
+        assert_eq!(pull.reward_name, "Shinku");
+        assert_eq!(pull.reward_rank, Some("S".to_string()));
+        assert_eq!(pull.star_rank, Some(5));
+        assert_eq!(pull.timestamp_raw, "2026-07-08 07:12:37");
+        assert_eq!(pull.timestamp_group_ordinal, Some(8));
+        assert_eq!(pull.roll_result, Some(2));
+        assert_eq!(pull.result_type, Some("dice".to_string()));
+        assert_eq!(pull.quantity, Some(1));
+    }
+
+    #[test]
+    fn preserves_export_metadata_for_unknown_reward_ids() {
+        let uid = 211234567890;
+        let body = TrackerImportRequest {
+            exports: vec![RawTrackerExport {
+                format: "nte-history-export".to_string(),
+                format_version: 1,
+                user_uid: "211234567890".to_string(),
+                banner: RawTrackerBanner {
+                    id: "Lottery_LimitedCharacter".to_string(),
+                },
+                records: vec![RawTrackerRecord {
+                    uid: "unknownrewardrecord".to_string(),
+                    pool_group_id: "Lottery_LimitedCharacter".to_string(),
+                    timestamp: "2026-07-08 07:12:37".to_string(),
+                    timestamp_group_ordinal: 3,
+                    roll_result: Some(1),
+                    result_type: Some("dice".to_string()),
+                    reward_type: "item".to_string(),
+                    reward_id: "mystery_reward".to_string(),
+                    reward_name: "Mystery Reward".to_string(),
+                    reward_rank: Some("A".to_string()),
+                    quantity: Some(1),
+                }],
+            }],
+        };
+
+        let (pulls, received) = normalize_tracker_exports(uid, body).unwrap();
+
+        assert_eq!(received, 1);
+        assert_eq!(pulls.len(), 1);
+        let pull = pulls.first().unwrap();
+        assert_eq!(pull.reward_type, "item");
+        assert_eq!(pull.reward_id, "mystery_reward");
+        assert_eq!(pull.reward_name, "Mystery Reward");
+        assert_eq!(pull.reward_rank, Some("A".to_string()));
+        assert_eq!(pull.star_rank, Some(4));
     }
 
     #[test]
