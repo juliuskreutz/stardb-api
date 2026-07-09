@@ -115,14 +115,9 @@ struct TrackerPullResponse {
     uid: String,
     record_uid: String,
     pool_group_id: String,
-    banner_type: String,
     timestamp_raw: String,
     timestamp_group_ordinal: i32,
-    reward_type: String,
     reward_id: String,
-    reward_name: String,
-    reward_rank: Option<String>,
-    star_rank: Option<i32>,
     roll_result: Option<i32>,
     result_type: Option<String>,
     quantity: Option<i32>,
@@ -142,6 +137,7 @@ struct TrackerImportResponse {
     uid: String,
     received: usize,
     imported: i64,
+    updated: i64,
     skipped_duplicate: i64,
     inserted: i64,
     duplicates: i64,
@@ -171,10 +167,13 @@ struct RawTrackerRecord {
     timestamp_group_ordinal: i32,
     roll_result: Option<i32>,
     result_type: Option<String>,
-    reward_type: String,
+    #[serde(rename = "reward_type")]
+    _reward_type: Option<String>,
     reward_id: String,
-    reward_name: String,
-    reward_rank: Option<String>,
+    #[serde(rename = "reward_name")]
+    _reward_name: Option<String>,
+    #[serde(rename = "reward_rank")]
+    _reward_rank: Option<String>,
     quantity: Option<i32>,
 }
 
@@ -448,12 +447,14 @@ async fn post_tracker_import(
     };
 
     let imported = result.inserted;
-    let skipped_duplicate = received.saturating_sub(imported as usize) as i64;
+    let updated = result.updated;
+    let skipped_duplicate = received.saturating_sub((imported + updated) as usize) as i64;
 
     Ok(HttpResponse::Ok().json(TrackerImportResponse {
         uid: uid.to_string(),
         received,
         imported,
+        updated,
         skipped_duplicate,
         inserted: imported,
         duplicates: skipped_duplicate,
@@ -645,7 +646,7 @@ fn normalize_tracker_exports(
             ));
         }
 
-        let banner_type = banner_type_for_pool(&export.banner.id)
+        banner_type_for_pool(&export.banner.id)
             .ok_or_else(|| TrackerImportError::bad_request("Unsupported tracker banner"))?;
 
         for record in export.records {
@@ -662,22 +663,10 @@ fn normalize_tracker_exports(
                 TRACKER_REWARD_TEXT_MAX_CHARS,
                 "reward ID",
             )?;
-            let reward_type =
-                safe_text(&record.reward_type, TRACKER_TEXT_MAX_CHARS, "reward type")?;
-            let reward_name = safe_display_text(
-                &record.reward_name,
-                TRACKER_REWARD_TEXT_MAX_CHARS,
-                "reward name",
-            )?;
             let result_type = record
                 .result_type
                 .map(|value| safe_text(&value, TRACKER_TEXT_MAX_CHARS, "result type"))
                 .transpose()?;
-            let reward_rank = record
-                .reward_rank
-                .map(|rank| normalize_rank(&rank))
-                .transpose()?;
-            let star_rank = star_rank_for_reward_rank(reward_rank.as_deref());
 
             if !valid_timestamp(&record.timestamp) {
                 return Err(TrackerImportError::bad_request("Invalid tracker timestamp"));
@@ -697,16 +686,11 @@ fn normalize_tracker_exports(
                     uid,
                     record_uid,
                     pool_group_id: export.banner.id.clone(),
-                    banner_type: banner_type.to_string(),
                     timestamp_raw: record.timestamp,
                     timestamp_group_ordinal: Some(record.timestamp_group_ordinal),
                     roll_result: record.roll_result,
                     result_type,
-                    reward_type,
                     reward_id,
-                    reward_name,
-                    reward_rank,
-                    star_rank,
                     quantity: record.quantity,
                     imported_at: Utc::now(),
                 },
@@ -723,22 +707,6 @@ fn banner_type_for_pool(pool_group_id: &str) -> Option<&'static str> {
         "Lottery_Permanent" => Some("permanent-character"),
         "Arc_MiracleBox" => Some("arc"),
         _ => None,
-    }
-}
-
-fn star_rank_for_reward_rank(rank: Option<&str>) -> Option<i32> {
-    match rank {
-        Some("S") => Some(5),
-        Some("A") => Some(4),
-        Some("B") => Some(3),
-        _ => None,
-    }
-}
-
-fn normalize_rank(rank: &str) -> Result<String, TrackerImportError> {
-    match rank.trim() {
-        "S" | "A" | "B" => Ok(rank.trim().to_string()),
-        _ => Err(TrackerImportError::bad_request("Unsupported reward rank")),
     }
 }
 
@@ -771,22 +739,6 @@ fn safe_text(
         || !trimmed
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':'))
-    {
-        return Err(TrackerImportError::bad_request(format!("Invalid {label}")));
-    }
-
-    Ok(trimmed.to_string())
-}
-
-fn safe_display_text(
-    value: &str,
-    max_chars: usize,
-    label: &'static str,
-) -> Result<String, TrackerImportError> {
-    let trimmed = value.trim();
-    if trimmed.is_empty()
-        || trimmed.chars().count() > max_chars
-        || trimmed.chars().any(char::is_control)
     {
         return Err(TrackerImportError::bad_request(format!("Invalid {label}")));
     }
@@ -857,14 +809,9 @@ impl From<database::ntehelper_tracker::DbTrackerPull> for TrackerPullResponse {
             uid: pull.uid.to_string(),
             record_uid: pull.record_uid,
             pool_group_id: pull.pool_group_id,
-            banner_type: pull.banner_type,
             timestamp_raw: pull.timestamp_raw,
             timestamp_group_ordinal: pull.timestamp_group_ordinal.unwrap_or_default(),
-            reward_type: pull.reward_type,
             reward_id: pull.reward_id,
-            reward_name: pull.reward_name,
-            reward_rank: pull.reward_rank,
-            star_rank: pull.star_rank,
             roll_result: pull.roll_result,
             result_type: pull.result_type,
             quantity: pull.quantity,
@@ -893,10 +840,10 @@ mod tests {
                 timestamp_group_ordinal: 0,
                 roll_result: Some(5),
                 result_type: Some("dice".to_string()),
-                reward_type: "arc".to_string(),
+                _reward_type: Some("arc".to_string()),
                 reward_id: "fork_vine".to_string(),
-                reward_name: "Be Happy".to_string(),
-                reward_rank: rank.map(str::to_string),
+                _reward_name: Some("Be Happy".to_string()),
+                _reward_rank: rank.map(str::to_string),
                 quantity: Some(1),
             }],
         }
@@ -927,12 +874,11 @@ mod tests {
         assert_eq!(pulls.len(), 1);
         let pull = pulls.first().unwrap();
         assert_eq!(pull.uid, uid);
-        assert_eq!(pull.star_rank, Some(3));
-        assert_eq!(pull.banner_type, "arc");
+        assert_eq!(pull.pool_group_id, "Arc_MiracleBox");
     }
 
     #[test]
-    fn preserves_export_metadata_for_unknown_reward_ids() {
+    fn ignores_stale_export_metadata_for_unknown_reward_ids() {
         let uid = 211234567890;
         let body = TrackerImportRequest {
             exports: vec![RawTrackerExport {
@@ -949,10 +895,10 @@ mod tests {
                     timestamp_group_ordinal: 3,
                     roll_result: Some(1),
                     result_type: Some("dice".to_string()),
-                    reward_type: "item".to_string(),
+                    _reward_type: Some("item".to_string()),
                     reward_id: "mystery_reward".to_string(),
-                    reward_name: "Mystery Reward".to_string(),
-                    reward_rank: Some("A".to_string()),
+                    _reward_name: Some("Mystery Reward".to_string()),
+                    _reward_rank: Some("A".to_string()),
                     quantity: Some(1),
                 }],
             }],
@@ -963,11 +909,11 @@ mod tests {
         assert_eq!(received, 1);
         assert_eq!(pulls.len(), 1);
         let pull = pulls.first().unwrap();
-        assert_eq!(pull.reward_type, "item");
         assert_eq!(pull.reward_id, "mystery_reward");
-        assert_eq!(pull.reward_name, "Mystery Reward");
-        assert_eq!(pull.reward_rank, Some("A".to_string()));
-        assert_eq!(pull.star_rank, Some(4));
+        assert_eq!(pull.timestamp_raw, "2026-07-08 07:12:37");
+        assert_eq!(pull.roll_result, Some(1));
+        assert_eq!(pull.result_type, Some("dice".to_string()));
+        assert_eq!(pull.quantity, Some(1));
     }
 
     #[test]
