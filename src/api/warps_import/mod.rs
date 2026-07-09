@@ -400,9 +400,14 @@ fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::
         )
     });
 
+    let api_name = if original_url.path().contains("/hkrpg_gacha_record/") {
+        "hkrpg_gacha_record"
+    } else {
+        "gacha_record"
+    };
+
     let mut url = Url::parse(&format!(
-        "https://public-operation-hkrpg-sg.hoyoverse.com/common/gacha_record/api/{}",
-        endpoint
+        "https://public-operation-hkrpg-sg.hoyoverse.com/common/{api_name}/api/{endpoint}",
     ))?;
 
     url.query_pairs_mut()
