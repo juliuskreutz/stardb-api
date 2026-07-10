@@ -24,23 +24,24 @@ pub struct DbTrackerPull {
     pub uid: i64,
     pub record_uid: String,
     pub pool_group_id: String,
-    pub banner_type: String,
     pub timestamp_raw: String,
     pub timestamp_group_ordinal: Option<i32>,
     pub roll_result: Option<i32>,
     pub result_type: Option<String>,
-    pub reward_type: String,
     pub reward_id: String,
-    pub reward_name: String,
-    pub reward_rank: Option<String>,
-    pub star_rank: Option<i32>,
     pub quantity: Option<i32>,
     pub imported_at: DateTime<Utc>,
 }
 
 pub struct TrackerImportResult {
     pub inserted: i64,
+    pub updated: i64,
     pub total: i64,
+}
+
+#[derive(Debug, FromRow, Clone)]
+struct ExistingTrackerPullRecordUid {
+    pub record_uid: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -278,16 +279,11 @@ pub async fn tracker_pulls_for_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbTrac
              uid,
              record_uid,
              pool_group_id,
-             banner_type,
              timestamp_raw,
              timestamp_group_ordinal,
              roll_result,
              result_type,
-             reward_type,
              reward_id,
-             reward_name,
-             reward_rank,
-             star_rank,
              quantity,
              imported_at
            FROM ntehelper_tracker_pull
@@ -316,7 +312,11 @@ pub async fn import_tracker_pulls(
 ) -> Result<Option<TrackerImportResult>> {
     if pulls.is_empty() {
         let total = tracker_pull_count(uid, pool).await?;
-        return Ok(Some(TrackerImportResult { inserted: 0, total }));
+        return Ok(Some(TrackerImportResult {
+            inserted: 0,
+            updated: 0,
+            total,
+        }));
     }
 
     let record_uids = pulls
@@ -348,6 +348,20 @@ pub async fn import_tracker_pulls(
     .bind(&record_uids)
     .fetch_one(&mut *tx)
     .await?;
+    let existing_pulls = sqlx::query_as::<_, ExistingTrackerPullRecordUid>(
+        r#"SELECT
+             record_uid
+           FROM ntehelper_tracker_pull
+           WHERE uid = $1 AND record_uid = ANY($2::text[])"#,
+    )
+    .bind(uid)
+    .bind(&record_uids)
+    .fetch_all(&mut *tx)
+    .await?;
+    let existing_by_record_uid = existing_pulls
+        .into_iter()
+        .map(|pull| (pull.record_uid.clone(), pull))
+        .collect::<std::collections::HashMap<_, _>>();
 
     if current_total + new_count > max_total {
         tx.rollback().await?;
@@ -355,44 +369,56 @@ pub async fn import_tracker_pulls(
     }
 
     let mut inserted = 0;
+    let mut updated = 0;
 
     for pull in pulls {
+        if existing_by_record_uid.contains_key(&pull.record_uid) {
+            let result = sqlx::query(
+                r#"UPDATE ntehelper_tracker_pull
+                   SET roll_result = $3,
+                       result_type = $4,
+                       quantity = $5
+                   WHERE uid = $1
+                     AND record_uid = $2
+                     AND (
+                        roll_result IS DISTINCT FROM $3
+                        OR result_type IS DISTINCT FROM $4
+                        OR quantity IS DISTINCT FROM $5
+                     )"#,
+            )
+            .bind(pull.uid)
+            .bind(&pull.record_uid)
+            .bind(pull.roll_result)
+            .bind(&pull.result_type)
+            .bind(pull.quantity)
+            .execute(&mut *tx)
+            .await?;
+
+            updated += result.rows_affected() as i64;
+            continue;
+        }
+
         let result = sqlx::query(
             r#"INSERT INTO ntehelper_tracker_pull (
                  uid,
                  record_uid,
                  pool_group_id,
-                 banner_type,
                  timestamp_raw,
                  timestamp_group_ordinal,
                  roll_result,
                  result_type,
-                 reward_type,
                  reward_id,
-                 reward_name,
-                 reward_rank,
-                 star_rank,
                  quantity
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-               ON CONFLICT (uid, record_uid) DO UPDATE SET
-                 reward_type = EXCLUDED.reward_type,
-                 reward_name = EXCLUDED.reward_name,
-                 reward_rank = EXCLUDED.reward_rank,
-                 star_rank = EXCLUDED.star_rank"#,
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"#,
         )
         .bind(pull.uid)
         .bind(&pull.record_uid)
         .bind(&pull.pool_group_id)
-        .bind(&pull.banner_type)
         .bind(&pull.timestamp_raw)
         .bind(pull.timestamp_group_ordinal)
         .bind(pull.roll_result)
         .bind(&pull.result_type)
-        .bind(&pull.reward_type)
         .bind(&pull.reward_id)
-        .bind(&pull.reward_name)
-        .bind(&pull.reward_rank)
-        .bind(pull.star_rank)
         .bind(pull.quantity)
         .execute(&mut *tx)
         .await?;
@@ -409,6 +435,7 @@ pub async fn import_tracker_pulls(
 
     Ok(Some(TrackerImportResult {
         inserted,
+        updated,
         total: current_total + inserted,
     }))
 }
@@ -499,16 +526,11 @@ mod tests {
             uid,
             record_uid: record_uid.to_string(),
             pool_group_id: "Lottery_LimitedCharacter".to_string(),
-            banner_type: "limited-character".to_string(),
             timestamp_raw: "2026-06-07 19:28:21".to_string(),
             timestamp_group_ordinal: Some(0),
             roll_result: Some(1),
             result_type: Some("single".to_string()),
-            reward_type: "character".to_string(),
             reward_id: "test_reward".to_string(),
-            reward_name: "Test Reward".to_string(),
-            reward_rank: Some("S".to_string()),
-            star_rank: Some(5),
             quantity: Some(1),
             imported_at: Utc::now(),
         }
@@ -679,7 +701,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn reimport_updates_only_derived_reward_fields_for_existing_pull() {
+    async fn reimport_updates_only_safe_repair_fields_for_duplicate_pull() {
         let pool = test_pool().await;
         let (username, user_id) = create_test_user(&pool).await;
         let uid = next_uid();
@@ -690,31 +712,26 @@ mod tests {
             .expect("claim should be created");
 
         let mut original_pull = sample_pull(uid, "repair-1");
-        original_pull.reward_type = "unknown".to_string();
         original_pull.reward_id = "1076".to_string();
-        original_pull.reward_name = "1076".to_string();
-        original_pull.reward_rank = None;
-        original_pull.star_rank = None;
         import_tracker_pulls(uid, std::slice::from_ref(&original_pull), 10, &pool)
             .await
             .expect("initial import should succeed")
             .expect("initial import should not hit the limit");
 
         let mut repaired_pull = original_pull.clone();
-        repaired_pull.reward_type = "character".to_string();
-        repaired_pull.reward_name = "Shinku".to_string();
-        repaired_pull.reward_rank = Some("S".to_string());
-        repaired_pull.star_rank = Some(5);
+        repaired_pull.reward_id = "1076_changed".to_string();
         repaired_pull.timestamp_raw = "2030-01-01 00:00:00".to_string();
         repaired_pull.timestamp_group_ordinal = Some(99);
         repaired_pull.roll_result = Some(99);
         repaired_pull.result_type = Some("dice".to_string());
         repaired_pull.quantity = Some(9);
 
-        import_tracker_pulls(uid, &[repaired_pull], 10, &pool)
+        let result = import_tracker_pulls(uid, &[repaired_pull], 10, &pool)
             .await
             .expect("repair import should succeed")
             .expect("repair import should not hit the limit");
+        assert_eq!(result.inserted, 0);
+        assert_eq!(result.updated, 1);
 
         let pulls = tracker_pulls_for_uid(uid, &pool)
             .await
@@ -724,19 +741,49 @@ mod tests {
             .find(|pull| pull.record_uid == "repair-1")
             .expect("repaired pull should exist");
 
-        assert_eq!(stored.reward_type, "character");
         assert_eq!(stored.reward_id, "1076");
-        assert_eq!(stored.reward_name, "Shinku");
-        assert_eq!(stored.reward_rank, Some("S".to_string()));
-        assert_eq!(stored.star_rank, Some(5));
         assert_eq!(stored.timestamp_raw, original_pull.timestamp_raw);
         assert_eq!(
             stored.timestamp_group_ordinal,
             original_pull.timestamp_group_ordinal
         );
-        assert_eq!(stored.roll_result, original_pull.roll_result);
-        assert_eq!(stored.result_type, original_pull.result_type);
-        assert_eq!(stored.quantity, original_pull.quantity);
+        assert_eq!(stored.roll_result, Some(99));
+        assert_eq!(stored.result_type, Some("dice".to_string()));
+        assert_eq!(stored.quantity, Some(9));
+
+        delete_test_user(&username, &pool).await;
+    }
+
+    #[actix_web::test]
+    async fn reimporting_identical_pull_reports_no_insert_or_update() {
+        let pool = test_pool().await;
+        let (username, user_id) = create_test_user(&pool).await;
+        let uid = next_uid();
+
+        claim_tracker_uid(user_id, uid, 3, &pool)
+            .await
+            .expect("claim should succeed")
+            .expect("claim should be created");
+
+        let pull = sample_pull(uid, "identical-1");
+        import_tracker_pulls(uid, std::slice::from_ref(&pull), 10, &pool)
+            .await
+            .expect("initial import should succeed")
+            .expect("initial import should not hit the limit");
+
+        let result = import_tracker_pulls(uid, &[pull], 10, &pool)
+            .await
+            .expect("duplicate import should succeed")
+            .expect("duplicate import should not hit the limit");
+
+        assert_eq!(result.inserted, 0);
+        assert_eq!(result.updated, 0);
+        assert_eq!(
+            tracker_pull_count(uid, &pool)
+                .await
+                .expect("pull count should load"),
+            1
+        );
 
         delete_test_user(&username, &pool).await;
     }
