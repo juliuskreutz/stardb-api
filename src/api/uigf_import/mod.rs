@@ -186,7 +186,7 @@ async fn post_uigf_import(
     for entry in &uigf.hkrpg {
         let uid = entry.uid.clone().parse()?;
         if !check_hsr_auth(admin, &username, uid, &pool).await? {
-            return Ok(HttpResponse::Forbidden().finish());
+            continue;
         }
 
         let tz = FixedOffset::east_opt(3600 * entry.timezone).unwrap();
@@ -299,7 +299,7 @@ async fn post_uigf_import(
     for entry in &uigf.nap {
         let uid = entry.uid.clone().parse()?;
         if !check_zzz_auth(admin, &username, uid, &pool).await? {
-            return Ok(HttpResponse::Forbidden().finish());
+            continue;
         }
 
         let tz = FixedOffset::east_opt(3600 * entry.timezone).unwrap();
@@ -381,7 +381,7 @@ async fn post_uigf_import(
     for entry in &uigf.hk4e {
         let uid = entry.uid.clone().parse()?;
         if !check_gi_auth(admin, &username, uid, &pool).await? {
-            return Ok(HttpResponse::Forbidden().finish());
+            continue;
         }
 
         let tz = FixedOffset::east_opt(3600 * entry.timezone).unwrap();
