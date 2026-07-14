@@ -19,6 +19,7 @@ mod select_all;
 mod sitemap;
 mod srgf_warps_import;
 mod srs_warps_import;
+mod uigf_import;
 mod users;
 mod warps;
 mod warps_import;
@@ -124,6 +125,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(sitemap::openapi());
     openapi.merge(srgf_warps_import::openapi());
     openapi.merge(srs_warps_import::openapi());
+    openapi.merge(uigf_import::openapi());
     openapi.merge(users::openapi());
     openapi.merge(warps::openapi());
     openapi.merge(warps_import::openapi());
@@ -156,6 +158,7 @@ pub fn configure(
         .configure(|sc| sitemap::configure(sc, pool.clone(), app_config.clone()))
         .configure(srgf_warps_import::configure)
         .configure(srs_warps_import::configure)
+        .configure(uigf_import::configure)
         .configure(users::configure)
         .configure(warps::configure)
         .configure(warps_import::configure)
