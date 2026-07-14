@@ -332,7 +332,7 @@ async fn post_uigf_import(
                 || pull.item_type == "代理人"
             {
                 (Some(item_id), None, None)
-            } else if pull.item_type == "W-Engine" || pull.item_type == "音擎" {
+            } else if pull.item_type == "W-Engines" || pull.item_type == "音擎" {
                 (None, Some(item_id), None)
             } else if pull.item_type == "Bangboo" || pull.item_type == "邦布" {
                 (None, None, Some(item_id))
