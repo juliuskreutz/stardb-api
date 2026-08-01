@@ -315,28 +315,28 @@ pub(crate) async fn persist_batch(
     })
 }
 
-/// Persists and recalculates every affected UID in one transaction.
+/// Persists and recalculates every submitted UID in one transaction.
 ///
 /// A persistence or calculation failure rolls back every game represented by
-/// the batch, which is required for multi-game UIGF imports.
+/// the batch, which is required for multi-game UIGF imports. Recalculation also
+/// runs when every pull already exists so reimporting refreshes stats after an
+/// administrator changes banner metadata.
 pub(crate) async fn persist_batch_in_transaction(
     batch: &ImportBatch,
     pool: &PgPool,
 ) -> anyhow::Result<PersistenceSummary> {
     let mut transaction = pool.begin().await?;
     let summary = persist_batch(batch, &mut transaction).await?;
-    if summary.changed_records > 0 {
-        for (game, uid) in batch.affected_uids() {
-            match game {
-                PullGame::Hsr => {
-                    crate::gacha::stats::hsr::recalculate_hsr_uid(uid, &mut transaction).await?
-                }
-                PullGame::Gi => {
-                    crate::gacha::stats::gi::recalculate_gi_uid(uid, &mut transaction).await?
-                }
-                PullGame::Zzz => {
-                    crate::gacha::stats::zzz::recalculate_zzz_uid(uid, &mut transaction).await?
-                }
+    for (game, uid) in batch.affected_uids() {
+        match game {
+            PullGame::Hsr => {
+                crate::gacha::stats::hsr::recalculate_hsr_uid(uid, &mut transaction).await?
+            }
+            PullGame::Gi => {
+                crate::gacha::stats::gi::recalculate_gi_uid(uid, &mut transaction).await?
+            }
+            PullGame::Zzz => {
+                crate::gacha::stats::zzz::recalculate_zzz_uid(uid, &mut transaction).await?
             }
         }
     }
@@ -862,6 +862,41 @@ mod gacha_import_db {
                         .await
                         .unwrap();
                 assert_eq!(count, 1, "{table} is current before return");
+            }
+
+            for table in [
+                "warps_stats_standard",
+                "gi_wishes_stats_standard",
+                "zzz_signals_stats_standard",
+            ] {
+                sqlx::query(&format!("DELETE FROM {table} WHERE uid = $1"))
+                    .bind(uid)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+            }
+
+            assert_eq!(
+                persist_batch_in_transaction(&valid, &pool)
+                    .await
+                    .unwrap()
+                    .changed_records,
+                0,
+                "an identical reimport should still recalculate stats"
+            );
+
+            for table in [
+                "warps_stats_standard",
+                "gi_wishes_stats_standard",
+                "zzz_signals_stats_standard",
+            ] {
+                let count: i64 =
+                    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE uid = $1"))
+                        .bind(uid)
+                        .fetch_one(&pool)
+                        .await
+                        .unwrap();
+                assert_eq!(count, 1, "{table} is refreshed by an identical reimport");
             }
 
             sqlx::query("DELETE FROM mihomo WHERE uid = $1")
