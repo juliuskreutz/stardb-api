@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::ops::Range;
-
-use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 
 use crate::{
-    api::banner_helpers::{self, HSR_STANDARD},
     database,
     gacha::stats_math::average_or_zero,
+    gacha::{
+        banner::BannerCatalog,
+        imports::{PullItem, PullPool},
+    },
+    GachaType,
 };
 
 pub(crate) async fn recalculate_hsr_uid(
@@ -23,25 +23,10 @@ pub(crate) async fn recalculate_hsr_uid(
     Ok(())
 }
 
-type BannerMap = HashMap<i32, Vec<Range<DateTime<Utc>>>>;
-
-async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerMap> {
-    let mut banners: BannerMap = HashMap::new();
-    for banner in database::banners::get_all_with_executor(&mut *connection).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-    Ok(banners)
+async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCatalog> {
+    Ok(BannerCatalog::from_hsr(
+        database::banners::get_all_with_executor(&mut *connection).await?,
+    ))
 }
 
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
@@ -93,10 +78,18 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
 
 async fn calculate_stats_special(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, HSR_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Hsr(GachaType::Special),
+                PullItem::Character(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let warps = database::warps::special::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -134,12 +127,15 @@ async fn calculate_stats_special(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(warp.character.unwrap(), warp.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(warp.character.unwrap(), warp.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -184,10 +180,18 @@ async fn calculate_stats_special(
 
 async fn calculate_stats_lc(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, HSR_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Hsr(GachaType::Lc),
+                PullItem::LightCone(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let warps = database::warps::lc::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -225,12 +229,15 @@ async fn calculate_stats_lc(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(warp.light_cone.unwrap(), warp.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -275,10 +282,18 @@ async fn calculate_stats_lc(
 
 async fn calculate_stats_collab(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, HSR_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Hsr(GachaType::Collab),
+                PullItem::Character(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let warps = database::warps::collab::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -316,12 +331,15 @@ async fn calculate_stats_collab(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(warp.character.unwrap(), warp.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(warp.character.unwrap(), warp.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -366,10 +384,18 @@ async fn calculate_stats_collab(
 
 async fn calculate_stats_collab_lc(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, HSR_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Hsr(GachaType::CollabLc),
+                PullItem::LightCone(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let warps = database::warps::collab_lc::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -407,12 +433,15 @@ async fn calculate_stats_collab_lc(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(warp.light_cone.unwrap(), warp.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;

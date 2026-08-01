@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM zzz_signals_stats_w_engine_reverberation WHERE uid=$1;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "win_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "win_streak",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "loss_streak",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4670a18b2dcde8d93b19d7d834a2d2fb692bb53fd80aa260767f3fdfe86d8685"
+}

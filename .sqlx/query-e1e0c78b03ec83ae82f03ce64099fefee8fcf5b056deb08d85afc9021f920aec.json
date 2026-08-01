@@ -32,6 +32,16 @@
         "ordinal": 5,
         "name": "name",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "character_gacha_type",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "light_cone_gacha_type",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -43,7 +53,9 @@
       false,
       true,
       true,
-      false
+      false,
+      true,
+      true
     ]
   },
   "hash": "e1e0c78b03ec83ae82f03ce64099fefee8fcf5b056deb08d85afc9021f920aec"

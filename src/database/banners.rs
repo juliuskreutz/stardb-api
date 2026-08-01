@@ -8,10 +8,15 @@ pub struct DbBanner {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub character: Option<i32>,
+    pub character_gacha_type: Option<i32>,
     pub light_cone: Option<i32>,
+    pub light_cone_gacha_type: Option<i32>,
 }
 
-pub async fn set(banner: &DbBanner, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(banner: &DbBanner, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/banners/set.sql",
         banner.id,
@@ -19,9 +24,11 @@ pub async fn set(banner: &DbBanner, pool: &PgPool) -> Result<()> {
         banner.start,
         banner.end,
         banner.character,
+        banner.character_gacha_type,
         banner.light_cone,
+        banner.light_cone_gacha_type,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
@@ -48,9 +55,12 @@ pub async fn get_by_id(id: i32, pool: &PgPool) -> Result<DbBanner> {
     )
 }
 
-pub async fn delete_by_id(id: i32, pool: &PgPool) -> Result<()> {
+pub async fn delete_by_id<'e, E>(id: i32, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file_as!(DbBanner, "sql/banners/delete_by_id.sql", id)
-        .execute(pool)
+        .execute(executor)
         .await?;
 
     Ok(())

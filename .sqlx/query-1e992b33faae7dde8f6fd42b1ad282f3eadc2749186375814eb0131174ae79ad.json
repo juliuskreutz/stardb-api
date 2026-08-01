@@ -32,6 +32,16 @@
         "ordinal": 5,
         "name": "name",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "character_gacha_type",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "weapon_gacha_type",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -45,7 +55,9 @@
       false,
       true,
       true,
-      false
+      false,
+      true,
+      true
     ]
   },
   "hash": "1e992b33faae7dde8f6fd42b1ad282f3eadc2749186375814eb0131174ae79ad"

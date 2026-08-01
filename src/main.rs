@@ -188,6 +188,18 @@ impl ZzzGachaType {
             ZzzGachaType::WEngineReverberation => 13001,
         }
     }
+
+    pub fn from_uigf_id(id: &str) -> Option<Self> {
+        match id {
+            "1" | "1001" => Some(Self::Standard),
+            "2" | "2001" => Some(Self::Special),
+            "3" | "3001" => Some(Self::WEngine),
+            "5" | "5001" => Some(Self::Bangboo),
+            "102" | "12001" => Some(Self::ExclusiveRescreening),
+            "103" | "13001" => Some(Self::WEngineReverberation),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
@@ -301,7 +313,6 @@ async fn async_main() -> anyhow::Result<()> {
         .connect(&env::var("DATABASE_URL")?)
         .await?;
     sqlx::migrate!().run(&pool).await?;
-
     if app_config.enable_update_hsr_achievements_percent {
         update::achievements_percent::spawn(pool.clone()).await;
     }
@@ -445,6 +456,25 @@ mod pool_ids_tests {
 
         assert_eq!(current, vec![1, 2, 3, 5, 102, 103]);
         assert_eq!(legacy, vec![1001, 2001, 3001, 5001, 12001, 13001]);
+    }
+
+    mod zzz_banner {
+        use super::*;
+
+        #[test]
+        fn six_pool_roundtrip() {
+            for pool in ZzzGachaType::iter() {
+                assert_eq!(
+                    ZzzGachaType::from_uigf_id(&pool.id().to_string()),
+                    Some(pool)
+                );
+                assert_eq!(
+                    ZzzGachaType::from_uigf_id(&pool.old_id().to_string()),
+                    Some(pool)
+                );
+            }
+            assert_eq!(ZzzGachaType::from_uigf_id("999"), None);
+        }
     }
 
     #[test]

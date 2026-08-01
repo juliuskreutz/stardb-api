@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::ops::Range;
-
-use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 
 use crate::{
-    api::banner_helpers::{self, GI_STANDARD},
     database,
     gacha::stats_math::average_or_zero,
+    gacha::{
+        banner::BannerCatalog,
+        imports::{PullItem, PullPool},
+    },
+    GiGachaType,
 };
 
 pub(crate) async fn recalculate_gi_uid(
@@ -22,25 +22,10 @@ pub(crate) async fn recalculate_gi_uid(
     Ok(())
 }
 
-type BannerMap = HashMap<i32, Vec<Range<DateTime<Utc>>>>;
-
-async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerMap> {
-    let mut banners: BannerMap = HashMap::new();
-    for banner in database::gi::banners::get_all_with_executor(&mut *connection).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-        if let Some(weapon) = banner.weapon {
-            banners
-                .entry(weapon)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-    Ok(banners)
+async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCatalog> {
+    Ok(BannerCatalog::from_gi(
+        database::gi::banners::get_all_with_executor(&mut *connection).await?,
+    ))
 }
 
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
@@ -88,10 +73,18 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
 
 async fn calculate_stats_character(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, GI_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Gi(GiGachaType::Character),
+                PullItem::Character(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let wishes = database::gi::wishes::character::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -129,12 +122,15 @@ async fn calculate_stats_character(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(wish.character.unwrap(), wish.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(wish.character.unwrap(), wish.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;
@@ -179,10 +175,18 @@ async fn calculate_stats_character(
 
 async fn calculate_stats_weapon(
     uid: i32,
-    banners: &BannerMap,
+    banners: &BannerCatalog,
     connection: &mut PgConnection,
 ) -> anyhow::Result<()> {
-    let is_win = banner_helpers::is_win_fn(banners, GI_STANDARD);
+    let is_win = |item, timestamp| {
+        banners
+            .classify(
+                PullPool::Gi(GiGachaType::Weapon),
+                PullItem::Weapon(item),
+                timestamp,
+            )
+            .as_win()
+    };
 
     let wishes = database::gi::wishes::weapon::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -220,12 +224,15 @@ async fn calculate_stats_weapon(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
+                let Some(is_win) = is_win(wish.weapon.unwrap(), wish.timestamp) else {
+                    continue;
+                };
                 if guarantee {
                     guarantee = false;
                 } else {
                     count_win += 1;
 
-                    if is_win(wish.weapon.unwrap(), wish.timestamp) {
+                    if is_win {
                         sum_win += 1;
 
                         loss_streak = 0;

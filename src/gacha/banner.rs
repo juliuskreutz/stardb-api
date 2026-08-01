@@ -1,0 +1,314 @@
+use std::collections::HashMap;
+
+use chrono::{DateTime, Utc};
+
+use crate::{database, GachaType, GiGachaType, ZzzGachaType};
+
+use super::imports::{PullItem, PullPool};
+
+pub(crate) fn validate_banner(
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    item_pools: &[(bool, Option<i32>, &[i32])],
+) -> bool {
+    start < end
+        && item_pools.iter().any(|(present, _, _)| *present)
+        && item_pools.iter().all(|(present, pool, allowed)| {
+            *present == pool.is_some() && pool.is_none_or(|pool| allowed.contains(&pool))
+        })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BannerOutcome {
+    Featured,
+    OffBanner,
+    Unknown,
+}
+
+impl BannerOutcome {
+    pub(crate) fn as_win(self) -> Option<bool> {
+        match self {
+            Self::Featured => Some(true),
+            Self::OffBanner => Some(false),
+            Self::Unknown => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BannerEntry {
+    pub pool: PullPool,
+    pub item: PullItem,
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+}
+
+#[derive(Default)]
+pub(crate) struct BannerCatalog {
+    entries_by_pool: HashMap<PullPool, Vec<BannerEntry>>,
+}
+
+impl BannerCatalog {
+    pub(crate) fn new(entries: impl IntoIterator<Item = BannerEntry>) -> Self {
+        let mut entries_by_pool: HashMap<_, Vec<_>> = HashMap::new();
+        for entry in entries {
+            entries_by_pool.entry(entry.pool).or_default().push(entry);
+        }
+        Self { entries_by_pool }
+    }
+
+    pub(crate) fn from_hsr(banners: impl IntoIterator<Item = database::banners::DbBanner>) -> Self {
+        Self::new(banners.into_iter().flat_map(|banner| {
+            let mut entries = Vec::with_capacity(2);
+            if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Hsr(if pool == 21 {
+                        GachaType::Collab
+                    } else {
+                        GachaType::Special
+                    }),
+                    item: PullItem::Character(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            if let (Some(item), Some(pool)) = (banner.light_cone, banner.light_cone_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Hsr(if pool == 22 {
+                        GachaType::CollabLc
+                    } else {
+                        GachaType::Lc
+                    }),
+                    item: PullItem::LightCone(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            entries
+        }))
+    }
+
+    pub(crate) fn from_gi(
+        banners: impl IntoIterator<Item = database::gi::banners::DbBanner>,
+    ) -> Self {
+        Self::new(banners.into_iter().flat_map(|banner| {
+            let mut entries = Vec::with_capacity(2);
+            if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Gi(if pool == 500 {
+                        GiGachaType::Chronicled
+                    } else {
+                        GiGachaType::Character
+                    }),
+                    item: PullItem::Character(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            if let (Some(item), Some(pool)) = (banner.weapon, banner.weapon_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Gi(if pool == 500 {
+                        GiGachaType::Chronicled
+                    } else {
+                        GiGachaType::Weapon
+                    }),
+                    item: PullItem::Weapon(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            entries
+        }))
+    }
+
+    pub(crate) fn from_zzz(
+        banners: impl IntoIterator<Item = database::zzz::banners::DbBanner>,
+    ) -> Self {
+        Self::new(banners.into_iter().flat_map(|banner| {
+            let mut entries = Vec::with_capacity(3);
+            if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Zzz(if pool == 102 {
+                        ZzzGachaType::ExclusiveRescreening
+                    } else {
+                        ZzzGachaType::Special
+                    }),
+                    item: PullItem::Character(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            if let (Some(item), Some(pool)) = (banner.w_engine, banner.w_engine_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Zzz(if pool == 103 {
+                        ZzzGachaType::WEngineReverberation
+                    } else {
+                        ZzzGachaType::WEngine
+                    }),
+                    item: PullItem::WEngine(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            if let (Some(item), Some(5)) = (banner.bangboo, banner.bangboo_gacha_type) {
+                entries.push(BannerEntry {
+                    pool: PullPool::Zzz(ZzzGachaType::Bangboo),
+                    item: PullItem::Bangboo(item),
+                    start: banner.start,
+                    end: banner.end,
+                });
+            }
+            entries
+        }))
+    }
+
+    pub(crate) fn classify(
+        &self,
+        pool: PullPool,
+        item: PullItem,
+        timestamp: DateTime<Utc>,
+    ) -> BannerOutcome {
+        if StandardPoolCatalog::contains(pool, item) {
+            return BannerOutcome::OffBanner;
+        }
+
+        self.entries_by_pool
+            .get(&pool)
+            .and_then(|entries| {
+                entries.iter().find(|entry| {
+                    entry.item == item && entry.start <= timestamp && timestamp < entry.end
+                })
+            })
+            .map_or(BannerOutcome::Unknown, |_| BannerOutcome::Featured)
+    }
+}
+
+pub(crate) struct StandardPoolCatalog;
+
+impl StandardPoolCatalog {
+    pub(crate) fn contains(pool: PullPool, item: PullItem) -> bool {
+        match (pool, item) {
+            (PullPool::Hsr(_), PullItem::Character(id)) => HSR_STANDARD_CHARACTERS.contains(&id),
+            (PullPool::Hsr(_), PullItem::LightCone(id)) => HSR_STANDARD_LIGHT_CONES.contains(&id),
+            (PullPool::Gi(_), PullItem::Character(id)) => GI_STANDARD_CHARACTERS.contains(&id),
+            (PullPool::Gi(_), PullItem::Weapon(id)) => GI_STANDARD_WEAPONS.contains(&id),
+            (PullPool::Zzz(_), PullItem::Character(id)) => ZZZ_STANDARD_CHARACTERS.contains(&id),
+            (PullPool::Zzz(_), PullItem::WEngine(id)) => ZZZ_STANDARD_W_ENGINES.contains(&id),
+            _ => false,
+        }
+    }
+}
+
+const HSR_STANDARD_CHARACTERS: &[i32] = &[1209, 1004, 1101, 1211, 1104, 1107, 1003];
+const HSR_STANDARD_LIGHT_CONES: &[i32] = &[23000, 23002, 23003, 23004, 23005, 23012, 23013];
+const GI_STANDARD_CHARACTERS: &[i32] = &[
+    10000042, 10000016, 10000003, 10000035, 10000069, 10000079, 10000041,
+];
+const GI_STANDARD_WEAPONS: &[i32] = &[
+    15502, 11501, 14502, 13505, 14501, 15501, 12501, 13502, 12502,
+];
+const ZZZ_STANDARD_CHARACTERS: &[i32] = &[1021, 1041, 1101, 1141, 1181, 1211];
+const ZZZ_STANDARD_W_ENGINES: &[i32] = &[14102, 14104, 14110, 14114, 14118, 14121];
+
+#[cfg(test)]
+mod banner_catalog {
+    use super::*;
+    use crate::{GachaType, GiGachaType, ZzzGachaType};
+    use chrono::TimeZone;
+
+    fn time(hour: u32) -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 1, 1, hour, 0, 0).unwrap()
+    }
+
+    #[test]
+    fn classifies_by_pool_coverage_and_half_open_range() {
+        let hsr_pool = PullPool::Hsr(GachaType::Special);
+        let gi_pool = PullPool::Gi(GiGachaType::Character);
+        let zzz_pool = PullPool::Zzz(ZzzGachaType::Special);
+        let catalog = BannerCatalog::new([
+            BannerEntry {
+                pool: hsr_pool,
+                item: PullItem::Character(9001),
+                start: time(1),
+                end: time(3),
+            },
+            BannerEntry {
+                pool: hsr_pool,
+                item: PullItem::Character(9002),
+                start: time(2),
+                end: time(4),
+            },
+            BannerEntry {
+                pool: gi_pool,
+                item: PullItem::Character(9001),
+                start: time(1),
+                end: time(3),
+            },
+            BannerEntry {
+                pool: zzz_pool,
+                item: PullItem::Character(9001),
+                start: time(1),
+                end: time(3),
+            },
+        ]);
+
+        assert_eq!(
+            catalog.classify(hsr_pool, PullItem::Character(9001), time(1)),
+            BannerOutcome::Featured
+        );
+        assert_eq!(
+            catalog.classify(hsr_pool, PullItem::Character(9002), time(2)),
+            BannerOutcome::Featured
+        );
+        assert_eq!(
+            catalog.classify(hsr_pool, PullItem::Character(9001), time(3)),
+            BannerOutcome::Unknown
+        );
+        assert_eq!(
+            catalog.classify(
+                PullPool::Hsr(GachaType::Collab),
+                PullItem::Character(9001),
+                time(2)
+            ),
+            BannerOutcome::Unknown
+        );
+        assert_eq!(
+            catalog.classify(hsr_pool, PullItem::Character(9999), time(2)),
+            BannerOutcome::Unknown
+        );
+        assert_eq!(
+            catalog.classify(hsr_pool, PullItem::Character(1209), time(2)),
+            BannerOutcome::OffBanner
+        );
+        assert_eq!(
+            catalog.classify(gi_pool, PullItem::Character(1209), time(2)),
+            BannerOutcome::Unknown
+        );
+        assert_eq!(
+            catalog.classify(zzz_pool, PullItem::Character(1021), time(2)),
+            BannerOutcome::OffBanner
+        );
+    }
+
+    #[test]
+    fn zzz_banner_validation_rejects_invalid_shapes() {
+        let valid = &[(true, Some(2), &[2, 102][..]), (false, None, &[3, 103][..])];
+        assert!(validate_banner(time(1), time(2), valid));
+        assert!(!validate_banner(time(2), time(1), valid));
+        assert!(!validate_banner(
+            time(1),
+            time(2),
+            &[(false, None, &[2, 102][..])]
+        ));
+        assert!(!validate_banner(
+            time(1),
+            time(2),
+            &[(true, None, &[2, 102][..])]
+        ));
+        assert!(!validate_banner(
+            time(1),
+            time(2),
+            &[(true, Some(3), &[2, 102][..])]
+        ));
+    }
+}

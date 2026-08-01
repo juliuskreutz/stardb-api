@@ -1,4 +1,5 @@
 SELECT
+    zzz_signals_w_engine.timestamp,
     zzz_signals_w_engine.character,
     zzz_signals_w_engine.w_engine,
     COALESCE(zzz_characters.rarity, zzz_w_engines.rarity) AS rarity

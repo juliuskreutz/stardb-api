@@ -8,6 +8,7 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{gi::banners::GiBanner, ApiResult},
     database,
+    gacha::banner::validate_banner,
 };
 
 #[derive(OpenApi)]
@@ -48,7 +49,9 @@ struct PutGiBanner {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
+    character_gacha_type: Option<i32>,
     weapon: Option<i32>,
+    weapon_gacha_type: Option<i32>,
 }
 
 #[utoipa::path(
@@ -74,16 +77,37 @@ async fn put_gi_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    if !validate_banner(
+        banner.start,
+        banner.end,
+        &[
+            (
+                banner.character.is_some(),
+                banner.character_gacha_type,
+                &[301, 500],
+            ),
+            (
+                banner.weapon.is_some(),
+                banner.weapon_gacha_type,
+                &[302, 500],
+            ),
+        ],
+    ) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
     let db_banner = database::gi::banners::DbBanner {
         id: *id,
         name: banner.name.clone(),
         start: banner.start,
         end: banner.end,
         character: banner.character,
+        character_gacha_type: banner.character_gacha_type,
         weapon: banner.weapon,
+        weapon_gacha_type: banner.weapon_gacha_type,
     };
 
-    database::gi::banners::set(&db_banner, &pool).await?;
+    database::gi::banners::set(&db_banner, &**pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -110,7 +134,7 @@ async fn delete_gi_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::gi::banners::delete_by_id(*id, &pool).await?;
+    database::gi::banners::delete_by_id(*id, &**pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

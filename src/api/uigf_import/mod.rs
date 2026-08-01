@@ -336,14 +336,10 @@ async fn post_uigf_import(
         > = HashMap::new();
 
         for pull in &entry.list {
-            let gacha_type_id = match pull.gacha_type.as_str() {
-                "1" => ZzzGachaType::Standard,
-                "2" => ZzzGachaType::Special,
-                "3" => ZzzGachaType::WEngine,
-                "5" => ZzzGachaType::Bangboo,
-                _ => return Ok(HttpResponse::BadRequest().finish()),
-            }
-            .id();
+            let Some(gacha_type) = ZzzGachaType::from_uigf_id(&pull.gacha_type) else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
+            let gacha_type_id = gacha_type.id();
 
             let time = NaiveDateTime::parse_from_str(&pull.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
@@ -376,6 +372,8 @@ async fn post_uigf_import(
         let mut set_all_special = database::zzz::signals::SetAll::default();
         let mut set_all_w_engine = database::zzz::signals::SetAll::default();
         let mut set_all_bangboo = database::zzz::signals::SetAll::default();
+        let mut set_all_exclusive_rescreening = database::zzz::signals::SetAll::default();
+        let mut set_all_w_engine_reverberation = database::zzz::signals::SetAll::default();
 
         for (gacha_type_id, pulls) in &signals_map {
             let gacha_type = match *gacha_type_id {
@@ -383,6 +381,12 @@ async fn post_uigf_import(
                 x if x == ZzzGachaType::Special.id() => ZzzGachaType::Special,
                 x if x == ZzzGachaType::WEngine.id() => ZzzGachaType::WEngine,
                 x if x == ZzzGachaType::Bangboo.id() => ZzzGachaType::Bangboo,
+                x if x == ZzzGachaType::ExclusiveRescreening.id() => {
+                    ZzzGachaType::ExclusiveRescreening
+                }
+                x if x == ZzzGachaType::WEngineReverberation.id() => {
+                    ZzzGachaType::WEngineReverberation
+                }
                 _ => return Ok(HttpResponse::BadRequest().finish()),
             };
             let earliest_timestamp = match gacha_type {
@@ -402,7 +406,18 @@ async fn post_uigf_import(
                     database::zzz::signals::bangboo::get_earliest_timestamp_by_uid(uid, &pool)
                         .await?
                 }
-                _ => unreachable!(),
+                ZzzGachaType::ExclusiveRescreening => {
+                    database::zzz::signals::exclusive_rescreening::get_earliest_timestamp_by_uid(
+                        uid, &pool,
+                    )
+                    .await?
+                }
+                ZzzGachaType::WEngineReverberation => {
+                    database::zzz::signals::w_engine_reverberation::get_earliest_timestamp_by_uid(
+                        uid, &pool,
+                    )
+                    .await?
+                }
             };
             for (id, character, w_engine, bangboo, time) in pulls {
                 if !admin && earliest_timestamp.is_some_and(|earliest| *time >= earliest) {
@@ -413,6 +428,12 @@ async fn post_uigf_import(
                     x if x == ZzzGachaType::Special.id() => &mut set_all_special,
                     x if x == ZzzGachaType::WEngine.id() => &mut set_all_w_engine,
                     x if x == ZzzGachaType::Bangboo.id() => &mut set_all_bangboo,
+                    x if x == ZzzGachaType::ExclusiveRescreening.id() => {
+                        &mut set_all_exclusive_rescreening
+                    }
+                    x if x == ZzzGachaType::WEngineReverberation.id() => {
+                        &mut set_all_w_engine_reverberation
+                    }
                     _ => return Ok(HttpResponse::BadRequest().finish()),
                 };
 
@@ -431,6 +452,14 @@ async fn post_uigf_import(
             (ZzzGachaType::Special, &set_all_special),
             (ZzzGachaType::WEngine, &set_all_w_engine),
             (ZzzGachaType::Bangboo, &set_all_bangboo),
+            (
+                ZzzGachaType::ExclusiveRescreening,
+                &set_all_exclusive_rescreening,
+            ),
+            (
+                ZzzGachaType::WEngineReverberation,
+                &set_all_w_engine_reverberation,
+            ),
         ] {
             normalized_pulls.extend(crate::gacha::imports::normalize_zzz_set(pull_pool, set)?);
         }

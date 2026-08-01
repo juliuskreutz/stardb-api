@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_banners (\n    id, name, start, \"end\", character, character_gacha_type,\n    w_engine, w_engine_gacha_type, bangboo, bangboo_gacha_type\n) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)\nON CONFLICT (id) DO UPDATE SET\n    name = EXCLUDED.name, start = EXCLUDED.start, \"end\" = EXCLUDED.\"end\",\n    character = EXCLUDED.character, character_gacha_type = EXCLUDED.character_gacha_type,\n    w_engine = EXCLUDED.w_engine, w_engine_gacha_type = EXCLUDED.w_engine_gacha_type,\n    bangboo = EXCLUDED.bangboo, bangboo_gacha_type = EXCLUDED.bangboo_gacha_type;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0bb6de2387abc7efa3b99fc85c16439f9718575b205327eb3c95d753fea84e3f"
+}

@@ -4,7 +4,7 @@ use chrono::{FixedOffset, Utc};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, Language};
+use crate::{api::ApiResult, database, Language, ZzzGachaType};
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -105,7 +105,6 @@ fn format_uigf_time(chrono_datetime: chrono::DateTime<Utc>, offset_hours: i32) -
     local_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-
 fn warp_to_uigf_item(
     warp: database::warps::DbWarp,
     gacha_type: &str,
@@ -201,10 +200,7 @@ fn wish_to_uigf_item(
     )
 )]
 #[get("/api/users/me/export-uigf")]
-async fn get_export_uigf(
-    session: Session,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
+async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -258,18 +254,53 @@ async fn get_export_uigf(
 
         for signal in database::zzz::signals::standard::get_by_uid(uid, Language::En, &pool).await?
         {
-            list.push(signal_to_uigf_item(signal, "1", offset));
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::Standard.id().to_string(),
+                offset,
+            ));
         }
         for signal in database::zzz::signals::special::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(signal, "2", offset));
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::Special.id().to_string(),
+                offset,
+            ));
         }
-        for signal in
-            database::zzz::signals::w_engine::get_by_uid(uid, Language::En, &pool).await?
+        for signal in database::zzz::signals::w_engine::get_by_uid(uid, Language::En, &pool).await?
         {
-            list.push(signal_to_uigf_item(signal, "3", offset));
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::WEngine.id().to_string(),
+                offset,
+            ));
         }
         for signal in database::zzz::signals::bangboo::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(signal, "5", offset));
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::Bangboo.id().to_string(),
+                offset,
+            ));
+        }
+        for signal in
+            database::zzz::signals::exclusive_rescreening::get_by_uid(uid, Language::En, &pool)
+                .await?
+        {
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::ExclusiveRescreening.id().to_string(),
+                offset,
+            ));
+        }
+        for signal in
+            database::zzz::signals::w_engine_reverberation::get_by_uid(uid, Language::En, &pool)
+                .await?
+        {
+            list.push(signal_to_uigf_item(
+                signal,
+                &ZzzGachaType::WEngineReverberation.id().to_string(),
+                offset,
+            ));
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));

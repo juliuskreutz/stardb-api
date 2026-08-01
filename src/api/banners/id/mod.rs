@@ -8,6 +8,7 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{banners::Banner, ApiResult},
     database,
+    gacha::banner::validate_banner,
 };
 
 #[derive(OpenApi)]
@@ -48,7 +49,9 @@ struct PutBanner {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
+    character_gacha_type: Option<i32>,
     light_cone: Option<i32>,
+    light_cone_gacha_type: Option<i32>,
 }
 
 #[utoipa::path(
@@ -77,16 +80,37 @@ async fn put_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
+    if !validate_banner(
+        banner.start,
+        banner.end,
+        &[
+            (
+                banner.character.is_some(),
+                banner.character_gacha_type,
+                &[11, 21],
+            ),
+            (
+                banner.light_cone.is_some(),
+                banner.light_cone_gacha_type,
+                &[12, 22],
+            ),
+        ],
+    ) {
+        return Ok(HttpResponse::BadRequest().finish());
+    }
+
     let db_banner = database::banners::DbBanner {
         id: *id,
         name: banner.name.clone(),
         start: banner.start,
         end: banner.end,
         character: banner.character,
+        character_gacha_type: banner.character_gacha_type,
         light_cone: banner.light_cone,
+        light_cone_gacha_type: banner.light_cone_gacha_type,
     };
 
-    database::banners::set(&db_banner, &pool).await?;
+    database::banners::set(&db_banner, &**pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -116,7 +140,7 @@ async fn delete_banner(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    database::banners::delete_by_id(*id, &pool).await?;
+    database::banners::delete_by_id(*id, &**pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

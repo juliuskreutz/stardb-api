@@ -51,6 +51,12 @@ async fn update(pool: PgPool) -> Result<()> {
     info!("Starting w_engine");
     w_engine(&pool).await?;
 
+    info!("Starting exclusive_rescreening");
+    exclusive_rescreening(&pool).await?;
+
+    info!("Starting w_engine_reverberation");
+    w_engine_reverberation(&pool).await?;
+
     info!("Starting bangboo");
     bangboo(&pool).await?;
 
@@ -265,6 +271,150 @@ async fn w_engine(pool: &PgPool) -> Result<()> {
         };
 
         database::zzz::signals_stats_global::w_engine::set(&stat, pool).await?;
+    }
+
+    Ok(())
+}
+
+async fn exclusive_rescreening(pool: &PgPool) -> Result<()> {
+    let mut count_map = HashMap::new();
+    let mut luck_a_map = HashMap::new();
+    let mut luck_s_map = HashMap::new();
+
+    let mut stat_uids = Vec::new();
+
+    for signal_stat in database::zzz::signals_stats::exclusive_rescreening::get_all(pool).await? {
+        let uid = signal_stat.uid;
+        let count = database::zzz::signals::exclusive_rescreening::get_count_by_uid(uid, pool)
+            .await? as i32;
+
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats_global::exclusive_rescreening::delete_by_uid(uid, pool)
+                .await?;
+            continue;
+        }
+
+        stat_uids.push(uid);
+        count_map.insert(uid, count);
+        luck_a_map.insert(uid, signal_stat.luck_a);
+        luck_s_map.insert(uid, signal_stat.luck_s);
+    }
+
+    let mut sorted_count: Vec<(i32, i32)> = count_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_count.sort_unstable_by(|(_, left), (_, right)| right.cmp(left));
+
+    let mut sorted_luck_a: Vec<(i32, f64)> = luck_a_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_luck_a.sort_unstable_by(|(_, left), (_, right)| left.total_cmp(right));
+
+    let mut sorted_luck_s: Vec<(i32, f64)> = luck_s_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_luck_s.sort_unstable_by(|(_, left), (_, right)| left.total_cmp(right));
+
+    let count_percentiles: HashMap<_, _> = sorted_count
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+    let luck_a_percentiles: HashMap<_, _> = sorted_luck_a
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+    let luck_s_percentiles: HashMap<_, _> = sorted_luck_s
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+
+    let len = stat_uids.len() as f64;
+    for uid in stat_uids {
+        let stat = database::zzz::signals_stats_global::exclusive_rescreening::DbSignalsStatGlobalExclusiveRescreening {
+            uid,
+            count_percentile: count_percentiles[&uid] as f64 / len,
+            luck_a_percentile: luck_a_percentiles[&uid] as f64 / len,
+            luck_s_percentile: luck_s_percentiles[&uid] as f64 / len,
+        };
+        database::zzz::signals_stats_global::exclusive_rescreening::set(&stat, pool).await?;
+    }
+
+    Ok(())
+}
+
+async fn w_engine_reverberation(pool: &PgPool) -> Result<()> {
+    let mut count_map = HashMap::new();
+    let mut luck_a_map = HashMap::new();
+    let mut luck_s_map = HashMap::new();
+
+    let mut stat_uids = Vec::new();
+
+    for signal_stat in database::zzz::signals_stats::w_engine_reverberation::get_all(pool).await? {
+        let uid = signal_stat.uid;
+        let count = database::zzz::signals::w_engine_reverberation::get_count_by_uid(uid, pool)
+            .await? as i32;
+
+        if count < 50 || signal_stat.luck_s == 0.0 {
+            database::zzz::signals_stats_global::w_engine_reverberation::delete_by_uid(uid, pool)
+                .await?;
+            continue;
+        }
+
+        stat_uids.push(uid);
+        count_map.insert(uid, count);
+        luck_a_map.insert(uid, signal_stat.luck_a);
+        luck_s_map.insert(uid, signal_stat.luck_s);
+    }
+
+    let mut sorted_count: Vec<(i32, i32)> = count_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_count.sort_unstable_by(|(_, left), (_, right)| right.cmp(left));
+
+    let mut sorted_luck_a: Vec<(i32, f64)> = luck_a_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_luck_a.sort_unstable_by(|(_, left), (_, right)| left.total_cmp(right));
+
+    let mut sorted_luck_s: Vec<(i32, f64)> = luck_s_map
+        .iter()
+        .map(|(&uid, &value)| (uid, value))
+        .collect();
+    sorted_luck_s.sort_unstable_by(|(_, left), (_, right)| left.total_cmp(right));
+
+    let count_percentiles: HashMap<_, _> = sorted_count
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+    let luck_a_percentiles: HashMap<_, _> = sorted_luck_a
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+    let luck_s_percentiles: HashMap<_, _> = sorted_luck_s
+        .into_iter()
+        .enumerate()
+        .map(|(index, (uid, _))| (uid, index))
+        .collect();
+
+    let len = stat_uids.len() as f64;
+    for uid in stat_uids {
+        let stat = database::zzz::signals_stats_global::w_engine_reverberation::DbSignalsStatGlobalWEngineReverberation {
+            uid,
+            count_percentile: count_percentiles[&uid] as f64 / len,
+            luck_a_percentile: luck_a_percentiles[&uid] as f64 / len,
+            luck_s_percentile: luck_s_percentiles[&uid] as f64 / len,
+        };
+        database::zzz::signals_stats_global::w_engine_reverberation::set(&stat, pool).await?;
     }
 
     Ok(())

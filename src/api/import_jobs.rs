@@ -306,15 +306,25 @@ mod gacha_security {
                 .expect("test database is migrated");
 
             let id = 1_500_000_000 + (uuid::Uuid::new_v4().as_u128() % 100_000_000) as i32;
+            sqlx::query("INSERT INTO characters (id, rarity) VALUES ($1, 5)")
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("HSR character fixture inserts");
+            sqlx::query("INSERT INTO gi_characters (id, rarity) VALUES ($1, 5)")
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("GI character fixture inserts");
             sqlx::query(
-                "INSERT INTO banners (id, start, \"end\", character, light_cone, name) VALUES ($1, now(), now() + interval '1 day', NULL, NULL, 'hsr-route')",
+                "INSERT INTO banners (id, start, \"end\", character, character_gacha_type, name) VALUES ($1, now(), now() + interval '1 day', $1, 11, 'hsr-route')",
             )
             .bind(id)
             .execute(&pool)
             .await
             .expect("HSR banner fixture inserts");
             sqlx::query(
-                "INSERT INTO gi_banners (id, start, \"end\", character, weapon, name) VALUES ($1, now(), now() + interval '1 day', NULL, NULL, 'gi-route')",
+                "INSERT INTO gi_banners (id, start, \"end\", character, character_gacha_type, name) VALUES ($1, now(), now() + interval '1 day', $1, 301, 'gi-route')",
             )
             .bind(id)
             .execute(&pool)
@@ -361,6 +371,16 @@ mod gacha_security {
                 .execute(&pool)
                 .await
                 .expect("GI banner fixture cleans up");
+            sqlx::query("DELETE FROM characters WHERE id = $1")
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("HSR character fixture cleans up");
+            sqlx::query("DELETE FROM gi_characters WHERE id = $1")
+                .bind(id)
+                .execute(&pool)
+                .await
+                .expect("GI character fixture cleans up");
         }
     }
 }
