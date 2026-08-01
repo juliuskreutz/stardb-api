@@ -228,16 +228,60 @@ impl StandardPoolCatalog {
     }
 }
 
-const HSR_STANDARD_CHARACTERS: &[i32] = &[1209, 1004, 1101, 1211, 1104, 1107, 1003];
-const HSR_STANDARD_LIGHT_CONES: &[i32] = &[23000, 23002, 23003, 23004, 23005, 23012, 23013];
+const HSR_STANDARD_CHARACTERS: &[i32] = &[
+    1209, // Yanqing
+    1004, // Welt
+    1101, // Bronya
+    1211, // Bailu
+    1104, // Gepard
+    1107, // Clara
+    1003, // Himeko
+];
+const HSR_STANDARD_LIGHT_CONES: &[i32] = &[
+    23000, // Night on the Milky Way
+    23002, // Something Irreplaceable
+    23003, // But the Battle Isn't Over
+    23004, // In the Name of the World
+    23005, // Moment of Victory
+    23012, // Sleep Like the Dead
+    23013, // Time Waits for No One
+];
 const GI_STANDARD_CHARACTERS: &[i32] = &[
-    10000042, 10000016, 10000003, 10000035, 10000069, 10000079, 10000041,
+    10000042, // Keqing
+    10000016, // Diluc
+    10000003, // Jean
+    10000035, // Qiqi
+    10000069, // Tighnari
+    10000079, // Dehya
+    10000041, // Mona
 ];
 const GI_STANDARD_WEAPONS: &[i32] = &[
-    15502, 11501, 14502, 13505, 14501, 15501, 12501, 13502, 12502,
+    15502, // Amos' Bow
+    11501, // Aquila Favonia
+    14502, // Lost Prayer to the Sacred Winds
+    13505, // Primordial Jade Winged-Spear
+    14501, // Skyward Atlas
+    15501, // Skyward Harp
+    12501, // Skyward Pride
+    13502, // Skyward Spine
+    12502, // Wolf's Gravestone
 ];
-const ZZZ_STANDARD_CHARACTERS: &[i32] = &[1021, 1041, 1101, 1141, 1181, 1211];
-const ZZZ_STANDARD_W_ENGINES: &[i32] = &[14102, 14104, 14110, 14114, 14118, 14121];
+const ZZZ_STANDARD_CHARACTERS: &[i32] = &[
+    1021, // Nekomata
+    1041, // Soldier 11
+    1101, // Koleda
+    1141, // Lycaon
+    1181, // Grace
+    1211, // Rina
+];
+const ZZZ_STANDARD_W_ENGINES: &[i32] = &[
+    14102, // Steel Cushion
+    14104, // The Brimstone
+    14110, // Hellfire Gears
+    14114, // The Restrained
+    14118, // Fusion Compiler
+    14121, // Weeping Cradle
+];
 
 #[cfg(test)]
 mod banner_catalog {
