@@ -49,16 +49,6 @@ where
     )
 }
 
-pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(
-        sqlx::query_file!("sql/gi/wishes/standard/get_count_by_uid.sql", uid)
-            .fetch_one(pool)
-            .await?
-            .count
-            .unwrap(),
-    )
-}
-
 pub async fn get_earliest_timestamp_by_uid(
     uid: i32,
     pool: &PgPool,

@@ -3,6 +3,8 @@
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
+use super::DbSignalsStatCount;
+
 /// Persisted pity and confirmed win/loss metrics for one UID.
 pub struct DbSignalsStatWEngineReverberation {
     pub uid: i32,
@@ -48,9 +50,9 @@ pub async fn get_by_uid(
 }
 
 /// Lists all per-user rows used by the global percentile updater.
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatWEngineReverberation>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatCount>> {
     Ok(sqlx::query_file_as!(
-        DbSignalsStatWEngineReverberation,
+        DbSignalsStatCount,
         "sql/zzz/signals_stats/w_engine_reverberation/get_all.sql"
     )
     .fetch_all(pool)

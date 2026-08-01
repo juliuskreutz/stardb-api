@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
+use super::DbWishesStatCount;
+
 pub struct DbWishesStatWeapon {
     pub uid: i32,
     pub luck_4: f64,
@@ -39,9 +41,9 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatWe
     .await?)
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatWeapon>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatCount>> {
     Ok(
-        sqlx::query_file_as!(DbWishesStatWeapon, "sql/gi/wishes_stats/weapon/get_all.sql")
+        sqlx::query_file_as!(DbWishesStatCount, "sql/gi/wishes_stats/weapon/get_all.sql")
             .fetch_all(pool)
             .await?,
     )

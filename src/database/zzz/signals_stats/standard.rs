@@ -1,6 +1,8 @@
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
+use super::DbSignalsStatCount;
+
 pub struct DbSignalsStatStandard {
     pub uid: i32,
     pub luck_a: f64,
@@ -33,9 +35,9 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatS
     .await?)
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatStandard>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatCount>> {
     Ok(sqlx::query_file_as!(
-        DbSignalsStatStandard,
+        DbSignalsStatCount,
         "sql/zzz/signals_stats/standard/get_all.sql"
     )
     .fetch_all(pool)

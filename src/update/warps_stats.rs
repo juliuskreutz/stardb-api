@@ -1,16 +1,14 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use actix_web::rt;
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::database;
-use crate::database::warps_stats_global::DbWarpsStatGlobal;
-
-const UPDATE_BATCH_SIZE: usize = 1000;
+use crate::{
+    database,
+    database::warps_stats_global::DbWarpsStatGlobal,
+    gacha::global_stats::{calculate_percentiles, PercentileInput, UPDATE_BATCH_SIZE},
+};
 
 pub async fn spawn(pool: PgPool) {
     actix::Arbiter::new().spawn(async move {
@@ -217,66 +215,23 @@ fn calculate_stats(
         stats.len(),
         banner_type
     );
-    let mut count_map = HashMap::new();
-    let mut luck_4_map = HashMap::new();
-    let mut luck_5_map = HashMap::new();
-    let mut stat_uids = Vec::new();
-
-    for warp_stat in stats {
-        let uid = warp_stat.uid;
-        let count = warp_stat.warp_count.unwrap_or(0) as i32;
-
-        stat_uids.push(uid);
-        count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
-    }
-
-    let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
-
-    let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
-    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
-
-    let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
-    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
-
-    let count_percentiles: HashMap<_, _> = sorted_count
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let luck_4_percentiles: HashMap<_, _> = sorted_luck_4
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let luck_5_percentiles: HashMap<_, _> = sorted_luck_5
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let mut stats = Vec::new();
-    let len = stat_uids.len() as f64;
-    for uid in &stat_uids {
-        let count_percentile = count_percentiles[uid] as f64 / len;
-        let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
-        let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
-
-        let stat = DbWarpsStatGlobal {
-            uid: *uid,
-            count_percentile,
-            luck_4_percentile,
-            luck_5_percentile,
-        };
-
-        stats.push(stat);
-    }
-
-    stats
+    calculate_percentiles(
+        stats
+            .into_iter()
+            .map(|stat| PercentileInput {
+                uid: stat.uid,
+                count: stat.warp_count.unwrap_or(0) as i32,
+                luck_low: stat.luck_4,
+                luck_high: stat.luck_5,
+            })
+            .collect(),
+    )
+    .into_iter()
+    .map(|stat| DbWarpsStatGlobal {
+        uid: stat.uid,
+        count_percentile: stat.count,
+        luck_4_percentile: stat.luck_low,
+        luck_5_percentile: stat.luck_high,
+    })
+    .collect()
 }

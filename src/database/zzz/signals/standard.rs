@@ -62,16 +62,6 @@ where
     )
 }
 
-pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
-    Ok(
-        sqlx::query_file!("sql/zzz/signals/standard/get_count_by_uid.sql", uid)
-            .fetch_one(pool)
-            .await?
-            .count
-            .unwrap(),
-    )
-}
-
 pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!("sql/zzz/signals/standard/delete_all.sql", uid)
         .execute(pool)

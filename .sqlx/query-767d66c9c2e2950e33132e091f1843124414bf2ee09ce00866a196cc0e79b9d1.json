@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_stats_global_w_engine (uid, count_percentile, luck_a_percentile, luck_s_percentile)\nSELECT *\nFROM UNNEST(\n    $1::integer[],\n    $2::double precision[],\n    $3::double precision[],\n    $4::double precision[]\n)\nON CONFLICT (uid)\nDO UPDATE SET\n    count_percentile = EXCLUDED.count_percentile,\n    luck_a_percentile = EXCLUDED.luck_a_percentile,\n    luck_s_percentile = EXCLUDED.luck_s_percentile;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "767d66c9c2e2950e33132e091f1843124414bf2ee09ce00866a196cc0e79b9d1"
+}

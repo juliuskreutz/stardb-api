@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH signal_counts AS (\n    SELECT uid, COUNT(*) AS signal_count\n    FROM zzz_signals_w_engine_reverberation\n    GROUP BY uid\n)\nSELECT stats.uid, stats.luck_a, stats.luck_s, counts.signal_count\nFROM zzz_signals_stats_w_engine_reverberation AS stats\nLEFT JOIN signal_counts AS counts USING (uid);\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "signal_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "fbc11c3bda908567f584f2838859d7db44b4beda422113c97806068cb55e6c7e"
+}
