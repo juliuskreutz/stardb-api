@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{Executor, PgConnection, PgPool, Postgres};
 
 use crate::Language;
 
 use super::{DbWish, DbWishInfo, SetAll};
 
-pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query_file!(
+pub async fn set_all(set_all: &SetAll, connection: &mut PgConnection) -> anyhow::Result<u64> {
+    let result = sqlx::query_file!(
         "sql/gi/wishes/weapon/set_all.sql",
         &set_all.id,
         &set_all.uid,
@@ -15,10 +15,10 @@ pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
         &set_all.timestamp as &[DateTime<Utc>],
         &set_all.official,
     )
-    .execute(pool)
+    .execute(&mut *connection)
     .await?;
 
-    Ok(())
+    Ok(result.rows_affected())
 }
 
 pub async fn get_by_uid(
@@ -35,10 +35,13 @@ pub async fn get_by_uid(
     )
 }
 
-pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbWishInfo>> {
+pub async fn get_infos_by_uid<'e, E>(uid: i32, executor: E) -> anyhow::Result<Vec<DbWishInfo>>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     Ok(
         sqlx::query_file_as!(DbWishInfo, "sql/gi/wishes/weapon/get_infos.sql", uid)
-            .fetch_all(pool)
+            .fetch_all(executor)
             .await?,
     )
 }

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT MIN(timestamp) AS \"timestamp?\"\nFROM zzz_signals_w_engine\nWHERE uid = $1;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp?",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8fc0f9525746b9b53df3e3a575ceeb0ea5bcaff75eb30175a7edb891e3703e8c"
+}

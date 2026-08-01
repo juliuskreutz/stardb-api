@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 
 use crate::Language;
 
 use super::{DbSignal, DbSignalInfo, SetAll};
 
-pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query_file!(
+pub async fn set_all(set_all: &SetAll, connection: &mut PgConnection) -> anyhow::Result<u64> {
+    let result = sqlx::query_file!(
         "sql/zzz/signals/w_engine_reverberation/set_all.sql",
         &set_all.id,
         &set_all.uid,
@@ -15,10 +15,10 @@ pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
         &set_all.timestamp as &[DateTime<Utc>],
         &set_all.official,
     )
-    .execute(pool)
+    .execute(&mut *connection)
     .await?;
 
-    Ok(())
+    Ok(result.rows_affected())
 }
 
 pub async fn get_by_uid(

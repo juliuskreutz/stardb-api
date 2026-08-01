@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_standard (id, uid, character, w_engine, timestamp, official)\nSELECT\n    *\nFROM\n    UNNEST($1::bigint[], $2::integer[], $3::integer[], $4::integer[], $5::timestamp[], $6::boolean[])\nON CONFLICT (uid, id) DO UPDATE SET\n    character = EXCLUDED.character,\n    w_engine = EXCLUDED.w_engine,\n    timestamp = EXCLUDED.timestamp,\n    official = TRUE\nWHERE EXCLUDED.official AND NOT zzz_signals_standard.official;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "TimestampArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a5842548722c23cf71329af14be4eb6a2ed5d2e4a4bc04fd49a26181466192ff"
+}

@@ -263,11 +263,18 @@ async fn post_paimon_warps_import(
         }
     }
 
-    database::gi::wishes::beginner::set_all(&set_all_beginner, &pool).await?;
-    database::gi::wishes::standard::set_all(&set_all_standard, &pool).await?;
-    database::gi::wishes::character::set_all(&set_all_character, &pool).await?;
-    database::gi::wishes::weapon::set_all(&set_all_weapon, &pool).await?;
-    database::gi::wishes::chronicled::set_all(&set_all_chronicled, &pool).await?;
+    crate::gacha::imports::persist_gi_sets_in_transaction(
+        &[
+            (GiGachaType::Beginner, &set_all_beginner),
+            (GiGachaType::Standard, &set_all_standard),
+            (GiGachaType::Character, &set_all_character),
+            (GiGachaType::Weapon, &set_all_weapon),
+            (GiGachaType::Chronicled, &set_all_chronicled),
+        ],
+        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+        &pool,
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().finish())
 }

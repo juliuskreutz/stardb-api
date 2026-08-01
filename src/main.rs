@@ -104,6 +104,7 @@ impl Language {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -141,8 +142,12 @@ impl GachaType {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
+    PartialEq,
+    Eq,
+    Hash,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -186,6 +191,7 @@ impl ZzzGachaType {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,

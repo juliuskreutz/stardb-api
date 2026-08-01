@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 pub struct DbWishesStatWeapon {
     pub uid: i32,
@@ -10,7 +10,10 @@ pub struct DbWishesStatWeapon {
     pub loss_streak: i32,
 }
 
-pub async fn set(stat: &DbWishesStatWeapon, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbWishesStatWeapon, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/gi/wishes_stats/weapon/set.sql",
         stat.uid,
@@ -20,7 +23,7 @@ pub async fn set(stat: &DbWishesStatWeapon, pool: &PgPool) -> Result<()> {
         stat.win_streak,
         stat.loss_streak,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

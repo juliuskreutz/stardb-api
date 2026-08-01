@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT MIN(timestamp) AS \"timestamp?\"\nFROM zzz_signals_bangboo\nWHERE uid = $1;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp?",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2feda8f2e5b99415785eb6cfbe6d67d0427f773f22415fa1ba14b2f074e1d2dc"
+}

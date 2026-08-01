@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 pub struct DbBanner {
     pub id: i32,
@@ -28,8 +28,15 @@ pub async fn set(banner: &DbBanner, pool: &PgPool) -> Result<()> {
 }
 
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbBanner>> {
+    get_all_with_executor(pool).await
+}
+
+pub async fn get_all_with_executor<'e, E>(executor: E) -> Result<Vec<DbBanner>>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     Ok(sqlx::query_file_as!(DbBanner, "sql/gi/banners/get_all.sql")
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await?)
 }
 

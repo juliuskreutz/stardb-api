@@ -1,7 +1,7 @@
 mod achievement_series;
 mod achievements;
 mod admin;
-mod banner_helpers;
+pub(crate) mod banner_helpers;
 mod banners;
 mod characters;
 mod gi;

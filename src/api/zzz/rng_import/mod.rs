@@ -108,6 +108,7 @@ async fn post_rng_signals_import(
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
 
+    let mut normalized_pulls = Vec::new();
     for (signals, gacha_type) in [
         (standard_signals, ZzzGachaType::Standard),
         (special_signals, ZzzGachaType::Special),
@@ -158,27 +159,16 @@ async fn post_rng_signals_import(
             set_all.official.push(false);
         }
 
-        match gacha_type {
-            ZzzGachaType::Standard => {
-                database::zzz::signals::standard::set_all(&set_all, &pool).await?
-            }
-            ZzzGachaType::Special => {
-                database::zzz::signals::special::set_all(&set_all, &pool).await?
-            }
-            ZzzGachaType::WEngine => {
-                database::zzz::signals::w_engine::set_all(&set_all, &pool).await?
-            }
-            ZzzGachaType::Bangboo => {
-                database::zzz::signals::bangboo::set_all(&set_all, &pool).await?
-            }
-            ZzzGachaType::ExclusiveRescreening => {
-                database::zzz::signals::exclusive_rescreening::set_all(&set_all, &pool).await?
-            }
-            ZzzGachaType::WEngineReverberation => {
-                database::zzz::signals::w_engine_reverberation::set_all(&set_all, &pool).await?
-            }
-        }
+        normalized_pulls.extend(crate::gacha::imports::normalize_zzz_set(
+            gacha_type, &set_all,
+        )?);
     }
+
+    let batch = crate::gacha::imports::ImportBatch::new(
+        normalized_pulls,
+        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+    )?;
+    crate::gacha::imports::persist_batch_in_transaction(&batch, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

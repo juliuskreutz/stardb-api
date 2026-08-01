@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{Executor, PgConnection, PgPool, Postgres};
 
 use crate::Language;
 
 use super::{DbSignal, DbSignalInfo, SetAll};
 
-pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query_file!(
+pub async fn set_all(set_all: &SetAll, connection: &mut PgConnection) -> anyhow::Result<u64> {
+    let result = sqlx::query_file!(
         "sql/zzz/signals/standard/set_all.sql",
         &set_all.id,
         &set_all.uid,
@@ -15,10 +15,23 @@ pub async fn set_all(set_all: &SetAll, pool: &PgPool) -> anyhow::Result<()> {
         &set_all.timestamp as &[DateTime<Utc>],
         &set_all.official,
     )
-    .execute(pool)
+    .execute(&mut *connection)
     .await?;
 
-    Ok(())
+    Ok(result.rows_affected())
+}
+
+pub async fn get_earliest_timestamp_by_uid(
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<Option<DateTime<Utc>>> {
+    Ok(sqlx::query_file!(
+        "sql/zzz/signals/standard/get_earliest_timestamp_by_uid.sql",
+        uid
+    )
+    .fetch_one(pool)
+    .await?
+    .timestamp)
 }
 
 pub async fn get_by_uid(
@@ -38,10 +51,13 @@ pub async fn get_by_uid(
     .await?)
 }
 
-pub async fn get_infos_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<Vec<DbSignalInfo>> {
+pub async fn get_infos_by_uid<'e, E>(uid: i32, executor: E) -> anyhow::Result<Vec<DbSignalInfo>>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     Ok(
         sqlx::query_file_as!(DbSignalInfo, "sql/zzz/signals/standard/get_infos.sql", uid)
-            .fetch_all(pool)
+            .fetch_all(executor)
             .await?,
     )
 }

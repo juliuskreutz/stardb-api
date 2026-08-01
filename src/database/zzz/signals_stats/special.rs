@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 pub struct DbSignalsStatSpecial {
     pub uid: i32,
@@ -10,7 +10,10 @@ pub struct DbSignalsStatSpecial {
     pub loss_streak: i32,
 }
 
-pub async fn set(stat: &DbSignalsStatSpecial, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbSignalsStatSpecial, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/zzz/signals_stats/special/set.sql",
         stat.uid,
@@ -20,7 +23,7 @@ pub async fn set(stat: &DbSignalsStatSpecial, pool: &PgPool) -> Result<()> {
         stat.win_streak,
         stat.loss_streak,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

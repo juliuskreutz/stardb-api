@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 pub struct DbWishesStatStandard {
     pub uid: i32,
@@ -7,14 +7,17 @@ pub struct DbWishesStatStandard {
     pub luck_5: f64,
 }
 
-pub async fn set(stat: &DbWishesStatStandard, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbWishesStatStandard, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/gi/wishes_stats/standard/set.sql",
         stat.uid,
         stat.luck_4,
         stat.luck_5,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

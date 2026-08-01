@@ -1,6 +1,6 @@
 mod uid;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
@@ -15,16 +15,13 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::{
-        banner_helpers::{self, GI_STANDARD},
         import_jobs::{
             classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
             ImportStatus,
         },
         validate_import_url, ApiResult,
     },
-    database,
-    gacha::stats_math::average_or_zero,
-    GiGachaType,
+    database, GiGachaType,
 };
 
 #[derive(OpenApi)]
@@ -277,10 +274,6 @@ async fn post_gi_wishes_import(
             let gacha_type = info.lock().await.gacha_type;
             error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
             info.lock().await.status = ImportStatus::Error(code);
-        } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            let gacha_type = info.lock().await.gacha_type;
-            error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e.into()), "gacha stats calculation failed");
-            info.lock().await.status = ImportStatus::Error(ImportErrorCode::CalculationFailed);
         } else {
             info.lock().await.status = ImportStatus::Finished;
         }
@@ -422,330 +415,12 @@ async fn import_wishes(
         }
     }
 
-    match gacha_type {
-        GiGachaType::Beginner => database::gi::wishes::beginner::set_all(&set_all, pool).await?,
-        GiGachaType::Standard => database::gi::wishes::standard::set_all(&set_all, pool).await?,
-        GiGachaType::Character => database::gi::wishes::character::set_all(&set_all, pool).await?,
-        GiGachaType::Weapon => database::gi::wishes::weapon::set_all(&set_all, pool).await?,
-        GiGachaType::Chronicled => {
-            database::gi::wishes::chronicled::set_all(&set_all, pool).await?
-        }
-    }
-
-    Ok(())
-}
-
-async fn calculate_stats(
-    uid: i32,
-    info: &Arc<Mutex<WishesImportInfo>>,
-    pool: &PgPool,
-) -> anyhow::Result<()> {
-    info.lock().await.status = ImportStatus::Calculating;
-
-    info.lock().await.gacha_type = GiGachaType::Standard;
-    calculate_stats_standard(uid, pool).await?;
-    info.lock().await.gacha_type = GiGachaType::Character;
-    calculate_stats_character(uid, pool).await?;
-    info.lock().await.gacha_type = GiGachaType::Weapon;
-    calculate_stats_weapon(uid, pool).await?;
-    info.lock().await.gacha_type = GiGachaType::Chronicled;
-    calculate_stats_chronicled(uid, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let wishes = database::gi::wishes::standard::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    for wish in &wishes {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match wish.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_4 = average_or_zero(sum_4, count_4);
-    let luck_5 = average_or_zero(sum_5, count_5);
-
-    let stat = database::gi::wishes_stats::standard::DbWishesStatStandard {
-        uid,
-        luck_4,
-        luck_5,
-    };
-    database::gi::wishes_stats::standard::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::gi::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(weapon) = banner.weapon {
-            banners
-                .entry(weapon)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
-
-    let wishes = database::gi::wishes::character::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for wish in &wishes {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match wish.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(wish.character.unwrap(), wish.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = average_or_zero(sum_4, count_4);
-    let luck_5 = average_or_zero(sum_5, count_5);
-    let win_rate = average_or_zero(sum_win, count_win);
-
-    let stat = database::gi::wishes_stats::character::DbWishesStatCharacter {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::gi::wishes_stats::character::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::gi::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(weapon) = banner.weapon {
-            banners
-                .entry(weapon)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
-
-    let wishes = database::gi::wishes::weapon::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for wish in &wishes {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match wish.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(wish.weapon.unwrap(), wish.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = average_or_zero(sum_4, count_4);
-    let luck_5 = average_or_zero(sum_5, count_5);
-    let win_rate = average_or_zero(sum_win, count_win);
-
-    let stat = database::gi::wishes_stats::weapon::DbWishesStatWeapon {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::gi::wishes_stats::weapon::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_chronicled(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let wishes = database::gi::wishes::chronicled::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    for wish in &wishes {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match wish.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_4 = average_or_zero(sum_4, count_4);
-    let luck_5 = average_or_zero(sum_5, count_5);
-
-    let stat = database::gi::wishes_stats::chronicled::DbWishesStatChronicled {
-        uid,
-        luck_4,
-        luck_5,
-    };
-    database::gi::wishes_stats::chronicled::set(&stat, pool).await?;
+    let pulls = crate::gacha::imports::normalize_gi_set(gacha_type, &set_all)?;
+    let batch = crate::gacha::imports::ImportBatch::new(
+        pulls,
+        crate::gacha::imports::ImportPolicy::official(),
+    )?;
+    crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
 
     Ok(())
 }
