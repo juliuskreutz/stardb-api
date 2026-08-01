@@ -16,16 +16,22 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{
         banner_helpers::{self, GI_STANDARD},
+        import_jobs::{
+            classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
+            ImportStatus,
+        },
         validate_import_url, ApiResult,
     },
-    database, GiGachaType,
+    database,
+    gacha::stats_math::average_or_zero,
+    GiGachaType,
 };
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "gi/wishes-import")),
     paths(post_gi_wishes_import),
-    components(schemas(WishesImportParams, WishesImport, WishesImportInfo, Status))
+    components(schemas(WishesImportParams, WishesImport, WishesImportInfo, ImportStatus, ImportErrorCode))
 )]
 struct ApiDoc;
 
@@ -65,16 +71,7 @@ struct Entry {
     time: String,
 }
 
-type WishesImportInfos = Mutex<HashMap<i32, Arc<Mutex<WishesImportInfo>>>>;
-
-#[derive(Serialize, ToSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Pending,
-    Calculating,
-    Finished,
-    Error(String),
-}
+type WishesImportInfos = ImportJobStore<WishesImportInfo>;
 
 #[derive(Serialize, ToSchema, Clone)]
 struct WishesImportInfo {
@@ -84,7 +81,7 @@ struct WishesImportInfo {
     character: usize,
     weapon: usize,
     chronicled: usize,
-    status: Status,
+    status: ImportStatus,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -97,6 +94,9 @@ struct WishesImportParams {
 #[derive(Serialize, ToSchema)]
 struct WishesImport {
     uid: i32,
+    /// Opaque identifier used to poll this import without exposing the UID-keyed job store.
+    #[schema(value_type = String)]
+    job_id: ImportJobId,
 }
 
 #[utoipa::path(
@@ -152,13 +152,19 @@ async fn post_gi_wishes_import(
         {
             Ok(response) => match response.json::<GachaLog>().await {
                 Ok(gacha_log) => gacha_log,
-                Err(_) => {
-                    import_error = Some("Unable to fetch wish history".to_string());
+                Err(error) => {
+                    import_error = Some(classify_import_error(
+                        &error,
+                        ImportErrorCode::InvalidResponse,
+                    ));
                     continue;
                 }
             },
-            Err(_) => {
-                import_error = Some("Unable to fetch wish history".to_string());
+            Err(error) => {
+                import_error = Some(classify_import_error(
+                    &error,
+                    ImportErrorCode::UpstreamUnavailable,
+                ));
                 continue;
             }
         };
@@ -170,19 +176,27 @@ async fn post_gi_wishes_import(
     }
 
     if uid == 0 {
-        let info = Arc::new(Mutex::new(WishesImportInfo {
-            gacha_type: GiGachaType::Standard,
-            beginner: 0,
-            standard: 0,
-            character: 0,
-            weapon: 0,
-            chronicled: 0,
-            status: Status::Error(import_error.unwrap_or_else(|| "No data".to_string())),
-        }));
+        let job = wishes_import_infos
+            .create(WishesImportInfo {
+                gacha_type: GiGachaType::Standard,
+                beginner: 0,
+                standard: 0,
+                character: 0,
+                weapon: 0,
+                chronicled: 0,
+                status: ImportStatus::Error(
+                    import_error.unwrap_or(ImportErrorCode::InvalidResponse),
+                ),
+            })
+            .await;
+        let job_id = job.id;
+        let jobs = wishes_import_infos.clone();
+        rt::spawn(async move {
+            rt::time::sleep(Duration::from_secs(60)).await;
+            jobs.remove(job_id).await;
+        });
 
-        wishes_import_infos.lock().await.insert(uid, info.clone());
-
-        return Ok(HttpResponse::Ok().json(WishesImport { uid }));
+        return Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }));
     }
 
     // Enka is only used to populate a display name. The import can continue without it.
@@ -214,21 +228,27 @@ async fn post_gi_wishes_import(
         database::gi::connections::set(&connection, &pool).await?;
     }
 
-    if wishes_import_infos.lock().await.contains_key(&uid) {
-        return Ok(HttpResponse::Ok().json(WishesImport { uid }));
+    let job = wishes_import_infos
+        .start(
+            uid,
+            WishesImportInfo {
+                gacha_type: GiGachaType::Standard,
+                beginner: 0,
+                standard: 0,
+                character: 0,
+                weapon: 0,
+                chronicled: 0,
+                status: ImportStatus::Pending,
+            },
+        )
+        .await;
+    let job_id = job.id;
+
+    if !job.is_new {
+        return Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }));
     }
 
-    let info = Arc::new(Mutex::new(WishesImportInfo {
-        gacha_type: GiGachaType::Standard,
-        beginner: 0,
-        standard: 0,
-        character: 0,
-        weapon: 0,
-        chronicled: 0,
-        status: Status::Pending,
-    }));
-
-    wishes_import_infos.lock().await.insert(uid, info.clone());
+    let info = job.info;
 
     rt::spawn(async move {
         let mut error = Ok(());
@@ -253,21 +273,26 @@ async fn post_gi_wishes_import(
         }
 
         if let Err(e) = error {
-            info.lock().await.status = Status::Error(e.to_string());
+            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+            info.lock().await.status = ImportStatus::Error(code);
         } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            info.lock().await.status = Status::Error(e.to_string());
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e.into()), "gacha stats calculation failed");
+            info.lock().await.status = ImportStatus::Error(ImportErrorCode::CalculationFailed);
         } else {
-            info.lock().await.status = Status::Finished;
+            info.lock().await.status = ImportStatus::Finished;
         }
 
         rt::spawn(async move {
             rt::time::sleep(Duration::from_secs(60)).await;
 
-            wishes_import_infos.lock().await.remove(&uid);
+            wishes_import_infos.remove(job_id).await;
         });
     });
 
-    Ok(HttpResponse::Ok().json(WishesImport { uid }))
+    Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }))
 }
 
 async fn import_wishes(
@@ -415,7 +440,7 @@ async fn calculate_stats(
     info: &Arc<Mutex<WishesImportInfo>>,
     pool: &PgPool,
 ) -> anyhow::Result<()> {
-    info.lock().await.status = Status::Calculating;
+    info.lock().await.status = ImportStatus::Calculating;
 
     info.lock().await.gacha_type = GiGachaType::Standard;
     calculate_stats_standard(uid, pool).await?;
@@ -459,8 +484,8 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
         }
     }
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
 
     let stat = database::gi::wishes_stats::standard::DbWishesStatStandard {
         uid,
@@ -560,9 +585,9 @@ async fn calculate_stats_character(uid: i32, pool: &PgPool) -> anyhow::Result<()
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::gi::wishes_stats::character::DbWishesStatCharacter {
         uid,
@@ -665,9 +690,9 @@ async fn calculate_stats_weapon(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::gi::wishes_stats::weapon::DbWishesStatWeapon {
         uid,
@@ -712,8 +737,8 @@ async fn calculate_stats_chronicled(uid: i32, pool: &PgPool) -> anyhow::Result<(
         }
     }
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
 
     let stat = database::gi::wishes_stats::chronicled::DbWishesStatChronicled {
         uid,

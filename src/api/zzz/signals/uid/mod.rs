@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{ApiResult, LanguageParams},
+    api::{gacha_history_forbidden, ApiResult, LanguageParams},
     database,
 };
 
@@ -96,18 +96,21 @@ async fn get_zzz_signals(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = database::connections::get_by_uid(uid, &pool)
+    let is_private = database::zzz::connections::get_by_uid(uid, &pool)
         .await?
         .iter()
         .any(|c| c.private);
+    let mut forbidden = is_private;
 
     if forbidden {
         if let Ok(Some(username)) = session.get::<String>("username") {
-            if let Ok(connection) =
-                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
-            {
-                forbidden = !connection.verified;
-            }
+            let is_admin = database::admins::exists(&username, &pool).await?;
+            let has_verified_connection =
+                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool)
+                    .await
+                    .is_ok_and(|connection| connection.verified);
+            forbidden =
+                gacha_history_forbidden(is_private, true, is_admin, has_verified_connection);
         }
     }
 

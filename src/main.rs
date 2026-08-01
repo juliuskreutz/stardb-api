@@ -4,6 +4,7 @@ extern crate tracing;
 mod api;
 mod app_config;
 mod database;
+mod gacha;
 mod mihomo;
 mod pg_session_store;
 mod update;

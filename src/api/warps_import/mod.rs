@@ -15,16 +15,22 @@ use utoipa::{OpenApi, ToSchema};
 use crate::{
     api::{
         banner_helpers::{self, HSR_STANDARD},
+        import_jobs::{
+            classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
+            ImportStatus,
+        },
         validate_import_url, ApiResult,
     },
-    database, mihomo, GachaType, Language,
+    database,
+    gacha::stats_math::average_or_zero,
+    mihomo, GachaType, Language,
 };
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps-import")),
     paths(post_warps_import),
-    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, Status))
+    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, ImportStatus, ImportErrorCode))
 )]
 struct ApiDoc;
 
@@ -64,16 +70,7 @@ struct Entry {
     time: String,
 }
 
-type WarpsImportInfos = Mutex<HashMap<i32, Arc<Mutex<WarpsImportInfo>>>>;
-
-#[derive(Serialize, ToSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Pending,
-    Calculating,
-    Finished,
-    Error(String),
-}
+type WarpsImportInfos = ImportJobStore<WarpsImportInfo>;
 
 #[derive(Serialize, ToSchema, Clone)]
 struct WarpsImportInfo {
@@ -84,7 +81,7 @@ struct WarpsImportInfo {
     lc: usize,
     collab: usize,
     collab_lc: usize,
-    status: Status,
+    status: ImportStatus,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -97,6 +94,9 @@ struct WarpsImportParams {
 #[derive(Serialize, ToSchema)]
 struct WarpsImport {
     uid: i32,
+    /// Opaque identifier used to poll this import without exposing the UID-keyed job store.
+    #[schema(value_type = String)]
+    job_id: ImportJobId,
 }
 
 #[utoipa::path(
@@ -122,17 +122,34 @@ async fn post_warps_import(
     };
 
     let mut uid = None;
+    let mut import_error = None;
 
     // try to find the users uid. check each until we find one
     for gacha_type in GachaType::iter() {
         let gacha_type_id = gacha_type.id();
         let url = gacha_log_url(gacha_type, &original_url)?;
 
-        let gacha_log: GachaLog =
-            reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0"))
-                .await?
-                .json()
-                .await?;
+        let response =
+            match reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0")).await {
+                Ok(response) => response,
+                Err(error) => {
+                    import_error = Some(classify_import_error(
+                        &error,
+                        ImportErrorCode::UpstreamUnavailable,
+                    ));
+                    continue;
+                }
+            };
+        let gacha_log = match response.json::<GachaLog>().await {
+            Ok(gacha_log) => gacha_log,
+            Err(error) => {
+                import_error = Some(classify_import_error(
+                    &error,
+                    ImportErrorCode::InvalidResponse,
+                ));
+                continue;
+            }
+        };
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = Some(entry.uid.parse()?);
@@ -141,20 +158,28 @@ async fn post_warps_import(
     }
 
     let Some(uid) = uid else {
-        let info = Arc::new(Mutex::new(WarpsImportInfo {
-            gacha_type: GachaType::Standard,
-            standard: 0,
-            departure: 0,
-            special: 0,
-            lc: 0,
-            collab: 0,
-            collab_lc: 0,
-            status: Status::Error("No data".to_string()),
-        }));
+        let job = warps_import_infos
+            .create(WarpsImportInfo {
+                gacha_type: GachaType::Standard,
+                standard: 0,
+                departure: 0,
+                special: 0,
+                lc: 0,
+                collab: 0,
+                collab_lc: 0,
+                status: ImportStatus::Error(
+                    import_error.unwrap_or(ImportErrorCode::InvalidResponse),
+                ),
+            })
+            .await;
+        let job_id = job.id;
+        let jobs = warps_import_infos.clone();
+        rt::spawn(async move {
+            rt::time::sleep(Duration::from_secs(60)).await;
+            jobs.remove(job_id).await;
+        });
 
-        warps_import_infos.lock().await.insert(0, info.clone());
-
-        return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0 }));
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0, job_id }));
     };
 
     // Wacky way to update the database in case the uid isn't in there
@@ -189,22 +214,28 @@ async fn post_warps_import(
         database::connections::set(&connection, &pool).await?;
     }
 
-    if warps_import_infos.lock().await.contains_key(&uid) {
-        return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
+    let job = warps_import_infos
+        .start(
+            uid,
+            WarpsImportInfo {
+                gacha_type: GachaType::Standard,
+                standard: 0,
+                departure: 0,
+                special: 0,
+                lc: 0,
+                collab: 0,
+                collab_lc: 0,
+                status: ImportStatus::Pending,
+            },
+        )
+        .await;
+    let job_id = job.id;
+
+    if !job.is_new {
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }));
     }
 
-    let info = Arc::new(Mutex::new(WarpsImportInfo {
-        gacha_type: GachaType::Standard,
-        standard: 0,
-        departure: 0,
-        special: 0,
-        lc: 0,
-        collab: 0,
-        collab_lc: 0,
-        status: Status::Pending,
-    }));
-
-    warps_import_infos.lock().await.insert(uid, info.clone());
+    let info = job.info;
 
     rt::spawn(async move {
         let mut error = Ok(());
@@ -229,21 +260,26 @@ async fn post_warps_import(
         }
 
         if let Err(e) = error {
-            info.lock().await.status = Status::Error(e.to_string());
+            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "hsr", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+            info.lock().await.status = ImportStatus::Error(code);
         } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            info.lock().await.status = Status::Error(e.to_string());
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "hsr", uid, pool = %gacha_type, %job_id, error = %redacted_error(e.into()), "gacha stats calculation failed");
+            info.lock().await.status = ImportStatus::Error(ImportErrorCode::CalculationFailed);
         } else {
-            info.lock().await.status = Status::Finished;
+            info.lock().await.status = ImportStatus::Finished;
         }
 
         rt::spawn(async move {
             rt::time::sleep(Duration::from_secs(60)).await;
 
-            warps_import_infos.lock().await.remove(&uid);
+            warps_import_infos.remove(job_id).await;
         });
     });
 
-    Ok(HttpResponse::Ok().json(WarpsImport { uid }))
+    Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
 }
 
 async fn import_warps(
@@ -375,7 +411,7 @@ async fn calculate_stats(
     info: &Arc<Mutex<WarpsImportInfo>>,
     pool: &PgPool,
 ) -> anyhow::Result<()> {
-    info.lock().await.status = Status::Calculating;
+    info.lock().await.status = ImportStatus::Calculating;
 
     info.lock().await.gacha_type = GachaType::Standard;
     calculate_stats_standard(uid, pool).await?;
@@ -456,8 +492,8 @@ async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()>
         }
     }
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
 
     let stat = database::warps_stats::DbWarpsStat {
         uid,
@@ -561,9 +597,9 @@ async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> 
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::warps_stats::DbWarpsStat {
         uid,
@@ -666,9 +702,9 @@ async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::warps_stats::DbWarpsStat {
         uid,
@@ -771,9 +807,9 @@ async fn calculate_stats_collab(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::warps_stats::DbWarpsStat {
         uid,
@@ -876,9 +912,9 @@ async fn calculate_stats_collab_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()
     let win_streak = max_win_streak;
     let loss_streak = max_loss_streak;
 
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
+    let luck_4 = average_or_zero(sum_4, count_4);
+    let luck_5 = average_or_zero(sum_5, count_5);
+    let win_rate = average_or_zero(sum_win, count_win);
 
     let stat = database::warps_stats::DbWarpsStat {
         uid,

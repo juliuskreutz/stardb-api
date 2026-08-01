@@ -1,6 +1,6 @@
 mod uid;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
@@ -13,7 +13,13 @@ use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{validate_import_url, ApiResult},
+    api::{
+        import_jobs::{
+            classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
+            ImportStatus,
+        },
+        validate_import_url, ApiResult,
+    },
     database, ZzzGachaType,
 };
 
@@ -21,7 +27,7 @@ use crate::{
 #[openapi(
     tags((name = "zzz/signals-import")),
     paths(post_zzz_signals_import),
-    components(schemas(SignalsImportParams, SignalsImport, SignalsImportInfo, Status))
+    components(schemas(SignalsImportParams, SignalsImport, SignalsImportInfo, ImportStatus, ImportErrorCode))
 )]
 struct ApiDoc;
 
@@ -61,16 +67,7 @@ struct Entry {
     time: String,
 }
 
-type SignalsImportInfos = Mutex<HashMap<i32, Arc<Mutex<SignalsImportInfo>>>>;
-
-#[derive(Serialize, ToSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Pending,
-    Calculating,
-    Finished,
-    Error(String),
-}
+type SignalsImportInfos = ImportJobStore<SignalsImportInfo>;
 
 #[derive(Serialize, ToSchema, Clone)]
 struct SignalsImportInfo {
@@ -81,7 +78,7 @@ struct SignalsImportInfo {
     bangboo: usize,
     exclusive_rescreening: usize,
     w_engine_reverberation: usize,
-    status: Status,
+    status: ImportStatus,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -92,6 +89,9 @@ struct SignalsImportParams {
 #[derive(Serialize, ToSchema)]
 struct SignalsImport {
     uid: i32,
+    /// Opaque identifier used to poll this import without exposing the UID-keyed job store.
+    #[schema(value_type = String)]
+    job_id: ImportJobId,
 }
 
 #[utoipa::path(
@@ -133,13 +133,30 @@ async fn post_zzz_signals_import(
         .finish();
 
     let mut uid = 0;
+    let mut import_error = None;
 
     for gacha_type in ZzzGachaType::iter().map(|gt| gt.id()) {
-        let gacha_log: GachaLog =
-            reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0"))
-                .await?
-                .json()
-                .await?;
+        let response =
+            match reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0")).await {
+                Ok(response) => response,
+                Err(error) => {
+                    import_error = Some(classify_import_error(
+                        &error,
+                        ImportErrorCode::UpstreamUnavailable,
+                    ));
+                    continue;
+                }
+            };
+        let gacha_log = match response.json::<GachaLog>().await {
+            Ok(gacha_log) => gacha_log,
+            Err(error) => {
+                import_error = Some(classify_import_error(
+                    &error,
+                    ImportErrorCode::InvalidResponse,
+                ));
+                continue;
+            }
+        };
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = entry.uid.parse()?;
@@ -148,20 +165,28 @@ async fn post_zzz_signals_import(
     }
 
     if uid == 0 {
-        let info = Arc::new(Mutex::new(SignalsImportInfo {
-            gacha_type: ZzzGachaType::Standard,
-            standard: 0,
-            bangboo: 0,
-            special: 0,
-            w_engine: 0,
-            exclusive_rescreening: 0,
-            w_engine_reverberation: 0,
-            status: Status::Error("No data".to_string()),
-        }));
+        let job = signals_import_infos
+            .create(SignalsImportInfo {
+                gacha_type: ZzzGachaType::Standard,
+                standard: 0,
+                bangboo: 0,
+                special: 0,
+                w_engine: 0,
+                exclusive_rescreening: 0,
+                w_engine_reverberation: 0,
+                status: ImportStatus::Error(
+                    import_error.unwrap_or(ImportErrorCode::InvalidResponse),
+                ),
+            })
+            .await;
+        let job_id = job.id;
+        let jobs = signals_import_infos.clone();
+        rt::spawn(async move {
+            rt::time::sleep(Duration::from_secs(60)).await;
+            jobs.remove(job_id).await;
+        });
 
-        signals_import_infos.lock().await.insert(uid, info.clone());
-
-        return Ok(HttpResponse::Ok().json(SignalsImport { uid }));
+        return Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }));
     }
 
     database::zzz::uids::set(&database::zzz::uids::DbUid { uid }, &pool).await?;
@@ -176,22 +201,28 @@ async fn post_zzz_signals_import(
         database::zzz::connections::set(&connection, &pool).await?;
     }
 
-    if signals_import_infos.lock().await.contains_key(&uid) {
-        return Ok(HttpResponse::Ok().json(SignalsImport { uid }));
+    let job = signals_import_infos
+        .start(
+            uid,
+            SignalsImportInfo {
+                gacha_type: ZzzGachaType::Standard,
+                standard: 0,
+                bangboo: 0,
+                special: 0,
+                w_engine: 0,
+                exclusive_rescreening: 0,
+                w_engine_reverberation: 0,
+                status: ImportStatus::Pending,
+            },
+        )
+        .await;
+    let job_id = job.id;
+
+    if !job.is_new {
+        return Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }));
     }
 
-    let info = Arc::new(Mutex::new(SignalsImportInfo {
-        gacha_type: ZzzGachaType::Standard,
-        standard: 0,
-        bangboo: 0,
-        special: 0,
-        w_engine: 0,
-        exclusive_rescreening: 0,
-        w_engine_reverberation: 0,
-        status: Status::Pending,
-    }));
-
-    signals_import_infos.lock().await.insert(uid, info.clone());
+    let info = job.info;
 
     rt::spawn(async move {
         let mut error = Ok(());
@@ -207,21 +238,26 @@ async fn post_zzz_signals_import(
         }
 
         if let Err(e) = error {
-            info.lock().await.status = Status::Error(e.to_string());
+            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "zzz", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+            info.lock().await.status = ImportStatus::Error(code);
         } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            info.lock().await.status = Status::Error(e.to_string());
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "zzz", uid, pool = %gacha_type, %job_id, error = %redacted_error(e.into()), "gacha stats calculation failed");
+            info.lock().await.status = ImportStatus::Error(ImportErrorCode::CalculationFailed);
         } else {
-            info.lock().await.status = Status::Finished;
+            info.lock().await.status = ImportStatus::Finished;
         }
 
         rt::spawn(async move {
             rt::time::sleep(Duration::from_secs(60)).await;
 
-            signals_import_infos.lock().await.remove(&uid);
+            signals_import_infos.remove(job_id).await;
         });
     });
 
-    Ok(HttpResponse::Ok().json(SignalsImport { uid }))
+    Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }))
 }
 
 async fn import_signals(
@@ -332,7 +368,7 @@ async fn calculate_stats(
     info: &Arc<Mutex<SignalsImportInfo>>,
     pool: &PgPool,
 ) -> anyhow::Result<()> {
-    info.lock().await.status = Status::Calculating;
+    info.lock().await.status = ImportStatus::Calculating;
 
     info.lock().await.gacha_type = ZzzGachaType::Standard;
     calculate_stats_standard(uid, pool).await?;

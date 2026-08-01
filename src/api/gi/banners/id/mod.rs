@@ -35,7 +35,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         (status = 200, description = "GiBanner", body = GiBanner),
     )
 )]
-#[get("/api/banners/{id}")]
+#[get("/api/gi/banners/{id}")]
 async fn get_gi_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let banner: GiBanner = database::gi::banners::get_by_id(*id, &pool).await?.into();
 
@@ -55,7 +55,7 @@ struct PutGiBanner {
     tag = "gi/banners/{id}",
     put,
     path = "/api/gi/banners/{id}",
-    responses((status = 201)),
+    responses((status = 200)),
 )]
 #[put("/api/gi/banners/{id}")]
 async fn put_gi_banner(
