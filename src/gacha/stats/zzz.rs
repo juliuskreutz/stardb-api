@@ -1,3 +1,8 @@
+//! Transaction-friendly per-user ZZZ signal-stat calculation for all six pools.
+//!
+//! Banner-backed pools share one catalog load. Unknown historical coverage is
+//! excluded from win metrics, while pity averages still cover every signal.
+
 use sqlx::PgConnection;
 
 use crate::{
@@ -9,6 +14,7 @@ use crate::{
     ZzzGachaType,
 };
 
+/// Recalculates and upserts every ZZZ stat row for one UID.
 pub(crate) async fn recalculate_zzz_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -23,12 +29,14 @@ pub(crate) async fn recalculate_zzz_uid(
     Ok(())
 }
 
+/// Loads the pool-aware ZZZ catalog once for the complete UID calculation.
 async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCatalog> {
     Ok(BannerCatalog::from_zzz(
         database::zzz::banners::get_all_with_executor(&mut *connection).await?,
     ))
 }
 
+/// Calculates Stable Channel pity averages.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -88,6 +96,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     Ok(())
 }
 
+/// Calculates Exclusive Channel pity and confirmed banner outcomes.
 async fn calculate_stats_special(
     uid: i32,
     catalog: &BannerCatalog,
@@ -197,6 +206,7 @@ async fn calculate_stats_special(
     Ok(())
 }
 
+/// Calculates W-Engine Channel pity and confirmed banner outcomes.
 async fn calculate_stats_w_engine(
     uid: i32,
     catalog: &BannerCatalog,
@@ -306,6 +316,7 @@ async fn calculate_stats_w_engine(
     Ok(())
 }
 
+/// Calculates Bangboo Channel pity; this pool has no win/loss metric.
 async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::bangboo::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -356,6 +367,7 @@ async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> any
 
     Ok(())
 }
+/// Calculates Exclusive Rescreening pity and confirmed banner outcomes.
 async fn calculate_stats_exclusive_rescreening(
     uid: i32,
     catalog: &BannerCatalog,
@@ -468,6 +480,7 @@ async fn calculate_stats_exclusive_rescreening(
     Ok(())
 }
 
+/// Calculates W-Engine Reverberation pity and confirmed banner outcomes.
 async fn calculate_stats_w_engine_reverberation(
     uid: i32,
     catalog: &BannerCatalog,

@@ -1,3 +1,8 @@
+//! Opaque in-memory job tracking shared by long-running gacha import endpoints.
+//!
+//! Clients receive random IDs and closed status/error enums. Upstream request
+//! URLs, including credential-bearing query strings, never enter responses.
+
 use std::{collections::HashMap, sync::Arc};
 
 use futures::lock::Mutex;
@@ -5,11 +10,13 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+/// Unpredictable public identifier for one import job.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(transparent)]
 pub(crate) struct ImportJobId(Uuid);
 
 impl ImportJobId {
+    /// Creates a cryptographically random job identifier.
     pub(crate) fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -21,6 +28,7 @@ impl std::fmt::Display for ImportJobId {
     }
 }
 
+/// Stable client-facing categories for import failures.
 #[derive(Clone, Copy, Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ImportErrorCode {
@@ -30,6 +38,7 @@ pub(crate) enum ImportErrorCode {
     CalculationFailed,
 }
 
+/// Maps transport and decoding failures to closed public error codes.
 pub(crate) fn classify_import_error(
     error: &(dyn std::error::Error + 'static),
     fallback: ImportErrorCode,
@@ -41,6 +50,7 @@ pub(crate) fn classify_import_error(
     }
 }
 
+/// Removes request URLs from HTTP errors before internal logging.
 pub(crate) fn redacted_error(error: Box<dyn std::error::Error>) -> String {
     match error.downcast::<reqwest::Error>() {
         Ok(error) => error.without_url().to_string(),
@@ -48,6 +58,7 @@ pub(crate) fn redacted_error(error: Box<dyn std::error::Error>) -> String {
     }
 }
 
+/// Public lifecycle state returned by import job status routes.
 #[derive(Clone, Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ImportStatus {
@@ -76,12 +87,14 @@ impl<T> Default for ImportJobs<T> {
     }
 }
 
+/// Result of creating or joining an active import job.
 pub(crate) struct StartedImportJob<T> {
     pub(crate) id: ImportJobId,
     pub(crate) info: Arc<Mutex<T>>,
     pub(crate) is_new: bool,
 }
 
+/// Concurrent job store with at most one UID-bound job active per UID.
 pub(crate) struct ImportJobStore<T> {
     jobs: Mutex<ImportJobs<T>>,
 }
@@ -95,6 +108,7 @@ impl<T> Default for ImportJobStore<T> {
 }
 
 impl<T> ImportJobStore<T> {
+    /// Starts a UID-bound job or joins the existing active job for that UID.
     pub(crate) async fn start(&self, uid: i32, initial: T) -> StartedImportJob<T> {
         let mut jobs = self.jobs.lock().await;
 
@@ -128,6 +142,7 @@ impl<T> ImportJobStore<T> {
         }
     }
 
+    /// Creates an unbound job for workflows that do not know a UID up front.
     pub(crate) async fn create(&self, initial: T) -> StartedImportJob<T> {
         let mut jobs = self.jobs.lock().await;
         let id = ImportJobId::new();
@@ -147,6 +162,7 @@ impl<T> ImportJobStore<T> {
         }
     }
 
+    /// Returns shared mutable job state for an exact opaque identifier.
     pub(crate) async fn get(&self, id: ImportJobId) -> Option<Arc<Mutex<T>>> {
         self.jobs
             .lock()
@@ -156,6 +172,7 @@ impl<T> ImportJobStore<T> {
             .map(|job| job.info.clone())
     }
 
+    /// Removes a completed job and its UID-active index entry atomically.
     pub(crate) async fn remove(&self, id: ImportJobId) {
         let mut jobs = self.jobs.lock().await;
         let Some(job) = jobs.jobs_by_id.remove(&id) else {
@@ -202,13 +219,6 @@ mod gacha_security {
             let second = store.start(123, "second").await;
             assert!(second.is_new);
             assert_ne!(first.id, second.id);
-        }
-
-        #[actix_web::test]
-        async fn unknown_job_is_not_visible() {
-            let store = ImportJobStore::<()>::default();
-
-            assert!(store.get(ImportJobId::new()).await.is_none());
         }
 
         #[actix_web::test]

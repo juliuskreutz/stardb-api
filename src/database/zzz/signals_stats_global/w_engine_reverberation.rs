@@ -1,6 +1,9 @@
+//! Global percentile persistence for W-Engine Reverberation signals.
+
 use anyhow::Result;
 use sqlx::PgPool;
 
+/// Population-relative ranks displayed beside one UID's local stats.
 pub struct DbSignalsStatGlobalWEngineReverberation {
     pub uid: i32,
     pub count_percentile: f64,
@@ -8,6 +11,7 @@ pub struct DbSignalsStatGlobalWEngineReverberation {
     pub luck_s_percentile: f64,
 }
 
+/// Upserts one UID's current percentile row.
 pub async fn set(stat: &DbSignalsStatGlobalWEngineReverberation, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/zzz/signals_stats_global/w_engine_reverberation/set.sql",
@@ -22,6 +26,7 @@ pub async fn set(stat: &DbSignalsStatGlobalWEngineReverberation, pool: &PgPool) 
     Ok(())
 }
 
+/// Fetches one UID's percentile row, if the history is eligible.
 pub async fn get_by_uid(
     uid: i32,
     pool: &PgPool,
@@ -35,6 +40,7 @@ pub async fn get_by_uid(
     .await?)
 }
 
+/// Removes a percentile row when its underlying history is no longer eligible.
 pub async fn delete_by_uid(uid: i32, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/zzz/signals_stats_global/w_engine_reverberation/delete_by_uid.sql",

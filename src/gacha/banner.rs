@@ -1,3 +1,8 @@
+//! Pool-aware banner validation and win/loss classification.
+//!
+//! Database rows remain game-specific, but every caller classifies through the
+//! same normalized catalog so one game's banner cannot affect another pool.
+
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -6,6 +11,10 @@ use crate::{database, GachaType, GiGachaType, ZzzGachaType};
 
 use super::imports::{PullItem, PullPool};
 
+/// Validates the range and item/pool pairs shared by all banner admin routes.
+///
+/// Each tuple contains `item_is_present`, its optional pool ID, and the pool IDs
+/// permitted for that item kind. At least one featured item must be present.
 pub(crate) fn validate_banner(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
@@ -18,14 +27,22 @@ pub(crate) fn validate_banner(
         })
 }
 
+/// Classification of a high-rarity pull against known banner coverage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BannerOutcome {
+    /// The pulled item is featured in the same pool and time range.
     Featured,
+    /// The pulled item belongs to that game's permanent standard pool.
     OffBanner,
+    /// No authoritative catalog entry can classify the pull.
     Unknown,
 }
 
 impl BannerOutcome {
+    /// Converts known outcomes to the legacy boolean representation.
+    ///
+    /// `Unknown` remains `None` so incomplete history never changes win-rate,
+    /// streak, or guarantee state.
     pub(crate) fn as_win(self) -> Option<bool> {
         match self {
             Self::Featured => Some(true),
@@ -35,6 +52,7 @@ impl BannerOutcome {
     }
 }
 
+/// One normalized featured item and its half-open availability range.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BannerEntry {
     pub pool: PullPool,
@@ -43,12 +61,14 @@ pub(crate) struct BannerEntry {
     pub end: DateTime<Utc>,
 }
 
+/// Featured items grouped by their exact game and pull pool.
 #[derive(Default)]
 pub(crate) struct BannerCatalog {
     entries_by_pool: HashMap<PullPool, Vec<BannerEntry>>,
 }
 
 impl BannerCatalog {
+    /// Builds a catalog from already normalized banner entries.
     pub(crate) fn new(entries: impl IntoIterator<Item = BannerEntry>) -> Self {
         let mut entries_by_pool: HashMap<_, Vec<_>> = HashMap::new();
         for entry in entries {
@@ -57,6 +77,7 @@ impl BannerCatalog {
         Self { entries_by_pool }
     }
 
+    /// Adapts HSR persistence rows into Special, Light Cone, and collab entries.
     pub(crate) fn from_hsr(banners: impl IntoIterator<Item = database::banners::DbBanner>) -> Self {
         Self::new(banners.into_iter().flat_map(|banner| {
             let mut entries = Vec::with_capacity(2);
@@ -88,6 +109,7 @@ impl BannerCatalog {
         }))
     }
 
+    /// Adapts Genshin persistence rows into Character, Weapon, and Chronicled entries.
     pub(crate) fn from_gi(
         banners: impl IntoIterator<Item = database::gi::banners::DbBanner>,
     ) -> Self {
@@ -121,6 +143,7 @@ impl BannerCatalog {
         }))
     }
 
+    /// Adapts ZZZ persistence rows into its five banner-backed pool catalogs.
     pub(crate) fn from_zzz(
         banners: impl IntoIterator<Item = database::zzz::banners::DbBanner>,
     ) -> Self {
@@ -162,6 +185,10 @@ impl BannerCatalog {
         }))
     }
 
+    /// Classifies one pull without guessing across missing coverage.
+    ///
+    /// Featured ranges are `[start, end)`. Permanent items are known
+    /// off-banner results; any other item without an exact entry is unknown.
     pub(crate) fn classify(
         &self,
         pool: PullPool,
@@ -183,9 +210,11 @@ impl BannerCatalog {
     }
 }
 
+/// Central registry of permanent items that count as confirmed off-banner pulls.
 pub(crate) struct StandardPoolCatalog;
 
 impl StandardPoolCatalog {
+    /// Returns whether an item is permanent for the game represented by `pool`.
     pub(crate) fn contains(pool: PullPool, item: PullItem) -> bool {
         match (pool, item) {
             (PullPool::Hsr(_), PullItem::Character(id)) => HSR_STANDARD_CHARACTERS.contains(&id),

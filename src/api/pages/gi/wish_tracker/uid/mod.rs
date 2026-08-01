@@ -15,6 +15,10 @@ use crate::{
     GiGachaType,
 };
 
+/// Applies a known banner result to tracker guarantee state.
+///
+/// Unknown coverage leaves both the displayed result and guarantee state
+/// untouched, preventing incomplete historical catalogs from inventing losses.
 fn classify_win(
     catalog: &BannerCatalog,
     pool: GiGachaType,

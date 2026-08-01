@@ -1,6 +1,9 @@
+//! Per-user statistics persistence for W-Engine Reverberation signals.
+
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
+/// Persisted pity and confirmed win/loss metrics for one UID.
 pub struct DbSignalsStatWEngineReverberation {
     pub uid: i32,
     pub luck_a: f64,
@@ -10,6 +13,7 @@ pub struct DbSignalsStatWEngineReverberation {
     pub loss_streak: i32,
 }
 
+/// Upserts one stat row on a caller-owned executor.
 pub async fn set<'e, E>(stat: &DbSignalsStatWEngineReverberation, executor: E) -> Result<()>
 where
     E: Executor<'e, Database = Postgres>,
@@ -29,6 +33,7 @@ where
     Ok(())
 }
 
+/// Fetches one UID's tracker stats, if calculated.
 pub async fn get_by_uid(
     uid: i32,
     pool: &PgPool,
@@ -42,6 +47,7 @@ pub async fn get_by_uid(
     .await?)
 }
 
+/// Lists all per-user rows used by the global percentile updater.
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatWEngineReverberation>> {
     Ok(sqlx::query_file_as!(
         DbSignalsStatWEngineReverberation,

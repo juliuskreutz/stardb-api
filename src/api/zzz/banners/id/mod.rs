@@ -1,3 +1,5 @@
+//! Item routes for authenticated ZZZ banner mutation.
+
 use actix_session::Session;
 use actix_web::{delete, get, put, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -14,15 +16,18 @@ use crate::{
 #[derive(OpenApi)]
 #[openapi(tags((name="zzz/banners/{id}")), paths(get_banner, put_banner, delete_banner))]
 struct ApiDoc;
+/// Returns this route group's OpenAPI fragment.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
+/// Registers ZZZ banner item routes.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_banner)
         .service(put_banner)
         .service(delete_banner);
 }
 
+/// Returns one ZZZ banner by ID.
 #[utoipa::path(tag="zzz/banners/{id}", get, path="/api/zzz/banners/{id}", responses((status=200, body=Banner)))]
 #[get("/api/zzz/banners/{id}")]
 async fn get_banner(id: web::Path<i32>, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
@@ -45,6 +50,7 @@ struct PutBanner {
     bangboo_gacha_type: Option<i32>,
 }
 
+/// Validates and upserts a ZZZ banner as an administrator.
 #[utoipa::path(tag="zzz/banners/{id}", put, path="/api/zzz/banners/{id}", request_body=PutBanner, responses((status=200),(status=400),(status=403)))]
 #[put("/api/zzz/banners/{id}")]
 async fn put_banner(
@@ -94,6 +100,7 @@ async fn put_banner(
     Ok(HttpResponse::Ok().finish())
 }
 
+/// Deletes a ZZZ banner.
 #[utoipa::path(tag="zzz/banners/{id}", delete, path="/api/zzz/banners/{id}", responses((status=200),(status=403)))]
 #[delete("/api/zzz/banners/{id}")]
 async fn delete_banner(

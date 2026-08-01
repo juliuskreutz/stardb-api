@@ -1,3 +1,9 @@
+//! Normalized, cross-game pull import validation and persistence.
+//!
+//! Adapters translate their source formats into [`NormalizedPull`] values.
+//! This module then owns deduplication, provenance repair rules, transactional
+//! writes, and post-write stat recalculation.
+
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
@@ -7,6 +13,7 @@ use sqlx::{PgConnection, PgPool};
 use crate::database;
 use crate::{GachaType, GiGachaType, ZzzGachaType};
 
+/// A concrete pull pool, including its game namespace.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PullPool {
     Hsr(GachaType),
@@ -14,6 +21,7 @@ pub(crate) enum PullPool {
     Zzz(ZzzGachaType),
 }
 
+/// A normalized item reference that preserves the source game's item kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PullItem {
     Character(i32),
@@ -23,12 +31,14 @@ pub(crate) enum PullItem {
     Bangboo(i32),
 }
 
+/// Whether a pull came from an official endpoint or an alternate source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PullProvenance {
     Official,
     Unofficial,
 }
 
+/// One source-independent pull ready for validation and persistence.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NormalizedPull {
     pub uid: i32,
@@ -39,6 +49,7 @@ pub(crate) struct NormalizedPull {
     pub provenance: PullProvenance,
 }
 
+/// Authorization and provenance rules attached to an import batch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ImportPolicy {
     pub is_admin: bool,
@@ -47,12 +58,14 @@ pub(crate) struct ImportPolicy {
     pub may_overlap_history: bool,
 }
 
+/// A validated, deterministically ordered set of pulls.
 #[derive(Clone, Debug)]
 pub(crate) struct ImportBatch {
     pulls: Vec<NormalizedPull>,
     policy: ImportPolicy,
 }
 
+/// Closed validation failures safe for adapters to map to client errors.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ImportValidationError {
     InvalidItemForPool,
@@ -76,6 +89,11 @@ impl fmt::Display for ImportValidationError {
 impl std::error::Error for ImportValidationError {}
 
 impl ImportBatch {
+    /// Validates, deduplicates, and orders pulls before any database write.
+    ///
+    /// Exact duplicates collapse. Conflicting records with the same
+    /// `(pool, uid, id)` fail the whole batch so input order cannot decide which
+    /// value wins.
     pub(crate) fn new(
         pulls: impl IntoIterator<Item = NormalizedPull>,
         policy: ImportPolicy,
@@ -110,10 +128,12 @@ impl ImportBatch {
         Ok(Self { pulls, policy })
     }
 
+    /// Returns the validated pulls in stable persistence order.
     pub(crate) fn pulls(&self) -> &[NormalizedPull] {
         &self.pulls
     }
 
+    /// Returns each game/UID pair whose stats may need recalculation.
     pub(crate) fn affected_uids(&self) -> HashSet<(PullGame, i32)> {
         self.pulls
             .iter()
@@ -123,6 +143,7 @@ impl ImportBatch {
 }
 
 impl ImportPolicy {
+    /// Policy for data fetched directly from an official game endpoint.
     pub(crate) fn official() -> Self {
         Self {
             is_admin: false,
@@ -132,6 +153,7 @@ impl ImportPolicy {
         }
     }
 
+    /// Policy for files and third-party import formats.
     pub(crate) fn unofficial(is_admin: bool, is_verified: bool, may_overlap_history: bool) -> Self {
         Self {
             is_admin,
@@ -142,6 +164,7 @@ impl ImportPolicy {
     }
 }
 
+/// Counts changed rows overall and per game.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PersistenceSummary {
     pub changed_records: u64,
@@ -150,6 +173,10 @@ pub(crate) struct PersistenceSummary {
     pub zzz_changed: u64,
 }
 
+/// Persists a validated batch on an existing transaction connection.
+///
+/// Callers retain transaction ownership. Repository upserts permit only the
+/// intentional unofficial-to-official provenance repair.
 pub(crate) async fn persist_batch(
     batch: &ImportBatch,
     connection: &mut PgConnection,
@@ -288,6 +315,10 @@ pub(crate) async fn persist_batch(
     })
 }
 
+/// Persists and recalculates every affected UID in one transaction.
+///
+/// A persistence or calculation failure rolls back every game represented by
+/// the batch, which is required for multi-game UIGF imports.
 pub(crate) async fn persist_batch_in_transaction(
     batch: &ImportBatch,
     pool: &PgPool,
@@ -313,6 +344,7 @@ pub(crate) async fn persist_batch_in_transaction(
     Ok(summary)
 }
 
+/// Normalizes and transactionally persists a collection of HSR adapter sets.
 pub(crate) async fn persist_hsr_sets_in_transaction(
     sets: &[(GachaType, &database::warps::SetAll)],
     policy: ImportPolicy,
@@ -326,6 +358,7 @@ pub(crate) async fn persist_hsr_sets_in_transaction(
     persist_batch_in_transaction(&batch, pool).await
 }
 
+/// Normalizes and transactionally persists a collection of Genshin adapter sets.
 pub(crate) async fn persist_gi_sets_in_transaction(
     sets: &[(GiGachaType, &database::gi::wishes::SetAll)],
     policy: ImportPolicy,
@@ -339,6 +372,7 @@ pub(crate) async fn persist_gi_sets_in_transaction(
     persist_batch_in_transaction(&batch, pool).await
 }
 
+/// Converts the column-oriented HSR repository payload to normalized pulls.
 pub(crate) fn normalize_hsr_set(
     pool: GachaType,
     set: &database::warps::SetAll,
@@ -363,6 +397,7 @@ pub(crate) fn normalize_hsr_set(
     )
 }
 
+/// Converts the column-oriented Genshin repository payload to normalized pulls.
 pub(crate) fn normalize_gi_set(
     pool: GiGachaType,
     set: &database::gi::wishes::SetAll,
@@ -387,6 +422,7 @@ pub(crate) fn normalize_gi_set(
     )
 }
 
+/// Converts the column-oriented ZZZ repository payload to normalized pulls.
 pub(crate) fn normalize_zzz_set(
     pool: ZzzGachaType,
     set: &database::zzz::signals::SetAll,
@@ -448,6 +484,7 @@ fn exactly_one(
     }
 }
 
+/// Game-only identity used to group recalculation work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PullGame {
     Hsr,

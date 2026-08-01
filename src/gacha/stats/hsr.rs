@@ -1,3 +1,9 @@
+//! Transaction-friendly per-user HSR gacha-stat calculation.
+//!
+//! Pity luck includes every high-rarity pull. Win-rate and streak calculations
+//! include only banner outcomes the catalog can classify; unknown history does
+//! not manufacture a loss or advance guarantee state.
+
 use sqlx::PgConnection;
 
 use crate::{
@@ -10,6 +16,7 @@ use crate::{
     GachaType,
 };
 
+/// Recalculates and upserts every HSR stat row for one UID.
 pub(crate) async fn recalculate_hsr_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -23,12 +30,14 @@ pub(crate) async fn recalculate_hsr_uid(
     Ok(())
 }
 
+/// Loads the pool-aware HSR catalog once for the complete UID calculation.
 async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCatalog> {
     Ok(BannerCatalog::from_hsr(
         database::banners::get_all_with_executor(&mut *connection).await?,
     ))
 }
 
+/// Calculates permanent-pool pity averages.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let warps = database::warps::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -76,6 +85,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     Ok(())
 }
 
+/// Calculates character-event pity, win rate, and confirmed streaks.
 async fn calculate_stats_special(
     uid: i32,
     banners: &BannerCatalog,
@@ -178,6 +188,7 @@ async fn calculate_stats_special(
     Ok(())
 }
 
+/// Calculates Light Cone-event pity, win rate, and confirmed streaks.
 async fn calculate_stats_lc(
     uid: i32,
     banners: &BannerCatalog,
@@ -280,6 +291,7 @@ async fn calculate_stats_lc(
     Ok(())
 }
 
+/// Calculates collab character-event stats independently from normal banners.
 async fn calculate_stats_collab(
     uid: i32,
     banners: &BannerCatalog,
@@ -382,6 +394,7 @@ async fn calculate_stats_collab(
     Ok(())
 }
 
+/// Calculates collab Light Cone stats independently from normal banners.
 async fn calculate_stats_collab_lc(
     uid: i32,
     banners: &BannerCatalog,

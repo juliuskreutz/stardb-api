@@ -1,3 +1,5 @@
+//! Pull persistence and read models for W-Engine Reverberation signals.
+
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, PgConnection, PgPool, Postgres};
 
@@ -5,6 +7,7 @@ use crate::Language;
 
 use super::{DbSignal, DbSignalInfo, SetAll};
 
+/// Bulk-upserts normalized signals and returns changed row count.
 pub async fn set_all(set_all: &SetAll, connection: &mut PgConnection) -> anyhow::Result<u64> {
     let result = sqlx::query_file!(
         "sql/zzz/signals/w_engine_reverberation/set_all.sql",
@@ -21,6 +24,7 @@ pub async fn set_all(set_all: &SetAll, connection: &mut PgConnection) -> anyhow:
     Ok(result.rows_affected())
 }
 
+/// Returns the oldest stored signal timestamp used by import cutoff policy.
 pub async fn get_earliest_timestamp_by_uid(
     uid: i32,
     pool: &PgPool,
@@ -34,6 +38,7 @@ pub async fn get_earliest_timestamp_by_uid(
     .timestamp)
 }
 
+/// Returns localized tracker rows for one UID.
 pub async fn get_by_uid(
     uid: i32,
     language: Language,
@@ -51,6 +56,7 @@ pub async fn get_by_uid(
     .await?)
 }
 
+/// Returns calculation-only rows on a caller-owned executor.
 pub async fn get_infos_by_uid<'e, E>(uid: i32, executor: E) -> anyhow::Result<Vec<DbSignalInfo>>
 where
     E: Executor<'e, Database = Postgres>,
@@ -64,6 +70,7 @@ where
     .await?)
 }
 
+/// Counts one UID's signals for global-stat eligibility.
 pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_file!(
         "sql/zzz/signals/w_engine_reverberation/get_count_by_uid.sql",
@@ -75,6 +82,7 @@ pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
     .unwrap())
 }
 
+/// Deletes every signal stored for one UID.
 pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!("sql/zzz/signals/w_engine_reverberation/delete_all.sql", uid)
         .execute(pool)
@@ -83,6 +91,7 @@ pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Deletes only non-official signals for one UID.
 pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query_file!(
         "sql/zzz/signals/w_engine_reverberation/delete_unofficial.sql",

@@ -1,3 +1,5 @@
+//! Read endpoint and OpenAPI registration for ZZZ banner administration.
+
 mod id;
 
 use actix_web::{get, web, HttpResponse, Responder};
@@ -43,15 +45,18 @@ impl From<database::zzz::banners::DbBanner> for Banner {
     }
 }
 
+/// Returns this route group's OpenAPI fragment.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut api = ApiDoc::openapi();
     api.merge(id::openapi());
     api
 }
+/// Registers ZZZ banner list and item routes.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_banners).configure(id::configure);
 }
 
+/// Lists every configured ZZZ banner.
 #[utoipa::path(tag="zzz/banners", get, path="/api/zzz/banners", responses((status=200, body=Vec<Banner>)))]
 #[get("/api/zzz/banners")]
 async fn get_banners(pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
@@ -80,7 +85,10 @@ mod zzz_banner {
 
         for (api, paths) in namespaces.into_iter().zip(expected) {
             for path in paths {
-                assert!(api.paths.paths.contains_key(path), "missing OpenAPI path {path}");
+                assert!(
+                    api.paths.paths.contains_key(path),
+                    "missing OpenAPI path {path}"
+                );
             }
         }
     }

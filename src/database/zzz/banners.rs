@@ -1,7 +1,10 @@
+//! Compile-checked persistence for ZZZ banner administration.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, PgPool, Postgres};
 
+/// Game-specific ZZZ banner row with explicit pool identity per featured item.
 #[derive(Clone)]
 pub struct DbBanner {
     pub id: i32,
@@ -16,6 +19,7 @@ pub struct DbBanner {
     pub bangboo_gacha_type: Option<i32>,
 }
 
+/// Inserts or replaces one ZZZ banner on the supplied executor.
 pub async fn set<'e, E>(banner: &DbBanner, executor: E) -> Result<()>
 where
     E: Executor<'e, Database = Postgres>,
@@ -38,10 +42,12 @@ where
     Ok(())
 }
 
+/// Lists all ZZZ banners through a pool.
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbBanner>> {
     get_all_with_executor(pool).await
 }
 
+/// Lists all ZZZ banners inside a caller-owned transaction or connection.
 pub async fn get_all_with_executor<'e, E>(executor: E) -> Result<Vec<DbBanner>>
 where
     E: Executor<'e, Database = Postgres>,
@@ -53,10 +59,12 @@ where
     )
 }
 
+/// Fetches one ZZZ banner by route ID.
 pub async fn get_by_id(id: i32, pool: &PgPool) -> Result<DbBanner> {
     get_by_id_with_executor(id, pool).await
 }
 
+/// Fetches one ZZZ banner on a caller-provided executor.
 pub async fn get_by_id_with_executor<'e, E>(id: i32, executor: E) -> Result<DbBanner>
 where
     E: Executor<'e, Database = Postgres>,
@@ -68,6 +76,7 @@ where
     )
 }
 
+/// Deletes one ZZZ banner on a caller-owned transaction or connection.
 pub async fn delete_by_id<'e, E>(id: i32, executor: E) -> Result<()>
 where
     E: Executor<'e, Database = Postgres>,

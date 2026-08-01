@@ -1,3 +1,8 @@
+//! Transaction-friendly per-user Genshin wish-stat calculation.
+//!
+//! Limited-pool win metrics ignore unknown banner coverage while pity averages
+//! continue to describe the full stored wish history.
+
 use sqlx::PgConnection;
 
 use crate::{
@@ -10,6 +15,7 @@ use crate::{
     GiGachaType,
 };
 
+/// Recalculates and upserts every Genshin stat row for one UID.
 pub(crate) async fn recalculate_gi_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -22,12 +28,14 @@ pub(crate) async fn recalculate_gi_uid(
     Ok(())
 }
 
+/// Loads the pool-aware Genshin catalog once for the complete UID calculation.
 async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCatalog> {
     Ok(BannerCatalog::from_gi(
         database::gi::banners::get_all_with_executor(&mut *connection).await?,
     ))
 }
 
+/// Calculates permanent-pool pity averages.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let wishes = database::gi::wishes::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -71,6 +79,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     Ok(())
 }
 
+/// Calculates character-event pity, win rate, and confirmed streaks.
 async fn calculate_stats_character(
     uid: i32,
     banners: &BannerCatalog,
@@ -173,6 +182,7 @@ async fn calculate_stats_character(
     Ok(())
 }
 
+/// Calculates weapon-event pity, win rate, and confirmed streaks.
 async fn calculate_stats_weapon(
     uid: i32,
     banners: &BannerCatalog,
@@ -275,6 +285,7 @@ async fn calculate_stats_weapon(
     Ok(())
 }
 
+/// Calculates Chronicled Wish pity without applying a different win model.
 async fn calculate_stats_chronicled(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let wishes = database::gi::wishes::chronicled::get_infos_by_uid(uid, &mut *connection).await?;
 
