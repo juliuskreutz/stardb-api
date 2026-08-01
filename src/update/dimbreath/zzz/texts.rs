@@ -63,7 +63,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} achievement series", language);
-        for achievement_second_class in &configs.achievement_second_class["JKMFEMCLDNN"] {
+        for achievement_second_class in &configs.achievement_second_class["MLOEFHJHCID"] {
             let id = achievement_second_class.id;
             let name = text_map[&achievement_second_class.name].clone();
 
@@ -73,7 +73,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} achievements", language);
-        for achievement in &configs.achievement["JKMFEMCLDNN"] {
+        for achievement in &configs.achievement["MLOEFHJHCID"] {
             let name = text_map.get(&achievement.name).cloned().unwrap_or_default();
             let name = gender(&name)?;
 
@@ -91,7 +91,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} arcade achievement series", language);
-        for arcade_achievement_group in &configs.arcade_achievement_group["JKMFEMCLDNN"] {
+        for arcade_achievement_group in &configs.arcade_achievement_group["MLOEFHJHCID"] {
             let name = text_map[&arcade_achievement_group.name].clone();
 
             let id = arcade_achievement_group.id;
@@ -102,7 +102,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} arcade achievements", language);
-        for arcade_achievement in &configs.arcade_achievement["JKMFEMCLDNN"] {
+        for arcade_achievement in &configs.arcade_achievement["MLOEFHJHCID"] {
             let name = text_map
                 .get(&arcade_achievement.name)
                 .cloned()
@@ -122,7 +122,7 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} avatars", language);
-        for avatar in &configs.avatar["JKMFEMCLDNN"] {
+        for avatar in &configs.avatar["MLOEFHJHCID"] {
             let name = text_map
                 .get(&avatar.name)
                 .cloned()
@@ -136,10 +136,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} weapons", language);
-        for weapon in &configs.weapon["JKMFEMCLDNN"] {
+        for weapon in &configs.weapon["MLOEFHJHCID"] {
             let id = weapon.id;
 
-            let name = &configs.item["JKMFEMCLDNN"]
+            let name = &configs.item["MLOEFHJHCID"]
                 .iter()
                 .find(|i| i.id == weapon.id)
                 .unwrap()
@@ -152,10 +152,10 @@ pub async fn update(configs: &Configs, pool: &PgPool) -> anyhow::Result<()> {
         }
 
         info!("Starting {} buddys", language);
-        for buddy in &configs.buddy["JKMFEMCLDNN"] {
+        for buddy in &configs.buddy["MLOEFHJHCID"] {
             let id = buddy.id;
 
-            let name = &configs.item["JKMFEMCLDNN"]
+            let name = &configs.item["MLOEFHJHCID"]
                 .iter()
                 .find(|i| i.id == buddy.id)
                 .map(|i| i.name.clone())
