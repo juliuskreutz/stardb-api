@@ -253,6 +253,7 @@ const GI_STANDARD_CHARACTERS: &[i32] = &[
     10000035, // Qiqi
     10000069, // Tighnari
     10000079, // Dehya
+    10000109, // Yumemizuki Mizuki
     10000041, // Mona
 ];
 const GI_STANDARD_WEAPONS: &[i32] = &[
