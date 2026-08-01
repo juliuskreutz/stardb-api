@@ -15,31 +15,27 @@ use crate::{
     GiGachaType,
 };
 
-/// Applies a known banner result to tracker guarantee state.
-///
-/// Unknown coverage leaves both the displayed result and guarantee state
-/// untouched, preventing incomplete historical catalogs from inventing losses.
+/// Applies the shared banner result to tracker guarantee state.
 fn classify_win(
     catalog: &BannerCatalog,
     pool: GiGachaType,
     item: PullItem,
     timestamp: DateTime<Utc>,
     guarantee: &mut bool,
-) -> Option<WinType> {
+) -> WinType {
     match catalog.classify(PullPool::Gi(pool), item, timestamp) {
-        BannerOutcome::Unknown => None,
-        BannerOutcome::Featured if *guarantee => {
+        BannerOutcome::Win if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::Featured => Some(WinType::Win),
-        BannerOutcome::OffBanner if *guarantee => {
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::OffBanner => {
+        BannerOutcome::Loss => {
             *guarantee = true;
-            Some(WinType::Loss)
+            WinType::Loss
         }
     }
 }
@@ -309,13 +305,13 @@ async fn get_wish_tracker(
             4 => character_pull_4 = 0,
             5 => {
                 character_pull_5 = 0;
-                wish.win = classify_win(
+                wish.win = Some(classify_win(
                     &banner_catalog,
                     GiGachaType::Character,
                     PullItem::Character(wish.item_id),
                     wish.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -360,13 +356,13 @@ async fn get_wish_tracker(
             4 => weapon_pull_4 = 0,
             5 => {
                 weapon_pull_5 = 0;
-                wish.win = classify_win(
+                wish.win = Some(classify_win(
                     &banner_catalog,
                     GiGachaType::Weapon,
                     PullItem::Weapon(wish.item_id),
                     wish.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }

@@ -1,8 +1,8 @@
 //! Transaction-friendly per-user HSR gacha-stat calculation.
 //!
 //! Pity luck includes every high-rarity pull. Win-rate and streak calculations
-//! include only banner outcomes the catalog can classify; unknown history does
-//! not manufacture a loss or advance guarantee state.
+//! use the shared cross-game banner rule: exact featured entries win, permanent
+//! items otherwise lose, and non-permanent items default to wins.
 
 use sqlx::PgConnection;
 
@@ -98,7 +98,7 @@ async fn calculate_stats_special(
                 PullItem::Character(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let warps = database::warps::special::get_infos_by_uid(uid, &mut *connection).await?;
@@ -137,9 +137,7 @@ async fn calculate_stats_special(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(warp.character.unwrap(), warp.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(warp.character.unwrap(), warp.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -201,7 +199,7 @@ async fn calculate_stats_lc(
                 PullItem::LightCone(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let warps = database::warps::lc::get_infos_by_uid(uid, &mut *connection).await?;
@@ -240,9 +238,7 @@ async fn calculate_stats_lc(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(warp.light_cone.unwrap(), warp.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(warp.light_cone.unwrap(), warp.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -304,7 +300,7 @@ async fn calculate_stats_collab(
                 PullItem::Character(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let warps = database::warps::collab::get_infos_by_uid(uid, &mut *connection).await?;
@@ -343,9 +339,7 @@ async fn calculate_stats_collab(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(warp.character.unwrap(), warp.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(warp.character.unwrap(), warp.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -407,7 +401,7 @@ async fn calculate_stats_collab_lc(
                 PullItem::LightCone(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let warps = database::warps::collab_lc::get_infos_by_uid(uid, &mut *connection).await?;
@@ -446,9 +440,7 @@ async fn calculate_stats_collab_lc(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(warp.light_cone.unwrap(), warp.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(warp.light_cone.unwrap(), warp.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {

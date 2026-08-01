@@ -1,7 +1,8 @@
 //! Transaction-friendly per-user Genshin wish-stat calculation.
 //!
-//! Limited-pool win metrics ignore unknown banner coverage while pity averages
-//! continue to describe the full stored wish history.
+//! Limited-pool win metrics use the shared cross-game banner rule: exact
+//! featured entries win, permanent items otherwise lose, and non-permanent
+//! items default to wins.
 
 use sqlx::PgConnection;
 
@@ -92,7 +93,7 @@ async fn calculate_stats_character(
                 PullItem::Character(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let wishes = database::gi::wishes::character::get_infos_by_uid(uid, &mut *connection).await?;
@@ -131,9 +132,7 @@ async fn calculate_stats_character(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(wish.character.unwrap(), wish.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(wish.character.unwrap(), wish.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -195,7 +194,7 @@ async fn calculate_stats_weapon(
                 PullItem::Weapon(item),
                 timestamp,
             )
-            .as_win()
+            .is_win()
     };
 
     let wishes = database::gi::wishes::weapon::get_infos_by_uid(uid, &mut *connection).await?;
@@ -234,9 +233,7 @@ async fn calculate_stats_weapon(
                 sum_5 += pull_5;
                 pull_5 = 0;
 
-                let Some(is_win) = is_win(wish.weapon.unwrap(), wish.timestamp) else {
-                    continue;
-                };
+                let is_win = is_win(wish.weapon.unwrap(), wish.timestamp);
                 if guarantee {
                     guarantee = false;
                 } else {

@@ -15,31 +15,27 @@ use crate::{
     GachaType,
 };
 
-/// Applies a known banner result to tracker guarantee state.
-///
-/// Unknown coverage leaves both the displayed result and guarantee state
-/// untouched, preventing incomplete historical catalogs from inventing losses.
+/// Applies the shared banner result to tracker guarantee state.
 fn classify_win(
     catalog: &BannerCatalog,
     pool: GachaType,
     item: PullItem,
     timestamp: DateTime<Utc>,
     guarantee: &mut bool,
-) -> Option<WinType> {
+) -> WinType {
     match catalog.classify(PullPool::Hsr(pool), item, timestamp) {
-        BannerOutcome::Unknown => None,
-        BannerOutcome::Featured if *guarantee => {
+        BannerOutcome::Win if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::Featured => Some(WinType::Win),
-        BannerOutcome::OffBanner if *guarantee => {
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::OffBanner => {
+        BannerOutcome::Loss => {
             *guarantee = true;
-            Some(WinType::Loss)
+            WinType::Loss
         }
     }
 }
@@ -295,13 +291,13 @@ async fn get_warp_tracker(
             5 => {
                 special_pull_5 = 0;
 
-                warp.win = classify_win(
+                warp.win = Some(classify_win(
                     &banner_catalog,
                     GachaType::Special,
                     PullItem::Character(warp.item_id),
                     warp.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -347,13 +343,13 @@ async fn get_warp_tracker(
             5 => {
                 lc_pull_5 = 0;
 
-                warp.win = classify_win(
+                warp.win = Some(classify_win(
                     &banner_catalog,
                     GachaType::Lc,
                     PullItem::LightCone(warp.item_id),
                     warp.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -399,13 +395,13 @@ async fn get_warp_tracker(
             5 => {
                 collab_pull_5 = 0;
 
-                warp.win = classify_win(
+                warp.win = Some(classify_win(
                     &banner_catalog,
                     GachaType::Collab,
                     PullItem::Character(warp.item_id),
                     warp.timestamp,
                     &mut collab_guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -451,13 +447,13 @@ async fn get_warp_tracker(
             5 => {
                 collab_lc_pull_5 = 0;
 
-                warp.win = classify_win(
+                warp.win = Some(classify_win(
                     &banner_catalog,
                     GachaType::CollabLc,
                     PullItem::LightCone(warp.item_id),
                     warp.timestamp,
                     &mut collab_lc_guarantee,
-                );
+                ));
             }
             _ => {}
         }

@@ -15,31 +15,27 @@ use crate::{
     ZzzGachaType,
 };
 
-/// Applies a known banner result to tracker guarantee state.
-///
-/// Unknown coverage leaves both the displayed result and guarantee state
-/// untouched, preventing incomplete historical catalogs from inventing losses.
+/// Applies the shared banner result to tracker guarantee state.
 fn classify_win(
     catalog: &BannerCatalog,
     pool: ZzzGachaType,
     item: PullItem,
     timestamp: DateTime<Utc>,
     guarantee: &mut bool,
-) -> Option<WinType> {
+) -> WinType {
     match catalog.classify(PullPool::Zzz(pool), item, timestamp) {
-        BannerOutcome::Unknown => None,
-        BannerOutcome::Featured if *guarantee => {
+        BannerOutcome::Win if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::Featured => Some(WinType::Win),
-        BannerOutcome::OffBanner if *guarantee => {
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
             *guarantee = false;
-            Some(WinType::Guarantee)
+            WinType::Guarantee
         }
-        BannerOutcome::OffBanner => {
+        BannerOutcome::Loss => {
             *guarantee = true;
-            Some(WinType::Loss)
+            WinType::Loss
         }
     }
 }
@@ -270,13 +266,13 @@ async fn get_signal_tracker(
                 special_pull_a = 0;
                 special_pull_s = 0;
 
-                signal.win = classify_win(
+                signal.win = Some(classify_win(
                     &banner_catalog,
                     ZzzGachaType::Special,
                     PullItem::Character(signal.item_id),
                     signal.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -323,13 +319,13 @@ async fn get_signal_tracker(
                 w_engine_pull_a = 0;
                 w_engine_pull_s = 0;
 
-                signal.win = classify_win(
+                signal.win = Some(classify_win(
                     &banner_catalog,
                     ZzzGachaType::WEngine,
                     PullItem::WEngine(signal.item_id),
                     signal.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -422,13 +418,13 @@ async fn get_signal_tracker(
                 exclusive_rescreening_pull_a = 0;
                 exclusive_rescreening_pull_s = 0;
 
-                signal.win = classify_win(
+                signal.win = Some(classify_win(
                     &banner_catalog,
                     ZzzGachaType::ExclusiveRescreening,
                     PullItem::Character(signal.item_id),
                     signal.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }
@@ -481,13 +477,13 @@ async fn get_signal_tracker(
                 w_engine_reverberation_pull_a = 0;
                 w_engine_reverberation_pull_s = 0;
 
-                signal.win = classify_win(
+                signal.win = Some(classify_win(
                     &banner_catalog,
                     ZzzGachaType::WEngineReverberation,
                     PullItem::WEngine(signal.item_id),
                     signal.timestamp,
                     &mut guarantee,
-                );
+                ));
             }
             _ => {}
         }

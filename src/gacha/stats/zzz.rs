@@ -1,7 +1,8 @@
 //! Transaction-friendly per-user ZZZ signal-stat calculation for all six pools.
 //!
-//! Banner-backed pools share one catalog load. Unknown historical coverage is
-//! excluded from win metrics, while pity averages still cover every signal.
+//! Banner-backed pools share one catalog load and the same cross-game fallback:
+//! exact featured entries win, permanent items otherwise lose, and
+//! non-permanent items default to wins.
 
 use sqlx::PgConnection;
 
@@ -138,16 +139,13 @@ async fn calculate_stats_special(
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let Some(is_win) = catalog
+                let is_win = catalog
                     .classify(
                         PullPool::Zzz(ZzzGachaType::Special),
                         PullItem::Character(signal.character.unwrap()),
                         signal.timestamp,
                     )
-                    .as_win()
-                else {
-                    continue;
-                };
+                    .is_win();
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -248,16 +246,13 @@ async fn calculate_stats_w_engine(
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let Some(is_win) = catalog
+                let is_win = catalog
                     .classify(
                         PullPool::Zzz(ZzzGachaType::WEngine),
                         PullItem::WEngine(signal.w_engine.unwrap()),
                         signal.timestamp,
                     )
-                    .as_win()
-                else {
-                    continue;
-                };
+                    .is_win();
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -411,16 +406,13 @@ async fn calculate_stats_exclusive_rescreening(
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let Some(is_win) = catalog
+                let is_win = catalog
                     .classify(
                         PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
                         PullItem::Character(signal.character.unwrap()),
                         signal.timestamp,
                     )
-                    .as_win()
-                else {
-                    continue;
-                };
+                    .is_win();
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -524,16 +516,13 @@ async fn calculate_stats_w_engine_reverberation(
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let Some(is_win) = catalog
+                let is_win = catalog
                     .classify(
                         PullPool::Zzz(ZzzGachaType::WEngineReverberation),
                         PullItem::WEngine(signal.w_engine.unwrap()),
                         signal.timestamp,
                     )
-                    .as_win()
-                else {
-                    continue;
-                };
+                    .is_win();
                 if guarantee {
                     guarantee = false;
                 } else {

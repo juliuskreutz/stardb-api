@@ -27,27 +27,21 @@ pub(crate) fn validate_banner(
         })
 }
 
-/// Classification of a high-rarity pull against known banner coverage.
+/// Win/loss classification of a high-rarity pull.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BannerOutcome {
-    /// The pulled item is featured in the same pool and time range.
-    Featured,
-    /// The pulled item belongs to that game's permanent standard pool.
-    OffBanner,
-    /// No authoritative catalog entry can classify the pull.
-    Unknown,
+    /// The item is actively featured or is not part of the permanent pool.
+    Win,
+    /// The item is permanent and is not actively featured in this exact pool.
+    Loss,
 }
 
 impl BannerOutcome {
-    /// Converts known outcomes to the legacy boolean representation.
-    ///
-    /// `Unknown` remains `None` so incomplete history never changes win-rate,
-    /// streak, or guarantee state.
-    pub(crate) fn as_win(self) -> Option<bool> {
+    /// Converts the shared outcome to the boolean used by stat calculations.
+    pub(crate) fn is_win(self) -> bool {
         match self {
-            Self::Featured => Some(true),
-            Self::OffBanner => Some(false),
-            Self::Unknown => None,
+            Self::Win => true,
+            Self::Loss => false,
         }
     }
 }
@@ -185,28 +179,31 @@ impl BannerCatalog {
         }))
     }
 
-    /// Classifies one pull without guessing across missing coverage.
+    /// Classifies one pull using the same fallback rules for every game.
     ///
-    /// Featured ranges are `[start, end)`. Permanent items are known
-    /// off-banner results; any other item without an exact entry is unknown.
+    /// Exact featured ranges are `[start, end)` and take precedence over the
+    /// permanent-item catalog. This matters for pools such as Chronicled Wish,
+    /// where a normally permanent character or weapon can itself be featured.
+    /// Without an exact featured match, permanent items are losses and every
+    /// other item defaults to a win so incomplete banner history retains the
+    /// original tracker behavior.
     pub(crate) fn classify(
         &self,
         pool: PullPool,
         item: PullItem,
         timestamp: DateTime<Utc>,
     ) -> BannerOutcome {
-        if StandardPoolCatalog::contains(pool, item) {
-            return BannerOutcome::OffBanner;
-        }
-
-        self.entries_by_pool
-            .get(&pool)
-            .and_then(|entries| {
-                entries.iter().find(|entry| {
-                    entry.item == item && entry.start <= timestamp && timestamp < entry.end
-                })
+        let is_featured = self.entries_by_pool.get(&pool).is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                entry.item == item && entry.start <= timestamp && timestamp < entry.end
             })
-            .map_or(BannerOutcome::Unknown, |_| BannerOutcome::Featured)
+        });
+
+        if is_featured || !StandardPoolCatalog::contains(pool, item) {
+            BannerOutcome::Win
+        } else {
+            BannerOutcome::Loss
+        }
     }
 }
 
@@ -294,73 +291,119 @@ mod banner_catalog {
         Utc.with_ymd_and_hms(2026, 1, 1, hour, 0, 0).unwrap()
     }
 
+    /// Permanent items and their banner-backed pools across all three games.
+    fn standard_cases() -> Vec<(PullPool, PullItem)> {
+        vec![
+            (PullPool::Hsr(GachaType::Special), PullItem::Character(1209)),
+            (PullPool::Hsr(GachaType::Lc), PullItem::LightCone(23000)),
+            (PullPool::Hsr(GachaType::Collab), PullItem::Character(1209)),
+            (
+                PullPool::Hsr(GachaType::CollabLc),
+                PullItem::LightCone(23000),
+            ),
+            (
+                PullPool::Gi(GiGachaType::Character),
+                PullItem::Character(10000042),
+            ),
+            (PullPool::Gi(GiGachaType::Weapon), PullItem::Weapon(15502)),
+            (
+                PullPool::Gi(GiGachaType::Chronicled),
+                PullItem::Character(10000042),
+            ),
+            (
+                PullPool::Gi(GiGachaType::Chronicled),
+                PullItem::Weapon(15502),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::Special),
+                PullItem::Character(1021),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::WEngine),
+                PullItem::WEngine(14102),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
+                PullItem::Character(1021),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::WEngineReverberation),
+                PullItem::WEngine(14102),
+            ),
+        ]
+    }
+
     #[test]
-    fn classifies_by_pool_coverage_and_half_open_range() {
-        let hsr_pool = PullPool::Hsr(GachaType::Special);
-        let gi_pool = PullPool::Gi(GiGachaType::Character);
-        let zzz_pool = PullPool::Zzz(ZzzGachaType::Special);
-        let catalog = BannerCatalog::new([
-            BannerEntry {
-                pool: hsr_pool,
-                item: PullItem::Character(9001),
-                start: time(1),
-                end: time(3),
-            },
-            BannerEntry {
-                pool: hsr_pool,
-                item: PullItem::Character(9002),
-                start: time(2),
-                end: time(4),
-            },
-            BannerEntry {
-                pool: gi_pool,
-                item: PullItem::Character(9001),
-                start: time(1),
-                end: time(3),
-            },
-            BannerEntry {
-                pool: zzz_pool,
-                item: PullItem::Character(9001),
-                start: time(1),
-                end: time(3),
-            },
-        ]);
+    fn empty_catalog_uses_the_same_standard_fallback_for_every_game() {
+        let catalog = BannerCatalog::default();
+
+        for (pool, item) in standard_cases() {
+            assert_eq!(catalog.classify(pool, item, time(2)), BannerOutcome::Loss);
+        }
+
+        for (pool, item) in [
+            (PullPool::Hsr(GachaType::Special), PullItem::Character(9001)),
+            (
+                PullPool::Gi(GiGachaType::Character),
+                PullItem::Character(9001),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::Special),
+                PullItem::Character(9001),
+            ),
+            (
+                PullPool::Zzz(ZzzGachaType::Bangboo),
+                PullItem::Bangboo(9001),
+            ),
+        ] {
+            assert_eq!(catalog.classify(pool, item, time(2)), BannerOutcome::Win);
+        }
+    }
+
+    #[test]
+    fn featured_standard_items_override_the_loss_fallback_in_every_pool() {
+        let cases = standard_cases();
+        let catalog = BannerCatalog::new(cases.iter().map(|(pool, item)| BannerEntry {
+            pool: *pool,
+            item: *item,
+            start: time(1),
+            end: time(3),
+        }));
+
+        for (pool, item) in cases {
+            assert_eq!(catalog.classify(pool, item, time(1)), BannerOutcome::Win);
+            assert_eq!(catalog.classify(pool, item, time(2)), BannerOutcome::Win);
+            assert_eq!(catalog.classify(pool, item, time(3)), BannerOutcome::Loss);
+        }
+    }
+
+    #[test]
+    fn gaps_and_wrong_pools_fall_back_instead_of_using_unrelated_banner_data() {
+        let special = PullPool::Hsr(GachaType::Special);
+        let collab = PullPool::Hsr(GachaType::Collab);
+        let standard_item = PullItem::Character(1209);
+        let catalog = BannerCatalog::new([BannerEntry {
+            pool: special,
+            item: standard_item,
+            start: time(1),
+            end: time(3),
+        }]);
 
         assert_eq!(
-            catalog.classify(hsr_pool, PullItem::Character(9001), time(1)),
-            BannerOutcome::Featured
+            catalog.classify(special, standard_item, time(2)),
+            BannerOutcome::Win
         );
         assert_eq!(
-            catalog.classify(hsr_pool, PullItem::Character(9002), time(2)),
-            BannerOutcome::Featured
+            catalog.classify(special, standard_item, time(3)),
+            BannerOutcome::Loss
         );
         assert_eq!(
-            catalog.classify(hsr_pool, PullItem::Character(9001), time(3)),
-            BannerOutcome::Unknown
+            catalog.classify(collab, standard_item, time(2)),
+            BannerOutcome::Loss
         );
         assert_eq!(
-            catalog.classify(
-                PullPool::Hsr(GachaType::Collab),
-                PullItem::Character(9001),
-                time(2)
-            ),
-            BannerOutcome::Unknown
-        );
-        assert_eq!(
-            catalog.classify(hsr_pool, PullItem::Character(9999), time(2)),
-            BannerOutcome::Unknown
-        );
-        assert_eq!(
-            catalog.classify(hsr_pool, PullItem::Character(1209), time(2)),
-            BannerOutcome::OffBanner
-        );
-        assert_eq!(
-            catalog.classify(gi_pool, PullItem::Character(1209), time(2)),
-            BannerOutcome::Unknown
-        );
-        assert_eq!(
-            catalog.classify(zzz_pool, PullItem::Character(1021), time(2)),
-            BannerOutcome::OffBanner
+            catalog.classify(special, PullItem::Character(9001), time(3)),
+            BannerOutcome::Win
         );
     }
 
