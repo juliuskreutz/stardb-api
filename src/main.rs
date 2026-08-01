@@ -418,3 +418,37 @@ fn load_app_config() -> anyhow::Result<Arc<app_config::AppConfig>> {
     tracing::debug!("AppConfig loaded: {:#?}", config);
     Ok(Arc::new(config))
 }
+
+#[cfg(test)]
+mod pool_ids_tests {
+    use super::{GachaType, GiGachaType, ZzzGachaType};
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn pool_ids_hsr_are_stable() {
+        let ids: Vec<_> = GachaType::iter().map(GachaType::id).collect();
+
+        assert_eq!(ids, vec![1, 2, 11, 12, 21, 22]);
+    }
+
+    #[test]
+    fn pool_ids_zzz_current_and_legacy_are_stable() {
+        let current: Vec<_> = ZzzGachaType::iter().map(ZzzGachaType::id).collect();
+        let legacy: Vec<_> = ZzzGachaType::iter().map(ZzzGachaType::old_id).collect();
+
+        assert_eq!(current, vec![1, 2, 3, 5, 102, 103]);
+        assert_eq!(legacy, vec![1001, 2001, 3001, 5001, 12001, 13001]);
+    }
+
+    #[test]
+    fn pool_ids_gi_variants_are_stable_and_iterable() {
+        let variants: Vec<_> = GiGachaType::iter()
+            .map(|variant| variant.to_string())
+            .collect();
+
+        assert_eq!(
+            variants,
+            vec!["beginner", "standard", "character", "weapon", "chronicled",]
+        );
+    }
+}
