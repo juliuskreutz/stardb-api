@@ -4,6 +4,7 @@ mod delete_all_wishes;
 mod delete_unofficial_signals;
 mod delete_unofficial_warps;
 mod delete_unofficial_wishes;
+mod gacha_banners;
 
 use actix_web::web;
 
@@ -14,6 +15,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi.merge(delete_unofficial_signals::openapi());
     openapi.merge(delete_unofficial_warps::openapi());
     openapi.merge(delete_unofficial_wishes::openapi());
+    openapi.merge(gacha_banners::openapi());
     openapi
 }
 
@@ -23,5 +25,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(delete_all_wishes::configure)
         .configure(delete_unofficial_signals::configure)
         .configure(delete_unofficial_warps::configure)
-        .configure(delete_unofficial_wishes::configure);
+        .configure(delete_unofficial_wishes::configure)
+        .configure(gacha_banners::configure);
 }
