@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    username,\n    password,\n    email\nFROM\n    users\nWHERE\n    email = $1;\n",
+  "query": "SELECT\n    username,\n    password,\n    email\nFROM\n    users\nWHERE\n    LOWER(email) = LOWER($1);\n",
   "describe": {
     "columns": [
       {
@@ -30,5 +30,5 @@
       true
     ]
   },
-  "hash": "a64e04a92106a12d1f0c58cc81c9012d7e0f5e6811bc0199bc6ca932ecfa3933"
+  "hash": "8d7af3c338663d10babe7ebfdc238cef46345aa2ba098a36c7d9a25f582a3c4d"
 }
