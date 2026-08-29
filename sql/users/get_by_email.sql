@@ -5,4 +5,4 @@ SELECT
 FROM
     users
 WHERE
-    email = $1;
+    LOWER(email) = LOWER($1);
