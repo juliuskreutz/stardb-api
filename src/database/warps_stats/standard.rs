@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 use crate::database::warps_stats::{DbWarpsStat, DbWarpsStatCount};
 
@@ -22,14 +22,17 @@ impl From<DbWarpsStatStandard> for DbWarpsStat {
     }
 }
 
-pub async fn set(stat: &DbWarpsStat, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbWarpsStat, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/warps_stats/standard/set.sql",
         stat.uid,
         stat.luck_4,
         stat.luck_5,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

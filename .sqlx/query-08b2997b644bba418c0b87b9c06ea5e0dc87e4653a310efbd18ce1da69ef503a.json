@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH wish_counts AS (\n    SELECT uid, COUNT(*) AS wish_count\n    FROM gi_wishes_standard\n    GROUP BY uid\n)\nSELECT stats.uid, stats.luck_4, stats.luck_5, counts.wish_count\nFROM gi_wishes_stats_standard AS stats\nJOIN wish_counts AS counts USING (uid)\nWHERE counts.wish_count >= 100;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "wish_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "08b2997b644bba418c0b87b9c06ea5e0dc87e4653a310efbd18ce1da69ef503a"
+}

@@ -247,12 +247,19 @@ async fn post_srs_warps_import(
         }
     }
 
-    database::warps::departure::set_all(&set_all_departure, &pool).await?;
-    database::warps::standard::set_all(&set_all_standard, &pool).await?;
-    database::warps::special::set_all(&set_all_special, &pool).await?;
-    database::warps::lc::set_all(&set_all_lc, &pool).await?;
-    database::warps::collab::set_all(&set_all_collab, &pool).await?;
-    database::warps::collab_lc::set_all(&set_all_collab_lc, &pool).await?;
+    crate::gacha::imports::persist_hsr_sets_in_transaction(
+        &[
+            (GachaType::Departure, &set_all_departure),
+            (GachaType::Standard, &set_all_standard),
+            (GachaType::Special, &set_all_special),
+            (GachaType::Lc, &set_all_lc),
+            (GachaType::Collab, &set_all_collab),
+            (GachaType::CollabLc, &set_all_collab_lc),
+        ],
+        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+        &pool,
+    )
+    .await?;
 
     Ok(HttpResponse::Ok().finish())
 }

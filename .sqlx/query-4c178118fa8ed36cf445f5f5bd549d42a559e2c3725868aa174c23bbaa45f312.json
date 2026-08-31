@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM zzz_banners WHERE id = $1;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "start",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "character",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "character_gacha_type",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "w_engine",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "w_engine_gacha_type",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "bangboo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "bangboo_gacha_type",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "4c178118fa8ed36cf445f5f5bd549d42a559e2c3725868aa174c23bbaa45f312"
+}

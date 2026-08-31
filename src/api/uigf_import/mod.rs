@@ -8,15 +8,14 @@ use utoipa::OpenApi;
 
 use crate::{
     api::ApiResult,
-    database,
-    {GachaType, GiGachaType, ZzzGachaType},
+    database, {GachaType, GiGachaType, ZzzGachaType},
 };
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "uigf-import")),
     paths(post_uigf_import),
-    components(schemas(UigfImportParams)),
+    components(schemas(UigfImportParams, UigfImportSummary, UigfGameImportSummary)),
 )]
 struct ApiDoc;
 
@@ -31,6 +30,22 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct UigfImportParams {
     data: String,
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+struct UigfImportSummary {
+    hsr: UigfGameImportSummary,
+    gi: UigfGameImportSummary,
+    zzz: UigfGameImportSummary,
+}
+
+#[derive(Default, serde::Serialize, utoipa::ToSchema)]
+struct UigfGameImportSummary {
+    imported: u64,
+    unchanged: u64,
+    repaired: u64,
+    skipped_uids: u64,
+    skipped_records: u64,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -158,7 +173,7 @@ async fn check_gi_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> 
     path = "/api/uigf-import",
     request_body = UigfImportParams,
     responses(
-        (status = 200, description = "UIGF imported"),
+        (status = 200, description = "UIGF imported", body = UigfImportSummary),
         (status = 400, description = "Invalid data or version"),
         (status = 403, description = "Not authorized"),
     )
@@ -181,11 +196,17 @@ async fn post_uigf_import(
     }
 
     let admin = database::admins::exists(&username, &pool).await?;
+    let mut normalized_pulls = Vec::new();
+    let mut hsr_skipped = UigfGameImportSummary::default();
+    let mut gi_skipped = UigfGameImportSummary::default();
+    let mut zzz_skipped = UigfGameImportSummary::default();
 
     // HSR (hkrpg)
     for entry in &uigf.hkrpg {
         let uid = entry.uid.clone().parse()?;
         if !check_hsr_auth(admin, &username, uid, &pool).await? {
+            hsr_skipped.skipped_uids += 1;
+            hsr_skipped.skipped_records += entry.list.len() as u64;
             continue;
         }
 
@@ -213,18 +234,17 @@ async fn post_uigf_import(
             let id: i64 = pull.id.parse()?;
             let item_id: i32 = pull.item_id.parse()?;
 
-            let (character, light_cone) = if pull.item_type == "Character"
-                || pull.item_type == "角色"
-            {
-                (Some(item_id), None)
-            } else if pull.item_type == "Light Cone"
-                || pull.item_type == "光锥"
-                || pull.item_type == "光錐"
-            {
-                (None, Some(item_id))
-            } else {
-                return Ok(HttpResponse::BadRequest().finish());
-            };
+            let (character, light_cone) =
+                if pull.item_type == "Character" || pull.item_type == "角色" {
+                    (Some(item_id), None)
+                } else if pull.item_type == "Light Cone"
+                    || pull.item_type == "光锥"
+                    || pull.item_type == "光錐"
+                {
+                    (None, Some(item_id))
+                } else {
+                    return Ok(HttpResponse::BadRequest().finish());
+                };
 
             warps_map
                 .entry(gacha_type)
@@ -287,18 +307,24 @@ async fn post_uigf_import(
             }
         }
 
-        database::warps::departure::set_all(&set_all_departure, &pool).await?;
-        database::warps::standard::set_all(&set_all_standard, &pool).await?;
-        database::warps::special::set_all(&set_all_special, &pool).await?;
-        database::warps::lc::set_all(&set_all_lc, &pool).await?;
-        database::warps::collab::set_all(&set_all_collab, &pool).await?;
-        database::warps::collab_lc::set_all(&set_all_collab_lc, &pool).await?;
+        for (pull_pool, set) in [
+            (GachaType::Departure, &set_all_departure),
+            (GachaType::Standard, &set_all_standard),
+            (GachaType::Special, &set_all_special),
+            (GachaType::Lc, &set_all_lc),
+            (GachaType::Collab, &set_all_collab),
+            (GachaType::CollabLc, &set_all_collab_lc),
+        ] {
+            normalized_pulls.extend(crate::gacha::imports::normalize_hsr_set(pull_pool, set)?);
+        }
     }
 
     // ZZZ (nap)
     for entry in &uigf.nap {
         let uid = entry.uid.clone().parse()?;
         if !check_zzz_auth(admin, &username, uid, &pool).await? {
+            zzz_skipped.skipped_uids += 1;
+            zzz_skipped.skipped_records += entry.list.len() as u64;
             continue;
         }
 
@@ -310,14 +336,10 @@ async fn post_uigf_import(
         > = HashMap::new();
 
         for pull in &entry.list {
-            let gacha_type_id = match pull.gacha_type.as_str() {
-                "1" => ZzzGachaType::Standard,
-                "2" => ZzzGachaType::Special,
-                "3" => ZzzGachaType::WEngine,
-                "5" => ZzzGachaType::Bangboo,
-                _ => return Ok(HttpResponse::BadRequest().finish()),
-            }
-            .id();
+            let Some(gacha_type) = ZzzGachaType::from_uigf_id(&pull.gacha_type) else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
+            let gacha_type_id = gacha_type.id();
 
             let time = NaiveDateTime::parse_from_str(&pull.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
@@ -350,14 +372,68 @@ async fn post_uigf_import(
         let mut set_all_special = database::zzz::signals::SetAll::default();
         let mut set_all_w_engine = database::zzz::signals::SetAll::default();
         let mut set_all_bangboo = database::zzz::signals::SetAll::default();
+        let mut set_all_exclusive_rescreening = database::zzz::signals::SetAll::default();
+        let mut set_all_w_engine_reverberation = database::zzz::signals::SetAll::default();
 
         for (gacha_type_id, pulls) in &signals_map {
+            let gacha_type = match *gacha_type_id {
+                x if x == ZzzGachaType::Standard.id() => ZzzGachaType::Standard,
+                x if x == ZzzGachaType::Special.id() => ZzzGachaType::Special,
+                x if x == ZzzGachaType::WEngine.id() => ZzzGachaType::WEngine,
+                x if x == ZzzGachaType::Bangboo.id() => ZzzGachaType::Bangboo,
+                x if x == ZzzGachaType::ExclusiveRescreening.id() => {
+                    ZzzGachaType::ExclusiveRescreening
+                }
+                x if x == ZzzGachaType::WEngineReverberation.id() => {
+                    ZzzGachaType::WEngineReverberation
+                }
+                _ => return Ok(HttpResponse::BadRequest().finish()),
+            };
+            let earliest_timestamp = match gacha_type {
+                ZzzGachaType::Standard => {
+                    database::zzz::signals::standard::get_earliest_timestamp_by_uid(uid, &pool)
+                        .await?
+                }
+                ZzzGachaType::Special => {
+                    database::zzz::signals::special::get_earliest_timestamp_by_uid(uid, &pool)
+                        .await?
+                }
+                ZzzGachaType::WEngine => {
+                    database::zzz::signals::w_engine::get_earliest_timestamp_by_uid(uid, &pool)
+                        .await?
+                }
+                ZzzGachaType::Bangboo => {
+                    database::zzz::signals::bangboo::get_earliest_timestamp_by_uid(uid, &pool)
+                        .await?
+                }
+                ZzzGachaType::ExclusiveRescreening => {
+                    database::zzz::signals::exclusive_rescreening::get_earliest_timestamp_by_uid(
+                        uid, &pool,
+                    )
+                    .await?
+                }
+                ZzzGachaType::WEngineReverberation => {
+                    database::zzz::signals::w_engine_reverberation::get_earliest_timestamp_by_uid(
+                        uid, &pool,
+                    )
+                    .await?
+                }
+            };
             for (id, character, w_engine, bangboo, time) in pulls {
+                if !admin && earliest_timestamp.is_some_and(|earliest| *time >= earliest) {
+                    break;
+                }
                 let set_all = match *gacha_type_id {
                     x if x == ZzzGachaType::Standard.id() => &mut set_all_standard,
                     x if x == ZzzGachaType::Special.id() => &mut set_all_special,
                     x if x == ZzzGachaType::WEngine.id() => &mut set_all_w_engine,
                     x if x == ZzzGachaType::Bangboo.id() => &mut set_all_bangboo,
+                    x if x == ZzzGachaType::ExclusiveRescreening.id() => {
+                        &mut set_all_exclusive_rescreening
+                    }
+                    x if x == ZzzGachaType::WEngineReverberation.id() => {
+                        &mut set_all_w_engine_reverberation
+                    }
                     _ => return Ok(HttpResponse::BadRequest().finish()),
                 };
 
@@ -371,23 +447,39 @@ async fn post_uigf_import(
             }
         }
 
-        database::zzz::signals::standard::set_all(&set_all_standard, &pool).await?;
-        database::zzz::signals::special::set_all(&set_all_special, &pool).await?;
-        database::zzz::signals::w_engine::set_all(&set_all_w_engine, &pool).await?;
-        database::zzz::signals::bangboo::set_all(&set_all_bangboo, &pool).await?;
+        for (pull_pool, set) in [
+            (ZzzGachaType::Standard, &set_all_standard),
+            (ZzzGachaType::Special, &set_all_special),
+            (ZzzGachaType::WEngine, &set_all_w_engine),
+            (ZzzGachaType::Bangboo, &set_all_bangboo),
+            (
+                ZzzGachaType::ExclusiveRescreening,
+                &set_all_exclusive_rescreening,
+            ),
+            (
+                ZzzGachaType::WEngineReverberation,
+                &set_all_w_engine_reverberation,
+            ),
+        ] {
+            normalized_pulls.extend(crate::gacha::imports::normalize_zzz_set(pull_pool, set)?);
+        }
     }
 
     // GI (hk4e)
     for entry in &uigf.hk4e {
         let uid = entry.uid.clone().parse()?;
         if !check_gi_auth(admin, &username, uid, &pool).await? {
+            gi_skipped.skipped_uids += 1;
+            gi_skipped.skipped_records += entry.list.len() as u64;
             continue;
         }
 
         let tz = FixedOffset::east_opt(3600 * entry.timezone).unwrap();
 
-        let mut wishes_map: HashMap<GiGachaType, Vec<(i64, Option<i32>, Option<i32>, DateTime<Utc>)>> =
-            HashMap::new();
+        let mut wishes_map: HashMap<
+            GiGachaType,
+            Vec<(i64, Option<i32>, Option<i32>, DateTime<Utc>)>,
+        > = HashMap::new();
 
         for pull in &entry.list {
             let gacha_type = match pull.uigf_gacha_type.as_str() {
@@ -407,8 +499,7 @@ async fn post_uigf_import(
             let id: i64 = pull.id.parse()?;
             let item_id: i32 = pull.item_id.parse()?;
 
-            let (character, weapon) = if pull.item_type == "Character"
-                || pull.item_type == "角色"
+            let (character, weapon) = if pull.item_type == "Character" || pull.item_type == "角色"
             {
                 (Some(item_id), None)
             } else if pull.item_type == "Weapon"
@@ -447,8 +538,7 @@ async fn post_uigf_import(
                         .await?
                 }
                 GiGachaType::Weapon => {
-                    database::gi::wishes::weapon::get_earliest_timestamp_by_uid(uid, &pool)
-                        .await?
+                    database::gi::wishes::weapon::get_earliest_timestamp_by_uid(uid, &pool).await?
                 }
                 GiGachaType::Chronicled => {
                     database::gi::wishes::chronicled::get_earliest_timestamp_by_uid(uid, &pool)
@@ -481,12 +571,38 @@ async fn post_uigf_import(
             }
         }
 
-        database::gi::wishes::beginner::set_all(&set_all_beginner, &pool).await?;
-        database::gi::wishes::standard::set_all(&set_all_standard, &pool).await?;
-        database::gi::wishes::character::set_all(&set_all_character, &pool).await?;
-        database::gi::wishes::weapon::set_all(&set_all_weapon, &pool).await?;
-        database::gi::wishes::chronicled::set_all(&set_all_chronicled, &pool).await?;
+        for (pull_pool, set) in [
+            (GiGachaType::Beginner, &set_all_beginner),
+            (GiGachaType::Standard, &set_all_standard),
+            (GiGachaType::Character, &set_all_character),
+            (GiGachaType::Weapon, &set_all_weapon),
+            (GiGachaType::Chronicled, &set_all_chronicled),
+        ] {
+            normalized_pulls.extend(crate::gacha::imports::normalize_gi_set(pull_pool, set)?);
+        }
     }
 
-    Ok(HttpResponse::Ok().finish())
+    let batch = crate::gacha::imports::ImportBatch::new(
+        normalized_pulls,
+        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+    )?;
+    let mut hsr = hsr_skipped;
+    let mut gi = gi_skipped;
+    let mut zzz = zzz_skipped;
+    for pull in batch.pulls() {
+        match pull.pool {
+            crate::gacha::imports::PullPool::Hsr(_) => hsr.unchanged += 1,
+            crate::gacha::imports::PullPool::Gi(_) => gi.unchanged += 1,
+            crate::gacha::imports::PullPool::Zzz(_) => zzz.unchanged += 1,
+        }
+    }
+    let persisted = crate::gacha::imports::persist_batch_in_transaction(&batch, &pool).await?;
+    hsr.imported = persisted.hsr_changed;
+    gi.imported = persisted.gi_changed;
+    zzz.imported = persisted.zzz_changed;
+    hsr.unchanged -= hsr.imported;
+    gi.unchanged -= gi.imported;
+    zzz.unchanged -= zzz.imported;
+
+    Ok(HttpResponse::Ok().json(UigfImportSummary { hsr, gi, zzz }))
 }

@@ -8,10 +8,37 @@ use utoipa::OpenApi;
 use crate::{
     api::{private, ApiResult, LanguageParams},
     database,
+    gacha::{
+        banner::{BannerCatalog, BannerOutcome},
+        imports::{PullItem, PullPool},
+    },
+    ZzzGachaType,
 };
 
-const AGENT_LOSS_IDS: &[i32] = &[1021, 1041, 1101, 1141, 1181, 1211];
-const W_ENGINE_LOSS_IDS: &[i32] = &[14102, 14104, 14110, 14114, 14118, 14121];
+/// Applies the shared banner result to tracker guarantee state.
+fn classify_win(
+    catalog: &BannerCatalog,
+    pool: ZzzGachaType,
+    item: PullItem,
+    timestamp: DateTime<Utc>,
+    guarantee: &mut bool,
+) -> WinType {
+    match catalog.classify(PullPool::Zzz(pool), item, timestamp) {
+        BannerOutcome::Win if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Loss => {
+            *guarantee = true;
+            WinType::Loss
+        }
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(paths(get_signal_tracker))]
@@ -169,6 +196,7 @@ async fn get_signal_tracker(
     }
 
     let language = language_params.lang;
+    let banner_catalog = BannerCatalog::from_zzz(database::zzz::banners::get_all(&pool).await?);
 
     // Standard
     let mut standard = Signals::default();
@@ -238,17 +266,13 @@ async fn get_signal_tracker(
                 special_pull_a = 0;
                 special_pull_s = 0;
 
-                signal.win = if guarantee {
-                    guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if AGENT_LOSS_IDS.contains(&signal.item_id) {
-                    guarantee = true;
-
-                    Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
-                };
+                signal.win = Some(classify_win(
+                    &banner_catalog,
+                    ZzzGachaType::Special,
+                    PullItem::Character(signal.item_id),
+                    signal.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -295,17 +319,13 @@ async fn get_signal_tracker(
                 w_engine_pull_a = 0;
                 w_engine_pull_s = 0;
 
-                signal.win = if guarantee {
-                    guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if W_ENGINE_LOSS_IDS.contains(&signal.item_id) {
-                    guarantee = true;
-
-                    Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
-                };
+                signal.win = Some(classify_win(
+                    &banner_catalog,
+                    ZzzGachaType::WEngine,
+                    PullItem::WEngine(signal.item_id),
+                    signal.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -398,17 +418,13 @@ async fn get_signal_tracker(
                 exclusive_rescreening_pull_a = 0;
                 exclusive_rescreening_pull_s = 0;
 
-                signal.win = if guarantee {
-                    guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if AGENT_LOSS_IDS.contains(&signal.item_id) {
-                    guarantee = true;
-
-                    Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
-                };
+                signal.win = Some(classify_win(
+                    &banner_catalog,
+                    ZzzGachaType::ExclusiveRescreening,
+                    PullItem::Character(signal.item_id),
+                    signal.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -461,17 +477,13 @@ async fn get_signal_tracker(
                 w_engine_reverberation_pull_a = 0;
                 w_engine_reverberation_pull_s = 0;
 
-                signal.win = if guarantee {
-                    guarantee = false;
-
-                    Some(WinType::Guarantee)
-                } else if W_ENGINE_LOSS_IDS.contains(&signal.item_id) {
-                    guarantee = true;
-
-                    Some(WinType::Loss)
-                } else {
-                    Some(WinType::Win)
-                };
+                signal.win = Some(classify_win(
+                    &banner_catalog,
+                    ZzzGachaType::WEngineReverberation,
+                    PullItem::WEngine(signal.item_id),
+                    signal.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -574,6 +586,54 @@ async fn get_signal_tracker(
             luck_4: stats.luck_a,
             luck_5: stats.luck_s,
             win_stats: None,
+            global_stats,
+        };
+    }
+
+    if let Some(stats) =
+        database::zzz::signals_stats::exclusive_rescreening::get_by_uid(uid, &pool).await?
+    {
+        let global_stats =
+            database::zzz::signals_stats_global::exclusive_rescreening::get_by_uid(uid, &pool)
+                .await?
+                .map(|stats| GlobalStats {
+                    count_percentile: stats.count_percentile,
+                    luck_4_percentile: stats.luck_a_percentile,
+                    luck_5_percentile: stats.luck_s_percentile,
+                });
+
+        exclusive_rescreening.stats = Stats {
+            luck_4: stats.luck_a,
+            luck_5: stats.luck_s,
+            win_stats: Some(WinStats {
+                win_rate: stats.win_rate,
+                win_streak: stats.win_streak,
+                loss_streak: stats.loss_streak,
+            }),
+            global_stats,
+        };
+    }
+
+    if let Some(stats) =
+        database::zzz::signals_stats::w_engine_reverberation::get_by_uid(uid, &pool).await?
+    {
+        let global_stats =
+            database::zzz::signals_stats_global::w_engine_reverberation::get_by_uid(uid, &pool)
+                .await?
+                .map(|stats| GlobalStats {
+                    count_percentile: stats.count_percentile,
+                    luck_4_percentile: stats.luck_a_percentile,
+                    luck_5_percentile: stats.luck_s_percentile,
+                });
+
+        w_engine_reverberation.stats = Stats {
+            luck_4: stats.luck_a,
+            luck_5: stats.luck_s,
+            win_stats: Some(WinStats {
+                win_rate: stats.win_rate,
+                win_streak: stats.win_streak,
+                loss_streak: stats.loss_streak,
+            }),
             global_stats,
         };
     }

@@ -1,5 +1,7 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
+
+use super::DbSignalsStatCount;
 
 pub struct DbSignalsStatBangboo {
     pub uid: i32,
@@ -7,14 +9,17 @@ pub struct DbSignalsStatBangboo {
     pub luck_s: f64,
 }
 
-pub async fn set(stat: &DbSignalsStatBangboo, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbSignalsStatBangboo, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/zzz/signals_stats/bangboo/set.sql",
         stat.uid,
         stat.luck_a,
         stat.luck_s,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
@@ -30,9 +35,9 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatB
     .await?)
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatBangboo>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatCount>> {
     Ok(sqlx::query_file_as!(
-        DbSignalsStatBangboo,
+        DbSignalsStatCount,
         "sql/zzz/signals_stats/bangboo/get_all.sql"
     )
     .fetch_all(pool)

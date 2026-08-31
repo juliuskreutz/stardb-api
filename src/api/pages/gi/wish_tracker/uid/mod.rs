@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -8,12 +6,39 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{
-        banner_helpers::{self, GI_STANDARD},
-        private, ApiResult, LanguageParams,
-    },
+    api::{private, ApiResult, LanguageParams},
     database,
+    gacha::{
+        banner::{BannerCatalog, BannerOutcome},
+        imports::{PullItem, PullPool},
+    },
+    GiGachaType,
 };
+
+/// Applies the shared banner result to tracker guarantee state.
+fn classify_win(
+    catalog: &BannerCatalog,
+    pool: GiGachaType,
+    item: PullItem,
+    timestamp: DateTime<Utc>,
+    guarantee: &mut bool,
+) -> WinType {
+    match catalog.classify(PullPool::Gi(pool), item, timestamp) {
+        BannerOutcome::Win if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Loss => {
+            *guarantee = true;
+            WinType::Loss
+        }
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(paths(get_wish_tracker))]
@@ -170,25 +195,7 @@ async fn get_wish_tracker(
     };
     let name = profile.name;
 
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::gi::banners::get_all(&pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(weapon) = banner.weapon {
-            banners
-                .entry(weapon)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, GI_STANDARD);
+    let banner_catalog = BannerCatalog::from_gi(database::gi::banners::get_all(&pool).await?);
 
     // Beginner
     let mut beginner = Wishes::default();
@@ -298,16 +305,13 @@ async fn get_wish_tracker(
             4 => character_pull_4 = 0,
             5 => {
                 character_pull_5 = 0;
-
-                wish.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(wish.item_id, wish.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
+                wish.win = Some(classify_win(
+                    &banner_catalog,
+                    GiGachaType::Character,
+                    PullItem::Character(wish.item_id),
+                    wish.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -352,16 +356,13 @@ async fn get_wish_tracker(
             4 => weapon_pull_4 = 0,
             5 => {
                 weapon_pull_5 = 0;
-
-                wish.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(wish.item_id, wish.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
+                wish.win = Some(classify_win(
+                    &banner_catalog,
+                    GiGachaType::Weapon,
+                    PullItem::Weapon(wish.item_id),
+                    wish.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }

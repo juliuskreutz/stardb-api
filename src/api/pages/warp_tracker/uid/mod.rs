@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -8,12 +6,39 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{
-        banner_helpers::{self, HSR_STANDARD},
-        private, ApiResult, LanguageParams,
-    },
+    api::{private, ApiResult, LanguageParams},
     database,
+    gacha::{
+        banner::{BannerCatalog, BannerOutcome},
+        imports::{PullItem, PullPool},
+    },
+    GachaType,
 };
+
+/// Applies the shared banner result to tracker guarantee state.
+fn classify_win(
+    catalog: &BannerCatalog,
+    pool: GachaType,
+    item: PullItem,
+    timestamp: DateTime<Utc>,
+    guarantee: &mut bool,
+) -> WinType {
+    match catalog.classify(PullPool::Hsr(pool), item, timestamp) {
+        BannerOutcome::Win if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Win => WinType::Win,
+        BannerOutcome::Loss if *guarantee => {
+            *guarantee = false;
+            WinType::Guarantee
+        }
+        BannerOutcome::Loss => {
+            *guarantee = true;
+            WinType::Loss
+        }
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(paths(get_warp_tracker))]
@@ -171,25 +196,7 @@ async fn get_warp_tracker(
     };
     let name = mihomo.name;
 
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(&pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+    let banner_catalog = BannerCatalog::from_hsr(database::banners::get_all(&pool).await?);
 
     // region Departure
     let mut departure = Warps::default();
@@ -284,15 +291,13 @@ async fn get_warp_tracker(
             5 => {
                 special_pull_5 = 0;
 
-                warp.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
+                warp.win = Some(classify_win(
+                    &banner_catalog,
+                    GachaType::Special,
+                    PullItem::Character(warp.item_id),
+                    warp.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -338,15 +343,13 @@ async fn get_warp_tracker(
             5 => {
                 lc_pull_5 = 0;
 
-                warp.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
+                warp.win = Some(classify_win(
+                    &banner_catalog,
+                    GachaType::Lc,
+                    PullItem::LightCone(warp.item_id),
+                    warp.timestamp,
+                    &mut guarantee,
+                ));
             }
             _ => {}
         }
@@ -392,15 +395,13 @@ async fn get_warp_tracker(
             5 => {
                 collab_pull_5 = 0;
 
-                warp.win = Some(if collab_guarantee {
-                    collab_guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    collab_guarantee = true;
-                    WinType::Loss
-                });
+                warp.win = Some(classify_win(
+                    &banner_catalog,
+                    GachaType::Collab,
+                    PullItem::Character(warp.item_id),
+                    warp.timestamp,
+                    &mut collab_guarantee,
+                ));
             }
             _ => {}
         }
@@ -446,15 +447,13 @@ async fn get_warp_tracker(
             5 => {
                 collab_lc_pull_5 = 0;
 
-                warp.win = Some(if collab_lc_guarantee {
-                    collab_lc_guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    collab_lc_guarantee = true;
-                    WinType::Loss
-                });
+                warp.win = Some(classify_win(
+                    &banner_catalog,
+                    GachaType::CollabLc,
+                    PullItem::LightCone(warp.item_id),
+                    warp.timestamp,
+                    &mut collab_lc_guarantee,
+                ));
             }
             _ => {}
         }

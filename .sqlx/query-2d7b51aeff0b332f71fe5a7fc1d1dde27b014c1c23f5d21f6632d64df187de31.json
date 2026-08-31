@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_wishes_stats_global_character (uid, count_percentile, luck_4_percentile, luck_5_percentile)\nSELECT *\nFROM UNNEST(\n    $1::integer[],\n    $2::double precision[],\n    $3::double precision[],\n    $4::double precision[]\n)\nON CONFLICT (uid)\nDO UPDATE SET\n    count_percentile = EXCLUDED.count_percentile,\n    luck_4_percentile = EXCLUDED.luck_4_percentile,\n    luck_5_percentile = EXCLUDED.luck_5_percentile;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2d7b51aeff0b332f71fe5a7fc1d1dde27b014c1c23f5d21f6632d64df187de31"
+}

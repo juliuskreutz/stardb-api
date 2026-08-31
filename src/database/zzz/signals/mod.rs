@@ -25,6 +25,7 @@ pub struct DbSignalInfo {
     pub character: Option<i32>,
     pub w_engine: Option<i32>,
     pub rarity: Option<i32>,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Default)]

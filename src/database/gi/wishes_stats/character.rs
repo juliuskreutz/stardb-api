@@ -1,5 +1,7 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
+
+use super::DbWishesStatCount;
 
 pub struct DbWishesStatCharacter {
     pub uid: i32,
@@ -10,7 +12,10 @@ pub struct DbWishesStatCharacter {
     pub loss_streak: i32,
 }
 
-pub async fn set(stat: &DbWishesStatCharacter, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbWishesStatCharacter, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/gi/wishes_stats/character/set.sql",
         stat.uid,
@@ -20,7 +25,7 @@ pub async fn set(stat: &DbWishesStatCharacter, pool: &PgPool) -> Result<()> {
         stat.win_streak,
         stat.loss_streak,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
@@ -36,9 +41,9 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatCh
     .await?)
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatCharacter>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatCount>> {
     Ok(sqlx::query_file_as!(
-        DbWishesStatCharacter,
+        DbWishesStatCount,
         "sql/gi/wishes_stats/character/get_all.sql",
     )
     .fetch_all(pool)

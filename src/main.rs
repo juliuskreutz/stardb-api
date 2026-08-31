@@ -4,6 +4,7 @@ extern crate tracing;
 mod api;
 mod app_config;
 mod database;
+mod gacha;
 mod mihomo;
 mod pg_session_store;
 mod update;
@@ -103,6 +104,7 @@ impl Language {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -140,8 +142,12 @@ impl GachaType {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
+    PartialEq,
+    Eq,
+    Hash,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -182,9 +188,26 @@ impl ZzzGachaType {
             ZzzGachaType::WEngineReverberation => 13001,
         }
     }
+
+    /// Maps current and accepted legacy UIGF IDs to one ZZZ pool.
+    ///
+    /// Exports always emit [`Self::id`]; accepting legacy IDs keeps older RNG
+    /// exports importable without propagating those IDs into new files.
+    pub fn from_uigf_id(id: &str) -> Option<Self> {
+        match id {
+            "1" | "1001" => Some(Self::Standard),
+            "2" | "2001" => Some(Self::Special),
+            "3" | "3001" => Some(Self::WEngine),
+            "5" | "5001" => Some(Self::Bangboo),
+            "102" | "12001" => Some(Self::ExclusiveRescreening),
+            "103" | "13001" => Some(Self::WEngineReverberation),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -294,7 +317,6 @@ async fn async_main() -> anyhow::Result<()> {
         .connect(&env::var("DATABASE_URL")?)
         .await?;
     sqlx::migrate!().run(&pool).await?;
-
     if app_config.enable_update_hsr_achievements_percent {
         update::achievements_percent::spawn(pool.clone()).await;
     }
@@ -417,4 +439,29 @@ fn load_app_config() -> anyhow::Result<Arc<app_config::AppConfig>> {
     let config = envy::from_env::<app_config::AppConfig>()?;
     tracing::debug!("AppConfig loaded: {:#?}", config);
     Ok(Arc::new(config))
+}
+
+#[cfg(test)]
+mod uigf_mapping_tests {
+    use super::ZzzGachaType;
+    use strum::IntoEnumIterator;
+
+    mod zzz_banner {
+        use super::*;
+
+        #[test]
+        fn six_pool_roundtrip() {
+            for pool in ZzzGachaType::iter() {
+                assert_eq!(
+                    ZzzGachaType::from_uigf_id(&pool.id().to_string()),
+                    Some(pool)
+                );
+                assert_eq!(
+                    ZzzGachaType::from_uigf_id(&pool.old_id().to_string()),
+                    Some(pool)
+                );
+            }
+            assert_eq!(ZzzGachaType::from_uigf_id("999"), None);
+        }
+    }
 }

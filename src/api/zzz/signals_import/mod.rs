@@ -1,6 +1,6 @@
 mod uid;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
@@ -13,7 +13,13 @@ use url::Url;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
-    api::{validate_import_url, ApiResult},
+    api::{
+        import_jobs::{
+            classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
+            ImportStatus,
+        },
+        validate_import_url, ApiResult,
+    },
     database, ZzzGachaType,
 };
 
@@ -21,7 +27,7 @@ use crate::{
 #[openapi(
     tags((name = "zzz/signals-import")),
     paths(post_zzz_signals_import),
-    components(schemas(SignalsImportParams, SignalsImport, SignalsImportInfo, Status))
+    components(schemas(SignalsImportParams, SignalsImport, SignalsImportInfo, ImportStatus, ImportErrorCode))
 )]
 struct ApiDoc;
 
@@ -61,16 +67,7 @@ struct Entry {
     time: String,
 }
 
-type SignalsImportInfos = Mutex<HashMap<i32, Arc<Mutex<SignalsImportInfo>>>>;
-
-#[derive(Serialize, ToSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Pending,
-    Calculating,
-    Finished,
-    Error(String),
-}
+type SignalsImportInfos = ImportJobStore<SignalsImportInfo>;
 
 #[derive(Serialize, ToSchema, Clone)]
 struct SignalsImportInfo {
@@ -81,7 +78,7 @@ struct SignalsImportInfo {
     bangboo: usize,
     exclusive_rescreening: usize,
     w_engine_reverberation: usize,
-    status: Status,
+    status: ImportStatus,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -92,6 +89,9 @@ struct SignalsImportParams {
 #[derive(Serialize, ToSchema)]
 struct SignalsImport {
     uid: i32,
+    /// Opaque identifier used to poll this import without exposing the UID-keyed job store.
+    #[schema(value_type = String)]
+    job_id: ImportJobId,
 }
 
 #[utoipa::path(
@@ -133,13 +133,30 @@ async fn post_zzz_signals_import(
         .finish();
 
     let mut uid = 0;
+    let mut import_error = None;
 
     for gacha_type in ZzzGachaType::iter().map(|gt| gt.id()) {
-        let gacha_log: GachaLog =
-            reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0"))
-                .await?
-                .json()
-                .await?;
+        let response =
+            match reqwest::get(format!("{url}&real_gacha_type={gacha_type}&end_id=0")).await {
+                Ok(response) => response,
+                Err(error) => {
+                    import_error = Some(classify_import_error(
+                        &error,
+                        ImportErrorCode::UpstreamUnavailable,
+                    ));
+                    continue;
+                }
+            };
+        let gacha_log = match response.json::<GachaLog>().await {
+            Ok(gacha_log) => gacha_log,
+            Err(error) => {
+                import_error = Some(classify_import_error(
+                    &error,
+                    ImportErrorCode::InvalidResponse,
+                ));
+                continue;
+            }
+        };
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = entry.uid.parse()?;
@@ -148,20 +165,28 @@ async fn post_zzz_signals_import(
     }
 
     if uid == 0 {
-        let info = Arc::new(Mutex::new(SignalsImportInfo {
-            gacha_type: ZzzGachaType::Standard,
-            standard: 0,
-            bangboo: 0,
-            special: 0,
-            w_engine: 0,
-            exclusive_rescreening: 0,
-            w_engine_reverberation: 0,
-            status: Status::Error("No data".to_string()),
-        }));
+        let job = signals_import_infos
+            .create(SignalsImportInfo {
+                gacha_type: ZzzGachaType::Standard,
+                standard: 0,
+                bangboo: 0,
+                special: 0,
+                w_engine: 0,
+                exclusive_rescreening: 0,
+                w_engine_reverberation: 0,
+                status: ImportStatus::Error(
+                    import_error.unwrap_or(ImportErrorCode::InvalidResponse),
+                ),
+            })
+            .await;
+        let job_id = job.id;
+        let jobs = signals_import_infos.clone();
+        rt::spawn(async move {
+            rt::time::sleep(Duration::from_secs(60)).await;
+            jobs.remove(job_id).await;
+        });
 
-        signals_import_infos.lock().await.insert(uid, info.clone());
-
-        return Ok(HttpResponse::Ok().json(SignalsImport { uid }));
+        return Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }));
     }
 
     database::zzz::uids::set(&database::zzz::uids::DbUid { uid }, &pool).await?;
@@ -176,22 +201,28 @@ async fn post_zzz_signals_import(
         database::zzz::connections::set(&connection, &pool).await?;
     }
 
-    if signals_import_infos.lock().await.contains_key(&uid) {
-        return Ok(HttpResponse::Ok().json(SignalsImport { uid }));
+    let job = signals_import_infos
+        .start(
+            uid,
+            SignalsImportInfo {
+                gacha_type: ZzzGachaType::Standard,
+                standard: 0,
+                bangboo: 0,
+                special: 0,
+                w_engine: 0,
+                exclusive_rescreening: 0,
+                w_engine_reverberation: 0,
+                status: ImportStatus::Pending,
+            },
+        )
+        .await;
+    let job_id = job.id;
+
+    if !job.is_new {
+        return Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }));
     }
 
-    let info = Arc::new(Mutex::new(SignalsImportInfo {
-        gacha_type: ZzzGachaType::Standard,
-        standard: 0,
-        bangboo: 0,
-        special: 0,
-        w_engine: 0,
-        exclusive_rescreening: 0,
-        w_engine_reverberation: 0,
-        status: Status::Pending,
-    }));
-
-    signals_import_infos.lock().await.insert(uid, info.clone());
+    let info = job.info;
 
     rt::spawn(async move {
         let mut error = Ok(());
@@ -207,21 +238,22 @@ async fn post_zzz_signals_import(
         }
 
         if let Err(e) = error {
-            info.lock().await.status = Status::Error(e.to_string());
-        } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            info.lock().await.status = Status::Error(e.to_string());
+            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+            let gacha_type = info.lock().await.gacha_type;
+            error!(game = "zzz", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+            info.lock().await.status = ImportStatus::Error(code);
         } else {
-            info.lock().await.status = Status::Finished;
+            info.lock().await.status = ImportStatus::Finished;
         }
 
         rt::spawn(async move {
             rt::time::sleep(Duration::from_secs(60)).await;
 
-            signals_import_infos.lock().await.remove(&uid);
+            signals_import_infos.remove(job_id).await;
         });
     });
 
-    Ok(HttpResponse::Ok().json(SignalsImport { uid }))
+    Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }))
 }
 
 async fn import_signals(
@@ -311,339 +343,12 @@ async fn import_signals(
         }
     }
 
-    match gacha_type {
-        ZzzGachaType::Standard => database::zzz::signals::standard::set_all(&set_all, pool).await?,
-        ZzzGachaType::Special => database::zzz::signals::special::set_all(&set_all, pool).await?,
-        ZzzGachaType::WEngine => database::zzz::signals::w_engine::set_all(&set_all, pool).await?,
-        ZzzGachaType::Bangboo => database::zzz::signals::bangboo::set_all(&set_all, pool).await?,
-        ZzzGachaType::ExclusiveRescreening => {
-            database::zzz::signals::exclusive_rescreening::set_all(&set_all, pool).await?
-        }
-        ZzzGachaType::WEngineReverberation => {
-            database::zzz::signals::w_engine_reverberation::set_all(&set_all, pool).await?
-        }
-    }
-
-    Ok(())
-}
-
-async fn calculate_stats(
-    uid: i32,
-    info: &Arc<Mutex<SignalsImportInfo>>,
-    pool: &PgPool,
-) -> anyhow::Result<()> {
-    info.lock().await.status = Status::Calculating;
-
-    info.lock().await.gacha_type = ZzzGachaType::Standard;
-    calculate_stats_standard(uid, pool).await?;
-    info.lock().await.gacha_type = ZzzGachaType::Special;
-    calculate_stats_special(uid, pool).await?;
-    info.lock().await.gacha_type = ZzzGachaType::WEngine;
-    calculate_stats_w_engine(uid, pool).await?;
-    info.lock().await.gacha_type = ZzzGachaType::Bangboo;
-    calculate_stats_bangboo(uid, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let signals = database::zzz::signals::standard::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut first_s_rank = true;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                if first_s_rank {
-                    first_s_rank = false;
-                    pull_s = 0;
-                    continue;
-                }
-
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-
-    let stat = database::zzz::signals_stats::standard::DbSignalsStatStandard {
-        uid,
-        luck_a,
-        luck_s,
-    };
-    database::zzz::signals_stats::standard::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let signals = database::zzz::signals::special::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if [1021, 1041, 1101, 1141, 1181, 1211].contains(&signal.character.unwrap()) {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
-    let stat = database::zzz::signals_stats::special::DbSignalsStatSpecial {
-        uid,
-        luck_a,
-        luck_s,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::zzz::signals_stats::special::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_w_engine(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let signals = database::zzz::signals::w_engine::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if [14102, 14104, 14110, 14114, 14118, 14121]
-                        .contains(&signal.w_engine.unwrap())
-                    {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
-    let stat = database::zzz::signals_stats::w_engine::DbSignalsStatWEngine {
-        uid,
-        luck_a,
-        luck_s,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::zzz::signals_stats::w_engine::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_bangboo(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let signals = database::zzz::signals::bangboo::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-
-    let stat = database::zzz::signals_stats::bangboo::DbSignalsStatBangboo {
-        uid,
-        luck_a,
-        luck_s,
-    };
-    database::zzz::signals_stats::bangboo::set(&stat, pool).await?;
+    let pulls = crate::gacha::imports::normalize_zzz_set(gacha_type, &set_all)?;
+    let batch = crate::gacha::imports::ImportBatch::new(
+        pulls,
+        crate::gacha::imports::ImportPolicy::official(),
+    )?;
+    crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
 
     Ok(())
 }

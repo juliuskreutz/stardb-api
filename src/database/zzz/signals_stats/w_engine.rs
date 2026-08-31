@@ -1,5 +1,7 @@
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
+
+use super::DbSignalsStatCount;
 
 pub struct DbSignalsStatWEngine {
     pub uid: i32,
@@ -10,7 +12,10 @@ pub struct DbSignalsStatWEngine {
     pub loss_streak: i32,
 }
 
-pub async fn set(stat: &DbSignalsStatWEngine, pool: &PgPool) -> Result<()> {
+pub async fn set<'e, E>(stat: &DbSignalsStatWEngine, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/zzz/signals_stats/w_engine/set.sql",
         stat.uid,
@@ -20,7 +25,7 @@ pub async fn set(stat: &DbSignalsStatWEngine, pool: &PgPool) -> Result<()> {
         stat.win_streak,
         stat.loss_streak,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
@@ -36,9 +41,9 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatW
     .await?)
 }
 
-pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatWEngine>> {
+pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatCount>> {
     Ok(sqlx::query_file_as!(
-        DbSignalsStatWEngine,
+        DbSignalsStatCount,
         "sql/zzz/signals_stats/w_engine/get_all.sql"
     )
     .fetch_all(pool)
