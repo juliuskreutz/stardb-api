@@ -266,24 +266,8 @@ async fn import_warps(
 
     let mut pulls = Vec::new();
 
-    let latest_timestamp = match gacha_type {
-        GachaType::Departure => {
-            database::warps::departure::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Standard => {
-            database::warps::standard::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Special => {
-            database::warps::special::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Lc => database::warps::lc::get_latest_timestamp_by_uid(uid, pool).await?,
-        GachaType::Collab => {
-            database::warps::collab::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::CollabLc => {
-            database::warps::collab_lc::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-    };
+    let latest_timestamp =
+        database::warps::get_latest_timestamp_by_uid_by_pool(gacha_type, uid, pool).await?;
 
     'outer: loop {
         let mut i = 0;

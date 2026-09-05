@@ -1,3 +1,4 @@
+use crate::gacha::imports::{ImportBatch, NormalizedPull, PullItem, PullPool, PullProvenance};
 use std::collections::HashMap;
 
 use actix_session::Session;
@@ -5,6 +6,7 @@ use actix_web::{post, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use rand::seq::IndexedRandom as _;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
 use crate::{api::ApiResult, database, mihomo, GachaType, Language};
@@ -82,7 +84,10 @@ async fn post_srs_warps_import(
 
     let mut reader = csv::Reader::from_reader(params.data.as_bytes());
     for warp in reader.deserialize() {
-        let warp: Warp = warp?;
+        let Ok(warp) = warp else {
+            return Ok(HttpResponse::BadRequest().finish());
+        };
+        let warp: Warp = warp;
 
         let Ok(time) = DateTime::parse_from_rfc3339(&warp.time) else {
             return Ok(HttpResponse::BadRequest().finish());
@@ -112,58 +117,22 @@ async fn post_srs_warps_import(
         .filter_map(|lc| (lc.rarity == 4).then_some(lc.id))
         .collect();
 
-    let mut set_all_departure = database::warps::SetAll::default();
-    let mut set_all_standard = database::warps::SetAll::default();
-    let mut set_all_special = database::warps::SetAll::default();
-    let mut set_all_lc = database::warps::SetAll::default();
-    let mut set_all_collab = database::warps::SetAll::default();
-    let mut set_all_collab_lc = database::warps::SetAll::default();
+    let mut pulls = Vec::new();
 
-    for (warps, gacha_type) in [
-        (&warps_map.get(&1), GachaType::Standard),
-        (&warps_map.get(&2), GachaType::Departure),
-        (&warps_map.get(&11), GachaType::Special),
-        (&warps_map.get(&12), GachaType::Lc),
-        (&warps_map.get(&21), GachaType::Collab),
-        (&warps_map.get(&22), GachaType::CollabLc),
-    ] {
+    for gacha_type in GachaType::iter() {
+        let warps = warps_map.get(&gacha_type.id());
         let Some(warps) = warps else {
             continue;
         };
 
-        let count = match gacha_type {
-            GachaType::Departure => {
-                database::warps::departure::get_count_by_uid(uid, &pool).await?
-            }
-            GachaType::Standard => database::warps::standard::get_count_by_uid(uid, &pool).await?,
-            GachaType::Special => database::warps::special::get_count_by_uid(uid, &pool).await?,
-            GachaType::Lc => database::warps::lc::get_count_by_uid(uid, &pool).await?,
-            GachaType::Collab => database::warps::collab::get_count_by_uid(uid, &pool).await?,
-            GachaType::CollabLc => database::warps::collab_lc::get_count_by_uid(uid, &pool).await?,
-        };
+        let count = database::warps::get_count_by_uid_by_pool(gacha_type, uid, &pool).await?;
 
         if count as usize + warps.len() >= 50000 {
             return Ok(HttpResponse::BadRequest().finish());
         }
 
-        let earliest_timestamp = match gacha_type {
-            GachaType::Departure => {
-                database::warps::departure::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GachaType::Standard => {
-                database::warps::standard::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GachaType::Special => {
-                database::warps::special::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GachaType::Lc => database::warps::lc::get_earliest_timestamp_by_uid(uid, &pool).await?,
-            GachaType::Collab => {
-                database::warps::collab::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GachaType::CollabLc => {
-                database::warps::collab_lc::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-        };
+        let earliest_timestamp =
+            database::warps::get_earliest_timestamp_by_uid_by_pool(gacha_type, uid, &pool).await?;
 
         let mut pity = 0;
 
@@ -203,43 +172,26 @@ async fn post_srs_warps_import(
 
             let id = warp.id;
 
-            let (character, light_cone) = if item_id < 2000 {
-                (Some(item_id), None)
+            let item = if item_id < 2000 {
+                PullItem::Character(item_id)
             } else {
-                (None, Some(item_id))
+                PullItem::LightCone(item_id)
             };
-
-            let set_all = match gacha_type {
-                GachaType::Departure => &mut set_all_departure,
-                GachaType::Standard => &mut set_all_standard,
-                GachaType::Special => &mut set_all_special,
-                GachaType::Lc => &mut set_all_lc,
-                GachaType::Collab => &mut set_all_collab,
-                GachaType::CollabLc => &mut set_all_collab_lc,
-            };
-
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.light_cone.push(light_cone);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(false);
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Hsr(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Unofficial,
+            });
         }
     }
 
-    crate::gacha::imports::persist_hsr_sets_in_transaction(
-        &[
-            (GachaType::Departure, &set_all_departure),
-            (GachaType::Standard, &set_all_standard),
-            (GachaType::Special, &set_all_special),
-            (GachaType::Lc, &set_all_lc),
-            (GachaType::Collab, &set_all_collab),
-            (GachaType::CollabLc, &set_all_collab_lc),
-        ],
-        crate::gacha::imports::PullProvenance::Unofficial,
-        &pool,
-    )
-    .await?;
+    let Ok(batch) = ImportBatch::new(pulls, PullProvenance::Unofficial) else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+    crate::gacha::imports::persist_batch_in_transaction(&batch, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

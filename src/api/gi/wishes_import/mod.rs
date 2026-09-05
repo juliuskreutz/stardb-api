@@ -319,23 +319,8 @@ async fn import_wishes(
 
     let mut pulls = Vec::new();
 
-    let latest_timestamp = match gacha_type {
-        GiGachaType::Beginner => {
-            database::gi::wishes::beginner::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GiGachaType::Standard => {
-            database::gi::wishes::standard::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GiGachaType::Character => {
-            database::gi::wishes::character::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GiGachaType::Weapon => {
-            database::gi::wishes::weapon::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GiGachaType::Chronicled => {
-            database::gi::wishes::chronicled::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-    };
+    let latest_timestamp =
+        database::gi::wishes::get_latest_timestamp_by_uid_by_pool(gacha_type, uid, pool).await?;
 
     'outer: loop {
         let mut i = 0;
