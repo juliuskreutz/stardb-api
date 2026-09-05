@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
 use crate::{
@@ -221,11 +222,19 @@ async fn get_profile_json(
     let character_counts = database::warps::get_characters_count_by_uid(uid, lang, pool).await?;
     let light_cones_counts = database::warps::get_light_cones_count_by_uid(uid, lang, pool).await?;
 
-    let departure = database::warps::departure::get_count_by_uid(uid, pool).await?;
-    let standard = database::warps::standard::get_count_by_uid(uid, pool).await?;
-    let special = database::warps::special::get_count_by_uid(uid, pool).await?;
-    let lc = database::warps::lc::get_count_by_uid(uid, pool).await?;
-    let total = departure + standard + special + lc;
+    // Count every registered pool; the existing per-pool response fields remain explicit.
+    let (mut departure, mut standard, mut special, mut lc, mut total) = (0, 0, 0, 0, 0);
+    for kind in crate::GachaType::iter() {
+        let count = database::warps::get_count_by_uid_by_pool(kind, uid, pool).await?;
+        total += count;
+        match kind {
+            crate::GachaType::Departure => departure = count,
+            crate::GachaType::Standard => standard = count,
+            crate::GachaType::Special => special = count,
+            crate::GachaType::Lc => lc = count,
+            crate::GachaType::Collab | crate::GachaType::CollabLc => {}
+        }
+    }
 
     let characters = character_counts.into_iter().map(From::from).collect();
     let light_cones = light_cones_counts.into_iter().map(From::from).collect();

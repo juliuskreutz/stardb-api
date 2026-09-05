@@ -5,7 +5,8 @@ use chrono::{FixedOffset, Utc};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, Language, ZzzGachaType};
+use crate::{api::ApiResult, database, GachaType, GiGachaType, Language, ZzzGachaType};
+use strum::IntoEnumIterator;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -219,23 +220,11 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
 
         let mut list = Vec::new();
 
-        for warp in database::warps::departure::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "2", Some("2"), offset));
-        }
-        for warp in database::warps::standard::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "1", Some("1"), offset));
-        }
-        for warp in database::warps::special::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "11", Some("11"), offset));
-        }
-        for warp in database::warps::lc::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "12", Some("12"), offset));
-        }
-        for warp in database::warps::collab::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "21", Some("21"), offset));
-        }
-        for warp in database::warps::collab_lc::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "22", Some("22"), offset));
+        for kind in hsr_export_pools() {
+            let id = kind.id().to_string();
+            for warp in database::warps::get_by_uid_by_pool(kind, uid, Language::En, &pool).await? {
+                list.push(warp_to_uigf_item(warp, &id, Some(&id), offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -258,55 +247,13 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
 
         let mut list = Vec::new();
 
-        for signal in database::zzz::signals::standard::get_by_uid(uid, Language::En, &pool).await?
-        {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::Standard.id().to_string(),
-                offset,
-            ));
-        }
-        for signal in database::zzz::signals::special::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::Special.id().to_string(),
-                offset,
-            ));
-        }
-        for signal in database::zzz::signals::w_engine::get_by_uid(uid, Language::En, &pool).await?
-        {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::WEngine.id().to_string(),
-                offset,
-            ));
-        }
-        for signal in database::zzz::signals::bangboo::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::Bangboo.id().to_string(),
-                offset,
-            ));
-        }
-        for signal in
-            database::zzz::signals::exclusive_rescreening::get_by_uid(uid, Language::En, &pool)
-                .await?
-        {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::ExclusiveRescreening.id().to_string(),
-                offset,
-            ));
-        }
-        for signal in
-            database::zzz::signals::w_engine_reverberation::get_by_uid(uid, Language::En, &pool)
-                .await?
-        {
-            list.push(signal_to_uigf_item(
-                signal,
-                &ZzzGachaType::WEngineReverberation.id().to_string(),
-                offset,
-            ));
+        for kind in ZzzGachaType::iter() {
+            let id = kind.id().to_string();
+            for signal in
+                database::zzz::signals::get_by_uid_by_pool(kind, uid, Language::En, &pool).await?
+            {
+                list.push(signal_to_uigf_item(signal, &id, offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -329,20 +276,13 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
 
         let mut list = Vec::new();
 
-        for wish in database::gi::wishes::beginner::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "100", "100", offset));
-        }
-        for wish in database::gi::wishes::standard::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "200", "200", offset));
-        }
-        for wish in database::gi::wishes::character::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "301", "301", offset));
-        }
-        for wish in database::gi::wishes::weapon::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "302", "302", offset));
-        }
-        for wish in database::gi::wishes::chronicled::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "500", "500", offset));
+        for kind in GiGachaType::iter() {
+            let id = gi_uigf_type(kind);
+            for wish in
+                database::gi::wishes::get_by_uid_by_pool(kind, uid, Language::En, &pool).await?
+            {
+                list.push(wish_to_uigf_item(wish, id, id, offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -468,5 +408,43 @@ mod serialization_tests {
         assert_eq!(value["item_id"], "1700000000");
         assert_eq!(value["rank_type"], "4");
         assert_eq!(value["time"], "2023-11-14 22:13:20");
+    }
+}
+
+/// Preserve the original insertion order for equal timestamp/id keys in stable sorting.
+fn hsr_export_pools() -> impl Iterator<Item = GachaType> {
+    std::iter::once(GachaType::Departure)
+        .chain(GachaType::iter().filter(|kind| *kind != GachaType::Departure))
+}
+
+fn gi_uigf_type(kind: GiGachaType) -> &'static str {
+    match kind {
+        GiGachaType::Beginner => "100",
+        GiGachaType::Standard => "200",
+        GiGachaType::Character => "301",
+        GiGachaType::Weapon => "302",
+        GiGachaType::Chronicled => "500",
+    }
+}
+
+#[cfg(test)]
+mod pool_order_tests {
+    use super::*;
+    #[test]
+    fn all_pool_ids_and_stable_tie_order_match_existing_exports() {
+        assert_eq!(
+            hsr_export_pools().map(GachaType::id).collect::<Vec<_>>(),
+            [2, 1, 11, 12, 21, 22]
+        );
+        assert_eq!(
+            ZzzGachaType::iter()
+                .map(ZzzGachaType::id)
+                .collect::<Vec<_>>(),
+            [1, 2, 3, 5, 102, 103]
+        );
+        assert_eq!(
+            GiGachaType::iter().map(gi_uigf_type).collect::<Vec<_>>(),
+            ["100", "200", "301", "302", "500"]
+        );
     }
 }
