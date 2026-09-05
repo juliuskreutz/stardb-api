@@ -4,7 +4,7 @@ use utoipa::OpenApi;
 
 use super::Leaderboard;
 use crate::{
-    api::{private, ApiResult, Region},
+    api::{private, ApiResult},
     database, mihomo,
 };
 
@@ -52,17 +52,16 @@ async fn get_leaderboard_entry(
     };
     let score = score.into();
 
-    let count_na =
-        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
-    let count_eu =
-        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
-    let count_asia =
-        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
+    let counts = database::achievement_scores::leaderboard_counts(None, None, &pool).await?;
+    let count = counts.total();
+    let database::achievement_scores::LeaderboardCounts {
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        ..
+    } = counts;
     let count_query = 1;
-
-    let count = count_na + count_eu + count_asia + count_cn;
 
     let scores = vec![score];
 

@@ -94,22 +94,20 @@ async fn get_leaderboard(
     leaderboard_params: web::Query<LeaderboardParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na =
-        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
-    let count_eu =
-        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
-    let count_asia =
-        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
-    let count_query = database::achievement_scores::count(
+    let counts = database::achievement_scores::leaderboard_counts(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
         &pool,
     )
     .await?;
-
-    let count = count_na + count_eu + count_asia + count_cn;
+    let count = counts.total();
+    let database::achievement_scores::LeaderboardCounts {
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        count_query,
+    } = counts;
 
     let db_scores = database::achievement_scores::get(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),

@@ -89,6 +89,45 @@ pub async fn get(
     .await?)
 }
 
+/// Counts from one mihomo snapshot, including profiles without an achievement score.
+#[derive(sqlx::FromRow, Debug)]
+pub struct LeaderboardCounts {
+    pub count_na: i64,
+    pub count_eu: i64,
+    pub count_asia: i64,
+    pub count_cn: i64,
+    pub count_query: i64,
+}
+
+impl LeaderboardCounts {
+    /// The public total includes only the four supported regions, as before.
+    pub fn total(&self) -> i64 {
+        self.count_na + self.count_eu + self.count_asia + self.count_cn
+    }
+}
+
+/// Aggregate regional and filtered counts in one scan and database round trip.
+/// Keep the existing LIKE behavior, including caller-supplied percent/underscore wildcards.
+pub async fn leaderboard_counts(
+    region: Option<&str>,
+    query: Option<&str>,
+    pool: &PgPool,
+) -> Result<LeaderboardCounts> {
+    Ok(sqlx::query_as::<_, LeaderboardCounts>(
+        "SELECT COUNT(*) FILTER (WHERE region = 'na') AS count_na,
+                COUNT(*) FILTER (WHERE region = 'eu') AS count_eu,
+                COUNT(*) FILTER (WHERE region = 'asia') AS count_asia,
+                COUNT(*) FILTER (WHERE region = 'cn') AS count_cn,
+                COUNT(*) FILTER (WHERE ($1::text IS NULL OR region = $1)
+                    AND ($2::text IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')) AS count_query
+         FROM mihomo",
+    )
+    .bind(region)
+    .bind(query)
+    .fetch_one(pool)
+    .await?)
+}
+
 /// Count mihomo profiles matching the region/name filters used by score pagination.
 pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query!(
@@ -195,5 +234,53 @@ mod refresh_tests {
                 1
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn sql_performance_combined_counts_preserve_filters_and_population(pool: PgPool) {
+        let empty = leaderboard_counts(None, None, &pool).await.unwrap();
+        assert_eq!((empty.total(), empty.count_query), (0, 0));
+        sqlx::query("INSERT INTO mihomo(uid, region, name, level, signature, avatar_icon, achievement_count)
+            SELECT i, (ARRAY['na','eu','asia','cn','unknown'])[1 + i % 5],
+                   CASE WHEN i % 2 = 0 THEN 'Seed_Name' ELSE 'Another' END, 1, '', '', 50
+            FROM generate_series(1, 1000) i").execute(&pool).await.unwrap();
+        for region in [None, Some("na"), Some("unknown"), Some("")] {
+            for query in [
+                None,
+                Some(""),
+                Some("sEeD"),
+                Some("%"),
+                Some("_"),
+                Some("missing"),
+            ] {
+                let counts = leaderboard_counts(region, query, &pool).await.unwrap();
+                assert_eq!(
+                    counts.count_query,
+                    count(region, query, &pool).await.unwrap()
+                );
+                for (region, actual) in [
+                    ("na", counts.count_na),
+                    ("eu", counts.count_eu),
+                    ("asia", counts.count_asia),
+                    ("cn", counts.count_cn),
+                ] {
+                    assert_eq!(actual, count(Some(region), None, &pool).await.unwrap());
+                }
+                assert_eq!(counts.total(), 800); // Unknown regions are excluded from the public total.
+            }
+        }
+        // There are deliberately no scores: counters must still include every profile.
+        assert_eq!(
+            leaderboard_counts(None, None, &pool)
+                .await
+                .unwrap()
+                .count_query,
+            1000
+        );
     }
 }
