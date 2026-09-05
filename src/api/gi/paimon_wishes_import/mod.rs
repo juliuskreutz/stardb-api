@@ -4,6 +4,7 @@ use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use rand::seq::IndexedRandom as _;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use utoipa::OpenApi;
 
 use crate::{api::ApiResult, database, GiGachaType};
@@ -144,6 +145,8 @@ async fn post_paimon_warps_import(
         .collect();
 
     let mut pulls = Vec::new();
+    // Share successful named resolutions across pools, only for this import request.
+    let mut resolved_items = HashMap::new();
 
     for (wishes, gacha_type) in [
         (&wish_counter_beginners, GiGachaType::Beginner),
@@ -176,22 +179,17 @@ async fn post_paimon_warps_import(
                 }
             }
 
-            let (item, rarity) = match wish.id.as_str() {
-                "unknown_3_star" => (random_weapon(&weapons_3_ids)?, 3),
-                "unknown_4_star" => (random_weapon(&weapons_4_ids)?, 4),
-                _ => match wish.r#type.as_str() {
-                    "character" => {
-                        let character =
-                            database::gi::characters::get_by_paimon_moe_id(&wish.id, &pool).await?;
-                        (PullItem::Character(character.id), character.rarity)
-                    }
-                    "weapon" => {
-                        let weapon =
-                            database::gi::weapons::get_by_paimon_moe_id(&wish.id, &pool).await?;
-                        (PullItem::Weapon(weapon.id), weapon.rarity)
-                    }
-                    _ => return Ok(HttpResponse::BadRequest().finish()),
-                },
+            let Some((item, rarity)) = resolve_item(
+                &wish.r#type,
+                &wish.id,
+                &weapons_3_ids,
+                &weapons_4_ids,
+                &mut resolved_items,
+                &pool,
+            )
+            .await?
+            else {
+                return Ok(HttpResponse::BadRequest().finish());
             };
 
             let mut pity = 1;
@@ -265,4 +263,124 @@ fn random_weapon(ids: &[i32]) -> anyhow::Result<PullItem> {
         .copied()
         .map(PullItem::Weapon)
         .ok_or_else(|| anyhow::anyhow!("missing weapon catalog"))
+}
+
+/// Resolve each named item once per request. Unknown entries must sample on every
+/// occurrence, and failures are never cached. Item type separates identical names.
+async fn resolve_item(
+    item_type: &str,
+    id: &str,
+    weapons_3: &[i32],
+    weapons_4: &[i32],
+    resolved: &mut HashMap<(String, String), (PullItem, i32)>,
+    pool: &PgPool,
+) -> anyhow::Result<Option<(PullItem, i32)>> {
+    match id {
+        "unknown_3_star" => return Ok(Some((random_weapon(weapons_3)?, 3))),
+        "unknown_4_star" => return Ok(Some((random_weapon(weapons_4)?, 4))),
+        _ => {}
+    }
+    let key = (item_type.to_owned(), id.to_owned());
+    if let Some(item) = resolved.get(&key) {
+        return Ok(Some(*item));
+    }
+    let item = match item_type {
+        "character" => {
+            let item = database::gi::characters::get_by_paimon_moe_id(id, pool).await?;
+            (PullItem::Character(item.id), item.rarity)
+        }
+        "weapon" => {
+            let item = database::gi::weapons::get_by_paimon_moe_id(id, pool).await?;
+            (PullItem::Weapon(item.id), item.rarity)
+        }
+        _ => return Ok(None),
+    };
+    resolved.insert(key, item);
+    Ok(Some(item))
+}
+
+#[cfg(test)]
+mod resolution_tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn sql_performance_paimon_reuses_known_items_only(pool: PgPool) {
+        sqlx::query("INSERT INTO gi_characters(id, rarity) VALUES (1, 5)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO gi_weapons(id, rarity) VALUES (2, 4)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO gi_characters_text(id, language, name) VALUES (1, 'en', 'Seed Name')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO gi_weapons_text(id, language, name) VALUES (2, 'en', 'Seed Name')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let mut cache = HashMap::new();
+        assert_eq!(
+            resolve_item("character", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap(),
+            Some((PullItem::Character(1), 5))
+        );
+        assert_eq!(
+            resolve_item("weapon", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap(),
+            Some((PullItem::Weapon(2), 4))
+        );
+        assert_eq!(cache.len(), 2);
+        assert!(
+            resolve_item("weapon", "missing", &[], &[], &mut cache, &pool)
+                .await
+                .is_err()
+        );
+        assert_eq!(cache.len(), 2);
+        // A closed pool proves repeat resolutions need no database connection.
+        pool.close().await;
+        for _ in 0..1000 {
+            assert_eq!(
+                resolve_item("character", "seed_name", &[], &[], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Character(1), 5))
+            );
+        }
+        // Different singleton catalogs make accidental unknown-item caching deterministic.
+        for id in [10, 11] {
+            assert_eq!(
+                resolve_item("weapon", "unknown_3_star", &[id], &[], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Weapon(id), 3))
+            );
+            assert_eq!(
+                resolve_item("weapon", "unknown_4_star", &[], &[id], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Weapon(id), 4))
+            );
+        }
+        assert_eq!(cache.len(), 2);
+        assert!(
+            resolve_item("weapon", "unknown_3_star", &[], &[], &mut cache, &pool)
+                .await
+                .is_err()
+        );
+        assert!(
+            resolve_item("invalid", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
 }
