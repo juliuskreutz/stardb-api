@@ -117,32 +117,32 @@ async fn get_warps(
     let departure = database::warps::departure::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let standard = database::warps::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::warps::special::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let light_cone = database::warps::lc::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let collab = database::warps::collab::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let collab_lc = database::warps::collab_lc::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Warp::from)
+        .map(Warp::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
 
     let warps = Warps {

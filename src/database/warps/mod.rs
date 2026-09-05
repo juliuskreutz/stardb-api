@@ -106,7 +106,7 @@ pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
 pub struct DbCharacterCount {
     pub id: i32,
     pub rarity: i32,
-    pub name: Option<String>,
+    pub name: String,
     pub path: String,
     pub element: String,
     pub path_id: String,
@@ -134,7 +134,7 @@ pub async fn get_characters_count_by_uid(
 pub struct DbLightConeCount {
     pub id: i32,
     pub rarity: i32,
-    pub name: Option<String>,
+    pub name: String,
     pub path: String,
     pub path_id: String,
     pub count: Option<i64>,
@@ -203,7 +203,7 @@ macro_rules! pool_fn {
             executor: E,
         ) -> anyhow::Result<Vec<DbWarpInfo>>
         where
-            E: Executor<'e, Database = Postgres>,
+            E: sqlx::Executor<'e, Database = sqlx::Postgres>,
         {
             sqlx::query_file_as!(RawDbWarpInfo, $sql, uid)
                 .fetch_all(executor)
@@ -259,7 +259,7 @@ macro_rules! pool_registry {
  ($( $module:ident => $variant:ident, $item:ident { $( $function:ident : $sql:literal ),* $(,)? } ),* $(,)?) => {
 $(pub mod $module {
 use super::*;
-use sqlx::{Executor, Postgres, PgConnection};
+use sqlx::PgConnection;
 use crate::Language;
 $(pool_fn!($function, $sql, $item);)*
 })*

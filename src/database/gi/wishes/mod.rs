@@ -146,7 +146,7 @@ macro_rules! pool_fn {
             executor: E,
         ) -> anyhow::Result<Vec<DbWishInfo>>
         where
-            E: Executor<'e, Database = Postgres>,
+            E: sqlx::Executor<'e, Database = sqlx::Postgres>,
         {
             sqlx::query_file_as!(RawDbWishInfo, $sql, uid)
                 .fetch_all(executor)
@@ -193,7 +193,7 @@ macro_rules! pool_registry {
  ($( $module:ident => $variant:ident, $item:ident { $( $function:ident : $sql:literal ),* $(,)? } ),* $(,)?) => {
 $(pub mod $module {
 use super::*;
-use sqlx::{Executor, Postgres, PgConnection};
+use sqlx::PgConnection;
 use crate::Language;
 $(pool_fn!($function, $sql, $item);)*
 })*

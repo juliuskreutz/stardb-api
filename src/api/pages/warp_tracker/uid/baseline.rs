@@ -1,3 +1,4 @@
+#![allow(unused_variables)]
 //! Frozen tracker JSON reference extracted from 49daa02, before the table rewrite.
 use super::*;
 use crate::gacha::banner::BannerOutcome;

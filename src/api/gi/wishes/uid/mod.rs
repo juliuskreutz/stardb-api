@@ -118,27 +118,27 @@ async fn get_gi_wishes(
     let beginner = database::gi::wishes::beginner::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Wish::from)
+        .map(Wish::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let standard = database::gi::wishes::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Wish::from)
+        .map(Wish::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::gi::wishes::character::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Wish::from)
+        .map(Wish::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let weapon = database::gi::wishes::weapon::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Wish::from)
+        .map(Wish::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let chronicled = database::gi::wishes::chronicled::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Wish::from)
+        .map(Wish::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
 
     let wishes = Wishes {

@@ -122,34 +122,34 @@ async fn get_zzz_signals(
     let standard = database::zzz::signals::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
+        .map(Signal::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::zzz::signals::special::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
+        .map(Signal::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine = database::zzz::signals::w_engine::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
+        .map(Signal::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let bangboo = database::zzz::signals::bangboo::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
+        .map(Signal::try_from)
         .collect::<anyhow::Result<Vec<_>>>()?;
     let exclusive_rescreening =
         database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
-            .map(Signal::from)
+            .map(Signal::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine_reverberation =
         database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
-            .map(Signal::from)
+            .map(Signal::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
 
     let signals = Signals {

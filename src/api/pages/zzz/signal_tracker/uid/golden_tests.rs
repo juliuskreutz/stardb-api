@@ -6,7 +6,7 @@ fn all_pool_json_matches_pre_refactor() {
         let rows = || {
             (0..length)
                 .map(|i| Signal {
-                    r#type: SignalType::Character,
+                    r#type: SignalType::Agent,
                     id: i.to_string(),
                     name: "fixture".into(),
                     rarity: if i % 11 == 0 {
@@ -35,7 +35,7 @@ fn all_pool_json_matches_pre_refactor() {
         let rows = || {
             (0..length)
                 .map(|i| Signal {
-                    r#type: SignalType::Character,
+                    r#type: SignalType::Agent,
                     id: i.to_string(),
                     name: "fixture".into(),
                     rarity: if i % 11 == 0 {
@@ -122,7 +122,7 @@ fn all_pool_json_matches_pre_refactor() {
         let rows = || {
             (0..length)
                 .map(|i| Signal {
-                    r#type: SignalType::Character,
+                    r#type: SignalType::Agent,
                     id: i.to_string(),
                     name: "fixture".into(),
                     rarity: if i % 11 == 0 {
