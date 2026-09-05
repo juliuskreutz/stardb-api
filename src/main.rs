@@ -136,6 +136,8 @@ enum GachaType {
 
 impl GachaType {
     /// Returns the HSR pool ID used by official imports and UIGF exports.
+    /// genshin.py calls the collaboration pools FATE_CHARACTER/FATE_WEAPON;
+    /// WEAPON refers to light cones, including the regular pool (12).
     pub fn id(self) -> i32 {
         match self {
             GachaType::Standard => 1,
@@ -174,7 +176,7 @@ enum ZzzGachaType {
 }
 
 impl ZzzGachaType {
-    /// Returns the current ZZZ pool ID emitted in new UIGF exports.
+    /// Returns the official `real_gacha_type`, also emitted in new UIGF exports.
     pub fn id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1,
@@ -187,6 +189,7 @@ impl ZzzGachaType {
     }
 
     /// Returns the legacy RNG storage/UIGF pool ID accepted during import.
+    /// These compatibility keys are not official `real_gacha_type` values.
     pub fn old_id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1001,
@@ -472,15 +475,22 @@ mod uigf_mapping_tests {
 
         #[test]
         fn six_pool_roundtrip() {
-            for pool in ZzzGachaType::iter() {
-                assert_eq!(
-                    ZzzGachaType::from_uigf_id(&pool.id().to_string()),
-                    Some(pool)
-                );
-                assert_eq!(
-                    ZzzGachaType::from_uigf_id(&pool.old_id().to_string()),
-                    Some(pool)
-                );
+            // Pin each semantic pool to both external vocabularies: deriving
+            // expectations from id()/old_id() alone would miss swapped IDs.
+            let cases = [
+                (ZzzGachaType::Standard, 1, 1001),
+                (ZzzGachaType::Special, 2, 2001),
+                (ZzzGachaType::WEngine, 3, 3001),
+                (ZzzGachaType::Bangboo, 5, 5001),
+                (ZzzGachaType::ExclusiveRescreening, 102, 12001),
+                (ZzzGachaType::WEngineReverberation, 103, 13001),
+            ];
+            assert_eq!(cases.len(), ZzzGachaType::iter().count());
+            for (pool, current, legacy) in cases {
+                assert_eq!(pool.id(), current);
+                assert_eq!(pool.old_id(), legacy);
+                assert_eq!(ZzzGachaType::from_uigf_id(&current.to_string()), Some(pool));
+                assert_eq!(ZzzGachaType::from_uigf_id(&legacy.to_string()), Some(pool));
             }
             assert_eq!(ZzzGachaType::from_uigf_id("999"), None);
         }

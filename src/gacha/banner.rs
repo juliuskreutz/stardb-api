@@ -139,6 +139,7 @@ impl BannerCatalog {
 
     /// Adapts Genshin persistence rows into Character, Weapon, and Chronicled entries.
     /// Uses the persisted banner vocabulary; unknown IDs are logged and skipped.
+    /// Character rows use the shared pool 301, including raw wish banner type 400.
     pub(crate) fn from_gi(
         banners: impl IntoIterator<Item = database::gi::banners::DbBanner>,
     ) -> Self {

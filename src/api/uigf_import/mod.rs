@@ -305,6 +305,8 @@ async fn post_uigf_import(
         }
         let mut by_pool: HashMap<GiGachaType, Vec<NormalizedPull>> = HashMap::new();
         for pull in &entry.list {
+            // UIGF's normalized field combines raw character banner types 301
+            // and 400 into 301; 400 belongs to gacha_type, not uigf_gacha_type.
             let gacha_type = match pull.uigf_gacha_type.as_str() {
                 "100" => GiGachaType::Beginner,
                 "200" => GiGachaType::Standard,
