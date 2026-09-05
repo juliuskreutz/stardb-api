@@ -6,22 +6,41 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "luck_a",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "luck_a"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_s",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "luck_s"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "signal_count",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {

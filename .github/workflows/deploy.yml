@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Get Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -17,13 +17,15 @@ jobs:
           targets: x86_64-unknown-linux-musl
 
       - name: Install Musl Tools
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
         with:
           packages: musl-tools
           version: 1.0
 
+      - uses: Swatinem/rust-cache@v2.9.2
+
       - name: Build
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: cargo build --locked --release --target x86_64-unknown-linux-musl
         env:
           SQLX_OFFLINE: true
 
@@ -31,7 +33,7 @@ jobs:
         run: mv target/x86_64-unknown-linux-musl/release/stardb-api .
 
       - name: Delete Old File
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -39,7 +41,7 @@ jobs:
           script: mv stardb-api/stardb-api stardb-api/stardb-api-old
 
       - name: Copy New File
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -48,7 +50,7 @@ jobs:
           target: /root/stardb-api/
 
       - name: Restart Service
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}

@@ -6,22 +6,41 @@
       {
         "ordinal": 0,
         "name": "character",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_chronicled",
+            "name": "character"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "weapon",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_chronicled",
+            "name": "weapon"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "rarity",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       },
       {
         "ordinal": 3,
         "name": "timestamp",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_chronicled",
+            "name": "timestamp"
+          }
+        }
       }
     ],
     "parameters": {

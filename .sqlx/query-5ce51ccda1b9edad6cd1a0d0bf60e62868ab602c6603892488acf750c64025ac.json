@@ -6,42 +6,90 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "region",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "region"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "level",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "level"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "signature",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "signature"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "avatar_icon",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "avatar_icon"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "achievement_count",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "achievement_count"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "updated_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mihomo",
+            "name": "updated_at"
+          }
+        }
       }
     ],
     "parameters": {

@@ -27,7 +27,7 @@ use actix_web::{
 use ed25519_dalek::SecretKey;
 use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
-use rand::RngCore;
+use rand::Rng;
 use sentry_tracing::EventFilter;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -268,20 +268,15 @@ fn main() -> anyhow::Result<()> {
     let _sentry_guard = env::var("SENTRY_DSN").ok().map(|dsn| {
         sentry::init((
             dsn,
-            sentry::ClientOptions {
-                release: sentry::release_name!(),
-                environment: Some(
-                    if cfg!(debug_assertions) {
-                        "development"
-                    } else {
-                        "production"
-                    }
-                    .into(),
-                ),
-                traces_sample_rate: 0.0,
-                attach_stacktrace: true,
-                ..Default::default()
-            },
+            // Defaults disable tracing and capture all error events.
+            sentry::ClientOptions::new()
+                .maybe_release(sentry::release_name!())
+                .environment(if cfg!(debug_assertions) {
+                    "development"
+                } else {
+                    "production"
+                })
+                .attach_stacktrace(true),
         ))
     });
 

@@ -6,18 +6,18 @@ on:
 
 jobs:
   clippy:
-    name: Offline check and Clippy
+    name: Offline Clippy
     runs-on: ubuntu-latest
     env:
       SQLX_OFFLINE: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - name: Check all targets without a database
-        run: cargo check --all-targets
-      - name: Clippy
-        run: cargo clippy --all-targets
+      # Reuse dependency artifacts across runs; Clippy also type-checks all targets.
+      - uses: Swatinem/rust-cache@v2.9.2
+      - name: Check and lint all targets without a database
+        run: cargo clippy --locked --all-targets
       - name: Check whitespace
         run: git diff --check

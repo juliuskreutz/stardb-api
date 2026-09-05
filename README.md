@@ -22,10 +22,10 @@ And you're ready to go :D
 
 ## Testing with Docker
 
-Install Docker, a stable Rust toolchain with Clippy, and the pinned SQLx CLI:
+Install Docker, Rust 1.94 or newer with Clippy, and SQLx CLI matching the library:
 
 ```sh
-cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls
+cargo install sqlx-cli --version 0.9.0 --no-default-features --features postgres,rustls
 scripts/test-db.sh start
 scripts/test-db.sh migrate
 scripts/test-db.sh test
@@ -48,10 +48,54 @@ scripts/test-db.sh url                  # Print the isolated test database URL
 ```
 
 After `reset`, run `migrate` before SQL tooling; DB-backed tests migrate themselves.
-Commit `.sqlx` changes together with their queries. Clippy CI runs offline checks
-and linting only; database tests and SQLx schema verification run locally with
-these Docker commands. To run checks against a different test database, set
+Commit `.sqlx` changes together with their queries. Clippy CI type-checks and lints
+all targets offline in a single pass; database tests and SQLx schema verification
+run locally with these Docker commands. To run checks against a different test database, set
 `DATABASE_URL` explicitly and run `scripts/verify-gacha.sh`; tests write fixture data.
+
+## Faster development builds
+
+Use `SQLX_OFFLINE=true cargo check --locked --all-targets` for compiler feedback
+without linking an executable. Run focused tests while iterating, then
+`scripts/test-db.sh verify` before committing behavior changes. CI runs Clippy once
+(it also type-checks) and caches dependencies; it never starts a database or runs tests.
+
+The development and test profiles use line-table debug information, preserving
+file/line backtraces with less code-generation and linking work. For debugger locals
+and full type information, use the opt-in profile:
+
+```sh
+SQLX_OFFLINE=true cargo build --locked --profile debugging
+```
+
+Only the PNG decoder used by the asset updater is enabled in `image`; WebP encoding
+uses the separate `webp` crate. Enabling extra image formats also adds their codec
+dependencies to builds, so add features only when a caller needs them.
+
+Keep `target/` between runs and avoid routine `cargo clean`. Toolchain, dependency,
+feature, profile, and `RUSTFLAGS` changes can cause recompilation. Run Cargo commands
+sequentially when worktrees share a target directory; concurrent builds contend for
+Cargo's lock. New worktrees use their own target directory by default.
+
+To identify the actual bottleneck on your machine, capture Cargo's timing report:
+
+```sh
+SQLX_OFFLINE=true cargo build --locked --timings
+```
+
+Open `target/cargo-timings/cargo-timing.html`. Compare the same command and cache
+state when measuring improvements; a warm check and a cold build are different
+workloads. These choices follow the [Cargo build-performance guide](https://doc.rust-lang.org/cargo/guide/build-performance.html).
+
+## Dependency upgrades
+
+`Cargo.toml` declares the minimum Rust version; use `Cargo.lock` and `--locked` for
+reproducible builds. SQLx CLI must match the library (currently 0.9.0); regenerate
+and check `.sqlx` after upgrading SQLx, even when SQL text is unchanged.
+
+Reqwest 0.13 uses the operating system's certificate trust store. Deployment hosts
+must provide current CA certificates for outbound HTTPS (imports, assets, and
+telemetry), including when running the statically linked musl binary.
 
 ## Code documentation
 

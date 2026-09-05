@@ -6,27 +6,47 @@
       {
         "ordinal": 0,
         "name": "bangboo",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_bangboo",
+            "name": "bangboo"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "timestamp",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_bangboo",
+            "name": "timestamp"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "character",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       },
       {
         "ordinal": 3,
         "name": "w_engine",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_bangboo",
+            "name": "w_engine"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "rarity",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": "Expression"
       }
     ],
     "parameters": {

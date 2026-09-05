@@ -5,7 +5,7 @@ use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
+use ed25519_dalek::{Signer, SigningKey};
 use futures::lock::Mutex;
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -489,6 +489,42 @@ async fn get_export(
 #[cfg(test)]
 mod serialization_tests {
     use super::*;
+
+    #[test]
+    fn legacy_signing_key_preserves_rfc8032_signature_and_export_encoding() {
+        use ed25519_dalek::{
+            pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey},
+            Signature, Verifier,
+        };
+
+        // Public test vector 1 from RFC 8032 section 7.1 (empty message):
+        // https://www.rfc-editor.org/rfc/rfc8032#section-7.1
+        // Wrapped in PKCS#8 v2, including its public key, as dalek 2 persisted keys.
+        // This fixture is deliberately independent of the installed dalek encoder.
+        const LEGACY_PEM: &str = concat!(
+            "-----BEGIN PRIVATE KEY-----\n",
+            "MFECAQEwBQYDK2VwBCIEIJ1hsZ3v/VpguoRK9JLsLMREScVpezJpGXA7rAMcrn9g\n",
+            "gSEA11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\n",
+            "-----END PRIVATE KEY-----\n",
+        );
+        // ed25519 2's Display used uppercase hex, which is the existing export wire form.
+        const LEGACY_SIGNATURE: &str = concat!(
+            "E5564300C360AC729086E2CC806E828A84877F1EB8E5D974D873E065224901555F",
+            "B8821590A33BACC61E39701CF9B46BD25BF5F0595BBE24655141438E7A100B",
+        );
+
+        let key = SigningKey::from_pkcs8_pem(LEGACY_PEM).unwrap();
+        assert_eq!(
+            key.to_pkcs8_pem(LineEnding::LF).unwrap().as_str(),
+            LEGACY_PEM
+        );
+        let exported_signature = key.sign(b"").to_string();
+        assert_eq!(exported_signature, LEGACY_SIGNATURE);
+
+        let parsed: Signature = exported_signature.parse().unwrap();
+        key.verifying_key().verify(b"", &parsed).unwrap();
+        assert!(key.verifying_key().verify(b"modified", &parsed).is_err());
+    }
     #[test]
     fn every_item_kind_preserves_export_wire_strings() {
         let row = database::warps::DbWarp {

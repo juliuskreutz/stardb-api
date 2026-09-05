@@ -1,7 +1,7 @@
 use crate::api::users::SessionUser;
 use actix_web::{put, web, HttpResponse, Responder};
 use argon2::Config;
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};

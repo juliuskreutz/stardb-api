@@ -6,42 +6,90 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "start",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "start"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "end",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "end"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "character",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "character"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "weapon",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "weapon"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "character_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "character_gacha_type"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "weapon_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_banners",
+            "name": "weapon_gacha_type"
+          }
+        }
       }
     ],
     "parameters": {

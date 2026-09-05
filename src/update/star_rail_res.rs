@@ -111,7 +111,8 @@ async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
                 ));
             }
 
-            let encoder = Encoder::from_image(&png).map_err(|e| anyhow!("{e}"))?;
+            let rgba = png.to_rgba8();
+            let encoder = Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height());
             let encoded_webp = encoder.encode_lossless();
 
             fs::write(new_path, encoded_webp.as_bytes())?;

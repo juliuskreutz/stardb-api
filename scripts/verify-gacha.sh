@@ -6,7 +6,7 @@ set -eu
 
 export SQLX_OFFLINE=true
 
-cargo check --all-targets
-cargo test
-cargo clippy --all-targets
+cargo check --locked --all-targets
+cargo test --locked
+cargo clippy --locked --all-targets
 git diff --check

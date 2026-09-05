@@ -98,11 +98,12 @@ pub async fn apply(
         .bind(username)
         .fetch_optional(&mut *conn)
         .await?;
+    // Only closed game/list enums supply identifiers; request data remains bound.
     let catalog = format!("{}achievements", game.prefix());
     let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
-    let rows = sqlx::query_as::<_, (i32, bool, Option<i32>)>(&format!(
+    let rows = sqlx::query_as::<_, (i32, bool, Option<i32>)>(sqlx::AssertSqlSafe(format!(
         "SELECT id, impossible, \"set\" FROM {catalog} WHERE id = ANY($1)"
-    ))
+    )))
     .bind(ids)
     .fetch_all(&mut *conn)
     .await?;
@@ -110,14 +111,16 @@ pub async fn apply(
     // Missing IDs are errors even when another member of the same set would supersede them.
     let selected = select_ids(ids, &rows, matches!(list, List::Completed))?;
     if replace {
-        sqlx::query(&format!("DELETE FROM {table} WHERE username = $1"))
-            .bind(username)
-            .execute(&mut *conn)
-            .await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE username = $1"
+        )))
+        .bind(username)
+        .execute(&mut *conn)
+        .await?;
     }
-    sqlx::query(&format!("DELETE FROM {table} u USING {catalog} a WHERE u.username = $1 AND u.id = a.id AND a.\"set\" IN (SELECT \"set\" FROM {catalog} WHERE id = ANY($2)) AND NOT (u.id = ANY($2))"))
+    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} u USING {catalog} a WHERE u.username = $1 AND u.id = a.id AND a.\"set\" IN (SELECT \"set\" FROM {catalog} WHERE id = ANY($2)) AND NOT (u.id = ANY($2))")))
         .bind(username).bind(&selected).execute(&mut *conn).await?;
-    sqlx::query(&format!("INSERT INTO {table}(username, id) SELECT $1, UNNEST($2::int[]) ON CONFLICT(username, id) DO NOTHING"))
+    sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table}(username, id) SELECT $1, UNNEST($2::int[]) ON CONFLICT(username, id) DO NOTHING")))
         .bind(username).bind(&selected).execute(&mut *conn).await?;
     Ok(())
 }
@@ -143,10 +146,11 @@ pub async fn delete_all(
     ids: &[i32],
     pool: &PgPool,
 ) -> Result<()> {
+    // Only closed game/list enums supply identifiers; request data remains bound.
     let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "DELETE FROM {table} WHERE username = $1 AND id = ANY($2)"
-    ))
+    )))
     .bind(username)
     .bind(ids)
     .execute(pool)
@@ -210,26 +214,26 @@ mod database_tests {
             .unwrap();
         for game in [Game::Hsr, Game::Gi, Game::Zzz] {
             let catalog = format!("{}achievements", game.prefix());
-            sqlx::query(&format!("CREATE TEMP TABLE {catalog}(id int PRIMARY KEY, impossible bool NOT NULL, \"set\" int)")).execute(&mut conn).await.unwrap();
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TEMP TABLE {catalog}(id int PRIMARY KEY, impossible bool NOT NULL, \"set\" int)"))).execute(&mut conn).await.unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "INSERT INTO {catalog} VALUES (1,false,7),(2,false,NULL),(3,false,7),(4,true,7)"
-            ))
+            )))
             .execute(&mut conn)
             .await
             .unwrap();
             for list in [List::Completed, List::Favorites] {
                 let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
-                sqlx::query(&format!("CREATE TEMP TABLE {table}(username text REFERENCES users, id int REFERENCES {catalog}, PRIMARY KEY(username,id))")).execute(&mut conn).await.unwrap();
+                sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TEMP TABLE {table}(username text REFERENCES users, id int REFERENCES {catalog}, PRIMARY KEY(username,id))"))).execute(&mut conn).await.unwrap();
             }
         }
         conn
     }
     async fn ids(game: Game, list: List, conn: &mut PgConnection) -> Vec<i32> {
-        sqlx::query_scalar(&format!(
+        sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
             "SELECT id FROM {}users_achievements_{} ORDER BY id",
             game.prefix(),
             list.suffix()
-        ))
+        )))
         .fetch_all(conn)
         .await
         .unwrap()
@@ -327,7 +331,7 @@ mod database_tests {
             ),
         ] {
             let table = format!("{}achievements", game.prefix());
-            sqlx::query(&format!("ALTER TABLE {table} ADD version text DEFAULT '1.0', ADD comment text DEFAULT 'old', ADD reference text DEFAULT 'ref', ADD difficulty text DEFAULT 'easy', ADD video text DEFAULT 'video', ADD gacha bool DEFAULT true, ADD timegated text DEFAULT 'time', ADD missable bool DEFAULT true")).execute(&mut conn).await.unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE {table} ADD version text DEFAULT '1.0', ADD comment text DEFAULT 'old', ADD reference text DEFAULT 'ref', ADD difficulty text DEFAULT 'easy', ADD video text DEFAULT 'video', ADD gacha bool DEFAULT true, ADD timegated text DEFAULT 'time', ADD missable bool DEFAULT true"))).execute(&mut conn).await.unwrap();
             sqlx::query(sql)
                 .bind(1i32)
                 .bind(None::<String>)
@@ -343,9 +347,9 @@ mod database_tests {
                 .execute(&mut conn)
                 .await
                 .unwrap();
-            let row: (String, String, bool, i32) = sqlx::query_as(&format!(
+            let row: (String, String, bool, i32) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
                 "SELECT version, comment, gacha, \"set\" FROM {table} WHERE id = 1"
-            ))
+            )))
             .fetch_one(&mut conn)
             .await
             .unwrap();

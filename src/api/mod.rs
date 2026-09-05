@@ -56,6 +56,10 @@ pub(crate) fn gacha_history_forbidden(is_admin: bool, has_verified_connection: b
 /// Accepts only absolute HTTP(S) URLs with a host, otherwise returning HTTP 400.
 ///
 /// This validates URL shape and scheme, not the destination's trust or network reachability.
+#[allow(
+    clippy::result_large_err,
+    reason = "Handlers return this Actix response directly; boxing only adds an error-path allocation"
+)]
 pub(crate) fn validate_import_url(raw_url: &str) -> Result<Url, HttpResponse> {
     let Ok(url) = Url::parse(raw_url) else {
         return Err(HttpResponse::BadRequest().body("Invalid URL"));
@@ -330,9 +334,9 @@ mod gacha_security {
             }
 
             for table in ["gi_connections", "zzz_connections"] {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "INSERT INTO {table} (uid, username, verified, private) VALUES ($1, $2, true, true), ($1, $3, false, false)"
-                ))
+                )))
                 .bind(uid)
                 .bind(&owner)
                 .bind(&unverified)

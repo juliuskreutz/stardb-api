@@ -6,42 +6,90 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "start",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "start"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "end",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "end"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "character",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "character"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "light_cone",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "light_cone"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "character_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "character_gacha_type"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "light_cone_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "banners",
+            "name": "light_cone_gacha_type"
+          }
+        }
       }
     ],
     "parameters": {

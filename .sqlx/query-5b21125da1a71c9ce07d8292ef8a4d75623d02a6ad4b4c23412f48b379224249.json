@@ -6,17 +6,35 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "luck_4",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "luck_4"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_5",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "luck_5"
+          }
+        }
       }
     ],
     "parameters": {

@@ -1,6 +1,6 @@
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};

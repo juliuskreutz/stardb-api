@@ -6,22 +6,41 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_weapon",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "luck_4",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_weapon",
+            "name": "luck_4"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_5",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_weapon",
+            "name": "luck_5"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "wish_count",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": "Expression"
       }
     ],
     "parameters": {

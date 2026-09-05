@@ -10,18 +10,27 @@ compose() {
     docker compose --env-file /dev/null -p stardb-api-test -f compose.test.yml "$@"
 }
 
+# SQLx cache formats follow the library version; reject an older globally installed CLI.
+sqlx_cli() {
+    case "$(cargo sqlx --version)" in
+        *" 0.9.0") ;;
+        *) printf '%s\n' 'Install SQLx CLI 0.9.0 using the command in README.md.' >&2; return 1 ;;
+    esac
+    cargo sqlx --no-dotenv "$@"
+}
+
 case "${1:-help}" in
     start)
         compose up -d --wait
         ;;
     migrate)
         compose up -d --wait
-        cargo sqlx migrate run
+        sqlx_cli migrate run
         ;;
     test)
         shift
         compose up -d --wait
-        SQLX_OFFLINE=true cargo test "$@"
+        SQLX_OFFLINE=true cargo test --locked "$@"
         ;;
     verify)
         compose up -d --wait
@@ -29,13 +38,13 @@ case "${1:-help}" in
         ;;
     prepare)
         compose up -d --wait
-        cargo sqlx migrate run
-        SQLX_OFFLINE=false cargo sqlx prepare -- --all-targets
+        sqlx_cli migrate run
+        SQLX_OFFLINE=false sqlx_cli prepare -- --all-targets --locked
         ;;
     check-schema)
         compose up -d --wait
-        cargo sqlx migrate run
-        SQLX_OFFLINE=false cargo sqlx prepare --check -- --all-targets
+        sqlx_cli migrate run
+        SQLX_OFFLINE=false sqlx_cli prepare --check -- --all-targets --locked
         ;;
     stop)
         compose stop

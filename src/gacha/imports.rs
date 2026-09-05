@@ -565,9 +565,9 @@ mod gacha_import_db {
                 "zzz_w_engines",
                 "zzz_bangboos",
             ] {
-                sqlx::query(&format!(
+                sqlx::query(sqlx::AssertSqlSafe(format!(
                     "INSERT INTO {table} (id, rarity) VALUES ($1, 5), ($2, 5)"
-                ))
+                )))
                 .bind(first_item)
                 .bind(repaired_item)
                 .execute(&mut *transaction)
@@ -688,7 +688,7 @@ mod gacha_import_db {
                     let id = 9_000_000_000 + game_index as i64 * 10 + transition;
                     let stored_official = matches!(transition, 1 | 2);
                     let incoming_official = matches!(transition, 0 | 2);
-                    sqlx::query(&format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES ($1, $2, $3, $4, $5)"))
+                    sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES ($1, $2, $3, $4, $5)")))
                         .bind(id).bind(uid).bind(first_item).bind(timestamp).bind(stored_official)
                         .execute(&mut *transaction).await.unwrap();
 
@@ -713,9 +713,9 @@ mod gacha_import_db {
                     let expected_repair = !stored_official && incoming_official;
                     assert_eq!(summary.changed_records, u64::from(expected_repair));
 
-                    let row: (i32, bool) = sqlx::query_as(&format!(
+                    let row: (i32, bool) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
                         "SELECT {column}, official FROM {table} WHERE uid = $1 AND id = $2"
-                    ))
+                    )))
                     .bind(uid)
                     .bind(id)
                     .fetch_one(&mut *transaction)
@@ -780,11 +780,13 @@ mod gacha_import_db {
                 "zzz_w_engines",
                 "zzz_bangboos",
             ] {
-                sqlx::query(&format!("INSERT INTO {table} (id, rarity) VALUES ($1, 5)"))
-                    .bind(item)
-                    .execute(&pool)
-                    .await
-                    .unwrap();
+                sqlx::query(sqlx::AssertSqlSafe(format!(
+                    "INSERT INTO {table} (id, rarity) VALUES ($1, 5)"
+                )))
+                .bind(item)
+                .execute(&pool)
+                .await
+                .unwrap();
             }
 
             let timestamp = Utc.timestamp_opt(1_700_000_000, 0).unwrap();
@@ -863,12 +865,13 @@ mod gacha_import_db {
                 "gi_wishes_stats_standard",
                 "zzz_signals_stats_standard",
             ] {
-                let count: i64 =
-                    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE uid = $1"))
-                        .bind(uid)
-                        .fetch_one(&pool)
-                        .await
-                        .unwrap();
+                let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                    "SELECT COUNT(*) FROM {table} WHERE uid = $1"
+                )))
+                .bind(uid)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
                 assert_eq!(count, 1, "{table} is current before return");
             }
 
@@ -877,11 +880,13 @@ mod gacha_import_db {
                 "gi_wishes_stats_standard",
                 "zzz_signals_stats_standard",
             ] {
-                sqlx::query(&format!("DELETE FROM {table} WHERE uid = $1"))
-                    .bind(uid)
-                    .execute(&pool)
-                    .await
-                    .unwrap();
+                sqlx::query(sqlx::AssertSqlSafe(format!(
+                    "DELETE FROM {table} WHERE uid = $1"
+                )))
+                .bind(uid)
+                .execute(&pool)
+                .await
+                .unwrap();
             }
 
             assert_eq!(
@@ -898,12 +903,13 @@ mod gacha_import_db {
                 "gi_wishes_stats_standard",
                 "zzz_signals_stats_standard",
             ] {
-                let count: i64 =
-                    sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table} WHERE uid = $1"))
-                        .bind(uid)
-                        .fetch_one(&pool)
-                        .await
-                        .unwrap();
+                let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                    "SELECT COUNT(*) FROM {table} WHERE uid = $1"
+                )))
+                .bind(uid)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
                 assert_eq!(count, 1, "{table} is refreshed by an identical reimport");
             }
 
@@ -955,11 +961,13 @@ mod new_pool_uid_tests {
         let suffix = (uuid::Uuid::new_v4().as_u128() % 100_000_000) as i32;
         let item = 1_900_000_000 + suffix;
         for table in ["zzz_characters", "zzz_w_engines"] {
-            sqlx::query(&format!("INSERT INTO {table} (id, rarity) VALUES ($1, 4)"))
-                .bind(item)
-                .execute(&pool)
-                .await
-                .unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO {table} (id, rarity) VALUES ($1, 4)"
+            )))
+            .bind(item)
+            .execute(&pool)
+            .await
+            .unwrap();
         }
         for (offset, (table, column)) in [
             ("zzz_signals_exclusive_rescreening", "character"),
@@ -974,7 +982,7 @@ mod new_pool_uid_tests {
                 .execute(&pool)
                 .await
                 .unwrap();
-            sqlx::query(&format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES (1, $1, $2, NOW(), false)")).bind(uid).bind(item).execute(&pool).await.unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES (1, $1, $2, NOW(), false)"))).bind(uid).bind(item).execute(&pool).await.unwrap();
             assert!(database::zzz::signals::get_uids(&pool)
                 .await
                 .unwrap()
@@ -986,11 +994,13 @@ mod new_pool_uid_tests {
                 .unwrap();
         }
         for table in ["zzz_characters", "zzz_w_engines"] {
-            sqlx::query(&format!("DELETE FROM {table} WHERE id = $1"))
-                .bind(item)
-                .execute(&pool)
-                .await
-                .unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "DELETE FROM {table} WHERE id = $1"
+            )))
+            .bind(item)
+            .execute(&pool)
+            .await
+            .unwrap();
         }
     }
 }

@@ -230,11 +230,12 @@ pub async fn list_marker_comments(
     };
 
     Ok(sqlx::query_as::<_, DbMarkerComment>(
-        &format!("{MARKER_COMMENT_SELECT} WHERE c.marker_key = $1 AND c.deleted_at IS NULL
+        // Only a fixed SQL projection is interpolated; request data is bound below.
+        sqlx::AssertSqlSafe(format!("{MARKER_COMMENT_SELECT} WHERE c.marker_key = $1 AND c.deleted_at IS NULL
            GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value
            ORDER BY score DESC, c.created_at DESC, c.id DESC
            OFFSET $3
-           LIMIT $4"),
+           LIMIT $4")),
     )
     .bind(marker_key)
     .bind(viewer_user_id)
@@ -413,8 +414,9 @@ async fn get_marker_comment(
     pool: &PgPool,
 ) -> Result<Option<DbMarkerComment>> {
     Ok(sqlx::query_as::<_, DbMarkerComment>(
-        &format!("{MARKER_COMMENT_SELECT} WHERE c.id = $1 AND c.deleted_at IS NULL
-           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value"),
+        // Only a fixed SQL projection is interpolated; request data is bound below.
+        sqlx::AssertSqlSafe(format!("{MARKER_COMMENT_SELECT} WHERE c.id = $1 AND c.deleted_at IS NULL
+           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value")),
     )
     .bind(comment_id)
     .bind(viewer_user_id)

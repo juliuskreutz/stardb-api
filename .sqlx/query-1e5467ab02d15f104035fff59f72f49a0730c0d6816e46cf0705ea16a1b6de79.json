@@ -6,32 +6,68 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "luck_a",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "luck_a"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_s",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "luck_s"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "win_rate",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "win_rate"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "win_streak",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "win_streak"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "loss_streak",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_exclusive_rescreening",
+            "name": "loss_streak"
+          }
+        }
       }
     ],
     "parameters": {

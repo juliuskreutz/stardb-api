@@ -6,27 +6,57 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "light_cones",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "rarity",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "light_cones",
+            "name": "rarity"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "light_cones_text",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "path",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "light_cones_text",
+            "name": "path"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "path_id",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "light_cones_text",
+            "name": "path"
+          }
+        }
       }
     ],
     "parameters": {

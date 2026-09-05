@@ -6,52 +6,112 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "start",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "start"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "end",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "end"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "character",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "character"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "character_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "character_gacha_type"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "w_engine",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "w_engine"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "w_engine_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "w_engine_gacha_type"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "bangboo",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "bangboo"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "bangboo_gacha_type",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_banners",
+            "name": "bangboo_gacha_type"
+          }
+        }
       }
     ],
     "parameters": {

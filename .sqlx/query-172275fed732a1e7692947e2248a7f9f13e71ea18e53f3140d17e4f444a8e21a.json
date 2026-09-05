@@ -6,17 +6,35 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_bangboo",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "luck_a",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_bangboo",
+            "name": "luck_a"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_s",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_bangboo",
+            "name": "luck_s"
+          }
+        }
       }
     ],
     "parameters": {
