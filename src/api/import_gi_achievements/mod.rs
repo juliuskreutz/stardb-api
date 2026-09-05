@@ -84,7 +84,7 @@ async fn import_gi_achievements(
                 version: achievement.version,
                 difficulty: achievement.difficulty.map(|d| d.to_lowercase()),
                 comment: achievement.comment,
-                impossible: achievement.impossible == Some("Yes"),
+                impossible: achievement.impossible.as_deref() == Some("Yes"),
                 timegated: achievement.timegated,
             },
             &pool,
