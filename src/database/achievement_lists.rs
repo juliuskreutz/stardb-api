@@ -45,6 +45,9 @@ pub fn related_by_set(
     related
 }
 
+// Reverse traversal reproduces sequential additions: the last eligible member of a
+// set wins. Impossible completed entries must be skipped before claiming their set,
+// otherwise an ignored trailing entry would evict an earlier valid completion.
 fn select_ids(ids: &[i32], rows: &[(i32, bool, Option<i32>)], completed: bool) -> Result<Vec<i32>> {
     let catalog: HashMap<_, _> = rows
         .iter()
@@ -74,6 +77,8 @@ fn select_ids(ids: &[i32], rows: &[(i32, bool, Option<i32>)], completed: bool) -
     Ok(selected)
 }
 
+/// Apply one list within the caller's transaction. Full imports share that transaction
+/// across games so a later invalid list rolls back every earlier replacement.
 pub async fn apply(
     game: Game,
     list: List,
@@ -82,7 +87,9 @@ pub async fn apply(
     replace: bool,
     conn: &mut PgConnection,
 ) -> Result<()> {
-    // Serialize competing updates for this user, including full imports.
+    // Lock the user rather than existing list rows: an empty list still needs mutual
+    // exclusion, and competing imports must not interleave alternate eviction/insertion.
+    // The caller's transaction retains this lock through its final commit or rollback.
     sqlx::query("SELECT username FROM users WHERE username = $1 FOR UPDATE")
         .bind(username)
         .fetch_optional(&mut *conn)
@@ -95,6 +102,8 @@ pub async fn apply(
     .bind(ids)
     .fetch_all(&mut *conn)
     .await?;
+    // Validate the entire requested list before either replacement or alternate eviction.
+    // Missing IDs are errors even when another member of the same set would supersede them.
     let selected = select_ids(ids, &rows, matches!(list, List::Completed))?;
     if replace {
         sqlx::query(&format!("DELETE FROM {table} WHERE username = $1"))

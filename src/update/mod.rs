@@ -9,6 +9,9 @@ pub mod wishes_stats;
 pub mod zzz_achievements_percent;
 
 /// Run immediately, then wait after each completion. Failures always back off.
+/// Delays start when the job finishes, so slow jobs never accumulate missed ticks or
+/// launch overlapping refreshes. A transient failure uses the shorter retry delay
+/// instead of either hammering the database or leaving the cache stale for an hour.
 pub fn spawn_periodic<F, Fut>(
     label: &'static str,
     interval: std::time::Duration,

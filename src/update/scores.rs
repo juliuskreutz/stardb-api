@@ -87,6 +87,8 @@ struct RecordInfo {
 }
 
 /// A persistent failure exhausts this finite schedule, allowing the next UID to run.
+/// Failed UIDs remain eligible on the next outer pass; one corrupt cache cannot block
+/// the rest of the leaderboard indefinitely. The first delay also paces successful UIDs.
 fn retry_delays() -> impl Iterator<Item = std::time::Duration> {
     [5, 10, 20].into_iter().map(std::time::Duration::from_secs)
 }

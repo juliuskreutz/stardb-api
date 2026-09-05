@@ -50,6 +50,10 @@ pub struct AchievementGroup<A> {
     pub achievements: Vec<A>,
 }
 
+/// Consume each adapter's catalog order: series and members of a set must be contiguous.
+/// Keeping that order preserves display ordering and the first member's currency total.
+/// Visibility is a game policy: HSR includes hidden impossible entries; GI/ZZZ exclude
+/// them before grouping. The generic payload retains each game's distinct JSON fields.
 pub fn build<A: Item, E>(
     achievements: Vec<Entry<A>>,
     language: Language,

@@ -51,6 +51,8 @@ async fn update() -> Result<()> {
 }
 
 async fn update_from(data_root: &Path, repo_url: &str) -> Result<()> {
+    // Only a successful sync makes the source tree authoritative for conversion/pruning.
+    // A failed clone or pull must not make missing source files look like upstream deletions.
     super::dimbreath::git_data::sync_data_repo(
         data_root
             .to_str()
@@ -68,6 +70,8 @@ async fn update_from(data_root: &Path, repo_url: &str) -> Result<()> {
 
 async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
     // Always scan: an interrupted conversion must recover even without a new commit.
+    // Source mtimes invalidate existing outputs; mere output existence would retain
+    // stale icons after git updates. Prune only after every conversion has succeeded.
     for path in WalkDir::new(source_root.join("icon"))
         .into_iter()
         .chain(WalkDir::new(source_root.join("image")))
