@@ -86,10 +86,15 @@ struct RecordInfo {
     achievement_count: i32,
 }
 
+/// A persistent failure exhausts this finite schedule, allowing the next UID to run.
+fn retry_delays() -> impl Iterator<Item = std::time::Duration> {
+    [5, 10, 20].into_iter().map(std::time::Duration::from_secs)
+}
+
 async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     for uid in uids {
-        for attempt in 0..3 {
-            rt::time::sleep(std::time::Duration::from_secs(5 * (1 << attempt))).await;
+        for (attempt, delay) in retry_delays().enumerate() {
+            rt::time::sleep(delay).await;
             match update_score(uid, pool).await {
                 Ok(()) => break,
                 Err(e) => warn!("Score uid {uid} attempt {} failed: {e}", attempt + 1),
@@ -193,4 +198,20 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     database::achievement_scores::set(&db_score_achievement, pool).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod retry_tests {
+    #[test]
+    fn retry_policy_is_finite_with_increasing_backoff() {
+        let mut schedule = super::retry_delays();
+        assert_eq!(
+            schedule
+                .by_ref()
+                .map(|delay| delay.as_secs())
+                .collect::<Vec<_>>(),
+            vec![5, 10, 20]
+        );
+        assert!(schedule.next().is_none());
+    }
 }
