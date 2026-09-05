@@ -396,7 +396,6 @@ fn parse_pull(
         timestamp,
         provenance: PullProvenance::Unofficial,
     };
-    crate::gacha::imports::ImportBatch::new([pull.clone()], PullProvenance::Unofficial)?;
     Ok(pull)
 }
 #[cfg(test)]
@@ -439,16 +438,32 @@ mod tests {
             )
             .is_err());
         }
-        assert!(parse_pull(
+        let invalid_pool_item = parse_pull(
             1,
             PullPool::Zzz(ZzzGachaType::Bangboo),
             "1",
             "1",
             "Character",
             "2024-01-01 00:00:00",
-            0
+            0,
+        )
+        .unwrap();
+        assert!(crate::gacha::imports::ImportBatch::new(
+            [invalid_pool_item.clone()],
+            PullProvenance::Unofficial
         )
         .is_err());
+        // Pool identity validation applies to retained records. An overlapping
+        // record and its tail are discarded before the single batch validation.
+        let retained: Vec<_> = before_cutoff(
+            vec![invalid_pool_item.clone()],
+            Some(invalid_pool_item.timestamp),
+            false,
+        )
+        .collect();
+        assert!(
+            crate::gacha::imports::ImportBatch::new(retained, PullProvenance::Unofficial).is_ok()
+        );
     }
 }
 
