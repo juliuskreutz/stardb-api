@@ -29,11 +29,7 @@ pub async fn spawn(pool: PgPool) {
 
 /// Fetch the current top 100 UIDs and attempt each profile/score refresh.
 async fn update_top_100(pool: PgPool) -> Result<()> {
-    let uids = database::achievement_scores::get(None, None, Some(100), None, &pool)
-        .await?
-        .into_iter()
-        .map(|s| s.uid)
-        .collect();
+    let uids = database::achievement_scores::get_refresh_uids(100, 0, &pool).await?;
 
     update_scores(uids, &pool).await?;
 
@@ -47,12 +43,7 @@ async fn update_lower_100(pool: PgPool) -> Result<()> {
 
         let offset = (i + 1) * 100;
 
-        let uids: Vec<_> =
-            database::achievement_scores::get(None, None, Some(100), Some(offset), &pool)
-                .await?
-                .into_iter()
-                .map(|s| s.uid)
-                .collect();
+        let uids = database::achievement_scores::get_refresh_uids(100, offset, &pool).await?;
 
         if uids.is_empty() {
             break;
