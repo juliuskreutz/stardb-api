@@ -1,8 +1,10 @@
+#![allow(unused_variables, dead_code)]
 //! Frozen pre-refactor scan baselines, extracted from 49daa02.
 use super::*;
+use crate::gacha::imports::PullItem;
 use crate::gacha::stats_math::average_or_zero;
-pub(super) fn standard(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn standard(warps: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_4 = 0;
     let mut sum_4 = 0;
     let mut count_4 = 0;
@@ -11,7 +13,7 @@ pub(super) fn standard(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i
     let mut sum_5 = 0;
     let mut count_5 = 0;
 
-    for warp in &warps {
+    for warp in warps {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -33,18 +35,16 @@ pub(super) fn standard(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i
     let luck_4 = average_or_zero(sum_4, count_4);
     let luck_5 = average_or_zero(sum_5, count_5);
 
-(luck_4, luck_5, 0.0, 0, 0)
+    (luck_4, luck_5, 0.0, 0, 0)
 }
-pub(super) fn special(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn special(warps: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Hsr(GachaType::Special),
-                PullItem::Character(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Hsr(GachaType::Special),
+            PullItem::Character(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -65,7 +65,7 @@ pub(super) fn special(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i3
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for warp in &warps {
+    for warp in warps {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -116,18 +116,16 @@ pub(super) fn special(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i3
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
-pub(super) fn lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn lc(warps: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Hsr(GachaType::Lc),
-                PullItem::LightCone(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Hsr(GachaType::Lc),
+            PullItem::LightCone(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -148,7 +146,7 @@ pub(super) fn lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for warp in &warps {
+    for warp in warps {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -199,18 +197,16 @@ pub(super) fn lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
-pub(super) fn collab(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn collab(warps: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Hsr(GachaType::Collab),
-                PullItem::Character(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Hsr(GachaType::Collab),
+            PullItem::Character(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -231,7 +227,7 @@ pub(super) fn collab(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for warp in &warps {
+    for warp in warps {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -282,18 +278,16 @@ pub(super) fn collab(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
-pub(super) fn collab_lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn collab_lc(warps: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Hsr(GachaType::CollabLc),
-                PullItem::LightCone(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Hsr(GachaType::CollabLc),
+            PullItem::LightCone(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -314,7 +308,7 @@ pub(super) fn collab_lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for warp in &warps {
+    for warp in warps {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -365,7 +359,14 @@ pub(super) fn collab_lc(warps: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
 #[derive(Clone)]
-pub(super) struct Row { pub rarity: Option<i32>, pub character: Option<i32>, pub light_cone: Option<i32>, pub weapon: Option<i32>, pub w_engine: Option<i32>, pub timestamp: chrono::DateTime<chrono::Utc> }
+pub(super) struct Row {
+    pub rarity: Option<i32>,
+    pub character: Option<i32>,
+    pub light_cone: Option<i32>,
+    pub weapon: Option<i32>,
+    pub w_engine: Option<i32>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}

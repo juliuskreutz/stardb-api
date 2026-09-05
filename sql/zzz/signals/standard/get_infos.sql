@@ -1,4 +1,5 @@
 SELECT
+    NULL::integer AS bangboo,
     zzz_signals_standard.timestamp,
     zzz_signals_standard.character,
     zzz_signals_standard.w_engine,

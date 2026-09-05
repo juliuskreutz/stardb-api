@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{FixedOffset, Utc};
@@ -111,13 +112,15 @@ fn warp_to_uigf_item(
     gacha_id: Option<&str>,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = warp.character {
-        (char_id.to_string(), Some("Character".to_string()))
-    } else if let Some(lc_id) = warp.light_cone {
-        (lc_id.to_string(), Some("Light Cone".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = warp.item.id().to_string();
+    let item_type = Some(
+        match warp.item {
+            StoredItem::Character(_) => "Character",
+            StoredItem::LightCone(_) => "Light Cone",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: None,
@@ -128,7 +131,7 @@ fn warp_to_uigf_item(
         time: format_uigf_time(warp.timestamp, offset),
         name: warp.name,
         item_type,
-        rank_type: warp.rarity.map(|r| r.to_string()),
+        rank_type: Some(warp.rarity.to_string()),
         id: warp.id.to_string(),
     }
 }
@@ -138,15 +141,16 @@ fn signal_to_uigf_item(
     gacha_type: &str,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = signal.character {
-        (char_id.to_string(), Some("Agents".to_string()))
-    } else if let Some(we_id) = signal.w_engine {
-        (we_id.to_string(), Some("W-Engines".to_string()))
-    } else if let Some(bb_id) = signal.bangboo {
-        (bb_id.to_string(), Some("Bangboo".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = signal.item.id().to_string();
+    let item_type = Some(
+        match signal.item {
+            StoredItem::Character(_) => "Agents",
+            StoredItem::WEngine(_) => "W-Engines",
+            StoredItem::Bangboo(_) => "Bangboo",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: None,
@@ -157,7 +161,7 @@ fn signal_to_uigf_item(
         time: format_uigf_time(signal.timestamp, offset),
         name: signal.name,
         item_type,
-        rank_type: signal.rarity.map(|r| r.to_string()),
+        rank_type: Some(signal.rarity.to_string()),
         id: signal.id.to_string(),
     }
 }
@@ -168,13 +172,15 @@ fn wish_to_uigf_item(
     uigf_gacha_type: &str,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = wish.character {
-        (char_id.to_string(), Some("Character".to_string()))
-    } else if let Some(weapon_id) = wish.weapon {
-        (weapon_id.to_string(), Some("Weapon".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = wish.item.id().to_string();
+    let item_type = Some(
+        match wish.item {
+            StoredItem::Character(_) => "Character",
+            StoredItem::Weapon(_) => "Weapon",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: Some(uigf_gacha_type.to_string()),
@@ -185,7 +191,7 @@ fn wish_to_uigf_item(
         time: format_uigf_time(wish.timestamp, offset),
         name: wish.name,
         item_type,
-        rank_type: wish.rarity.map(|r| r.to_string()),
+        rank_type: Some(wish.rarity.to_string()),
         id: wish.id.to_string(),
     }
 }
@@ -364,4 +370,103 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
     };
 
     Ok(HttpResponse::Ok().json(export))
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use super::*;
+    #[test]
+    fn every_item_kind_preserves_export_wire_strings() {
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(warp_to_uigf_item(row, "11", Some("11"), 0)).unwrap();
+        assert_eq!(value["item_type"], "Character");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::LightCone(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(warp_to_uigf_item(row, "11", Some("11"), 0)).unwrap();
+        assert_eq!(value["item_type"], "Light Cone");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(wish_to_uigf_item(row, "301", "301", 0)).unwrap();
+        assert_eq!(value["item_type"], "Character");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Weapon(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(wish_to_uigf_item(row, "301", "301", 0)).unwrap();
+        assert_eq!(value["item_type"], "Weapon");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "Agents");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::WEngine(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "W-Engines");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Bangboo(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "Bangboo");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+    }
 }

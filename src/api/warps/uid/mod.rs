@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -37,22 +38,25 @@ struct Warp {
     timestamp: DateTime<Utc>,
 }
 
-impl From<database::warps::DbWarp> for Warp {
-    fn from(warp: database::warps::DbWarp) -> Self {
-        let r#type = if warp.character.is_some() {
+impl TryFrom<database::warps::DbWarp> for Warp {
+    type Error = anyhow::Error;
+    fn try_from(warp: database::warps::DbWarp) -> anyhow::Result<Self> {
+        let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
         } else {
             WarpType::LightCone
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: warp.id.to_string(),
-            name: warp.name.unwrap(),
-            rarity: warp.rarity.unwrap(),
-            item_id: warp.character.or(warp.light_cone).unwrap(),
+            name: warp
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: warp.rarity,
+            item_id: warp.item.id(),
             timestamp: warp.timestamp,
-        }
+        })
     }
 }
 
@@ -114,32 +118,32 @@ async fn get_warps(
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let standard = database::warps::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::warps::special::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let light_cone = database::warps::lc::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let collab = database::warps::collab::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let collab_lc = database::warps::collab_lc::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Warp::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     let warps = Warps {
         departure,

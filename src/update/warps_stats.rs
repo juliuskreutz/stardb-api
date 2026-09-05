@@ -29,157 +29,23 @@ async fn update(pool: PgPool) -> Result<()> {
 }
 
 async fn standard(pool: &PgPool) -> Result<()> {
-    info!("Starting standard warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::standard::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No standard warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("standard", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "standard"
-        );
-        database::warps_stats_global::standard::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Standard warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-    Ok(())
+    refresh(crate::GachaType::Standard, pool).await
 }
 
 async fn special(pool: &PgPool) -> Result<()> {
-    info!("Starting special warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::special::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No special warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("special", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "special"
-        );
-        database::warps_stats_global::special::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Special warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Special, pool).await
 }
 
 async fn lc(pool: &PgPool) -> Result<()> {
-    info!("Starting lc warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::lc::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No lc warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("lc", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "lc"
-        );
-        database::warps_stats_global::lc::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "LC warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Lc, pool).await
 }
 
 async fn collab(pool: &PgPool) -> Result<()> {
-    info!("Starting collab warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::collab::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No collab warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("collab", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "collab"
-        );
-        database::warps_stats_global::collab::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Collab warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Collab, pool).await
 }
 
 async fn collab_lc(pool: &PgPool) -> Result<()> {
-    info!("Starting collab lc warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::collab_lc::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No collab lc warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("collab lc", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "collab lc"
-        );
-        database::warps_stats_global::collab_lc::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Collab LC warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::CollabLc, pool).await
 }
 
 fn calculate_stats(
@@ -210,4 +76,34 @@ fn calculate_stats(
         luck_5_percentile: stat.luck_high,
     })
     .collect()
+}
+
+async fn refresh(kind: crate::GachaType, pool: &PgPool) -> Result<()> {
+    info!("Starting {kind} warps stats update");
+    let start = Instant::now();
+
+    let warp_stats = database::warps_stats::get_all_by_pool(kind, pool).await?;
+    if warp_stats.is_empty() {
+        info!("No {kind} warps stats to update");
+        return Ok(());
+    }
+
+    let stats = calculate_stats(&kind.to_string(), warp_stats);
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            kind.to_string()
+        );
+        database::warps_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
+    }
+
+    info!(
+        "{kind} warps stats updated: {} in {}s",
+        stats.len(),
+        start.elapsed().as_secs_f64()
+    );
+    Ok(())
 }

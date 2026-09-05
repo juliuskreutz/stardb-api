@@ -1,5 +1,6 @@
-//! Frozen pre-refactor tracker JSON reference, extracted from 49daa02.
+//! Frozen tracker JSON reference extracted from 49daa02, before the table rewrite.
 use super::*;
+use crate::gacha::banner::BannerOutcome;
 fn classify_win(
     catalog: &BannerCatalog,
     pool: GachaType,
@@ -51,8 +52,7 @@ pub(super) fn departure(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warp
     }
 
     departure.count = departure.warps.len();
-
-departure
+    departure
 }
 pub(super) fn standard(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     let mut standard = Warps::default();
@@ -93,8 +93,7 @@ pub(super) fn standard(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps
     };
 
     standard.count = standard.warps.len();
-
-standard
+    standard
 }
 pub(super) fn special(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     let mut special = Warps::default();
@@ -146,8 +145,7 @@ pub(super) fn special(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps 
     };
 
     special.count = special.warps.len();
-
-special
+    special
 }
 pub(super) fn lc(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     let mut lc = Warps::default();
@@ -199,8 +197,7 @@ pub(super) fn lc(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     };
 
     lc.count = lc.warps.len();
-
-lc
+    lc
 }
 pub(super) fn collab(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     let mut collab = Warps::default();
@@ -252,8 +249,7 @@ pub(super) fn collab(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     };
 
     collab.count = collab.warps.len();
-
-collab
+    collab
 }
 pub(super) fn collab_lc(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warps {
     let mut collab_lc = Warps::default();
@@ -305,6 +301,5 @@ pub(super) fn collab_lc(rows: Vec<Warp>, banner_catalog: &BannerCatalog) -> Warp
     };
 
     collab_lc.count = collab_lc.warps.len();
-
-collab_lc
+    collab_lc
 }

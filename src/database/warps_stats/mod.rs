@@ -19,3 +19,8 @@ pub struct DbWarpsStat {
     pub win_streak: i32,
     pub loss_streak: i32,
 }
+
+macro_rules! count_registry { ($( $variant:ident => $module:ident ),* $(,)?) => {
+pub(crate) async fn get_all_by_pool(kind: crate::GachaType, pool:&sqlx::PgPool)->anyhow::Result<Vec<DbWarpsStatCount>> {match kind {$(crate::GachaType::$variant => $module::get_all(pool).await,)*_ => anyhow::bail!("pool has no calculated stats"),}}
+};}
+count_registry! {Standard => standard,Special => special,Lc => lc,Collab => collab,CollabLc => collab_lc}

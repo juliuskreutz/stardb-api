@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -9,36 +10,11 @@ use crate::{
     api::{private, ApiResult, LanguageParams},
     database,
     gacha::{
-        banner::{BannerCatalog, BannerOutcome},
+        banner::{BannerCatalog, GuaranteeState, GuaranteedOutcome},
         imports::{PullItem, PullPool},
     },
     ZzzGachaType,
 };
-
-/// Applies the shared banner result to tracker guarantee state.
-fn classify_win(
-    catalog: &BannerCatalog,
-    pool: ZzzGachaType,
-    item: PullItem,
-    timestamp: DateTime<Utc>,
-    guarantee: &mut bool,
-) -> WinType {
-    match catalog.classify(PullPool::Zzz(pool), item, timestamp) {
-        BannerOutcome::Win if *guarantee => {
-            *guarantee = false;
-            WinType::Guarantee
-        }
-        BannerOutcome::Win => WinType::Win,
-        BannerOutcome::Loss if *guarantee => {
-            *guarantee = false;
-            WinType::Guarantee
-        }
-        BannerOutcome::Loss => {
-            *guarantee = true;
-            WinType::Loss
-        }
-    }
-}
 
 #[derive(OpenApi)]
 #[openapi(paths(get_signal_tracker))]
@@ -82,32 +58,31 @@ enum WinType {
     Guarantee,
 }
 
-impl From<database::zzz::signals::DbSignal> for Signal {
-    fn from(signal: database::zzz::signals::DbSignal) -> Self {
-        let r#type = if signal.character.is_some() {
+impl TryFrom<database::zzz::signals::DbSignal> for Signal {
+    type Error = anyhow::Error;
+    fn try_from(signal: database::zzz::signals::DbSignal) -> anyhow::Result<Self> {
+        let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Agent
-        } else if signal.w_engine.is_some() {
+        } else if matches!(signal.item, StoredItem::WEngine(_)) {
             SignalType::WEngine
         } else {
             SignalType::Bangboo
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: signal.id.to_string(),
-            name: signal.name.unwrap(),
-            rarity: signal.rarity.unwrap(),
-            item_id: signal
-                .character
-                .or(signal.w_engine)
-                .or(signal.bangboo)
-                .unwrap(),
+            name: signal
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: signal.rarity,
+            item_id: signal.item.id(),
             timestamp: signal.timestamp,
             pull: 0,
             pull_4: 0,
             pull_5: 0,
             win: None,
-        }
+        })
     }
 }
 
@@ -199,444 +174,100 @@ async fn get_signal_tracker(
     let banner_catalog = BannerCatalog::from_zzz(database::zzz::banners::get_all(&pool).await?);
 
     // Standard
-    let mut standard = Signals::default();
-    let mut standard_pull = 0;
-    let mut standard_pull_a = 0;
-    let mut standard_pull_s = 0;
-
-    for signal in database::zzz::signals::standard::get_by_uid(uid, language, &pool).await? {
-        let mut signal: Signal = signal.into();
-
-        standard_pull += 1;
-        standard_pull_a += 1;
-        standard_pull_s += 1;
-
-        signal.pull = standard_pull;
-        signal.pull_4 = standard_pull_a;
-        signal.pull_5 = standard_pull_s;
-
-        match signal.rarity {
-            3 => standard_pull_a = 0,
-            4 => {
-                standard_pull_a = 0;
-                standard_pull_s = 0;
-            }
-            _ => {}
-        }
-
-        standard.signals.push(signal);
-    }
-
-    standard.pull_4 = standard_pull_a;
-    standard.max_pull_4 = 10;
-    standard.probability_4 = if standard_pull_a < 9 { 9.4 } else { 100.0 };
-
-    standard.pull_5 = standard_pull_s;
-    standard.max_pull_5 = 90;
-    standard.probability_5 = if standard_pull_s < 89 {
-        0.6 + 6.0 * standard_pull_s.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    standard.count = standard.signals.len();
+    let mut standard = build_set(
+        database::zzz::signals::standard::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::Standard,
+        &banner_catalog,
+    );
     // Standard
 
     // Special
-    let mut special = Signals::default();
-    let mut special_pull = 0;
-    let mut special_pull_a = 0;
-    let mut special_pull_s = 0;
-    let mut guarantee = false;
-
-    for signal in database::zzz::signals::special::get_by_uid(uid, language, &pool).await? {
-        let mut signal: Signal = signal.into();
-
-        special_pull += 1;
-        special_pull_a += 1;
-        special_pull_s += 1;
-
-        signal.pull = special_pull;
-        signal.pull_4 = special_pull_a;
-        signal.pull_5 = special_pull_s;
-
-        match signal.rarity {
-            3 => special_pull_a = 0,
-            4 => {
-                special_pull_a = 0;
-                special_pull_s = 0;
-
-                signal.win = Some(classify_win(
-                    &banner_catalog,
-                    ZzzGachaType::Special,
-                    PullItem::Character(signal.item_id),
-                    signal.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        special.signals.push(signal);
-    }
-
-    special.pull_4 = special_pull_a;
-    special.max_pull_4 = 10;
-    special.probability_4 = if special_pull_a < 9 { 9.4 } else { 100.0 };
-
-    special.pull_5 = special_pull_s;
-    special.max_pull_5 = 90;
-    special.probability_5 = if special_pull_s < 89 {
-        0.6 + 6.0 * special_pull_s.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    special.count = special.signals.len();
+    let mut special = build_set(
+        database::zzz::signals::special::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::Special,
+        &banner_catalog,
+    );
     // Special
 
     // WEngine
-    let mut w_engine = Signals::default();
-    let mut w_engine_pull = 0;
-    let mut w_engine_pull_a = 0;
-    let mut w_engine_pull_s = 0;
-    let mut guarantee = false;
-
-    for signal in database::zzz::signals::w_engine::get_by_uid(uid, language, &pool).await? {
-        let mut signal: Signal = signal.into();
-
-        w_engine_pull += 1;
-        w_engine_pull_a += 1;
-        w_engine_pull_s += 1;
-
-        signal.pull = w_engine_pull;
-        signal.pull_4 = w_engine_pull_a;
-        signal.pull_5 = w_engine_pull_s;
-
-        match signal.rarity {
-            3 => w_engine_pull_a = 0,
-            4 => {
-                w_engine_pull_a = 0;
-                w_engine_pull_s = 0;
-
-                signal.win = Some(classify_win(
-                    &banner_catalog,
-                    ZzzGachaType::WEngine,
-                    PullItem::WEngine(signal.item_id),
-                    signal.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        w_engine.signals.push(signal);
-    }
-
-    w_engine.pull_4 = w_engine_pull_a;
-    w_engine.max_pull_4 = 10;
-    w_engine.probability_4 = if w_engine_pull_a < 9 { 15.0 } else { 100.0 };
-
-    w_engine.pull_5 = w_engine_pull_s;
-    w_engine.max_pull_5 = 80;
-    w_engine.probability_5 = if w_engine_pull_s < 79 {
-        1.0 + 7.0 * w_engine_pull_s.saturating_sub(64) as f64
-    } else {
-        100.0
-    };
-
-    w_engine.count = w_engine.signals.len();
+    let mut w_engine = build_set(
+        database::zzz::signals::w_engine::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::WEngine,
+        &banner_catalog,
+    );
     // WEngine
 
     // Bangboo
-    let mut bangboo = Signals::default();
-    let mut bangboo_pull = 0;
-    let mut bangboo_pull_a = 0;
-    let mut bangboo_pull_s = 0;
-
-    for signal in database::zzz::signals::bangboo::get_by_uid(uid, language, &pool).await? {
-        let mut signal: Signal = signal.into();
-
-        bangboo_pull += 1;
-        bangboo_pull_a += 1;
-        bangboo_pull_s += 1;
-
-        signal.pull = bangboo_pull;
-        signal.pull_4 = bangboo_pull_a;
-        signal.pull_5 = bangboo_pull_s;
-
-        match signal.rarity {
-            3 => bangboo_pull_a = 0,
-            4 => {
-                bangboo_pull_a = 0;
-                bangboo_pull_s = 0;
-            }
-            _ => {}
-        }
-
-        bangboo.signals.push(signal);
-    }
-
-    bangboo.pull_4 = bangboo_pull_a;
-    bangboo.max_pull_4 = 10;
-    bangboo.probability_4 = if bangboo_pull_a < 9 { 15.0 } else { 100.0 };
-
-    bangboo.pull_5 = bangboo_pull_s;
-    bangboo.max_pull_5 = 80;
-    bangboo.probability_5 = if bangboo_pull_s < 79 {
-        1.0 + 7.0 * bangboo_pull_s.saturating_sub(64) as f64
-    } else {
-        100.0
-    };
-
-    bangboo.count = bangboo.signals.len();
+    let mut bangboo = build_set(
+        database::zzz::signals::bangboo::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::Bangboo,
+        &banner_catalog,
+    );
     // Bangboo
 
     // Exclusive Rescreening
-    let mut exclusive_rescreening = Signals::default();
-    let mut exclusive_rescreening_pull = 0;
-    let mut exclusive_rescreening_pull_a = 0;
-    let mut exclusive_rescreening_pull_s = 0;
-    let mut guarantee = false;
-
-    for signal in
-        database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool).await?
-    {
-        let mut signal: Signal = signal.into();
-
-        exclusive_rescreening_pull += 1;
-        exclusive_rescreening_pull_a += 1;
-        exclusive_rescreening_pull_s += 1;
-
-        signal.pull = exclusive_rescreening_pull;
-        signal.pull_4 = exclusive_rescreening_pull_a;
-        signal.pull_5 = exclusive_rescreening_pull_s;
-
-        match signal.rarity {
-            3 => exclusive_rescreening_pull_a = 0,
-            4 => {
-                exclusive_rescreening_pull_a = 0;
-                exclusive_rescreening_pull_s = 0;
-
-                signal.win = Some(classify_win(
-                    &banner_catalog,
-                    ZzzGachaType::ExclusiveRescreening,
-                    PullItem::Character(signal.item_id),
-                    signal.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        exclusive_rescreening.signals.push(signal);
-    }
-
-    exclusive_rescreening.pull_4 = exclusive_rescreening_pull_a;
-    exclusive_rescreening.max_pull_4 = 10;
-    exclusive_rescreening.probability_4 = if exclusive_rescreening_pull_a < 9 {
-        9.4
-    } else {
-        100.0
-    };
-
-    exclusive_rescreening.pull_5 = exclusive_rescreening_pull_s;
-    exclusive_rescreening.max_pull_5 = 90;
-    exclusive_rescreening.probability_5 = if exclusive_rescreening_pull_s < 89 {
-        0.6 + 6.0 * exclusive_rescreening_pull_s.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    exclusive_rescreening.count = exclusive_rescreening.signals.len();
+    let mut exclusive_rescreening = build_set(
+        database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::ExclusiveRescreening,
+        &banner_catalog,
+    );
     // Exclusive Rescreening
 
     // WEngine Reverberation
-    let mut w_engine_reverberation = Signals::default();
-    let mut w_engine_reverberation_pull = 0;
-    let mut w_engine_reverberation_pull_a = 0;
-    let mut w_engine_reverberation_pull_s = 0;
-    let mut guarantee = false;
-
-    for signal in
-        database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool).await?
-    {
-        let mut signal: Signal = signal.into();
-
-        w_engine_reverberation_pull += 1;
-        w_engine_reverberation_pull_a += 1;
-        w_engine_reverberation_pull_s += 1;
-
-        signal.pull = w_engine_reverberation_pull;
-        signal.pull_4 = w_engine_reverberation_pull_a;
-        signal.pull_5 = w_engine_reverberation_pull_s;
-
-        match signal.rarity {
-            3 => w_engine_reverberation_pull_a = 0,
-            4 => {
-                w_engine_reverberation_pull_a = 0;
-                w_engine_reverberation_pull_s = 0;
-
-                signal.win = Some(classify_win(
-                    &banner_catalog,
-                    ZzzGachaType::WEngineReverberation,
-                    PullItem::WEngine(signal.item_id),
-                    signal.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        w_engine_reverberation.signals.push(signal);
-    }
-
-    w_engine_reverberation.pull_4 = w_engine_reverberation_pull_a;
-    w_engine_reverberation.max_pull_4 = 10;
-    w_engine_reverberation.probability_4 = if w_engine_reverberation_pull_a < 9 {
-        15.0
-    } else {
-        100.0
-    };
-
-    w_engine_reverberation.pull_5 = w_engine_reverberation_pull_s;
-    w_engine_reverberation.max_pull_5 = 80;
-    w_engine_reverberation.probability_5 = if w_engine_reverberation_pull_s < 79 {
-        1.0 + 7.0 * w_engine_reverberation_pull_s.saturating_sub(64) as f64
-    } else {
-        100.0
-    };
-
-    w_engine_reverberation.count = w_engine_reverberation.signals.len();
+    let mut w_engine_reverberation = build_set(
+        database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        ZzzGachaType::WEngineReverberation,
+        &banner_catalog,
+    );
     // WEngine Reverberation
 
-    if let Some(stats) = database::zzz::signals_stats::standard::get_by_uid(uid, &pool).await? {
-        let global_stats = database::zzz::signals_stats_global::standard::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_a_percentile,
-                luck_5_percentile: stats.luck_s_percentile,
-            });
+    set_stats(&mut standard, ZzzGachaType::Standard, uid, &pool).await?;
 
-        standard.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats: None,
-            global_stats,
-        };
-    }
+    set_stats(&mut special, ZzzGachaType::Special, uid, &pool).await?;
 
-    if let Some(stats) = database::zzz::signals_stats::special::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
+    set_stats(&mut w_engine, ZzzGachaType::WEngine, uid, &pool).await?;
 
-        let global_stats = database::zzz::signals_stats_global::special::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_a_percentile,
-                luck_5_percentile: stats.luck_s_percentile,
-            });
+    set_stats(&mut bangboo, ZzzGachaType::Bangboo, uid, &pool).await?;
 
-        special.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats,
-            global_stats,
-        };
-    }
+    set_stats(
+        &mut exclusive_rescreening,
+        ZzzGachaType::ExclusiveRescreening,
+        uid,
+        &pool,
+    )
+    .await?;
 
-    if let Some(stats) = database::zzz::signals_stats::w_engine::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
-
-        let global_stats = database::zzz::signals_stats_global::w_engine::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_a_percentile,
-                luck_5_percentile: stats.luck_s_percentile,
-            });
-
-        w_engine.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats,
-            global_stats,
-        };
-    }
-
-    if let Some(stats) = database::zzz::signals_stats::bangboo::get_by_uid(uid, &pool).await? {
-        let global_stats = database::zzz::signals_stats_global::bangboo::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_a_percentile,
-                luck_5_percentile: stats.luck_s_percentile,
-            });
-
-        bangboo.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats: None,
-            global_stats,
-        };
-    }
-
-    if let Some(stats) =
-        database::zzz::signals_stats::exclusive_rescreening::get_by_uid(uid, &pool).await?
-    {
-        let global_stats =
-            database::zzz::signals_stats_global::exclusive_rescreening::get_by_uid(uid, &pool)
-                .await?
-                .map(|stats| GlobalStats {
-                    count_percentile: stats.count_percentile,
-                    luck_4_percentile: stats.luck_a_percentile,
-                    luck_5_percentile: stats.luck_s_percentile,
-                });
-
-        exclusive_rescreening.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats: Some(WinStats {
-                win_rate: stats.win_rate,
-                win_streak: stats.win_streak,
-                loss_streak: stats.loss_streak,
-            }),
-            global_stats,
-        };
-    }
-
-    if let Some(stats) =
-        database::zzz::signals_stats::w_engine_reverberation::get_by_uid(uid, &pool).await?
-    {
-        let global_stats =
-            database::zzz::signals_stats_global::w_engine_reverberation::get_by_uid(uid, &pool)
-                .await?
-                .map(|stats| GlobalStats {
-                    count_percentile: stats.count_percentile,
-                    luck_4_percentile: stats.luck_a_percentile,
-                    luck_5_percentile: stats.luck_s_percentile,
-                });
-
-        w_engine_reverberation.stats = Stats {
-            luck_4: stats.luck_a,
-            luck_5: stats.luck_s,
-            win_stats: Some(WinStats {
-                win_rate: stats.win_rate,
-                win_streak: stats.win_streak,
-                loss_streak: stats.loss_streak,
-            }),
-            global_stats,
-        };
-    }
+    set_stats(
+        &mut w_engine_reverberation,
+        ZzzGachaType::WEngineReverberation,
+        uid,
+        &pool,
+    )
+    .await?;
 
     let signal_tracker = SignalTracker {
         standard,
@@ -649,3 +280,182 @@ async fn get_signal_tracker(
 
     Ok(HttpResponse::Ok().json(signal_tracker))
 }
+
+/// Pool parameters keep historical caps explicit; None preserves Departure's zero summaries.
+#[derive(Clone, Copy)]
+struct Pity {
+    base_4: f64,
+    base_5: f64,
+    gain_5: f64,
+    soft_start_5: usize,
+    hard_4: usize,
+    hard_5: usize,
+    max_4: usize,
+    max_5: usize,
+}
+impl Pity {
+    fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
+        (
+            if low < self.hard_4 {
+                self.base_4
+            } else {
+                100.0
+            },
+            if high < self.hard_5 {
+                self.base_5 + self.gain_5 * high.saturating_sub(self.soft_start_5) as f64
+            } else {
+                100.0
+            },
+        )
+    }
+}
+fn build_set(rows: Vec<Signal>, kind: ZzzGachaType, catalog: &BannerCatalog) -> Signals {
+    let pity = match kind {
+        ZzzGachaType::Standard => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        ZzzGachaType::Special => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        ZzzGachaType::WEngine => Some(Pity {
+            base_4: 15.0,
+            base_5: 1.0,
+            gain_5: 7.0,
+            soft_start_5: 64,
+            hard_4: 9,
+            hard_5: 79,
+            max_4: 10,
+            max_5: 80,
+        }),
+        ZzzGachaType::Bangboo => Some(Pity {
+            base_4: 15.0,
+            base_5: 1.0,
+            gain_5: 7.0,
+            soft_start_5: 64,
+            hard_4: 9,
+            hard_5: 79,
+            max_4: 10,
+            max_5: 80,
+        }),
+        ZzzGachaType::ExclusiveRescreening => None,
+        ZzzGachaType::WEngineReverberation => None,
+    };
+    let mut result = Signals::default();
+    let (mut pull_4, mut pull_5) = (0, 0);
+    let mut guarantee = GuaranteeState::default();
+    for (index, mut row) in rows.into_iter().enumerate() {
+        pull_4 += 1;
+        pull_5 += 1;
+        row.pull = index + 1;
+        row.pull_4 = pull_4;
+        row.pull_5 = pull_5;
+        if row.rarity == 3 {
+            pull_4 = 0;
+        }
+        if row.rarity == 4 {
+            pull_5 = 0;
+            pull_4 = 0;
+            let item = match kind {
+                ZzzGachaType::Standard => None,
+                ZzzGachaType::Special => Some(PullItem::Character(row.item_id)),
+                ZzzGachaType::WEngine => Some(PullItem::WEngine(row.item_id)),
+                ZzzGachaType::Bangboo => None,
+                ZzzGachaType::ExclusiveRescreening => Some(PullItem::Character(row.item_id)),
+                ZzzGachaType::WEngineReverberation => Some(PullItem::WEngine(row.item_id)),
+            };
+            if let Some(item) = item {
+                row.win = Some(
+                    match guarantee.advance(catalog.classify(
+                        PullPool::Zzz(kind),
+                        item,
+                        row.timestamp,
+                    )) {
+                        GuaranteedOutcome::Win => WinType::Win,
+                        GuaranteedOutcome::Loss => WinType::Loss,
+                        GuaranteedOutcome::GuaranteedWin => WinType::Guarantee,
+                    },
+                );
+            }
+        }
+        result.signals.push(row);
+    }
+    if let Some(pity) = pity {
+        result.pull_4 = pull_4;
+        result.pull_5 = pull_5;
+        result.max_pull_4 = pity.max_4;
+        result.max_pull_5 = pity.max_5;
+        (result.probability_4, result.probability_5) = pity.probabilities(pull_4, pull_5);
+    }
+    result.count = result.signals.len();
+    result
+}
+async fn set_stats(
+    set: &mut Signals,
+    kind: ZzzGachaType,
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    macro_rules! load {
+        ($module:ident, $win:ident) => {
+            if let Some(stats) =
+                database::zzz::signals_stats::$module::get_by_uid(uid, pool).await?
+            {
+                let global_stats =
+                    database::zzz::signals_stats_global::$module::get_by_uid(uid, pool)
+                        .await?
+                        .map(|stats| GlobalStats {
+                            count_percentile: stats.count_percentile,
+                            luck_4_percentile: stats.luck_a_percentile,
+                            luck_5_percentile: stats.luck_s_percentile,
+                        });
+                let value = Stats {
+                    luck_4: stats.luck_a,
+                    luck_5: stats.luck_s,
+                    win_stats: win!(stats, $win),
+                    global_stats,
+                };
+                set.stats = value;
+            }
+        };
+    }
+    macro_rules! win {
+        ($stats:ident, yes) => {
+            Some(WinStats {
+                win_rate: $stats.win_rate,
+                win_streak: $stats.win_streak,
+                loss_streak: $stats.loss_streak,
+            })
+        };
+        ($stats:ident, no) => {
+            None
+        };
+    }
+    match kind {
+        ZzzGachaType::WEngineReverberation => load!(w_engine_reverberation, yes),
+        ZzzGachaType::ExclusiveRescreening => load!(exclusive_rescreening, yes),
+        ZzzGachaType::Bangboo => load!(bangboo, no),
+        ZzzGachaType::WEngine => load!(w_engine, yes),
+        ZzzGachaType::Special => load!(special, yes),
+        ZzzGachaType::Standard => load!(standard, no),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod baseline;
+#[cfg(test)]
+mod golden_tests;

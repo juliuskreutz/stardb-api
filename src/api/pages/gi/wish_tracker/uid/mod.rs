@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -9,36 +10,11 @@ use crate::{
     api::{private, ApiResult, LanguageParams},
     database,
     gacha::{
-        banner::{BannerCatalog, BannerOutcome},
+        banner::{BannerCatalog, GuaranteeState, GuaranteedOutcome},
         imports::{PullItem, PullPool},
     },
     GiGachaType,
 };
-
-/// Applies the shared banner result to tracker guarantee state.
-fn classify_win(
-    catalog: &BannerCatalog,
-    pool: GiGachaType,
-    item: PullItem,
-    timestamp: DateTime<Utc>,
-    guarantee: &mut bool,
-) -> WinType {
-    match catalog.classify(PullPool::Gi(pool), item, timestamp) {
-        BannerOutcome::Win if *guarantee => {
-            *guarantee = false;
-            WinType::Guarantee
-        }
-        BannerOutcome::Win => WinType::Win,
-        BannerOutcome::Loss if *guarantee => {
-            *guarantee = false;
-            WinType::Guarantee
-        }
-        BannerOutcome::Loss => {
-            *guarantee = true;
-            WinType::Loss
-        }
-    }
-}
 
 #[derive(OpenApi)]
 #[openapi(paths(get_wish_tracker))]
@@ -81,26 +57,29 @@ enum WinType {
     Guarantee,
 }
 
-impl From<database::gi::wishes::DbWish> for Wish {
-    fn from(wish: database::gi::wishes::DbWish) -> Self {
-        let r#type = if wish.character.is_some() {
+impl TryFrom<database::gi::wishes::DbWish> for Wish {
+    type Error = anyhow::Error;
+    fn try_from(wish: database::gi::wishes::DbWish) -> anyhow::Result<Self> {
+        let r#type = if matches!(wish.item, StoredItem::Character(_)) {
             WishType::Character
         } else {
             WishType::Weapon
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: wish.id.to_string(),
-            name: wish.name.unwrap(),
-            rarity: wish.rarity.unwrap(),
-            item_id: wish.character.or(wish.weapon).unwrap(),
+            name: wish
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: wish.rarity,
+            item_id: wish.item.id(),
             timestamp: wish.timestamp,
             pull: 0,
             pull_4: 0,
             pull_5: 0,
             win: None,
-        }
+        })
     }
 }
 
@@ -198,315 +177,72 @@ async fn get_wish_tracker(
     let banner_catalog = BannerCatalog::from_gi(database::gi::banners::get_all(&pool).await?);
 
     // Beginner
-    let mut beginner = Wishes::default();
-    let mut beginner_pull = 0;
-    let mut beginner_pull_4 = 0;
-    let mut beginner_pull_5 = 0;
-
-    for wish in database::gi::wishes::beginner::get_by_uid(uid, language, &pool).await? {
-        let mut wish: Wish = wish.into();
-
-        beginner_pull += 1;
-        beginner_pull_4 += 1;
-        beginner_pull_5 += 1;
-
-        wish.pull = beginner_pull;
-        wish.pull_4 = beginner_pull_4;
-        wish.pull_5 = beginner_pull_5;
-
-        match wish.rarity {
-            4 => beginner_pull_4 = 0,
-            5 => {
-                beginner_pull_5 = 0;
-            }
-            _ => {}
-        }
-
-        beginner.wishes.push(wish);
-    }
-
-    beginner.pull_4 = beginner_pull_4;
-    beginner.max_pull_4 = 10;
-    beginner.probability_4 = if beginner_pull_4 < 9 { 9.4 } else { 100.0 };
-
-    beginner.pull_5 = beginner_pull_5;
-    beginner.max_pull_5 = 90;
-    beginner.probability_5 = if beginner_pull_5 < 89 {
-        0.6 + 6.0 * beginner_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    beginner.count = beginner.wishes.len();
+    let mut beginner = build_set(
+        database::gi::wishes::beginner::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GiGachaType::Beginner,
+        &banner_catalog,
+    );
     // Beginner
 
     // Standard
-    let mut standard = Wishes::default();
-    let mut standard_pull = 0;
-    let mut standard_pull_4 = 0;
-    let mut standard_pull_5 = 0;
-
-    for wish in database::gi::wishes::standard::get_by_uid(uid, language, &pool).await? {
-        let mut wish: Wish = wish.into();
-
-        standard_pull += 1;
-        standard_pull_4 += 1;
-        standard_pull_5 += 1;
-
-        wish.pull = standard_pull;
-        wish.pull_4 = standard_pull_4;
-        wish.pull_5 = standard_pull_5;
-
-        match wish.rarity {
-            4 => standard_pull_4 = 0,
-            5 => {
-                standard_pull_5 = 0;
-            }
-            _ => {}
-        }
-
-        standard.wishes.push(wish);
-    }
-
-    standard.pull_4 = standard_pull_4;
-    standard.max_pull_4 = 10;
-    standard.probability_4 = if standard_pull_4 < 9 { 9.4 } else { 100.0 };
-
-    standard.pull_5 = standard_pull_5;
-    standard.max_pull_5 = 90;
-    standard.probability_5 = if standard_pull_5 < 89 {
-        0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    standard.count = standard.wishes.len();
+    let mut standard = build_set(
+        database::gi::wishes::standard::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GiGachaType::Standard,
+        &banner_catalog,
+    );
     // Standard
 
     // Character
-    let mut character = Wishes::default();
-    let mut character_pull = 0;
-    let mut character_pull_4 = 0;
-    let mut character_pull_5 = 0;
-    let mut guarantee = false;
-
-    for wish in database::gi::wishes::character::get_by_uid(uid, language, &pool).await? {
-        let mut wish: Wish = wish.into();
-
-        character_pull += 1;
-        character_pull_4 += 1;
-        character_pull_5 += 1;
-
-        wish.pull = character_pull;
-        wish.pull_4 = character_pull_4;
-        wish.pull_5 = character_pull_5;
-
-        match wish.rarity {
-            4 => character_pull_4 = 0,
-            5 => {
-                character_pull_5 = 0;
-                wish.win = Some(classify_win(
-                    &banner_catalog,
-                    GiGachaType::Character,
-                    PullItem::Character(wish.item_id),
-                    wish.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        character.wishes.push(wish);
-    }
-
-    character.pull_4 = character_pull_4;
-    character.max_pull_4 = 10;
-    character.probability_4 = if character_pull_4 < 9 { 9.4 } else { 100.0 };
-
-    character.pull_5 = character_pull_5;
-    character.max_pull_5 = 90;
-    character.probability_5 = if character_pull_5 < 89 {
-        0.6 + 6.0 * character_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    character.count = character.wishes.len();
+    let mut character = build_set(
+        database::gi::wishes::character::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GiGachaType::Character,
+        &banner_catalog,
+    );
     // Character
 
     // Weapon
-    let mut weapon = Wishes::default();
-    let mut weapon_pull = 0;
-    let mut weapon_pull_4 = 0;
-    let mut weapon_pull_5 = 0;
-    let mut guarantee = false;
-
-    for wish in database::gi::wishes::weapon::get_by_uid(uid, language, &pool).await? {
-        let mut wish: Wish = wish.into();
-
-        weapon_pull += 1;
-        weapon_pull_4 += 1;
-        weapon_pull_5 += 1;
-
-        wish.pull = weapon_pull;
-        wish.pull_4 = weapon_pull_4;
-        wish.pull_5 = weapon_pull_5;
-
-        match wish.rarity {
-            4 => weapon_pull_4 = 0,
-            5 => {
-                weapon_pull_5 = 0;
-                wish.win = Some(classify_win(
-                    &banner_catalog,
-                    GiGachaType::Weapon,
-                    PullItem::Weapon(wish.item_id),
-                    wish.timestamp,
-                    &mut guarantee,
-                ));
-            }
-            _ => {}
-        }
-
-        weapon.wishes.push(wish);
-    }
-
-    weapon.pull_4 = weapon_pull_4;
-    weapon.max_pull_4 = 10;
-    weapon.probability_4 = if weapon_pull_4 < 9 { 9.4 } else { 100.0 };
-
-    weapon.pull_5 = weapon_pull_5;
-    weapon.max_pull_5 = 90;
-    weapon.probability_5 = if weapon_pull_5 < 89 {
-        0.6 + 6.0 * weapon_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    weapon.count = weapon.wishes.len();
+    let mut weapon = build_set(
+        database::gi::wishes::weapon::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GiGachaType::Weapon,
+        &banner_catalog,
+    );
     // Weapon
 
     // Chronicled
-    let mut chronicled = Wishes::default();
-    let mut chronicled_pull = 0;
-    let mut chronicled_pull_4 = 0;
-    let mut chronicled_pull_5 = 0;
-
-    for wish in database::gi::wishes::chronicled::get_by_uid(uid, language, &pool).await? {
-        let mut wish: Wish = wish.into();
-
-        chronicled_pull += 1;
-        chronicled_pull_4 += 1;
-        chronicled_pull_5 += 1;
-
-        wish.pull = chronicled_pull;
-        wish.pull_4 = chronicled_pull_4;
-        wish.pull_5 = chronicled_pull_5;
-
-        match wish.rarity {
-            4 => chronicled_pull_4 = 0,
-            5 => {
-                chronicled_pull_5 = 0;
-            }
-            _ => {}
-        }
-
-        chronicled.wishes.push(wish);
-    }
-
-    chronicled.pull_4 = chronicled_pull_4;
-    chronicled.max_pull_4 = 10;
-    chronicled.probability_4 = if chronicled_pull_4 < 9 { 9.4 } else { 100.0 };
-
-    chronicled.pull_5 = chronicled_pull_5;
-    chronicled.max_pull_5 = 90;
-    chronicled.probability_5 = if chronicled_pull_5 < 89 {
-        0.6 + 6.0 * chronicled_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    chronicled.count = chronicled.wishes.len();
+    let mut chronicled = build_set(
+        database::gi::wishes::chronicled::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GiGachaType::Chronicled,
+        &banner_catalog,
+    );
     // Chronicled
 
-    if let Some(stats) = database::gi::wishes_stats::standard::get_by_uid(uid, &pool).await? {
-        let global_stats = database::gi::wishes_stats_global::standard::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
+    set_stats(&mut standard, GiGachaType::Standard, uid, &pool).await?;
 
-        standard.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats: None,
-            global_stats,
-        })
-    }
+    set_stats(&mut character, GiGachaType::Character, uid, &pool).await?;
 
-    if let Some(stats) = database::gi::wishes_stats::character::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
+    set_stats(&mut weapon, GiGachaType::Weapon, uid, &pool).await?;
 
-        let global_stats = database::gi::wishes_stats_global::character::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        character.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        })
-    }
-
-    if let Some(stats) = database::gi::wishes_stats::weapon::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
-
-        let global_stats = database::gi::wishes_stats_global::weapon::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        weapon.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        })
-    }
-
-    if let Some(stats) = database::gi::wishes_stats::chronicled::get_by_uid(uid, &pool).await? {
-        let global_stats = database::gi::wishes_stats_global::chronicled::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        chronicled.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats: None,
-            global_stats,
-        })
-    }
+    set_stats(&mut chronicled, GiGachaType::Chronicled, uid, &pool).await?;
 
     let wish_tracker = WishTracker {
         name,
@@ -519,3 +255,185 @@ async fn get_wish_tracker(
 
     Ok(HttpResponse::Ok().json(wish_tracker))
 }
+
+/// Pool parameters keep historical caps explicit; None preserves Departure's zero summaries.
+#[derive(Clone, Copy)]
+struct Pity {
+    base_4: f64,
+    base_5: f64,
+    gain_5: f64,
+    soft_start_5: usize,
+    hard_4: usize,
+    hard_5: usize,
+    max_4: usize,
+    max_5: usize,
+}
+impl Pity {
+    fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
+        (
+            if low < self.hard_4 {
+                self.base_4
+            } else {
+                100.0
+            },
+            if high < self.hard_5 {
+                self.base_5 + self.gain_5 * high.saturating_sub(self.soft_start_5) as f64
+            } else {
+                100.0
+            },
+        )
+    }
+}
+fn build_set(rows: Vec<Wish>, kind: GiGachaType, catalog: &BannerCatalog) -> Wishes {
+    let pity = match kind {
+        GiGachaType::Beginner => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GiGachaType::Standard => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GiGachaType::Character => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GiGachaType::Weapon => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GiGachaType::Chronicled => Some(Pity {
+            base_4: 9.4,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+    };
+    let mut result = Wishes::default();
+    let (mut pull_4, mut pull_5) = (0, 0);
+    let mut guarantee = GuaranteeState::default();
+    for (index, mut row) in rows.into_iter().enumerate() {
+        pull_4 += 1;
+        pull_5 += 1;
+        row.pull = index + 1;
+        row.pull_4 = pull_4;
+        row.pull_5 = pull_5;
+        if row.rarity == 4 {
+            pull_4 = 0;
+        }
+        if row.rarity == 5 {
+            pull_5 = 0;
+            let item = match kind {
+                GiGachaType::Beginner => None,
+                GiGachaType::Standard => None,
+                GiGachaType::Character => Some(PullItem::Character(row.item_id)),
+                GiGachaType::Weapon => Some(PullItem::Weapon(row.item_id)),
+                GiGachaType::Chronicled => None,
+            };
+            if let Some(item) = item {
+                row.win = Some(
+                    match guarantee.advance(catalog.classify(
+                        PullPool::Gi(kind),
+                        item,
+                        row.timestamp,
+                    )) {
+                        GuaranteedOutcome::Win => WinType::Win,
+                        GuaranteedOutcome::Loss => WinType::Loss,
+                        GuaranteedOutcome::GuaranteedWin => WinType::Guarantee,
+                    },
+                );
+            }
+        }
+        result.wishes.push(row);
+    }
+    if let Some(pity) = pity {
+        result.pull_4 = pull_4;
+        result.pull_5 = pull_5;
+        result.max_pull_4 = pity.max_4;
+        result.max_pull_5 = pity.max_5;
+        (result.probability_4, result.probability_5) = pity.probabilities(pull_4, pull_5);
+    }
+    result.count = result.wishes.len();
+    result
+}
+async fn set_stats(
+    set: &mut Wishes,
+    kind: GiGachaType,
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    macro_rules! load {
+        ($module:ident, $win:ident) => {
+            if let Some(stats) = database::gi::wishes_stats::$module::get_by_uid(uid, pool).await? {
+                let global_stats =
+                    database::gi::wishes_stats_global::$module::get_by_uid(uid, pool)
+                        .await?
+                        .map(|stats| GlobalStats {
+                            count_percentile: stats.count_percentile,
+                            luck_4_percentile: stats.luck_4_percentile,
+                            luck_5_percentile: stats.luck_5_percentile,
+                        });
+                let value = Stats {
+                    luck_4: stats.luck_4,
+                    luck_5: stats.luck_5,
+                    win_stats: win!(stats, $win),
+                    global_stats,
+                };
+                set.stats = Some(value);
+            }
+        };
+    }
+    macro_rules! win {
+        ($stats:ident, yes) => {
+            Some(WinStats {
+                win_rate: $stats.win_rate,
+                win_streak: $stats.win_streak,
+                loss_streak: $stats.loss_streak,
+            })
+        };
+        ($stats:ident, no) => {
+            None
+        };
+    }
+    match kind {
+        GiGachaType::Chronicled => load!(chronicled, no),
+        GiGachaType::Weapon => load!(weapon, yes),
+        GiGachaType::Character => load!(character, yes),
+        GiGachaType::Standard => load!(standard, no),
+        GiGachaType::Beginner => {}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod baseline;
+#[cfg(test)]
+mod golden_tests;

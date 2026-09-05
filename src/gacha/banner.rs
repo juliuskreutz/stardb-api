@@ -36,12 +36,29 @@ pub(crate) enum BannerOutcome {
     Loss,
 }
 
-impl BannerOutcome {
-    /// Converts the shared outcome to the boolean used by stat calculations.
-    pub(crate) fn is_win(self) -> bool {
-        match self {
-            Self::Win => true,
-            Self::Loss => false,
+/// Shared state, with callers deciding how guaranteed wins affect their output.
+#[derive(Default, Debug)]
+pub(crate) struct GuaranteeState {
+    armed: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GuaranteedOutcome {
+    Win,
+    GuaranteedWin,
+    Loss,
+}
+impl GuaranteeState {
+    pub(crate) fn advance(&mut self, outcome: BannerOutcome) -> GuaranteedOutcome {
+        if self.armed {
+            self.armed = false;
+            return GuaranteedOutcome::GuaranteedWin;
+        }
+        match outcome {
+            BannerOutcome::Win => GuaranteedOutcome::Win,
+            BannerOutcome::Loss => {
+                self.armed = true;
+                GuaranteedOutcome::Loss
+            }
         }
     }
 }
@@ -76,28 +93,40 @@ impl BannerCatalog {
         Self::new(banners.into_iter().flat_map(|banner| {
             let mut entries = Vec::with_capacity(2);
             if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Hsr(if pool == 21 {
-                        GachaType::Collab
-                    } else {
-                        GachaType::Special
-                    }),
-                    item: PullItem::Character(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    21 => Some(GachaType::Collab),
+                    11 => Some(GachaType::Special),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Hsr(pool),
+                        item: PullItem::Character(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
             if let (Some(item), Some(pool)) = (banner.light_cone, banner.light_cone_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Hsr(if pool == 22 {
-                        GachaType::CollabLc
-                    } else {
-                        GachaType::Lc
-                    }),
-                    item: PullItem::LightCone(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    22 => Some(GachaType::CollabLc),
+                    12 => Some(GachaType::Lc),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Hsr(pool),
+                        item: PullItem::LightCone(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
             entries
         }))
@@ -110,28 +139,40 @@ impl BannerCatalog {
         Self::new(banners.into_iter().flat_map(|banner| {
             let mut entries = Vec::with_capacity(2);
             if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Gi(if pool == 500 {
-                        GiGachaType::Chronicled
-                    } else {
-                        GiGachaType::Character
-                    }),
-                    item: PullItem::Character(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    500 => Some(GiGachaType::Chronicled),
+                    301 | 400 => Some(GiGachaType::Character),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Gi(pool),
+                        item: PullItem::Character(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
             if let (Some(item), Some(pool)) = (banner.weapon, banner.weapon_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Gi(if pool == 500 {
-                        GiGachaType::Chronicled
-                    } else {
-                        GiGachaType::Weapon
-                    }),
-                    item: PullItem::Weapon(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    500 => Some(GiGachaType::Chronicled),
+                    302 => Some(GiGachaType::Weapon),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Gi(pool),
+                        item: PullItem::Weapon(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
             entries
         }))
@@ -144,30 +185,46 @@ impl BannerCatalog {
         Self::new(banners.into_iter().flat_map(|banner| {
             let mut entries = Vec::with_capacity(3);
             if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Zzz(if pool == 102 {
-                        ZzzGachaType::ExclusiveRescreening
-                    } else {
-                        ZzzGachaType::Special
-                    }),
-                    item: PullItem::Character(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    102 => Some(ZzzGachaType::ExclusiveRescreening),
+                    2 => Some(ZzzGachaType::Special),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Zzz(pool),
+                        item: PullItem::Character(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
             if let (Some(item), Some(pool)) = (banner.w_engine, banner.w_engine_gacha_type) {
-                entries.push(BannerEntry {
-                    pool: PullPool::Zzz(if pool == 103 {
-                        ZzzGachaType::WEngineReverberation
-                    } else {
-                        ZzzGachaType::WEngine
-                    }),
-                    item: PullItem::WEngine(item),
-                    start: banner.start,
-                    end: banner.end,
-                });
+                let pool = match pool {
+                    103 => Some(ZzzGachaType::WEngineReverberation),
+                    3 => Some(ZzzGachaType::WEngine),
+                    unknown => {
+                        warn!("Skipping unknown banner pool {unknown}");
+                        None
+                    }
+                };
+                if let Some(pool) = pool {
+                    entries.push(BannerEntry {
+                        pool: PullPool::Zzz(pool),
+                        item: PullItem::WEngine(item),
+                        start: banner.start,
+                        end: banner.end,
+                    });
+                }
             }
-            if let (Some(item), Some(5)) = (banner.bangboo, banner.bangboo_gacha_type) {
+            if let (Some(item), Some(pool)) = (banner.bangboo, banner.bangboo_gacha_type) {
+                if pool != 5 {
+                    warn!("Skipping unknown bangboo banner pool {pool}");
+                    return entries;
+                }
                 entries.push(BannerEntry {
                     pool: PullPool::Zzz(ZzzGachaType::Bangboo),
                     item: PullItem::Bangboo(item),
@@ -427,5 +484,63 @@ mod banner_catalog {
             time(2),
             &[(true, Some(3), &[2, 102][..])]
         ));
+    }
+}
+
+#[cfg(test)]
+mod guarantee_tests {
+    use super::*;
+    #[test]
+    fn every_state_outcome_transition() {
+        for first in [BannerOutcome::Win, BannerOutcome::Loss] {
+            for second in [BannerOutcome::Win, BannerOutcome::Loss] {
+                let mut state = GuaranteeState::default();
+                assert_eq!(
+                    state.advance(first),
+                    if first == BannerOutcome::Win {
+                        GuaranteedOutcome::Win
+                    } else {
+                        GuaranteedOutcome::Loss
+                    }
+                );
+                assert_eq!(
+                    state.advance(second),
+                    if first == BannerOutcome::Loss {
+                        GuaranteedOutcome::GuaranteedWin
+                    } else if second == BannerOutcome::Win {
+                        GuaranteedOutcome::Win
+                    } else {
+                        GuaranteedOutcome::Loss
+                    }
+                );
+                assert_eq!(
+                    state.armed,
+                    first == BannerOutcome::Win && second == BannerOutcome::Loss
+                );
+            }
+        }
+    }
+    #[test]
+    fn unknown_banner_pool_cannot_manufacture_featured_window() {
+        let start = DateTime::from_timestamp(1700000000, 0).unwrap();
+        let end = start + chrono::Duration::hours(1);
+        let catalog = BannerCatalog::from_hsr([database::banners::DbBanner {
+            id: 1,
+            name: "fixture".into(),
+            start,
+            end,
+            character: Some(1209),
+            character_gacha_type: Some(999),
+            light_cone: None,
+            light_cone_gacha_type: None,
+        }]);
+        assert_eq!(
+            catalog.classify(
+                PullPool::Hsr(GachaType::Special),
+                PullItem::Character(1209),
+                start
+            ),
+            BannerOutcome::Loss
+        );
     }
 }

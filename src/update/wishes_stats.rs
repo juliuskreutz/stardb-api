@@ -61,35 +61,19 @@ fn calculate_stats(
 }
 
 async fn standard(pool: &PgPool) -> Result<()> {
-    let stats = calculate_stats(database::gi::wishes_stats::standard::get_all(pool).await?);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::gi::wishes_stats_global::standard::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::GiGachaType::Standard, pool).await
 }
 
 async fn character(pool: &PgPool) -> Result<()> {
-    let stats = calculate_stats(database::gi::wishes_stats::character::get_all(pool).await?);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::gi::wishes_stats_global::character::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::GiGachaType::Character, pool).await
 }
 
 async fn weapon(pool: &PgPool) -> Result<()> {
-    let stats = calculate_stats(database::gi::wishes_stats::weapon::get_all(pool).await?);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::gi::wishes_stats_global::weapon::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::GiGachaType::Weapon, pool).await
 }
 
 async fn chronicled(pool: &PgPool) -> Result<()> {
-    let stats = calculate_stats(database::gi::wishes_stats::chronicled::get_all(pool).await?);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::gi::wishes_stats_global::chronicled::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::GiGachaType::Chronicled, pool).await
 }
 
 #[cfg(test)]
@@ -203,4 +187,12 @@ mod tests {
             .await
             .unwrap();
     }
+}
+
+async fn refresh(kind: crate::GiGachaType, pool: &PgPool) -> Result<()> {
+    let stats = calculate_stats(database::gi::wishes_stats::get_all_by_pool(kind, pool).await?);
+    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+        database::gi::wishes_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
+    }
+    Ok(())
 }

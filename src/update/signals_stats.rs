@@ -79,65 +79,27 @@ fn calculate_stats(
 }
 
 async fn standard(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::standard::get_all(pool).await?);
-    database::zzz::signals_stats_global::standard::delete_bulk(&ineligible, pool).await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::standard::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::Standard, pool).await
 }
 
 async fn special(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::special::get_all(pool).await?);
-    database::zzz::signals_stats_global::special::delete_bulk(&ineligible, pool).await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::special::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::Special, pool).await
 }
 
 async fn w_engine(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::w_engine::get_all(pool).await?);
-    database::zzz::signals_stats_global::w_engine::delete_bulk(&ineligible, pool).await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::w_engine::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::WEngine, pool).await
 }
 
 async fn exclusive_rescreening(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::exclusive_rescreening::get_all(pool).await?);
-    database::zzz::signals_stats_global::exclusive_rescreening::delete_bulk(&ineligible, pool)
-        .await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::exclusive_rescreening::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::ExclusiveRescreening, pool).await
 }
 
 async fn w_engine_reverberation(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::w_engine_reverberation::get_all(pool).await?);
-    database::zzz::signals_stats_global::w_engine_reverberation::delete_bulk(&ineligible, pool)
-        .await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::w_engine_reverberation::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::WEngineReverberation, pool).await
 }
 
 async fn bangboo(pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::bangboo::get_all(pool).await?);
-    database::zzz::signals_stats_global::bangboo::delete_bulk(&ineligible, pool).await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::bangboo::set_bulk(batch, pool).await?;
-    }
-    Ok(())
+    refresh(crate::ZzzGachaType::Bangboo, pool).await
 }
 
 #[cfg(test)]
@@ -296,4 +258,14 @@ mod tests {
             .await
             .unwrap();
     }
+}
+
+async fn refresh(kind: crate::ZzzGachaType, pool: &PgPool) -> Result<()> {
+    let (stats, ineligible) =
+        calculate_stats(database::zzz::signals_stats::get_all_by_pool(kind, pool).await?);
+    database::zzz::signals_stats_global::delete_bulk_by_pool(kind, &ineligible, pool).await?;
+    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+        database::zzz::signals_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
+    }
+    Ok(())
 }

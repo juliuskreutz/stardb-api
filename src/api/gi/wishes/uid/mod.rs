@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -36,22 +37,25 @@ struct Wish {
     timestamp: DateTime<Utc>,
 }
 
-impl From<database::gi::wishes::DbWish> for Wish {
-    fn from(wish: database::gi::wishes::DbWish) -> Self {
-        let r#type = if wish.character.is_some() {
+impl TryFrom<database::gi::wishes::DbWish> for Wish {
+    type Error = anyhow::Error;
+    fn try_from(wish: database::gi::wishes::DbWish) -> anyhow::Result<Self> {
+        let r#type = if matches!(wish.item, StoredItem::Character(_)) {
             WishType::Character
         } else {
             WishType::Weapon
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: wish.id.to_string(),
-            name: wish.name.unwrap(),
-            rarity: wish.rarity.unwrap(),
-            item_id: wish.character.or(wish.weapon).unwrap(),
+            name: wish
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: wish.rarity,
+            item_id: wish.item.id(),
             timestamp: wish.timestamp,
-        }
+        })
     }
 }
 
@@ -101,8 +105,7 @@ async fn get_gi_wishes(
                 database::gi::connections::get_by_uid_and_username(uid, &username, &pool)
                     .await
                     .is_ok_and(|connection| connection.verified);
-            forbidden =
-                gacha_history_forbidden(is_private, true, is_admin, has_verified_connection);
+            forbidden = gacha_history_forbidden(is_admin, has_verified_connection);
         }
     }
 
@@ -116,27 +119,27 @@ async fn get_gi_wishes(
         .await?
         .into_iter()
         .map(Wish::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let standard = database::gi::wishes::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Wish::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::gi::wishes::character::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Wish::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let weapon = database::gi::wishes::weapon::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Wish::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let chronicled = database::gi::wishes::chronicled::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Wish::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     let wishes = Wishes {
         beginner,

@@ -1,8 +1,10 @@
+#![allow(unused_variables, dead_code)]
 //! Frozen pre-refactor scan baselines, extracted from 49daa02.
 use super::*;
+use crate::gacha::imports::PullItem;
 use crate::gacha::stats_math::average_or_zero;
-pub(super) fn standard(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn standard(wishes: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_4 = 0;
     let mut sum_4 = 0;
     let mut count_4 = 0;
@@ -11,7 +13,7 @@ pub(super) fn standard(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let mut sum_5 = 0;
     let mut count_5 = 0;
 
-    for wish in &wishes {
+    for wish in wishes {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -33,18 +35,16 @@ pub(super) fn standard(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let luck_4 = average_or_zero(sum_4, count_4);
     let luck_5 = average_or_zero(sum_5, count_5);
 
-(luck_4, luck_5, 0.0, 0, 0)
+    (luck_4, luck_5, 0.0, 0, 0)
 }
-pub(super) fn character(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn character(wishes: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Gi(GiGachaType::Character),
-                PullItem::Character(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Gi(GiGachaType::Character),
+            PullItem::Character(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -65,7 +65,7 @@ pub(super) fn character(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for wish in &wishes {
+    for wish in wishes {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -116,18 +116,16 @@ pub(super) fn character(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
-pub(super) fn weapon(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn weapon(wishes: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let is_win = |item, timestamp| {
-        banners
-            .classify(
-                PullPool::Gi(GiGachaType::Weapon),
-                PullItem::Weapon(item),
-                timestamp,
-            )
-             == crate::gacha::banner::BannerOutcome::Win
+        banners.classify(
+            PullPool::Gi(GiGachaType::Weapon),
+            PullItem::Weapon(item),
+            timestamp,
+        ) == crate::gacha::banner::BannerOutcome::Win
     };
     let mut pull_4 = 0;
     let mut sum_4 = 0;
@@ -148,7 +146,7 @@ pub(super) fn weapon(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i3
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for wish in &wishes {
+    for wish in wishes {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -199,10 +197,10 @@ pub(super) fn weapon(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i3
     let luck_5 = average_or_zero(sum_5, count_5);
     let win_rate = average_or_zero(sum_win, count_win);
 
-(luck_4, luck_5, win_rate, win_streak, loss_streak)
+    (luck_4, luck_5, win_rate, win_streak, loss_streak)
 }
-pub(super) fn chronicled(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn chronicled(wishes: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_4 = 0;
     let mut sum_4 = 0;
     let mut count_4 = 0;
@@ -211,7 +209,7 @@ pub(super) fn chronicled(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f6
     let mut sum_5 = 0;
     let mut count_5 = 0;
 
-    for wish in &wishes {
+    for wish in wishes {
         pull_4 += 1;
         pull_5 += 1;
 
@@ -233,7 +231,14 @@ pub(super) fn chronicled(wishes: &[Row], banners: &BannerCatalog) -> (f64,f64,f6
     let luck_4 = average_or_zero(sum_4, count_4);
     let luck_5 = average_or_zero(sum_5, count_5);
 
-(luck_4, luck_5, 0.0, 0, 0)
+    (luck_4, luck_5, 0.0, 0, 0)
 }
 #[derive(Clone)]
-pub(super) struct Row { pub rarity: Option<i32>, pub character: Option<i32>, pub light_cone: Option<i32>, pub weapon: Option<i32>, pub w_engine: Option<i32>, pub timestamp: chrono::DateTime<chrono::Utc> }
+pub(super) struct Row {
+    pub rarity: Option<i32>,
+    pub character: Option<i32>,
+    pub light_cone: Option<i32>,
+    pub weapon: Option<i32>,
+    pub w_engine: Option<i32>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}

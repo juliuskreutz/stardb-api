@@ -8,10 +8,7 @@ use sqlx::PgConnection;
 
 use crate::{
     database,
-    gacha::{
-        banner::BannerCatalog,
-        imports::{PullItem, PullPool},
-    },
+    gacha::{banner::BannerCatalog, imports::PullPool},
     ZzzGachaType,
 };
 
@@ -41,52 +38,8 @@ async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCat
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut first_s_rank = true;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                if first_s_rank {
-                    first_s_rank = false;
-                    pull_s = 0;
-                    continue;
-                }
-
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_pity(&signals, |row| row.rarity, 3, 4, true);
+    let (luck_a, luck_s) = (scan.low, scan.high);
     let stat = database::zzz::signals_stats::standard::DbSignalsStatStandard {
         uid,
         luck_a,
@@ -105,92 +58,22 @@ async fn calculate_stats_special(
 ) -> anyhow::Result<()> {
     let signals = database::zzz::signals::special::get_infos_by_uid(uid, &mut *connection).await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::Special),
-                        PullItem::Character(signal.character.unwrap()),
-                        signal.timestamp,
-                    )
-                    .is_win();
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if !is_win {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_event(
+        &signals,
+        |row| row.rarity,
+        |row| {
+            Some(catalog.classify(
+                PullPool::Zzz(ZzzGachaType::Special),
+                row.item,
+                row.timestamp,
+            ))
+        },
+        3,
+        4,
+        false,
+    );
+    let (luck_a, luck_s) = (scan.low, scan.high);
+    let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::zzz::signals_stats::special::DbSignalsStatSpecial {
         uid,
         luck_a,
@@ -212,92 +95,22 @@ async fn calculate_stats_w_engine(
 ) -> anyhow::Result<()> {
     let signals = database::zzz::signals::w_engine::get_infos_by_uid(uid, &mut *connection).await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::WEngine),
-                        PullItem::WEngine(signal.w_engine.unwrap()),
-                        signal.timestamp,
-                    )
-                    .is_win();
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if !is_win {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_event(
+        &signals,
+        |row| row.rarity,
+        |row| {
+            Some(catalog.classify(
+                PullPool::Zzz(ZzzGachaType::WEngine),
+                row.item,
+                row.timestamp,
+            ))
+        },
+        3,
+        4,
+        false,
+    );
+    let (luck_a, luck_s) = (scan.low, scan.high);
+    let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::zzz::signals_stats::w_engine::DbSignalsStatWEngine {
         uid,
         luck_a,
@@ -315,44 +128,8 @@ async fn calculate_stats_w_engine(
 async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::bangboo::get_infos_by_uid(uid, &mut *connection).await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_pity(&signals, |row| row.rarity, 3, 4, false);
+    let (luck_a, luck_s) = (scan.low, scan.high);
     let stat = database::zzz::signals_stats::bangboo::DbSignalsStatBangboo {
         uid,
         luck_a,
@@ -372,92 +149,22 @@ async fn calculate_stats_exclusive_rescreening(
         database::zzz::signals::exclusive_rescreening::get_infos_by_uid(uid, &mut *connection)
             .await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
-                        PullItem::Character(signal.character.unwrap()),
-                        signal.timestamp,
-                    )
-                    .is_win();
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if !is_win {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_event(
+        &signals,
+        |row| row.rarity,
+        |row| {
+            Some(catalog.classify(
+                PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
+                row.item,
+                row.timestamp,
+            ))
+        },
+        3,
+        4,
+        false,
+    );
+    let (luck_a, luck_s) = (scan.low, scan.high);
+    let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat =
         database::zzz::signals_stats::exclusive_rescreening::DbSignalsStatExclusiveRescreening {
             uid,
@@ -482,92 +189,22 @@ async fn calculate_stats_w_engine_reverberation(
         database::zzz::signals::w_engine_reverberation::get_infos_by_uid(uid, &mut *connection)
             .await?;
 
-    let mut pull_a = 0;
-    let mut sum_a = 0;
-    let mut count_a = 0;
-
-    let mut pull_s = 0;
-    let mut sum_s = 0;
-    let mut count_s = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for signal in &signals {
-        pull_a += 1;
-        pull_s += 1;
-
-        match signal.rarity.unwrap() {
-            3 => {
-                count_a += 1;
-                sum_a += pull_a;
-                pull_a = 0;
-            }
-            4 => {
-                count_s += 1;
-                sum_s += pull_s;
-                pull_s = 0;
-
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::WEngineReverberation),
-                        PullItem::WEngine(signal.w_engine.unwrap()),
-                        signal.timestamp,
-                    )
-                    .is_win();
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if !is_win {
-                        win_streak = 0;
-
-                        loss_streak += 1;
-                        max_loss_streak = max_loss_streak.max(loss_streak);
-
-                        guarantee = true;
-                    } else {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_a = if count_a != 0 {
-        sum_a as f64 / count_a as f64
-    } else {
-        0.0
-    };
-    let luck_s = if count_s != 0 {
-        sum_s as f64 / count_s as f64
-    } else {
-        0.0
-    };
-    let win_rate = if count_win != 0 {
-        sum_win as f64 / count_win as f64
-    } else {
-        0.0
-    };
-
+    let scan = super::scan::scan_event(
+        &signals,
+        |row| row.rarity,
+        |row| {
+            Some(catalog.classify(
+                PullPool::Zzz(ZzzGachaType::WEngineReverberation),
+                row.item,
+                row.timestamp,
+            ))
+        },
+        3,
+        4,
+        false,
+    );
+    let (luck_a, luck_s) = (scan.low, scan.high);
+    let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat =
         database::zzz::signals_stats::w_engine_reverberation::DbSignalsStatWEngineReverberation {
             uid,
@@ -581,3 +218,7 @@ async fn calculate_stats_w_engine_reverberation(
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "zzz_golden.rs"]
+mod golden_tests;

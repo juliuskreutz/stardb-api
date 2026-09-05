@@ -1,3 +1,4 @@
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -37,28 +38,27 @@ struct Signal {
     timestamp: DateTime<Utc>,
 }
 
-impl From<database::zzz::signals::DbSignal> for Signal {
-    fn from(signal: database::zzz::signals::DbSignal) -> Self {
-        let r#type = if signal.character.is_some() {
+impl TryFrom<database::zzz::signals::DbSignal> for Signal {
+    type Error = anyhow::Error;
+    fn try_from(signal: database::zzz::signals::DbSignal) -> anyhow::Result<Self> {
+        let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Character
-        } else if signal.w_engine.is_some() {
+        } else if matches!(signal.item, StoredItem::WEngine(_)) {
             SignalType::WEngine
         } else {
             SignalType::Bangboo
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: signal.id.to_string(),
-            name: signal.name.unwrap(),
-            rarity: signal.rarity.unwrap(),
-            item_id: signal
-                .character
-                .or(signal.w_engine)
-                .or(signal.bangboo)
-                .unwrap(),
+            name: signal
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: signal.rarity,
+            item_id: signal.item.id(),
             timestamp: signal.timestamp,
-        }
+        })
     }
 }
 
@@ -109,8 +109,7 @@ async fn get_zzz_signals(
                 database::zzz::connections::get_by_uid_and_username(uid, &username, &pool)
                     .await
                     .is_ok_and(|connection| connection.verified);
-            forbidden =
-                gacha_history_forbidden(is_private, true, is_admin, has_verified_connection);
+            forbidden = gacha_history_forbidden(is_admin, has_verified_connection);
         }
     }
 
@@ -124,34 +123,34 @@ async fn get_zzz_signals(
         .await?
         .into_iter()
         .map(Signal::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::zzz::signals::special::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Signal::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine = database::zzz::signals::w_engine::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Signal::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let bangboo = database::zzz::signals::bangboo::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
         .map(Signal::from)
-        .collect();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let exclusive_rescreening =
         database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
             .map(Signal::from)
-            .collect();
+            .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine_reverberation =
         database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
             .map(Signal::from)
-            .collect();
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
     let signals = Signals {
         standard,

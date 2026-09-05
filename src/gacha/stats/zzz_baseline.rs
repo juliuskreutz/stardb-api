@@ -1,8 +1,10 @@
+#![allow(unused_variables, dead_code)]
 //! Frozen pre-refactor scan baselines, extracted from 49daa02.
 use super::*;
+use crate::gacha::imports::PullItem;
 use crate::gacha::stats_math::average_or_zero;
-pub(super) fn standard(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn standard(signals: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -13,7 +15,7 @@ pub(super) fn standard(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
 
     let mut first_s_rank = true;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -49,10 +51,10 @@ pub(super) fn standard(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
         0.0
     };
 
-(luck_a, luck_s, 0.0, 0, 0)
+    (luck_a, luck_s, 0.0, 0, 0)
 }
-pub(super) fn special(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn special(signals: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -72,7 +74,7 @@ pub(super) fn special(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -87,13 +89,11 @@ pub(super) fn special(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::Special),
-                        PullItem::Character(signal.character.unwrap()),
-                        signal.timestamp,
-                    )
-                     == crate::gacha::banner::BannerOutcome::Win;
+                let is_win = catalog.classify(
+                    PullPool::Zzz(ZzzGachaType::Special),
+                    PullItem::Character(signal.character.unwrap()),
+                    signal.timestamp,
+                ) == crate::gacha::banner::BannerOutcome::Win;
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -139,10 +139,10 @@ pub(super) fn special(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
         0.0
     };
 
-(luck_a, luck_s, win_rate, win_streak, loss_streak)
+    (luck_a, luck_s, win_rate, win_streak, loss_streak)
 }
-pub(super) fn w_engine(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn w_engine(signals: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -162,7 +162,7 @@ pub(super) fn w_engine(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -177,13 +177,11 @@ pub(super) fn w_engine(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::WEngine),
-                        PullItem::WEngine(signal.w_engine.unwrap()),
-                        signal.timestamp,
-                    )
-                     == crate::gacha::banner::BannerOutcome::Win;
+                let is_win = catalog.classify(
+                    PullPool::Zzz(ZzzGachaType::WEngine),
+                    PullItem::WEngine(signal.w_engine.unwrap()),
+                    signal.timestamp,
+                ) == crate::gacha::banner::BannerOutcome::Win;
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -229,10 +227,10 @@ pub(super) fn w_engine(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64
         0.0
     };
 
-(luck_a, luck_s, win_rate, win_streak, loss_streak)
+    (luck_a, luck_s, win_rate, win_streak, loss_streak)
 }
-pub(super) fn bangboo(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn bangboo(signals: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -241,7 +239,7 @@ pub(super) fn bangboo(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
     let mut sum_s = 0;
     let mut count_s = 0;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -271,10 +269,13 @@ pub(super) fn bangboo(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,
         0.0
     };
 
-(luck_a, luck_s, 0.0, 0, 0)
+    (luck_a, luck_s, 0.0, 0, 0)
 }
-pub(super) fn exclusive_rescreening(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn exclusive_rescreening(
+    signals: &[Row],
+    banners: &BannerCatalog,
+) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -294,7 +295,7 @@ pub(super) fn exclusive_rescreening(signals: &[Row], banners: &BannerCatalog) ->
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -309,13 +310,11 @@ pub(super) fn exclusive_rescreening(signals: &[Row], banners: &BannerCatalog) ->
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
-                        PullItem::Character(signal.character.unwrap()),
-                        signal.timestamp,
-                    )
-                     == crate::gacha::banner::BannerOutcome::Win;
+                let is_win = catalog.classify(
+                    PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
+                    PullItem::Character(signal.character.unwrap()),
+                    signal.timestamp,
+                ) == crate::gacha::banner::BannerOutcome::Win;
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -361,10 +360,13 @@ pub(super) fn exclusive_rescreening(signals: &[Row], banners: &BannerCatalog) ->
         0.0
     };
 
-(luck_a, luck_s, win_rate, win_streak, loss_streak)
+    (luck_a, luck_s, win_rate, win_streak, loss_streak)
 }
-pub(super) fn w_engine_reverberation(signals: &[Row], banners: &BannerCatalog) -> (f64,f64,f64,i32,i32) {
- let catalog = banners;
+pub(super) fn w_engine_reverberation(
+    signals: &[Row],
+    banners: &BannerCatalog,
+) -> (f64, f64, f64, i32, i32) {
+    let catalog = banners;
     let mut pull_a = 0;
     let mut sum_a = 0;
     let mut count_a = 0;
@@ -384,7 +386,7 @@ pub(super) fn w_engine_reverberation(signals: &[Row], banners: &BannerCatalog) -
     let mut loss_streak = 0;
     let mut max_loss_streak = 0;
 
-    for signal in &signals {
+    for signal in signals {
         pull_a += 1;
         pull_s += 1;
 
@@ -399,13 +401,11 @@ pub(super) fn w_engine_reverberation(signals: &[Row], banners: &BannerCatalog) -
                 sum_s += pull_s;
                 pull_s = 0;
 
-                let is_win = catalog
-                    .classify(
-                        PullPool::Zzz(ZzzGachaType::WEngineReverberation),
-                        PullItem::WEngine(signal.w_engine.unwrap()),
-                        signal.timestamp,
-                    )
-                     == crate::gacha::banner::BannerOutcome::Win;
+                let is_win = catalog.classify(
+                    PullPool::Zzz(ZzzGachaType::WEngineReverberation),
+                    PullItem::WEngine(signal.w_engine.unwrap()),
+                    signal.timestamp,
+                ) == crate::gacha::banner::BannerOutcome::Win;
                 if guarantee {
                     guarantee = false;
                 } else {
@@ -451,7 +451,14 @@ pub(super) fn w_engine_reverberation(signals: &[Row], banners: &BannerCatalog) -
         0.0
     };
 
-(luck_a, luck_s, win_rate, win_streak, loss_streak)
+    (luck_a, luck_s, win_rate, win_streak, loss_streak)
 }
 #[derive(Clone)]
-pub(super) struct Row { pub rarity: Option<i32>, pub character: Option<i32>, pub light_cone: Option<i32>, pub weapon: Option<i32>, pub w_engine: Option<i32>, pub timestamp: chrono::DateTime<chrono::Utc> }
+pub(super) struct Row {
+    pub rarity: Option<i32>,
+    pub character: Option<i32>,
+    pub light_cone: Option<i32>,
+    pub weapon: Option<i32>,
+    pub w_engine: Option<i32>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}

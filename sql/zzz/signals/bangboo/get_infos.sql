@@ -1,4 +1,5 @@
 SELECT
+    zzz_signals_bangboo.bangboo,
     zzz_signals_bangboo.timestamp,
     NULL::integer AS character,
     zzz_signals_bangboo.w_engine,
