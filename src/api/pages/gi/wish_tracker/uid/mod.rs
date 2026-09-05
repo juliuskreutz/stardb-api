@@ -177,7 +177,7 @@ async fn get_wish_tracker(
     let banner_catalog = BannerCatalog::from_gi(database::gi::banners::get_all(&pool).await?);
 
     // Beginner
-    let mut beginner = build_set(
+    let beginner = build_set(
         database::gi::wishes::beginner::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()

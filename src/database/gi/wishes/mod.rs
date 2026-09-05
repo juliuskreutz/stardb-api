@@ -198,8 +198,6 @@ use crate::Language;
 $(pool_fn!($function, $sql, $item);)*
 })*
 pub async fn set_all_by_pool(kind:crate::GiGachaType,set_all: &SetAll, connection: &mut sqlx::PgConnection)->anyhow::Result<u64> { match kind { $(crate::GiGachaType::$variant => $module::set_all(set_all, connection).await,)* } }
-pub async fn delete_all_by_pool(kind:crate::GiGachaType,uid:i32, pool:&PgPool)->anyhow::Result<()> { match kind { $(crate::GiGachaType::$variant => $module::delete_all(uid,pool).await,)* } }
-pub async fn delete_unofficial_by_pool(kind:crate::GiGachaType,uid:i32, pool:&PgPool)->anyhow::Result<()> { match kind { $(crate::GiGachaType::$variant => $module::delete_unofficial(uid,pool).await,)* } }
 pub async fn get_by_uid_by_pool(kind:crate::GiGachaType,uid:i32, language:crate::Language, pool:&PgPool)->anyhow::Result<Vec<DbWish>> { match kind { $(crate::GiGachaType::$variant => $module::get_by_uid(uid,language,pool).await,)* } }
 pub async fn get_earliest_timestamp_by_uid_by_pool(kind:crate::GiGachaType,uid:i32,pool:&PgPool)->anyhow::Result<Option<DateTime<Utc>>> { match kind { $(crate::GiGachaType::$variant => $module::get_earliest_timestamp_by_uid(uid,pool).await,)* } }
 pub async fn get_latest_timestamp_by_uid_by_pool(kind:crate::GiGachaType,uid:i32,pool:&PgPool)->anyhow::Result<Option<DateTime<Utc>>> { match kind { $(crate::GiGachaType::$variant => $module::get_latest_timestamp_by_uid(uid,pool).await,)* } }

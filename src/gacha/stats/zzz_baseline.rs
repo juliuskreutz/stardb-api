@@ -2,7 +2,6 @@
 //! Frozen pre-refactor scan baselines, extracted from 49daa02.
 use super::*;
 use crate::gacha::imports::PullItem;
-use crate::gacha::stats_math::average_or_zero;
 pub(super) fn standard(signals: &[Row], banners: &BannerCatalog) -> (f64, f64, f64, i32, i32) {
     let catalog = banners;
     let mut pull_a = 0;

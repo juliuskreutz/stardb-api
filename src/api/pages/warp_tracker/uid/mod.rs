@@ -178,7 +178,7 @@ async fn get_warp_tracker(
     let banner_catalog = BannerCatalog::from_hsr(database::banners::get_all(&pool).await?);
 
     // region Departure
-    let mut departure = build_set(
+    let departure = build_set(
         database::warps::departure::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
