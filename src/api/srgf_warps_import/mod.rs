@@ -152,6 +152,7 @@ async fn post_srgf_warps_import(
         for warp in warps.iter() {
             let timestamp = warp.time;
 
+            // File order is significant: stop this pool at its first overlap.
             if !admin {
                 if let Some(earliest_timestamp) = earliest_timestamp {
                     if timestamp >= earliest_timestamp {

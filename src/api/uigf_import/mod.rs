@@ -348,6 +348,8 @@ async fn post_uigf_import(
     Ok(HttpResponse::Ok().json(UigfImportSummary { hsr, gi, zzz }))
 }
 
+// Preserve source order within each pool. The first overlap truncates the rest
+// of that pool, even when later records have older timestamps.
 fn before_cutoff(
     pulls: Vec<NormalizedPull>,
     earliest: Option<DateTime<Utc>>,

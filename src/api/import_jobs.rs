@@ -98,6 +98,8 @@ impl<T> Default for ImportJobStore<T> {
 impl<T: Send + 'static> ImportJobStore<T> {
     /// Starts a UID-bound job or joins the existing active job for that UID.
     pub(crate) async fn start(&self, uid: i32, initial: T) -> StartedImportJob<T> {
+        // Keep lookup and insertion under the same lock: concurrent starts must
+        // share unfinished work, while retained completed jobs remain pollable.
         let mut jobs = self.jobs.lock().await;
 
         if let Some((id, job)) = jobs
@@ -165,6 +167,8 @@ impl<T: Send + 'static> ImportJobStore<T> {
         let Some(job) = jobs.get_mut(&id) else {
             return;
         };
+        // Mark completion while locked, before scheduling eviction. Repeated
+        // completions cannot start another timer or extend the retention window.
         if job.finished {
             return;
         }
@@ -172,6 +176,7 @@ impl<T: Send + 'static> ImportJobStore<T> {
         let jobs = self.jobs.clone();
         actix_web::rt::spawn(async move {
             actix_web::rt::time::sleep(retention).await;
+            // Evict by opaque ID, never UID: a new import may already be active.
             jobs.lock().await.remove(&id);
         });
     }

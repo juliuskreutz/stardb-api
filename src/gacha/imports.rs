@@ -92,6 +92,8 @@ impl std::error::Error for ImportValidationError {}
 impl ImportBatch {
     /// Validates, deduplicates, and orders pulls before any database write.
     ///
+    /// Authentication and overlap cutoffs belong to each source endpoint. This
+    /// layer enforces one provenance for the batch and valid typed item identities.
     /// Exact duplicates collapse. Conflicting records with the same
     /// `(pool, uid, id)` fail the whole batch so input order cannot decide which
     /// value wins.

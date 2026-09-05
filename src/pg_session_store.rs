@@ -10,11 +10,14 @@ pub struct PgSessionStore {
     pool: PgPool,
 }
 type SessionState = HashMap<String, String>;
+// actix-session stores each value as JSON text. Decode the entire string so
+// quotes, backslashes and Unicode remain raw username characters in PostgreSQL.
 fn decode_username(state: &SessionState) -> anyhow::Result<String> {
     Ok(serde_json::from_str(state.get("username").ok_or_else(
         || anyhow::anyhow!("missing session username"),
     )?)?)
 }
+// Rebuild the same JSON envelope on load; manual quote wrapping is not symmetric.
 fn encode_username(username: &str) -> anyhow::Result<SessionState> {
     Ok(HashMap::from([(
         "username".into(),

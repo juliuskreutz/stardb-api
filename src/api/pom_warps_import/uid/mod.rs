@@ -120,6 +120,7 @@ async fn post_pom_warps_import(
                 return Ok(HttpResponse::BadRequest().finish());
             };
 
+            // File order is significant: stop this pool at its first overlap.
             if !admin {
                 if let Some(earliest_timestamp) = earliest_timestamp {
                     if timestamp >= earliest_timestamp {
