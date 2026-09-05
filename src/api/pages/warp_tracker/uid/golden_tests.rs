@@ -1,4 +1,5 @@
 use super::*;
+type ReferenceBuilder = fn(Vec<Warp>, &BannerCatalog) -> Warps;
 #[test]
 fn all_pool_json_matches_pre_refactor() {
     let catalog = BannerCatalog::default();
@@ -198,7 +199,7 @@ fn drought_histories_preserve_each_pools_soft_and_hard_pity() {
     let catalog = BannerCatalog::default();
     // No pity resets: these lengths actually reach both weapon and character
     // thresholds, unlike the mixed histories used by the annotation fixture.
-    let cases: [(GachaType, fn(Vec<Warp>, &BannerCatalog) -> Warps); 6] = [
+    let cases: [(GachaType, ReferenceBuilder); 6] = [
         (GachaType::Departure, baseline::departure),
         (GachaType::Standard, baseline::standard),
         (GachaType::Special, baseline::special),

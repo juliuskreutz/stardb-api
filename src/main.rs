@@ -194,15 +194,8 @@ impl ZzzGachaType {
     /// Exports always emit [`Self::id`]; accepting legacy IDs keeps older RNG
     /// exports importable without propagating those IDs into new files.
     pub fn from_uigf_id(id: &str) -> Option<Self> {
-        match id {
-            "1" | "1001" => Some(Self::Standard),
-            "2" | "2001" => Some(Self::Special),
-            "3" | "3001" => Some(Self::WEngine),
-            "5" | "5001" => Some(Self::Bangboo),
-            "102" | "12001" => Some(Self::ExclusiveRescreening),
-            "103" | "13001" => Some(Self::WEngineReverberation),
-            _ => None,
-        }
+        use strum::IntoEnumIterator;
+        Self::iter().find(|pool| id == pool.id().to_string() || id == pool.old_id().to_string())
     }
 }
 
@@ -302,6 +295,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn async_main() -> anyhow::Result<()> {
+    api::validate_private_key()?;
     let app_config = load_app_config()?;
     info!("Starting api!");
 
@@ -393,7 +387,8 @@ async fn async_main() -> anyhow::Result<()> {
 
     info!("Stopping api!");
 
-    std::process::exit(0)
+    // Returning drops the runtime and then the outer Sentry guard, flushing pending events.
+    Ok(())
 }
 
 fn session_key() -> anyhow::Result<actix_web::cookie::Key> {

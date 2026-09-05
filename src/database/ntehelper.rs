@@ -2,6 +2,28 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
+
+// Keep list and single-comment reads on the same vote aggregate and viewer ownership rules.
+// Callers bind $2 to the optional viewer ID and append their own key predicate/pagination.
+const MARKER_COMMENT_SELECT: &str = r#"SELECT
+             c.id,
+             c.marker_key,
+             u.username,
+             c.body,
+             c.screenshot_urls,
+             c.created_at,
+             c.updated_at,
+             COALESCE(SUM(v.value), 0)::bigint AS score,
+             COUNT(*) FILTER (WHERE v.value = 1)::bigint AS upvotes,
+             COUNT(*) FILTER (WHERE v.value = -1)::bigint AS downvotes,
+             COALESCE(viewer_vote.value, 0)::int AS viewer_vote,
+             COALESCE(c.user_id = $2, false) AS owned_by_viewer
+           FROM ntehelper_marker_comment c
+           JOIN users u ON u.id = c.user_id
+           LEFT JOIN ntehelper_marker_comment_vote v ON v.comment_id = c.id
+           LEFT JOIN ntehelper_marker_comment_vote viewer_vote
+             ON viewer_vote.comment_id = c.id AND viewer_vote.user_id = $2"#;
+
 #[derive(FromRow)]
 pub struct DbCompletion {
     pub kind: String,
@@ -188,29 +210,11 @@ pub async fn list_marker_comments(
     };
 
     Ok(sqlx::query_as::<_, DbMarkerComment>(
-        r#"SELECT
-             c.id,
-             c.marker_key,
-             u.username,
-             c.body,
-             c.screenshot_urls,
-             c.created_at,
-             c.updated_at,
-             COALESCE(SUM(v.value), 0)::bigint AS score,
-             COUNT(*) FILTER (WHERE v.value = 1)::bigint AS upvotes,
-             COUNT(*) FILTER (WHERE v.value = -1)::bigint AS downvotes,
-             COALESCE(viewer_vote.value, 0)::int AS viewer_vote,
-             COALESCE(c.user_id = $2, false) AS owned_by_viewer
-           FROM ntehelper_marker_comment c
-           JOIN users u ON u.id = c.user_id
-           LEFT JOIN ntehelper_marker_comment_vote v ON v.comment_id = c.id
-           LEFT JOIN ntehelper_marker_comment_vote viewer_vote
-             ON viewer_vote.comment_id = c.id AND viewer_vote.user_id = $2
-           WHERE c.marker_key = $1 AND c.deleted_at IS NULL
+        &format!("{MARKER_COMMENT_SELECT} WHERE c.marker_key = $1 AND c.deleted_at IS NULL
            GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value
            ORDER BY score DESC, c.created_at DESC, c.id DESC
            OFFSET $3
-           LIMIT $4"#,
+           LIMIT $4"),
     )
     .bind(marker_key)
     .bind(viewer_user_id)
@@ -374,26 +378,8 @@ async fn get_marker_comment(
     pool: &PgPool,
 ) -> Result<Option<DbMarkerComment>> {
     Ok(sqlx::query_as::<_, DbMarkerComment>(
-        r#"SELECT
-             c.id,
-             c.marker_key,
-             u.username,
-             c.body,
-             c.screenshot_urls,
-             c.created_at,
-             c.updated_at,
-             COALESCE(SUM(v.value), 0)::bigint AS score,
-             COUNT(*) FILTER (WHERE v.value = 1)::bigint AS upvotes,
-             COUNT(*) FILTER (WHERE v.value = -1)::bigint AS downvotes,
-             COALESCE(viewer_vote.value, 0)::int AS viewer_vote,
-             COALESCE(c.user_id = $2, false) AS owned_by_viewer
-           FROM ntehelper_marker_comment c
-           JOIN users u ON u.id = c.user_id
-           LEFT JOIN ntehelper_marker_comment_vote v ON v.comment_id = c.id
-           LEFT JOIN ntehelper_marker_comment_vote viewer_vote
-             ON viewer_vote.comment_id = c.id AND viewer_vote.user_id = $2
-           WHERE c.id = $1 AND c.deleted_at IS NULL
-           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value"#,
+        &format!("{MARKER_COMMENT_SELECT} WHERE c.id = $1 AND c.deleted_at IS NULL
+           GROUP BY c.id, c.marker_key, c.user_id, u.username, c.body, c.screenshot_urls, c.created_at, c.updated_at, viewer_vote.value"),
     )
     .bind(comment_id)
     .bind(viewer_user_id)
@@ -454,4 +440,111 @@ async fn get_user_id_optional(username: &str, pool: &PgPool) -> Result<Option<i6
             .fetch_optional(pool)
             .await?,
     )
+}
+
+#[cfg(test)]
+mod marker_comment_tests {
+    use super::*;
+    use sqlx::postgres::PgPoolOptions;
+    use uuid::Uuid;
+
+    #[actix_web::test]
+    async fn create_list_update_vote_and_delete_roundtrip() {
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL required"))
+            .await
+            .unwrap();
+        sqlx::migrate!().run(&pool).await.unwrap();
+        let owner = format!("comment_owner_{}", Uuid::new_v4().simple());
+        let voter = format!("comment_voter_{}", Uuid::new_v4().simple());
+        for username in [&owner, &voter] {
+            sqlx::query("INSERT INTO users (username, password) VALUES ($1, 'test')")
+                .bind(username)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        let marker = format!("test-marker-{}", Uuid::new_v4());
+        let screenshots = serde_json::json!([]);
+        let created = create_marker_comment(&owner, &marker, "original", &screenshots, &pool)
+            .await
+            .unwrap();
+        assert!(created.owned_by_viewer);
+        assert_eq!(created.score, 0);
+        let list = list_marker_comments(&marker, None, 10, 0, &pool)
+            .await
+            .unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, created.id);
+        assert!(!list[0].owned_by_viewer);
+        assert!(
+            update_marker_comment(created.id, &voter, "forbidden", &screenshots, &pool)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let updated = update_marker_comment(created.id, &owner, "edited", &screenshots, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated.body, "edited");
+        let voted = set_marker_comment_vote(created.id, &voter, 1, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            (
+                voted.score,
+                voted.upvotes,
+                voted.downvotes,
+                voted.viewer_vote
+            ),
+            (1, 1, 0, 1)
+        );
+        let list = list_marker_comments(&marker, Some(&owner), 10, 0, &pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            (list[0].score, list[0].viewer_vote, list[0].owned_by_viewer),
+            (1, 0, true)
+        );
+        let changed = set_marker_comment_vote(created.id, &voter, -1, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            (
+                changed.score,
+                changed.upvotes,
+                changed.downvotes,
+                changed.viewer_vote
+            ),
+            (-1, 0, 1, -1)
+        );
+        let cleared = set_marker_comment_vote(created.id, &voter, 0, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(cleared.score, 0);
+        assert!(!delete_marker_comment(created.id, &voter, &pool)
+            .await
+            .unwrap());
+        assert!(delete_marker_comment(created.id, &owner, &pool)
+            .await
+            .unwrap());
+        assert!(list_marker_comments(&marker, None, 10, 0, &pool)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(set_marker_comment_vote(created.id, &voter, 1, &pool)
+            .await
+            .unwrap()
+            .is_none());
+        sqlx::query("DELETE FROM users WHERE username = ANY($1)")
+            .bind(vec![owner, voter])
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
 }

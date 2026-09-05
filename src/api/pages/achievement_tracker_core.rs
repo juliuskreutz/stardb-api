@@ -68,7 +68,7 @@ pub fn build<A: Item, E>(
 
     for achievement in achievements
         .into_iter()
-        .filter(|a| !filter_hidden_impossible || !(a.hidden && a.impossible))
+        .filter(|a| !(filter_hidden_impossible && a.hidden && a.impossible))
     {
         versions.insert(achievement.version.clone().unwrap_or_default());
 
@@ -138,7 +138,7 @@ pub fn build<A: Item, E>(
     let mut versions = versions.into_iter().collect::<Vec<_>>();
     versions.sort_unstable();
 
-    let achievement_tracker = Tracker {
+    Tracker {
         achievement_count,
         achievement_count_current: 0,
         currency_count,
@@ -147,9 +147,7 @@ pub fn build<A: Item, E>(
         language,
         versions,
         series,
-    };
-
-    achievement_tracker
+    }
 }
 impl<A: Item, E> Tracker<A, E> {
     pub fn annotate(&mut self, completed: &HashSet<i32>, favorites: &HashSet<i32>) {
@@ -211,6 +209,41 @@ pub fn save<T: Serialize>(path: &str, map: &HashMap<Language, T>) -> anyhow::Res
     let temporary = format!("{path}.tmp");
     std::fs::write(&temporary, serde_json::to_vec(map)?)?;
     std::fs::rename(temporary, path)?;
+    Ok(())
+}
+
+/// Refresh every language before replacing either the persisted or live cache.
+pub async fn refresh<A, E, D, F, Fut, C>(
+    cache: &async_rwlock::RwLock<HashMap<Language, Tracker<A, E>>>,
+    pool: sqlx::PgPool,
+    path: &str,
+    extra: E,
+    filter_hidden_impossible: bool,
+    fetch: F,
+    convert: C,
+) -> anyhow::Result<()>
+where
+    A: Item + Serialize,
+    E: Clone + Serialize,
+    F: Fn(Language, sqlx::PgPool) -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<Vec<D>>>,
+    C: Fn(D) -> Entry<A>,
+{
+    use strum::IntoEnumIterator;
+    let mut map = HashMap::new();
+    for language in Language::iter() {
+        let entries = fetch(language, pool.clone())
+            .await?
+            .into_iter()
+            .map(&convert)
+            .collect();
+        map.insert(
+            language,
+            build(entries, language, extra.clone(), filter_hidden_impossible),
+        );
+    }
+    save(path, &map)?;
+    *cache.write().await = map;
     Ok(())
 }
 
@@ -298,39 +331,4 @@ mod tests {
             .get("user_count")
             .is_none());
     }
-}
-
-/// Refresh every language before replacing either the persisted or live cache.
-pub async fn refresh<A, E, D, F, Fut, C>(
-    cache: &async_rwlock::RwLock<HashMap<Language, Tracker<A, E>>>,
-    pool: sqlx::PgPool,
-    path: &str,
-    extra: E,
-    filter_hidden_impossible: bool,
-    fetch: F,
-    convert: C,
-) -> anyhow::Result<()>
-where
-    A: Item + Serialize,
-    E: Clone + Serialize,
-    F: Fn(Language, sqlx::PgPool) -> Fut,
-    Fut: std::future::Future<Output = anyhow::Result<Vec<D>>>,
-    C: Fn(D) -> Entry<A>,
-{
-    use strum::IntoEnumIterator;
-    let mut map = HashMap::new();
-    for language in Language::iter() {
-        let entries = fetch(language, pool.clone())
-            .await?
-            .into_iter()
-            .map(&convert)
-            .collect();
-        map.insert(
-            language,
-            build(entries, language, extra.clone(), filter_hidden_impossible),
-        );
-    }
-    save(path, &map)?;
-    *cache.write().await = map;
-    Ok(())
 }

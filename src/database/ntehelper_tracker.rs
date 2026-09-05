@@ -1,10 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
-use std::{
-    error::Error,
-    fmt,
-};
+use std::{error::Error, fmt};
 
 #[derive(Debug, FromRow, Clone)]
 pub struct DbTrackerUidClaim {
@@ -336,18 +333,6 @@ pub async fn import_tracker_pulls(
     .bind(uid)
     .fetch_one(&mut *tx)
     .await?;
-    let new_count = sqlx::query_scalar::<_, i64>(
-        r#"SELECT COUNT(*)::bigint
-           FROM unnest($2::text[]) AS incoming(record_uid)
-           WHERE NOT EXISTS (
-               SELECT 1 FROM ntehelper_tracker_pull p
-               WHERE p.uid = $1 AND p.record_uid = incoming.record_uid
-           )"#,
-    )
-    .bind(uid)
-    .bind(&record_uids)
-    .fetch_one(&mut *tx)
-    .await?;
     let existing_pulls = sqlx::query_as::<_, ExistingTrackerPullRecordUid>(
         r#"SELECT
              record_uid
@@ -358,6 +343,9 @@ pub async fn import_tracker_pulls(
     .bind(&record_uids)
     .fetch_all(&mut *tx)
     .await?;
+    // The claim-row lock keeps imports for this UID serialized. The API deduplicates
+    // incoming IDs, so this difference counts new rows without a second anti-join.
+    let new_count = i64::try_from(pulls.len() - existing_pulls.len())?;
     let existing_by_record_uid = existing_pulls
         .into_iter()
         .map(|pull| (pull.record_uid.clone(), pull))
@@ -814,12 +802,10 @@ mod tests {
             .expect("delete should be allowed");
 
         assert_eq!(deleted_pulls, 2);
-        assert!(
-            get_tracker_claim(uid, &pool)
-                .await
-                .expect("claim lookup should succeed")
-                .is_none()
-        );
+        assert!(get_tracker_claim(uid, &pool)
+            .await
+            .expect("claim lookup should succeed")
+            .is_none());
         assert_eq!(
             tracker_pull_count(uid, &pool)
                 .await

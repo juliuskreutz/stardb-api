@@ -1,0 +1,19 @@
+# Disposable local test data. This service is independent of the application's .env.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: stardb-test
+      POSTGRES_DB: stardb_test
+    ports:
+      - "127.0.0.1:${STARDB_TEST_DB_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stardb_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - test-postgres:/var/lib/postgresql/data
+volumes:
+  test-postgres:

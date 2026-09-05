@@ -5,19 +5,19 @@ on:
   pull_request:
 
 jobs:
-  deploy:
-    name: Clippy
+  clippy:
+    name: Offline check and Clippy
     runs-on: ubuntu-latest
-
+    env:
+      SQLX_OFFLINE: "true"
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Get Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: clippy
-
-      - name: Verify gacha changes
-        run: scripts/verify-gacha.sh
+      - name: Check all targets without a database
+        run: cargo check --all-targets
+      - name: Clippy
+        run: cargo clippy --all-targets
+      - name: Check whitespace
+        run: git diff --check

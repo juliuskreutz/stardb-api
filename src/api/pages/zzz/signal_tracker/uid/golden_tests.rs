@@ -1,4 +1,5 @@
 use super::*;
+type ReferenceBuilder = fn(Vec<Signal>, &BannerCatalog) -> Signals;
 #[test]
 fn all_pool_json_matches_pre_refactor() {
     let catalog = BannerCatalog::default();
@@ -208,7 +209,7 @@ fn drought_histories_preserve_each_pools_soft_and_hard_pity() {
     let catalog = BannerCatalog::default();
     // No pity resets: these lengths actually reach both weapon and character
     // thresholds, unlike the mixed histories used by the annotation fixture.
-    let cases: [(ZzzGachaType, fn(Vec<Signal>, &BannerCatalog) -> Signals); 6] = [
+    let cases: [(ZzzGachaType, ReferenceBuilder); 6] = [
         (ZzzGachaType::Standard, baseline::standard),
         (ZzzGachaType::Special, baseline::special),
         (ZzzGachaType::WEngine, baseline::w_engine),

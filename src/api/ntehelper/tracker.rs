@@ -247,11 +247,11 @@ async fn post_tracker_uid_claim(
         TRACKER_MAX_SELF_CLAIMS,
         &pool,
     )
-            .await?
-        {
-            Ok(claim) => claim,
-            Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
-        };
+    .await?
+    {
+        Ok(claim) => claim,
+        Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
+    };
 
     Ok(HttpResponse::Ok().json(TrackerUidClaimResponse::from(claim)))
 }
@@ -306,17 +306,13 @@ async fn put_tracker_uid_claim(
 
     let user_id = database::ntehelper_tracker::get_tracker_user_id(&username, &pool).await?;
     let claim = match database::ntehelper_tracker::update_tracker_claim(
-        user_id,
-        uid,
-        nickname,
-        region,
-        &pool,
+        user_id, uid, nickname, region, &pool,
     )
-            .await?
-        {
-            Ok(claim) => claim,
-            Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
-        };
+    .await?
+    {
+        Ok(claim) => claim,
+        Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
+    };
 
     Ok(HttpResponse::Ok().json(TrackerUidClaimResponse::from(claim)))
 }
@@ -352,9 +348,9 @@ async fn delete_tracker_uid_claim(
 
     let user_id = database::ntehelper_tracker::get_tracker_user_id(&username, &pool).await?;
     match database::ntehelper_tracker::delete_tracker_uid_profile(user_id, uid, &pool).await? {
-        Ok(deleted_pulls) => Ok(HttpResponse::Ok().json(TrackerUidDeleteResponse {
-            deleted_pulls,
-        })),
+        Ok(deleted_pulls) => {
+            Ok(HttpResponse::Ok().json(TrackerUidDeleteResponse { deleted_pulls }))
+        }
         Err(error) => Ok(HttpResponse::Conflict().body(error.to_string())),
     }
 }
@@ -434,14 +430,13 @@ async fn post_tracker_import(
         Err(error) => return Ok(error.response()),
     };
 
-    let Some(result) =
-        database::ntehelper_tracker::import_tracker_pulls(
-            uid,
-            &pulls,
-            TRACKER_MAX_STORED_RECORDS,
-            &pool,
-        )
-            .await?
+    let Some(result) = database::ntehelper_tracker::import_tracker_pulls(
+        uid,
+        &pulls,
+        TRACKER_MAX_STORED_RECORDS,
+        &pool,
+    )
+    .await?
     else {
         return Ok(HttpResponse::PayloadTooLarge().body("Tracker UID pull limit reached"));
     };
@@ -542,7 +537,7 @@ async fn tracker_response(
             viewer_can_manage: false,
         });
     }
-    let viewer_can_manage = viewer_user_id == claim.owner_user_id;
+    let viewer_can_manage = viewer_owns_claim(viewer_user_id, claim.owner_user_id);
     let pulls = database::ntehelper_tracker::tracker_pulls_for_uid(uid, pool)
         .await?
         .into_iter()
@@ -947,7 +942,10 @@ mod tests {
         };
 
         assert_eq!(error.status, StatusCode::BAD_REQUEST);
-        assert_eq!(error.message, "Import UID does not match target tracker UID");
+        assert_eq!(
+            error.message,
+            "Import UID does not match target tracker UID"
+        );
     }
 
     #[test]
@@ -958,6 +956,27 @@ mod tests {
         ));
 
         assert!(migration.contains("CREATE INDEX ntehelper_tracker_uid_claim_self_owner_idx"));
-        assert!(!migration.contains("CREATE UNIQUE INDEX ntehelper_tracker_uid_claim_self_owner_idx"));
+        assert!(
+            !migration.contains("CREATE UNIQUE INDEX ntehelper_tracker_uid_claim_self_owner_idx")
+        );
+    }
+}
+
+/// Detached claims have no owner; anonymous viewers must not be offered management UI.
+fn viewer_owns_claim(viewer: Option<i64>, owner: Option<i64>) -> bool {
+    viewer.is_some_and(|viewer| owner == Some(viewer))
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::viewer_owns_claim;
+
+    #[test]
+    fn detached_claims_are_never_manageable() {
+        assert!(!viewer_owns_claim(None, None));
+        assert!(!viewer_owns_claim(Some(1), None));
+        assert!(!viewer_owns_claim(None, Some(1)));
+        assert!(!viewer_owns_claim(Some(2), Some(1)));
+        assert!(viewer_owns_claim(Some(1), Some(1)));
     }
 }

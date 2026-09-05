@@ -32,7 +32,7 @@ use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{guard, web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use strum::{Display, EnumString};
 use url::Url;
 use utoipa::{
@@ -44,13 +44,9 @@ use crate::{Difficulty, GachaType, GiGachaType, Language, ZzzGachaType};
 
 type ApiResult<T> = Result<T, Box<dyn std::error::Error>>;
 
-pub(crate) fn gacha_history_forbidden(
-    is_private: bool,
-    authenticated: bool,
-    is_admin: bool,
-    has_verified_connection: bool,
-) -> bool {
-    is_private && !(authenticated && (is_admin || has_verified_connection))
+/// Called only after a private history and an authenticated session are established.
+pub(crate) fn gacha_history_forbidden(is_admin: bool, has_verified_connection: bool) -> bool {
+    !(is_admin || has_verified_connection)
 }
 
 pub(crate) fn validate_import_url(raw_url: &str) -> Result<Url, HttpResponse> {
@@ -103,13 +99,33 @@ struct File {
     file: TempFile,
 }
 
-fn private(ctx: &guard::GuardContext) -> bool {
-    if cfg!(debug_assertions) {
-        return true;
-    }
+// Read once after dotenv initialization so every worker uses the same configured key.
+static API_KEY: LazyLock<Option<String>> = LazyLock::new(|| {
+    env::var("API_KEY")
+        .ok()
+        .filter(|key| !key.trim().is_empty())
+});
 
-    Some(env::var("API_KEY").unwrap().as_bytes())
-        == ctx.head().headers().get("x-api-key").map(|h| h.as_bytes())
+/// Fail before opening the database/server instead of panicking in guarded requests.
+pub(crate) fn validate_private_key() -> anyhow::Result<()> {
+    anyhow::ensure!(
+        cfg!(debug_assertions) || API_KEY.is_some(),
+        "API_KEY must be set in release builds"
+    );
+    Ok(())
+}
+
+/// A missing configured key must never match a missing request header.
+fn private_key_matches(expected: Option<&str>, supplied: Option<&[u8]>) -> bool {
+    expected.is_some_and(|key| !key.is_empty() && Some(key.as_bytes()) == supplied)
+}
+
+fn private(ctx: &guard::GuardContext) -> bool {
+    cfg!(debug_assertions)
+        || private_key_matches(
+            API_KEY.as_deref(),
+            ctx.head().headers().get("x-api-key").map(|h| h.as_bytes()),
+        )
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
@@ -219,11 +235,10 @@ mod gacha_security {
 
         #[test]
         fn access_matrix_is_explicit() {
-            assert!(!gacha_history_forbidden(false, false, false, false));
-            assert!(gacha_history_forbidden(true, false, false, false));
-            assert!(gacha_history_forbidden(true, true, false, false));
-            assert!(!gacha_history_forbidden(true, true, false, true));
-            assert!(!gacha_history_forbidden(true, true, true, false));
+            assert!(gacha_history_forbidden(false, false));
+            assert!(!gacha_history_forbidden(false, true));
+            assert!(!gacha_history_forbidden(true, false));
+            assert!(!gacha_history_forbidden(true, true));
         }
 
         #[actix_web::test]
@@ -269,6 +284,8 @@ mod gacha_security {
             .execute(&pool)
             .await
             .expect("private HSR connection inserts");
+            sqlx::query("INSERT INTO connections (uid, username, verified, private) VALUES ($1, $2, false, false)")
+                .bind(uid).bind(&unverified).execute(&pool).await.expect("unverified HSR connection inserts");
 
             let app = aw_test::init_service(
                 App::new()
@@ -282,6 +299,7 @@ mod gacha_security {
                         .build(),
                     )
                     .route("/test-login/{username}", web::post().to(test_login))
+                    .configure(super::super::warps::configure)
                     .configure(super::super::gi::configure)
                     .configure(super::super::zzz::configure),
             )
@@ -398,6 +416,48 @@ mod gacha_security {
                 assert_eq!(admin_response.status(), StatusCode::OK);
             }
 
+            // HSR intentionally requires its own verified connection, including for admins.
+            let hsr_login = aw_test::call_service(
+                &app,
+                aw_test::TestRequest::post()
+                    .uri(&format!("/test-login/{hsr_owner}"))
+                    .to_request(),
+            )
+            .await;
+            let hsr_cookie = hsr_login.response().cookies().next().unwrap().into_owned();
+            let uri = format!("/api/warps/{uid}");
+            for cookie in [
+                None,
+                Some(unverified_cookie),
+                Some(owner_cookie),
+                Some(admin_cookie),
+            ] {
+                let request = aw_test::TestRequest::get().uri(&uri);
+                let request = if let Some(cookie) = cookie {
+                    request.cookie(cookie)
+                } else {
+                    request
+                };
+                assert_eq!(
+                    aw_test::call_service(&app, request.to_request())
+                        .await
+                        .status(),
+                    StatusCode::FORBIDDEN
+                );
+            }
+            assert_eq!(
+                aw_test::call_service(
+                    &app,
+                    aw_test::TestRequest::get()
+                        .uri(&uri)
+                        .cookie(hsr_cookie)
+                        .to_request()
+                )
+                .await
+                .status(),
+                StatusCode::OK
+            );
+
             for username in [&owner, &unverified, &admin, &hsr_owner] {
                 sqlx::query("DELETE FROM users WHERE username = $1")
                     .bind(username)
@@ -421,5 +481,20 @@ mod gacha_security {
                 .await
                 .expect("HSR profile cleanup succeeds");
         }
+    }
+}
+
+#[cfg(test)]
+mod private_key_tests {
+    use super::private_key_matches;
+
+    #[test]
+    fn missing_configuration_and_headers_never_authorize() {
+        assert!(!private_key_matches(None, None));
+        assert!(!private_key_matches(None, Some(b"key")));
+        assert!(!private_key_matches(Some(""), Some(b"")));
+        assert!(!private_key_matches(Some("key"), None));
+        assert!(!private_key_matches(Some("key"), Some(b"wrong")));
+        assert!(private_key_matches(Some("key"), Some(b"key")));
     }
 }

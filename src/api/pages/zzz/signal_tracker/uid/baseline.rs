@@ -1,3 +1,5 @@
+// Preserve original conversion/borrow syntax in this frozen reference implementation.
+#![allow(clippy::useless_conversion, clippy::needless_borrow)]
 #![allow(unused_variables)]
 //! Frozen tracker JSON reference extracted from 49daa02, before the table rewrite.
 use super::*;

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO scores_achievement(uid, timestamp) VALUES ($1, $2) ON CONFLICT (uid) DO UPDATE SET timestamp = EXCLUDED.timestamp",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de4a4140e982507f980cb711529e27611b0a5492e09f4e519fafb32aa333cca6"
+}

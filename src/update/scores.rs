@@ -110,7 +110,10 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
-    if let Some(_) = mihomo::update_and_get(uid, Language::En, pool).await? {
+    if mihomo::update_and_get(uid, Language::En, pool)
+        .await?
+        .is_some()
+    {
         return Ok(());
     }
 

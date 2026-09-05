@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gi_achievements SET version = $2, difficulty = $3, comment = $4, impossible = $5, timegated = $6 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "afc3ac64231b16adbd879b4f4892877afeb02582a25ac5fc2a2f68d264adc24f"
+}

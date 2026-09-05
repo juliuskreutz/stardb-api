@@ -76,6 +76,14 @@ async fn chronicled(pool: &PgPool) -> Result<()> {
     refresh(crate::GiGachaType::Chronicled, pool).await
 }
 
+async fn refresh(kind: crate::GiGachaType, pool: &PgPool) -> Result<()> {
+    let stats = calculate_stats(database::gi::wishes_stats::get_all_by_pool(kind, pool).await?);
+    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+        database::gi::wishes_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,12 +195,4 @@ mod tests {
             .await
             .unwrap();
     }
-}
-
-async fn refresh(kind: crate::GiGachaType, pool: &PgPool) -> Result<()> {
-    let stats = calculate_stats(database::gi::wishes_stats::get_all_by_pool(kind, pool).await?);
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::gi::wishes_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
-    }
-    Ok(())
 }

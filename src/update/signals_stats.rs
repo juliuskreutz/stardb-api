@@ -102,6 +102,16 @@ async fn bangboo(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::Bangboo, pool).await
 }
 
+async fn refresh(kind: crate::ZzzGachaType, pool: &PgPool) -> Result<()> {
+    let (stats, ineligible) =
+        calculate_stats(database::zzz::signals_stats::get_all_by_pool(kind, pool).await?);
+    database::zzz::signals_stats_global::delete_bulk_by_pool(kind, &ineligible, pool).await?;
+    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
+        database::zzz::signals_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,14 +268,4 @@ mod tests {
             .await
             .unwrap();
     }
-}
-
-async fn refresh(kind: crate::ZzzGachaType, pool: &PgPool) -> Result<()> {
-    let (stats, ineligible) =
-        calculate_stats(database::zzz::signals_stats::get_all_by_pool(kind, pool).await?);
-    database::zzz::signals_stats_global::delete_bulk_by_pool(kind, &ineligible, pool).await?;
-    for batch in stats.chunks(UPDATE_BATCH_SIZE) {
-        database::zzz::signals_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
-    }
-    Ok(())
 }
