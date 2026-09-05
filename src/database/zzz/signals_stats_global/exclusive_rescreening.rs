@@ -28,7 +28,7 @@ pub async fn set_bulk(stats: &[DbSignalsStatGlobal], pool: &PgPool) -> Result<()
     Ok(())
 }
 
-/// Fetches one UID's percentile row, if the history is eligible.
+/// Fetches one UID's stored percentile row; eligibility is enforced by refresh jobs.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatGlobal>> {
     Ok(sqlx::query_file_as!(
         DbSignalsStatGlobal,

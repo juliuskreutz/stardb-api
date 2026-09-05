@@ -12,10 +12,12 @@ use crate::api::ApiResult;
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_renew);
 }
@@ -30,6 +32,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[post("/api/users/auth/renew")]
+/// Rotates the authenticated session key and returns its username.
 async fn post_renew(
     session: Session,
     SessionUser(username): SessionUser,

@@ -1,3 +1,5 @@
+//! Localized Genshin pull history with verified-owner or administrator access to private UIDs.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -39,6 +41,8 @@ struct Wish {
 
 impl TryFrom<database::gi::wishes::DbWish> for Wish {
     type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
     fn try_from(wish: database::gi::wishes::DbWish) -> anyhow::Result<Self> {
         let r#type = if matches!(wish.item, StoredItem::Character(_)) {
             WishType::Character
@@ -66,10 +70,12 @@ enum WishType {
     Weapon,
 }
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_gi_wishes);
 }
@@ -84,6 +90,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/gi/wishes/{uid}")]
+/// Returns localized GI histories after private-UID authorization.
+/// A verified owner or administrator may read private history; invalid rows
+/// or missing display names fail the response rather than producing partial data.
 async fn get_gi_wishes(
     session: Session,
     uid: web::Path<i32>,

@@ -157,11 +157,15 @@ impl<T: Send + 'static> ImportJobStore<T> {
         self.jobs.lock().await.get(&id).map(|job| job.info.clone())
     }
 
-    /// First completion starts the retention window; repeats never extend it.
+    /// Marks store membership complete and retains the job for 60 seconds from this first call.
+    /// Does not mutate T's public status; callers set it before completion. Repeats
+    /// neither extend retention nor prevent a new job from starting for the UID.
     pub(crate) async fn complete(&self, id: ImportJobId) {
         self.complete_with_retention(id, std::time::Duration::from_secs(60))
             .await;
     }
+    /// Marks a job finished under the store lock and schedules eviction by opaque ID.
+    /// Repeated completion is a no-op, so it cannot extend retention or remove a newer UID job.
     async fn complete_with_retention(&self, id: ImportJobId, retention: std::time::Duration) {
         let mut jobs = self.jobs.lock().await;
         let Some(job) = jobs.get_mut(&id) else {

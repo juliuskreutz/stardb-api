@@ -32,6 +32,7 @@ pub(crate) enum PullItem {
 }
 
 impl PullItem {
+    /// Returns the stored item ID without inferring or changing its item kind.
     pub(crate) fn id(self) -> i32 {
         match self {
             Self::Character(id)
@@ -359,6 +360,7 @@ pub(crate) enum PullGame {
 }
 
 impl From<PullPool> for PullGame {
+    /// Drops the pool variant while preserving its game namespace.
     fn from(pool: PullPool) -> Self {
         match pool {
             PullPool::Hsr(_) => Self::Hsr,
@@ -368,6 +370,7 @@ impl From<PullPool> for PullGame {
     }
 }
 
+/// Checks game and pool item-kind compatibility without consulting numeric ID ranges.
 fn item_is_valid(pool: PullPool, item: PullItem) -> bool {
     match pool {
         PullPool::Hsr(GachaType::Lc | GachaType::CollabLc) => {
@@ -386,6 +389,7 @@ fn item_is_valid(pool: PullPool, item: PullItem) -> bool {
     }
 }
 
+/// Assigns a deterministic game-prefixed sort key to each pool.
 fn pool_order(pool: PullPool) -> i32 {
     match pool {
         PullPool::Hsr(pool) => pool.id(),

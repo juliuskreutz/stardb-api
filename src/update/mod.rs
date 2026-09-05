@@ -1,3 +1,5 @@
+//! Background refresh entry points and a shared driver with completion-based retry delays.
+
 pub mod achievements_percent;
 pub mod dimbreath;
 pub mod gi_achievements_percent;

@@ -52,3 +52,22 @@ Commit `.sqlx` changes together with their queries. Clippy CI runs offline check
 and linting only; database tests and SQLx schema verification run locally with
 these Docker commands. To run checks against a different test database, set
 `DATABASE_URL` explicitly and run `scripts/verify-gacha.sh`; tests write fixture data.
+
+## Code documentation
+
+Use Rustdoc's `//!` comments to explain a module's responsibility and `///` comments
+for production types, functions, and methods. Begin with a concise contract, then
+explain relevant input assumptions, return values, side effects, and error behavior.
+Use `# Errors` or `# Panics` when callers need to handle a non-obvious failure mode.
+Keep ordinary `//` comments near logic whose ordering or invariant matters, such as
+transaction boundaries, import cutoffs, provenance rules, or game-specific pity resets.
+
+Generate searchable documentation, including internal helpers, without a database:
+
+```sh
+SQLX_OFFLINE=true cargo doc --no-deps --document-private-items --open
+```
+
+Keep contracts accurate when implementation changes. Document why an invariant or
+special case exists rather than narrating each line; test names and assertions
+usually explain routine test helpers without additional Rustdoc.

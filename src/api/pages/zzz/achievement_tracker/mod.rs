@@ -27,10 +27,12 @@ lazy_static::lazy_static! {
 #[openapi(paths(get_zzz_achievement_tracker))]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this game's tracker routes and reuse its process-wide, type-distinct cache.
 pub fn configure(
     cfg: &mut web::ServiceConfig,
     pool: PgPool,
@@ -77,6 +79,7 @@ struct Achievement {
 }
 
 impl From<database::zzz::achievements::DbAchievement> for Achievement {
+    /// Convert localized catalog metadata to this game's tracker payload; impossible entries report zero completion percent.
     fn from(db_achievement: database::zzz::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
@@ -106,17 +109,21 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
 }
 
 impl core::Item for Achievement {
+    /// Return the ID used by shared completion/favorite annotation.
     fn id(&self) -> i32 {
         self.id
     }
+    /// Expose this game's reward field to the shared tracker totals.
     fn currency(&self) -> i32 {
         self.currency
     }
+    /// Store the rendered series index in this game's achievement payload.
     fn set_series_index(&mut self, index: usize) {
         self.series_index = index;
     }
 }
 
+/// Load this game's persisted cache and start refreshes only when tracker updates are enabled.
 pub fn cache(
     pool: PgPool,
     app_config: web::Data<Arc<AppConfig>>,
@@ -143,6 +150,7 @@ pub fn cache(
     achievement_tracker_cache
 }
 
+/// Refresh every language before publishing this game's cache, preserving its explicit visibility policy.
 async fn update_achievement_tracker(
     achievement_tracker_cache: web::Data<ZzzAchievementTrackerCache>,
     pool: PgPool,
@@ -179,6 +187,8 @@ async fn update_achievement_tracker(
     )
 )]
 #[get("/api/pages/zzz/achievement-tracker", guard = "private")]
+/// Clone the requested language cache and overlay the signed-in user's stored completion/favorite IDs.
+/// Requires a populated language entry from disk or a completed background refresh.
 async fn get_zzz_achievement_tracker(
     session: Session,
     language_params: web::Query<LanguageParams>,

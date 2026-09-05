@@ -11,10 +11,12 @@ use crate::api::ApiResult;
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_username);
 }
@@ -29,6 +31,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/username")]
+/// Returns the username provided by the authenticated-session extractor.
 async fn get_username(SessionUser(username): SessionUser) -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().json(username))
 }

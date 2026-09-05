@@ -12,10 +12,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_user_uid_private)
         .service(delete_user_uid_private);
@@ -31,6 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/uids/{uid}/private")]
+/// Makes the caller's HSR connection private; an unverified or missing claim returns 403.
 async fn put_user_uid_private(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,
@@ -62,6 +65,7 @@ async fn put_user_uid_private(
     )
 )]
 #[delete("/api/users/me/uids/{uid}/private")]
+/// Clears privacy on the caller's verified HSR connection, otherwise returning 403.
 async fn delete_user_uid_private(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,

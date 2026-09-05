@@ -1,3 +1,5 @@
+//! User routes and shared session extraction; protected account endpoints reject absent usernames.
+
 mod auth;
 mod me;
 
@@ -8,6 +10,7 @@ use utoipa::OpenApi;
 #[openapi()]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(auth::openapi());
@@ -15,6 +18,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(auth::configure).configure(me::configure);
 }
@@ -24,6 +28,7 @@ pub(crate) struct SessionUser(pub String);
 impl actix_web::FromRequest for SessionUser {
     type Error = actix_web::Error;
     type Future = std::future::Ready<Result<Self, Self::Error>>;
+    /// Extracts a string session username; missing or malformed state returns an empty 400.
     fn from_request(req: &actix_web::HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
         use actix_session::SessionExt;
         std::future::ready(match req.get_session().get::<String>("username") {
@@ -37,7 +42,8 @@ impl actix_web::FromRequest for SessionUser {
     }
 }
 
-/// HSR file import authorization, kept at the endpoint boundary.
+/// Returns `(is_admin, may_import)` for an HSR UID without mutating its connection.
+/// Admins bypass connection lookup; other users require a verified claim and database errors propagate.
 pub(crate) async fn verified_or_admin(
     username: &str,
     uid: i32,

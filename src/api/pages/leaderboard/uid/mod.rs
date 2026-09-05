@@ -12,10 +12,12 @@ use crate::{
 #[openapi(paths(get_leaderboard_entry))]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_leaderboard_entry);
 }
@@ -30,6 +32,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/pages/leaderboard/{uid}", guard = "private")]
+/// Returns one UID's score with regional totals after invoking mihomo profile seeding.
+/// An invalid UID returns 400 and an absent score returns 404; profile fetches may
+/// update the cache and database before the leaderboard is read.
 async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,

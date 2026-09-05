@@ -1,3 +1,5 @@
+//! HSR profile responses combining mihomo data, achievement ranking, and pull collections.
+
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -16,10 +18,12 @@ use crate::{
 #[openapi(paths(get_profile, update_profile))]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_profile).service(update_profile);
 }
@@ -70,6 +74,7 @@ struct LightCone {
 }
 
 impl From<database::warps::DbCharacterCount> for Character {
+    /// Maps catalog copy counts into the profile collection’s wire fields.
     fn from(db_character: database::warps::DbCharacterCount) -> Self {
         Character {
             id: db_character.id,
@@ -85,6 +90,7 @@ impl From<database::warps::DbCharacterCount> for Character {
 }
 
 impl From<database::warps::DbLightConeCount> for LightCone {
+    /// Maps catalog copy counts into the profile collection’s wire fields.
     fn from(db_light_cone: database::warps::DbLightConeCount) -> Self {
         LightCone {
             id: db_light_cone.id,
@@ -108,6 +114,8 @@ impl From<database::warps::DbLightConeCount> for LightCone {
     )
 )]
 #[get("/api/pages/profiles/{uid}", guard = "private")]
+/// Returns the HSR profile after enforcing private-UID ownership.
+/// Missing mihomo or achievement-score data uses the existing 500 response.
 async fn get_profile(
     session: Session,
     uid: web::Path<i32>,
@@ -153,6 +161,8 @@ async fn get_profile(
     )
 )]
 #[put("/api/pages/profiles/{uid}", guard = "private")]
+/// Refreshes mihomo profile data after the route’s API-key and privacy checks.
+/// Missing profile/ranking data uses the existing 500 response.
 async fn update_profile(
     session: Session,
     uid: web::Path<i32>,
@@ -187,6 +197,10 @@ async fn update_profile(
     Ok(HttpResponse::Ok().json(profile))
 }
 
+/// Combines mihomo data and achievement ranks with counts from every HSR pool.
+/// The update flag forces the upstream refresh path; otherwise mihomo applies
+/// its cache policy. Returns None if profile or score data is missing, and
+/// propagates upstream/database errors. Collection totals include collab pulls.
 async fn get_profile_json(
     update: bool,
     uid: i32,

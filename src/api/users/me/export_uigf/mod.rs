@@ -1,3 +1,6 @@
+//! UIGF v4.1 exports with game-specific item labels, pool IDs, and server-local timestamps.
+//! Each game keeps its own conversion policy while registry dispatch enumerates its pools.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -21,10 +24,12 @@ use strum::IntoEnumIterator;
 )]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_export_uigf);
 }
@@ -75,6 +80,8 @@ struct UIGFListItem {
     id: String,
 }
 
+/// Returns the game’s fixed server offset in hours inferred from the UID prefix.
+/// Unknown prefixes retain the existing UTC+8 fallback; daylight saving is not applied.
 fn get_timezone_offset(uid: i32, game: &str) -> i32 {
     let uid_str = uid.to_string();
     let first_char = uid_str.chars().next().unwrap_or('0');
@@ -101,12 +108,16 @@ fn get_timezone_offset(uid: i32, game: &str) -> i32 {
     }
 }
 
+/// Formats a UTC instant in the selected fixed server offset without a timezone suffix.
+/// The offset must be valid for chrono; callers use the bounded server-offset mapping.
 fn format_uigf_time(chrono_datetime: chrono::DateTime<Utc>, offset_hours: i32) -> String {
     let offset = FixedOffset::east_opt(offset_hours * 3600).unwrap();
     let local_time = chrono_datetime.with_timezone(&offset);
     local_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+/// Converts a validated HSR row using UIGF’s exact Character/Light Cone labels.
+/// Keeps nullable names, string IDs, and the caller’s pool ID and server offset.
 fn warp_to_uigf_item(
     warp: database::warps::DbWarp,
     gacha_type: &str,
@@ -137,6 +148,8 @@ fn warp_to_uigf_item(
     }
 }
 
+/// Converts a validated ZZZ row using UIGF’s exact Agents/W-Engines/Bangboo labels.
+/// Keeps nullable names and emits the caller’s current pool ID, not a legacy alias.
 fn signal_to_uigf_item(
     signal: database::zzz::signals::DbSignal,
     gacha_type: &str,
@@ -167,6 +180,8 @@ fn signal_to_uigf_item(
     }
 }
 
+/// Converts a validated GI row using UIGF’s Character/Weapon labels.
+/// Keeps both gacha-type fields explicit and formats time in the caller’s server offset.
 fn wish_to_uigf_item(
     wish: database::gi::wishes::DbWish,
     gacha_type: &str,
@@ -207,6 +222,9 @@ fn wish_to_uigf_item(
     )
 )]
 #[get("/api/users/me/export-uigf")]
+/// Exports all connected histories in UIGF v4.1; requires a session username.
+/// Sorts each UID’s list by formatted time then string ID, preserving insertion
+/// order for ties, and omits empty UID lists. Read/conversion errors abort the export.
 async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
@@ -417,6 +435,7 @@ fn hsr_export_pools() -> impl Iterator<Item = GachaType> {
         .chain(GachaType::iter().filter(|kind| *kind != GachaType::Departure))
 }
 
+/// Returns the canonical UIGF pool ID for each Genshin pool; exports emit no legacy aliases.
 fn gi_uigf_type(kind: GiGachaType) -> &'static str {
     match kind {
         GiGachaType::Beginner => "100",

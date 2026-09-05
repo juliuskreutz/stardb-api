@@ -1,3 +1,5 @@
+//! ZZZ tracker payloads, including both 2026 channels and the S-rank/A-rank display reset rule.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -20,10 +22,12 @@ use crate::{
 #[openapi(paths(get_signal_tracker))]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_signal_tracker);
 }
@@ -60,6 +64,8 @@ enum WinType {
 
 impl TryFrom<database::zzz::signals::DbSignal> for Signal {
     type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
     fn try_from(signal: database::zzz::signals::DbSignal) -> anyhow::Result<Self> {
         let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Agent
@@ -141,6 +147,8 @@ struct GlobalStats {
     )
 )]
 #[get("/api/pages/zzz/signal-tracker/{uid}", guard = "private")]
+/// Builds an authorized ZZZ tracker response from localized history and stored stats.
+/// Database and required-label failures propagate; every registered channel is included.
 async fn get_signal_tracker(
     session: Session,
     uid: web::Path<i32>,
@@ -296,6 +304,8 @@ struct Pity {
 impl Pity {
     // Counters are completed pulls since the last reset. The threshold therefore
     // describes the next pull (for example, 89 elapsed pulls imply 100% at pull 90).
+    /// Calculates next-pull percentages from completed pulls since each rarity reset.
+    /// The hard thresholds apply before the next pull; configured caps describe the UI model.
     fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
         (
             if low < self.hard_4 {
@@ -394,6 +404,9 @@ fn build_set(rows: Vec<Signal>, kind: ZzzGachaType, catalog: &BannerCatalog) -> 
     result.count = result.signals.len();
     result
 }
+/// Attaches available local and global stats for the selected pool.
+/// Missing local stats leave the set’s existing default; missing global stats
+/// remain absent. Database errors propagate without substituting zero ranks.
 async fn set_stats(
     set: &mut Signals,
     kind: ZzzGachaType,

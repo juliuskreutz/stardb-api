@@ -19,10 +19,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import_zzz_achievements);
 }
@@ -63,6 +65,8 @@ struct Achievement {
     )
 )]
 #[post("/api/import-zzz-achievements")]
+/// Require an administrator and import CSV metadata with one replacement statement per row.
+/// Rows commit individually; a later parse/database error does not roll back earlier rows.
 async fn import_zzz_achievements(
     session: Session,
     file: MultipartForm<File>,

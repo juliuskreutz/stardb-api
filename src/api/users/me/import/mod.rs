@@ -1,3 +1,5 @@
+//! Transactional replacement of the signed-in user's supplied achievement lists across games.
+
 use actix_session::Session;
 use actix_web::{put, web, HttpResponse, Responder};
 use serde::Deserialize;
@@ -16,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import);
 }
@@ -41,6 +45,8 @@ struct ImportData {
     )
 )]
 #[put("/api/users/me/import")]
+/// Replace supplied HSR/GI completion lists in one transaction for the signed-in user.
+/// Omitted games remain untouched; an unknown ID in either game rolls back the complete import.
 async fn import(
     session: Session,
     import_data: web::Json<ImportData>,

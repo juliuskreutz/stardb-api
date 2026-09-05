@@ -5,6 +5,7 @@ use sqlx::PgPool;
 
 use crate::database;
 
+/// Schedule completion-percent refreshes hourly, retrying failed updates after thirty seconds.
 pub async fn spawn(pool: PgPool) {
     super::spawn_periodic(
         "zzz_achievements_percent",
@@ -14,6 +15,7 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
+/// Rebuild this game's persisted achievement percentages and propagate database errors.
 async fn update(pool: PgPool) -> Result<()> {
     database::zzz::achievements_percent::update(&pool).await?;
 

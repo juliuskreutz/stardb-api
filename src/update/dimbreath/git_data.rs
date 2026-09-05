@@ -1,3 +1,5 @@
+//! Shared cached-repository synchronization with checked exit status and token-redacted errors.
+
 use std::{env, fs, path::Path};
 
 use anyhow::{Context as _, Result};
@@ -5,7 +7,10 @@ use async_process::Command;
 
 const GITHUB_DATA_PAT_ENV: &str = "GITHUB_DATA_PAT";
 
-/// Syncs a cached data repo and returns true when downstream import work should rerun.
+/// Sync a cached repository and report whether downstream import work should rerun.
+/// Create the cache root, clone missing repositories, or replace caches whose origin no
+/// longer matches. Git failures propagate with credentials redacted from diagnostics;
+/// callers must pass a disposable data-cache directory, not a development checkout.
 pub async fn sync_data_repo(data_root: &str, repo_url: &str, data_dir: &str) -> Result<bool> {
     fs::create_dir_all(data_root)?;
 
@@ -44,6 +49,7 @@ pub async fn sync_data_repo(data_root: &str, repo_url: &str, data_dir: &str) -> 
     Ok(changed)
 }
 
+/// Run git in the cache directory and reject nonzero status with credential-redacted diagnostics.
 async fn git_output(args: &[&str], current_dir: &Path) -> Result<String> {
     let output = git_command()
         .args(args)
@@ -79,10 +85,12 @@ async fn git_output(args: &[&str], current_dir: &Path) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
+/// Construct the git subprocess used for cache synchronization.
 fn git_command() -> Command {
     Command::new("git")
 }
 
+/// Add configured GitHub data credentials to HTTPS URLs; leave local repository paths unchanged.
 fn remote_url(repo_url: &str) -> String {
     if let Ok(token) = env::var(GITHUB_DATA_PAT_ENV) {
         let token = token.trim();
@@ -95,6 +103,7 @@ fn remote_url(repo_url: &str) -> String {
     repo_url.to_string()
 }
 
+/// Remove HTTPS user information before comparing cached and configured repository identities.
 fn strip_auth(repo_url: &str) -> String {
     let Some(rest) = repo_url.strip_prefix("https://") else {
         return repo_url.to_string();
@@ -106,6 +115,7 @@ fn strip_auth(repo_url: &str) -> String {
     }
 }
 
+/// Remove the configured data token from strings before surfacing command diagnostics.
 fn redact(value: String) -> String {
     let Ok(token) = env::var(GITHUB_DATA_PAT_ENV) else {
         return value;

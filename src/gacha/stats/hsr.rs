@@ -13,6 +13,9 @@ use crate::{
 };
 
 /// Recalculates and upserts every HSR stat row for one UID.
+/// Uses one banner snapshot and the caller’s connection without beginning or
+/// committing a transaction. A read/decode/upsert failure propagates immediately;
+/// import callers wrap all affected pools in their transaction for atomicity.
 pub(crate) async fn recalculate_hsr_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -34,6 +37,7 @@ async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCat
 }
 
 /// Calculates permanent-pool pity averages.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let warps = database::warps::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -54,6 +58,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
 }
 
 /// Calculates character-event pity, win rate, and confirmed streaks.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_special(
     uid: i32,
     banners: &BannerCatalog,
@@ -85,6 +90,7 @@ async fn calculate_stats_special(
 }
 
 /// Calculates Light Cone-event pity, win rate, and confirmed streaks.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_lc(
     uid: i32,
     banners: &BannerCatalog,
@@ -116,6 +122,7 @@ async fn calculate_stats_lc(
 }
 
 /// Calculates collab character-event stats independently from normal banners.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_collab(
     uid: i32,
     banners: &BannerCatalog,
@@ -147,6 +154,7 @@ async fn calculate_stats_collab(
 }
 
 /// Calculates collab Light Cone stats independently from normal banners.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_collab_lc(
     uid: i32,
     banners: &BannerCatalog,

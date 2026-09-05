@@ -1,3 +1,7 @@
+//! PostgreSQL persistence modules, partitioned by game and domain.
+//! Query-file macros use checked SQLx metadata; transactional helpers accept a
+//! caller-owned connection when related writes must commit or roll back together.
+
 pub mod achievement_scores;
 pub mod achievement_series;
 pub mod achievement_series_text;

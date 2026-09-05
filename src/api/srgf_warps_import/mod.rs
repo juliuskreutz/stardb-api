@@ -19,10 +19,12 @@ use crate::{api::ApiResult, database, mihomo, GachaType};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_srgf_warps_import);
 }
@@ -70,6 +72,9 @@ struct ParsedWarp {
     security(("admin" = []))
 )]
 #[post("/api/srgf-warps-import")]
+/// Imports SRGF JSON as one unofficial HSR batch after admin or UID verification.
+/// Non-admin pools stop at their first overlap; invalid JSON, IDs, times or batches
+/// return 400. Pull writes and stat recalculation share one transaction.
 async fn post_srgf_warps_import(
     session: Session,
     data: web::Json<Data>,

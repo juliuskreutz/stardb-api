@@ -18,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
 }
@@ -49,6 +51,9 @@ pub enum UserLogin {
     )
 )]
 #[post("/api/users/auth/login")]
+/// Authenticates a normalized username/password pair or consumes a one-time UUID token.
+/// Invalid credentials and malformed or unknown tokens return 400; successful login
+/// records the username in the session and storage failures propagate.
 async fn login(
     session: Session,
     user_login: web::Json<UserLogin>,

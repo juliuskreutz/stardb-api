@@ -1,3 +1,6 @@
+//! HSR pull persistence with explicit write columns and validated read models.
+//! The pool registry preserves public module paths and routes reads/writes by enum.
+
 use crate::gacha::imports::PullItem;
 
 use anyhow::Result;
@@ -31,6 +34,7 @@ struct RawDbWarp {
 }
 impl TryFrom<RawDbWarp> for DbWarp {
     type Error = anyhow::Error;
+    /// Validates exactly one stored item column and requires catalog rarity before exposing a typed row.
     fn try_from(r: RawDbWarp) -> anyhow::Result<Self> {
         // Check exactly one column before choosing an item: coalescing first would
         // hide ambiguous rows. Column identity also supports synthetic numeric IDs.
@@ -66,6 +70,7 @@ struct RawDbWarpInfo {
 }
 impl TryFrom<RawDbWarpInfo> for DbWarpInfo {
     type Error = anyhow::Error;
+    /// Validates exactly one stored item column and requires catalog rarity before exposing a typed row.
     fn try_from(r: RawDbWarpInfo) -> anyhow::Result<Self> {
         let item = match (r.character, r.light_cone) {
             (Some(id), None) => PullItem::Character(id),
@@ -94,6 +99,8 @@ pub struct SetAll {
     pub official: Vec<bool>,
 }
 
+/// Returns UIDs with stored pulls and no private connection, for sitemap discovery.
+/// The query spans every pool; result order is unspecified.
 pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
     Ok(sqlx::query_file!("sql/warps/get_uids.sql")
         .fetch_all(pool)
@@ -114,6 +121,8 @@ pub struct DbCharacterCount {
     pub count: Option<i64>,
 }
 
+/// Counts character copies across all HSR pools, including collab, with localized labels.
+/// Rows are ordered by rarity descending, then item ID descending.
 pub async fn get_characters_count_by_uid(
     uid: i32,
     language: Language,
@@ -140,6 +149,8 @@ pub struct DbLightConeCount {
     pub count: Option<i64>,
 }
 
+/// Counts Light Cone copies across all HSR pools, including collab, with localized labels.
+/// Rows are ordered by rarity descending, then item ID descending.
 pub async fn get_light_cones_count_by_uid(
     uid: i32,
     language: Language,
@@ -163,6 +174,10 @@ pub async fn get_light_cones_count_by_uid(
 // share the same Rust type, so swapping them would compile but corrupt identity.
 macro_rules! pool_fn {
     (set_all, $sql:literal, $item_column:ident) => {
+        /// Persists normalized parallel arrays through the supplied connection.
+        /// Inserts new pulls or upgrades unofficial records to official data; existing
+        /// official rows are preserved. Returns affected rows and leaves commit ownership
+        /// to the caller. Arrays must have matching lengths and explicit item columns.
         pub async fn set_all(
             set_all: &SetAll,
             connection: &mut PgConnection,
@@ -183,6 +198,9 @@ macro_rules! pool_fn {
         }
     };
     (get_by_uid, $sql:literal, $item_column:ident) => {
+        /// Reads localized history in ascending pull-ID order.
+        /// Invalid identity or absent rarity fails the read; nullable names are left
+        /// for each consumer to handle according to its output contract.
         pub async fn get_by_uid(
             uid: i32,
             language: Language,
@@ -198,6 +216,9 @@ macro_rules! pool_fn {
         }
     };
     (get_infos_by_uid, $sql:literal, $item_column:ident) => {
+        /// Reads label-free rows in ascending pull-ID order for stat scans.
+        /// Invalid item identity or missing catalog rarity fails the whole read; the
+        /// supplied executor may participate in the caller’s import transaction.
         pub async fn get_infos_by_uid<'e, E>(
             uid: i32,
             executor: E,
@@ -214,6 +235,7 @@ macro_rules! pool_fn {
         }
     };
     (get_count_by_uid, $sql:literal, $item_column:ident) => {
+        /// Counts all pulls for this UID in the selected pool; an empty history yields zero.
         pub async fn get_count_by_uid(uid: i32, pool: &PgPool) -> anyhow::Result<i64> {
             Ok(sqlx::query_file!($sql, uid)
                 .fetch_one(pool)
@@ -223,6 +245,7 @@ macro_rules! pool_fn {
         }
     };
     (get_earliest_timestamp_by_uid, $sql:literal, $item_column:ident) => {
+        /// Returns the minimum stored timestamp in this pool, or None for an empty history.
         pub async fn get_earliest_timestamp_by_uid(
             uid: i32,
             pool: &PgPool,
@@ -231,6 +254,7 @@ macro_rules! pool_fn {
         }
     };
     (get_latest_timestamp_by_uid, $sql:literal, $item_column:ident) => {
+        /// Returns the maximum stored timestamp in this pool, or None for an empty history.
         pub async fn get_latest_timestamp_by_uid(
             uid: i32,
             pool: &PgPool,
@@ -239,6 +263,7 @@ macro_rules! pool_fn {
         }
     };
     (delete_all, $sql:literal, $item_column:ident) => {
+        /// Deletes every pull for this UID from this pool, propagating database failures.
         pub async fn delete_all(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
             sqlx::query_file!($sql, uid).execute(pool).await?;
 
@@ -246,6 +271,7 @@ macro_rules! pool_fn {
         }
     };
     (delete_unofficial, $sql:literal, $item_column:ident) => {
+        /// Deletes only unofficial pulls for this UID; official provenance is preserved.
         pub async fn delete_unofficial(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
             sqlx::query_file!($sql, uid).execute(pool).await?;
 
@@ -263,10 +289,17 @@ use sqlx::PgConnection;
 use crate::Language;
 $(pool_fn!($function, $sql, $item);)*
 })*
+/// Routes a normalized batch to its exact pool without committing the caller’s connection.
+/// The selected wrapper preserves official-row precedence and returns affected rows.
 pub async fn set_all_by_pool(kind:crate::GachaType,set_all: &SetAll, connection: &mut sqlx::PgConnection)->anyhow::Result<u64> { match kind { $(crate::GachaType::$variant => $module::set_all(set_all, connection).await,)* } }
+/// Routes a localized history read to its exact pool in ascending pull-ID order.
+/// Invalid stored identity or missing rarity is an error; labels remain optional.
 pub async fn get_by_uid_by_pool(kind:crate::GachaType,uid:i32, language:crate::Language, pool:&PgPool)->anyhow::Result<Vec<DbWarp>> { match kind { $(crate::GachaType::$variant => $module::get_by_uid(uid,language,pool).await,)* } }
+/// Routes a minimum-timestamp lookup; returns None when this UID has no pulls in the pool.
 pub async fn get_earliest_timestamp_by_uid_by_pool(kind:crate::GachaType,uid:i32,pool:&PgPool)->anyhow::Result<Option<DateTime<Utc>>> { match kind { $(crate::GachaType::$variant => $module::get_earliest_timestamp_by_uid(uid,pool).await,)* } }
+/// Routes a maximum-timestamp lookup; returns None when this UID has no pulls in the pool.
 pub async fn get_latest_timestamp_by_uid_by_pool(kind:crate::GachaType,uid:i32,pool:&PgPool)->anyhow::Result<Option<DateTime<Utc>>> { match kind { $(crate::GachaType::$variant => $module::get_latest_timestamp_by_uid(uid,pool).await,)* } }
+/// Routes a pull count to the exact pool, including empty histories and collab pools.
 pub async fn get_count_by_uid_by_pool(kind:crate::GachaType,uid:i32,pool:&PgPool)->anyhow::Result<i64> { match kind { $(crate::GachaType::$variant => $module::get_count_by_uid(uid,pool).await,)* } }
 };
 }

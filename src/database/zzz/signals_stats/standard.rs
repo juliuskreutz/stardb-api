@@ -1,3 +1,5 @@
+//! ZZZ per-UID pity and win-stat persistence; count reads feed population ranking. This module targets the standard pool.
+
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
@@ -9,6 +11,8 @@ pub struct DbSignalsStatStandard {
     pub luck_s: f64,
 }
 
+/// Upserts one UID’s calculated stats through the supplied executor.
+/// The caller owns transaction commit/rollback; database failures propagate.
 pub async fn set<'e, E>(stat: &DbSignalsStatStandard, executor: E) -> Result<()>
 where
     E: Executor<'e, Database = Postgres>,
@@ -25,6 +29,7 @@ where
     Ok(())
 }
 
+/// Returns this UID’s stored local stats, or None before recalculation.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatStandard>> {
     Ok(sqlx::query_file_as!(
         DbSignalsStatStandard,
@@ -35,6 +40,8 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbSignalsStatS
     .await?)
 }
 
+/// Reads local stats joined with per-pool pull counts for population ranking.
+/// Eligibility is applied by the updater; this read does not filter short histories. Result order is unspecified.
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbSignalsStatCount>> {
     Ok(sqlx::query_file_as!(
         DbSignalsStatCount,

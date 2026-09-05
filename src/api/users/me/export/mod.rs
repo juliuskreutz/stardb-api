@@ -1,3 +1,6 @@
+//! Signed account exports containing achievements, connections, and every registered pull pool.
+//! The signature covers serialized user data, including stored provenance flags.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -35,10 +38,12 @@ use crate::{api::ApiResult, database, Language};
 )]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_export);
 }
@@ -178,6 +183,7 @@ enum WishType {
 }
 
 impl From<database::warps::DbWarp> for Warp {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(warp: database::warps::DbWarp) -> Self {
         let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
@@ -196,6 +202,7 @@ impl From<database::warps::DbWarp> for Warp {
 }
 
 impl From<database::zzz::signals::DbSignal> for Signal {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(signal: database::zzz::signals::DbSignal) -> Self {
         let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Character
@@ -216,6 +223,7 @@ impl From<database::zzz::signals::DbSignal> for Signal {
 }
 
 impl From<database::gi::wishes::DbWish> for Wish {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(wish: database::gi::wishes::DbWish) -> Self {
         let r#type = if matches!(wish.item, StoredItem::Character(_)) {
             WishType::Character
@@ -243,6 +251,9 @@ impl From<database::gi::wishes::DbWish> for Wish {
     )
 )]
 #[get("/api/users/me/export")]
+/// Exports the signed-in account’s achievements and pull histories, then signs the
+/// serialized user payload. Returns 400 without a session username and propagates
+/// database, row-validation, and serialization errors rather than returning a partial file.
 async fn get_export(
     session: Session,
     signing_key: web::Data<Mutex<SigningKey>>,

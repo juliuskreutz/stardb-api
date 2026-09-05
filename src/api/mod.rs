@@ -1,3 +1,7 @@
+//! API composition, shared request validation, and private-route key checks.
+//! Game history authorization remains in each route; shared predicates must preserve
+//! their documented preconditions and per-game policy.
+
 mod achievement_series;
 mod achievements;
 mod admin;
@@ -49,6 +53,9 @@ pub(crate) fn gacha_history_forbidden(is_admin: bool, has_verified_connection: b
     !(is_admin || has_verified_connection)
 }
 
+/// Accepts only absolute HTTP(S) URLs with a host, otherwise returning HTTP 400.
+///
+/// This validates URL shape and scheme, not the destination's trust or network reachability.
 pub(crate) fn validate_import_url(raw_url: &str) -> Result<Url, HttpResponse> {
     let Ok(url) = Url::parse(raw_url) else {
         return Err(HttpResponse::BadRequest().body("Invalid URL"));
@@ -120,6 +127,7 @@ fn private_key_matches(expected: Option<&str>, supplied: Option<&[u8]>) -> bool 
     expected.is_some_and(|key| !key.is_empty() && Some(key.as_bytes()) == supplied)
 }
 
+/// Allows development builds or an exact match against the configured release API key.
 fn private(ctx: &guard::GuardContext) -> bool {
     cfg!(debug_assertions)
         || private_key_matches(
@@ -128,6 +136,7 @@ fn private(ctx: &guard::GuardContext) -> bool {
         )
 }
 
+/// Merges each API subsystem's schemas and routes into one OpenAPI document.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(admin::openapi());
@@ -158,6 +167,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
+/// Registers API subsystems with shared pool/configuration data and page caches.
 pub fn configure(
     cfg: &mut web::ServiceConfig,
     pool: PgPool,

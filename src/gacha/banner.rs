@@ -41,6 +41,7 @@ pub(crate) enum BannerOutcome {
 pub(crate) struct GuaranteeState {
     armed: bool,
 }
+/// A classified decision after consuming the pool’s guarantee state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GuaranteedOutcome {
     Win,
@@ -48,6 +49,9 @@ pub(crate) enum GuaranteedOutcome {
     Loss,
 }
 impl GuaranteeState {
+    /// Consumes one high-rarity result and advances the guarantee state.
+    /// An armed guarantee overrides either catalog result and is consumed once;
+    /// only a non-guaranteed loss arms the next pull.
     pub(crate) fn advance(&mut self, outcome: BannerOutcome) -> GuaranteedOutcome {
         if self.armed {
             self.armed = false;
@@ -89,6 +93,7 @@ impl BannerCatalog {
     }
 
     /// Adapts HSR persistence rows into Special, Light Cone, and collab entries.
+    /// Unknown stored pool IDs are logged and skipped per item, never relabeled.
     pub(crate) fn from_hsr(banners: impl IntoIterator<Item = database::banners::DbBanner>) -> Self {
         Self::new(banners.into_iter().flat_map(|banner| {
             let mut entries = Vec::with_capacity(2);
@@ -133,6 +138,7 @@ impl BannerCatalog {
     }
 
     /// Adapts Genshin persistence rows into Character, Weapon, and Chronicled entries.
+    /// Uses the persisted banner vocabulary; unknown IDs are logged and skipped.
     pub(crate) fn from_gi(
         banners: impl IntoIterator<Item = database::gi::banners::DbBanner>,
     ) -> Self {
@@ -179,6 +185,7 @@ impl BannerCatalog {
     }
 
     /// Adapts ZZZ persistence rows into its five banner-backed pool catalogs.
+    /// Unknown item/pool mappings are logged and skipped without affecting valid siblings.
     pub(crate) fn from_zzz(
         banners: impl IntoIterator<Item = database::zzz::banners::DbBanner>,
     ) -> Self {

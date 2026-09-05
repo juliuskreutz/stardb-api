@@ -1,3 +1,5 @@
+//! HSR tracker payloads combining pull annotations, pity forecasts, and stored statistics.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -20,10 +22,12 @@ use crate::{
 #[openapi(paths(get_warp_tracker))]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_warp_tracker);
 }
@@ -59,6 +63,8 @@ enum WinType {
 
 impl TryFrom<database::warps::DbWarp> for Warp {
     type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
     fn try_from(warp: database::warps::DbWarp) -> anyhow::Result<Self> {
         let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
@@ -139,6 +145,8 @@ struct GlobalStats {
     )
 )]
 #[get("/api/pages/warp-tracker/{uid}", guard = "private")]
+/// Builds an authorized HSR tracker response from localized history and stored stats.
+/// Returns 404 without a mihomo row; database and required-label failures propagate.
 async fn get_warp_tracker(
     session: Session,
     uid: web::Path<i32>,
@@ -289,6 +297,8 @@ struct Pity {
 impl Pity {
     // Counters are completed pulls since the last reset. The threshold therefore
     // describes the next pull (for example, 89 elapsed pulls imply 100% at pull 90).
+    /// Calculates next-pull percentages from completed pulls since each rarity reset.
+    /// The hard thresholds apply before the next pull; configured caps describe the UI model.
     fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
         (
             if low < self.hard_4 {
@@ -412,6 +422,9 @@ fn build_set(rows: Vec<Warp>, kind: GachaType, catalog: &BannerCatalog) -> Warps
     result.count = result.warps.len();
     result
 }
+/// Attaches available local and global stats for the selected pool.
+/// Missing local stats leave the set’s existing default; missing global stats
+/// remain absent. Database errors propagate without substituting zero ranks.
 async fn set_stats(
     set: &mut Warps,
     kind: GachaType,

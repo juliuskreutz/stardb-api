@@ -16,10 +16,12 @@ use crate::{api::ApiResult, database, GiGachaType};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_paimon_warps_import);
 }
@@ -57,6 +59,9 @@ struct Pull {
     security(("admin" = []))
 )]
 #[post("/api/gi/paimon-wishes-import")]
+/// Imports a claimed Paimon profile as unofficial GI pulls and recalculates stats.
+/// Every pool stops at its first overlap, including for admins. Missing pity entries
+/// are filled from the weapon catalog; other parsing or storage failures propagate.
 async fn post_paimon_warps_import(
     session: Session,
     params: web::Json<PaimonWishesImportParams>,
@@ -254,6 +259,7 @@ async fn post_paimon_warps_import(
     Ok(HttpResponse::Ok().finish())
 }
 
+/// Samples a weapon ID for reconstructed history, failing if its rarity catalog is empty.
 fn random_weapon(ids: &[i32]) -> anyhow::Result<PullItem> {
     ids.choose(&mut rand::rng())
         .copied()

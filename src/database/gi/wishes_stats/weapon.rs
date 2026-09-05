@@ -1,3 +1,5 @@
+//! Genshin per-UID pity and win-stat persistence; count reads feed population ranking. This module targets the weapon pool.
+
 use anyhow::Result;
 use sqlx::{Executor, PgPool, Postgres};
 
@@ -12,6 +14,8 @@ pub struct DbWishesStatWeapon {
     pub loss_streak: i32,
 }
 
+/// Upserts one UID’s calculated stats through the supplied executor.
+/// The caller owns transaction commit/rollback; database failures propagate.
 pub async fn set<'e, E>(stat: &DbWishesStatWeapon, executor: E) -> Result<()>
 where
     E: Executor<'e, Database = Postgres>,
@@ -31,6 +35,7 @@ where
     Ok(())
 }
 
+/// Returns this UID’s stored local stats, or None before recalculation.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatWeapon>> {
     Ok(sqlx::query_file_as!(
         DbWishesStatWeapon,
@@ -41,6 +46,8 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatWe
     .await?)
 }
 
+/// Reads local stats joined with per-pool pull counts for population ranking.
+/// SQL limits the population to UIDs with at least 100 pulls. Result order is unspecified.
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWishesStatCount>> {
     Ok(
         sqlx::query_file_as!(DbWishesStatCount, "sql/gi/wishes_stats/weapon/get_all.sql")

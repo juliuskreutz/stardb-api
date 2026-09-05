@@ -26,6 +26,8 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
+/// Refreshes supported pools sequentially, stopping at the first failure.
+/// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: &PgPool) -> Result<()> {
     info!("Starting standard");
     standard(pool).await?;
@@ -78,30 +80,39 @@ fn calculate_stats(
     (calculated, ineligible)
 }
 
+/// Refreshes the standard pool through the shared within-game batch path.
 async fn standard(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::Standard, pool).await
 }
 
+/// Refreshes the special pool through the shared within-game batch path.
 async fn special(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::Special, pool).await
 }
 
+/// Refreshes the w engine pool through the shared within-game batch path.
 async fn w_engine(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::WEngine, pool).await
 }
 
+/// Refreshes the exclusive rescreening pool through the shared within-game batch path.
 async fn exclusive_rescreening(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::ExclusiveRescreening, pool).await
 }
 
+/// Refreshes the w engine reverberation pool through the shared within-game batch path.
 async fn w_engine_reverberation(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::WEngineReverberation, pool).await
 }
 
+/// Refreshes the bangboo pool through the shared within-game batch path.
 async fn bangboo(pool: &PgPool) -> Result<()> {
     refresh(crate::ZzzGachaType::Bangboo, pool).await
 }
 
+/// Fetches one pool’s population and writes calculated percentiles in bounded batches.
+/// Deletes ineligible UID rows before upserting eligible results; these operations
+/// are separately committed, so failures are repaired by a later retry.
 async fn refresh(kind: crate::ZzzGachaType, pool: &PgPool) -> Result<()> {
     let (stats, ineligible) =
         calculate_stats(database::zzz::signals_stats::get_all_by_pool(kind, pool).await?);

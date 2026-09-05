@@ -1,3 +1,7 @@
+//! Persistence for NTE completion state, preferences, and community marker comments.
+//! Completion replacement is transactional; comment writes enforce ownership in SQL,
+//! while request validation and posting limits belong to the API layer.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -60,6 +64,7 @@ pub struct DbMarkerComment {
     pub owned_by_viewer: bool,
 }
 
+/// Lists a known user's completed IDs in kind/ID order; a missing user is an error.
 pub async fn get_completions(username: &str, pool: &PgPool) -> Result<Vec<DbCompletion>> {
     let user_id = get_user_id(username, pool).await?;
 
@@ -72,6 +77,7 @@ pub async fn get_completions(username: &str, pool: &PgPool) -> Result<Vec<DbComp
     .await?)
 }
 
+/// Loads a known user's JSON settings ordered by namespace.
 pub async fn get_settings(username: &str, pool: &PgPool) -> Result<Vec<DbSetting>> {
     let user_id = get_user_id(username, pool).await?;
 
@@ -84,6 +90,9 @@ pub async fn get_settings(username: &str, pool: &PgPool) -> Result<Vec<DbSetting
     .await?)
 }
 
+/// Atomically replaces all completion and setting rows for a known user.
+///
+/// Any failed insert or setting update rolls back both deletions and every preceding write.
 pub async fn replace_state(
     username: &str,
     completions: &[DbCompletion],
@@ -120,6 +129,9 @@ pub async fn replace_state(
     Ok(())
 }
 
+/// Applies additions before removals in one transaction.
+///
+/// Duplicate additions are idempotent; a completion in both inputs ends up removed.
 pub async fn patch_completions(
     username: &str,
     add: &[DbCompletion],
@@ -149,6 +161,7 @@ pub async fn patch_completions(
     Ok(())
 }
 
+/// Upserts one JSON namespace and refreshes its update timestamp.
 pub async fn set_setting(
     username: &str,
     namespace: &str,
@@ -170,6 +183,9 @@ pub async fn set_setting(
     Ok(())
 }
 
+/// Computes completion fractions among users with at least one achievement completion.
+///
+/// The denominator excludes users who have only other kinds of completion records.
 pub async fn achievement_stats(pool: &PgPool) -> Result<Vec<DbAchievementStats>> {
     Ok(sqlx::query_as!(
         DbAchievementStats,
@@ -196,6 +212,10 @@ pub async fn achievement_stats(pool: &PgPool) -> Result<Vec<DbAchievementStats>>
     .await?)
 }
 
+/// Lists visible comments by descending score, creation time, and ID.
+///
+/// The optional viewer affects vote/ownership annotations only. Pagination limits and
+/// marker-key validation are the caller's responsibility.
 pub async fn list_marker_comments(
     marker_key: &str,
     viewer_username: Option<&str>,
@@ -224,6 +244,9 @@ pub async fn list_marker_comments(
     .await?)
 }
 
+/// Inserts a comment for a known user and returns its aggregate with owner annotations.
+///
+/// The caller must validate content and enforce posting limits before calling.
 pub async fn create_marker_comment(
     username: &str,
     marker_key: &str,
@@ -247,6 +270,9 @@ pub async fn create_marker_comment(
         .expect("created marker comment should be visible"))
 }
 
+/// Replaces body/screenshots only for an undeleted comment owned by this username.
+///
+/// Returns `None` for a missing, deleted, or differently owned comment.
 pub async fn update_marker_comment(
     comment_id: i64,
     username: &str,
@@ -273,6 +299,7 @@ pub async fn update_marker_comment(
     }
 }
 
+/// Soft-deletes an owned, visible comment; returns whether a row changed.
 pub async fn delete_marker_comment(comment_id: i64, username: &str, pool: &PgPool) -> Result<bool> {
     let user_id = get_user_id(username, pool).await?;
     let result = sqlx::query(
@@ -287,6 +314,10 @@ pub async fn delete_marker_comment(comment_id: i64, username: &str, pool: &PgPoo
     Ok(result.rows_affected() > 0)
 }
 
+/// Sets one viewer's vote and returns the updated visible-comment aggregate.
+///
+/// A zero value removes the vote. The caller validates nonzero values as -1 or 1;
+/// a missing or deleted comment returns `None`.
 pub async fn set_marker_comment_vote(
     comment_id: i64,
     username: &str,
@@ -330,6 +361,9 @@ pub async fn set_marker_comment_vote(
     get_marker_comment(comment_id, Some(user_id), pool).await
 }
 
+/// Returns whole seconds to wait under the short cooldown or rolling posting limit.
+///
+/// This only reads posting history; callers must enforce the returned delay.
 pub async fn marker_comment_retry_after(
     username: &str,
     max_comments_per_window: i64,
@@ -372,6 +406,7 @@ pub async fn marker_comment_retry_after(
     }
 }
 
+/// Loads one visible comment using the same vote and ownership projection as the list.
 async fn get_marker_comment(
     comment_id: i64,
     viewer_user_id: Option<i64>,
@@ -387,6 +422,7 @@ async fn get_marker_comment(
     .await?)
 }
 
+/// Inserts one completion idempotently into the caller's transaction.
 async fn insert_completion(
     user_id: i64,
     kind: &str,
@@ -406,6 +442,7 @@ async fn insert_completion(
     Ok(())
 }
 
+/// Replaces a namespace's JSON within the caller's transaction.
 async fn upsert_setting(
     user_id: i64,
     namespace: &str,
@@ -425,6 +462,7 @@ async fn upsert_setting(
     Ok(())
 }
 
+/// Resolves a required username, returning a database error when it does not exist.
 async fn get_user_id(username: &str, pool: &PgPool) -> Result<i64> {
     Ok(
         sqlx::query_scalar!("SELECT id FROM users WHERE username = $1", username)
@@ -433,6 +471,7 @@ async fn get_user_id(username: &str, pool: &PgPool) -> Result<i64> {
     )
 }
 
+/// Resolves an optional viewer without treating an unknown username as an error.
 async fn get_user_id_optional(username: &str, pool: &PgPool) -> Result<Option<i64>> {
     Ok(
         sqlx::query_scalar::<_, i64>("SELECT id FROM users WHERE username = $1")

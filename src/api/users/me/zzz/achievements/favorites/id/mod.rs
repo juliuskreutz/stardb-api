@@ -12,10 +12,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_zzz_user_achievement_favorites)
         .service(delete_zzz_user_achievement_favorites);
@@ -31,6 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/zzz/achievements/favorites/{id}")]
+/// Add the signed-in user's requested IDs transactionally using the game's alternate-set rules.
 async fn put_zzz_user_achievement_favorites(
     session: Session,
     id: web::Path<i32>,
@@ -58,6 +61,7 @@ async fn put_zzz_user_achievement_favorites(
     )
 )]
 #[delete("/api/users/me/zzz/achievements/favorites/{id}")]
+/// Remove the requested IDs from the signed-in user's list; absent entries are harmless.
 async fn delete_zzz_user_achievement_favorites(
     session: Session,
     id: web::Path<i32>,

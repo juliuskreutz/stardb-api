@@ -12,10 +12,12 @@ use crate::{
 #[openapi(tags((name = "zzz/achievements/{id}")), paths(get_zzz_achievement))]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_zzz_achievement);
 }
@@ -31,6 +33,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/zzz/achievements/{id}")]
+/// Return one localized achievement, or 404 when absent or hidden-and-impossible for a nonadmin viewer.
 async fn get_zzz_achievement(
     session: Session,
     id: web::Path<i32>,

@@ -8,6 +8,7 @@ pub struct DbConnection {
     pub private: bool,
 }
 
+/// Inserts a connection with its supplied privacy value; conflicts update verification only.
 pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/gi/connections/set.sql",
@@ -22,6 +23,7 @@ pub async fn set(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Deletes one UID/username connection without deleting its profile or pull history.
 pub async fn delete(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     sqlx::query_file!(
         "sql/gi/connections/delete.sql",
@@ -34,6 +36,7 @@ pub async fn delete(connection: &DbConnection, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Lists every user's connection to this GI UID.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbConnection>> {
     Ok(
         sqlx::query_file_as!(DbConnection, "sql/gi/connections/get_by_uid.sql", uid,)
@@ -42,6 +45,7 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Vec<DbConnection>> {
     )
 }
 
+/// Lists GI connections owned by this username.
 pub async fn get_by_username(username: &str, pool: &PgPool) -> Result<Vec<DbConnection>> {
     Ok(sqlx::query_file_as!(
         DbConnection,
@@ -52,6 +56,7 @@ pub async fn get_by_username(username: &str, pool: &PgPool) -> Result<Vec<DbConn
     .await?)
 }
 
+/// Fetches one connection, returning a database error when it is absent.
 pub async fn get_by_uid_and_username(
     uid: i32,
     username: &str,
@@ -67,6 +72,7 @@ pub async fn get_by_uid_and_username(
     .await?)
 }
 
+/// Updates one connection's privacy flag without performing authorization checks.
 pub async fn update_private_by_uid_and_username(
     uid: i32,
     username: &str,

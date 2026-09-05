@@ -1,3 +1,6 @@
+//! Refreshes HSR population percentiles on the shared periodic job driver.
+//! Each pool is updated in batches; a failure leaves completed batches for the next retry.
+
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -9,6 +12,8 @@ use crate::{
     gacha::global_stats::{calculate_percentiles, PercentileInput, UPDATE_BATCH_SIZE},
 };
 
+/// Starts the hourly percentile job with a 30-second retry delay on failure.
+/// Scheduling is delegated to the shared driver; this call does not await job completion.
 pub async fn spawn(pool: PgPool) {
     super::spawn_periodic(
         "warps_stats",
@@ -18,6 +23,8 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
+/// Refreshes supported pools sequentially, stopping at the first failure.
+/// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: PgPool) -> Result<()> {
     standard(&pool).await?;
     special(&pool).await?;
@@ -28,26 +35,32 @@ async fn update(pool: PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Refreshes the standard pool through the shared within-game batch path.
 async fn standard(pool: &PgPool) -> Result<()> {
     refresh(crate::GachaType::Standard, pool).await
 }
 
+/// Refreshes the special pool through the shared within-game batch path.
 async fn special(pool: &PgPool) -> Result<()> {
     refresh(crate::GachaType::Special, pool).await
 }
 
+/// Refreshes the lc pool through the shared within-game batch path.
 async fn lc(pool: &PgPool) -> Result<()> {
     refresh(crate::GachaType::Lc, pool).await
 }
 
+/// Refreshes the collab pool through the shared within-game batch path.
 async fn collab(pool: &PgPool) -> Result<()> {
     refresh(crate::GachaType::Collab, pool).await
 }
 
+/// Refreshes the collab lc pool through the shared within-game batch path.
 async fn collab_lc(pool: &PgPool) -> Result<()> {
     refresh(crate::GachaType::CollabLc, pool).await
 }
 
+/// Converts count-joined local stats into population percentiles for bulk persistence.
 fn calculate_stats(
     banner_type: &str,
     stats: Vec<database::warps_stats::DbWarpsStatCount>,
@@ -78,6 +91,9 @@ fn calculate_stats(
     .collect()
 }
 
+/// Fetches one pool’s population and writes calculated percentiles in bounded batches.
+/// Eligibility comes from the count query. Writes are separately committed,
+/// so failures may leave earlier batches refreshed until the next retry.
 async fn refresh(kind: crate::GachaType, pool: &PgPool) -> Result<()> {
     info!("Starting {kind} warps stats update");
     let start = Instant::now();

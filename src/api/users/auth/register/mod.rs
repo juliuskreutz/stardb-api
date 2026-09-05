@@ -18,10 +18,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(register);
 }
@@ -53,6 +55,9 @@ pub struct UserRegister {
     )
 )]
 #[post("/api/users/auth/register", guard = "private")]
+/// Creates a user with a normalized username, trimmed email and salted password hash.
+/// Rejects oversized fields with 400 and an existing username with 409, then records
+/// the new username in the session; this route also requires the API-key guard.
 async fn register(
     session: Session,
     user_register: web::Json<UserRegister>,

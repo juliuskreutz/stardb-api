@@ -1,3 +1,5 @@
+//! Refresh leaderboard profiles with independent population passes and bounded per-UID retries.
+
 use std::time::Instant;
 
 use actix_web::rt;
@@ -8,6 +10,7 @@ use sqlx::PgPool;
 
 use crate::{database, mihomo, Language};
 
+/// Start independent top-100 and remaining-population refresh loops with delayed retries.
 pub async fn spawn(pool: PgPool) {
     let top_pool = pool.clone();
     super::spawn_periodic(
@@ -24,6 +27,7 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
+/// Fetch the current top 100 UIDs and attempt each profile/score refresh.
 async fn update_top_100(pool: PgPool) -> Result<()> {
     let uids = database::achievement_scores::get(None, None, Some(100), None, &pool)
         .await?
@@ -36,6 +40,7 @@ async fn update_top_100(pool: PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Walk score pages below the top 100 until a page is empty, refreshing each UID.
 async fn update_lower_100(pool: PgPool) -> Result<()> {
     for i in 0.. {
         let start = Instant::now();
@@ -93,6 +98,8 @@ fn retry_delays() -> impl Iterator<Item = std::time::Duration> {
     [5, 10, 20].into_iter().map(std::time::Duration::from_secs)
 }
 
+/// Pace each UID through the finite retry schedule and continue after persistent failures.
+/// Exhausted attempts are logged; failures do not permanently block later UIDs.
 async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     for uid in uids {
         for (attempt, delay) in retry_delays().enumerate() {
@@ -107,6 +114,9 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Refresh mihomo first, then try Enka when no profile is returned and persist score metadata.
+/// Retain the old tie-breaking timestamp when the achievement count is unchanged.
+/// Database errors propagate; Enka HTTP/decoding failures are logged and treated as skipped refreshes.
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 

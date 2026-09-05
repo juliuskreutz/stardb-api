@@ -1,3 +1,5 @@
+//! Achievement ranks are read models; timestamp writes avoid the expensive ranked join.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -21,12 +23,14 @@ pub struct DbScoreAchievementWrite {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Upsert the score timestamp without running a ranked read; profile fields remain in mihomo.
 pub async fn set(score: &DbScoreAchievementWrite, pool: &PgPool) -> Result<()> {
     sqlx::query!("INSERT INTO scores_achievement(uid, timestamp) VALUES ($1, $2) ON CONFLICT (uid) DO UPDATE SET timestamp = EXCLUDED.timestamp", score.uid, score.timestamp)
         .execute(pool).await?;
     Ok(())
 }
 
+/// Rank the complete score population before applying region/name filters and pagination.
 pub async fn get(
     region: Option<&str>,
     query: Option<&str>,
@@ -70,6 +74,7 @@ pub async fn get(
     .await?)
 }
 
+/// Count mihomo profiles matching the region/name filters used by score pagination.
 pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query!(
         "SELECT COUNT(*) as count FROM mihomo WHERE ($1::TEXT IS NULL OR region = $1) AND ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')",
@@ -82,6 +87,7 @@ pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> 
     .unwrap())
 }
 
+/// Read one UID with ranks calculated across the whole population; return None when absent.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
@@ -114,6 +120,7 @@ pub struct DbScoreAchievementTimestamp {
     pub timestamp: DateTime<Utc>,
 }
 
+/// Read the stored achievement count and tie-breaking timestamp; an absent joined row is an error.
 pub async fn get_timestamp_by_uid(uid: i32, pool: &PgPool) -> Result<DbScoreAchievementTimestamp> {
     Ok(sqlx::query_as!(
         DbScoreAchievementTimestamp,

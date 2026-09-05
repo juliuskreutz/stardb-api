@@ -129,6 +129,7 @@ struct Configs {
     equipment_config: Vec<EquipmentConfig>,
 }
 
+/// Start this game's periodic catalog synchronization on its dedicated runtime.
 pub async fn spawn(pool: PgPool) {
     std::thread::spawn(move || {
         let rt = Runtime::new().unwrap();
@@ -161,6 +162,8 @@ pub async fn spawn(pool: PgPool) {
     });
 }
 
+/// Sync the cached data repository, then reload catalog tables only when an import is pending.
+/// Mark the cache current only after successful parsing and persistence; failures propagate for retry.
 async fn update(up_to_date: &mut bool, pool: PgPool) -> Result<()> {
     if git_data::sync_data_repo("dimbreath", DATA_REPO_URL, DATA_DIR).await? {
         *up_to_date = false;

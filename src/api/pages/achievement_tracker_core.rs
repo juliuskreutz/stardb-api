@@ -8,8 +8,11 @@ use std::{
 };
 
 pub trait Item {
+    /// Return the catalog ID used to match completion and favorite lists.
     fn id(&self) -> i32;
+    /// Return this entry's reward value for group and completed-reward totals.
     fn currency(&self) -> i32;
+    /// Annotate this entry with its position in the rendered series list.
     fn set_series_index(&mut self, index: usize);
 }
 pub struct Entry<A> {
@@ -150,6 +153,9 @@ pub fn build<A: Item, E>(
     }
 }
 impl<A: Item, E> Tracker<A, E> {
+    /// Overlay one user's completed/favorite IDs and recompute visible group/reward totals.
+    /// Groups choose the first matching member in catalog order; callers annotate a clone
+    /// so the cached base remains reusable for other viewers.
     pub fn annotate(&mut self, completed: &HashSet<i32>, favorites: &HashSet<i32>) {
         let mut achievement_count_current_total = 0;
         let mut currency_count_current_total = 0;
@@ -198,12 +204,15 @@ impl<A: Item, E> Tracker<A, E> {
     }
 }
 
+/// Load a persisted language map, falling back to an empty cache if the file is missing or invalid.
 pub fn load<T: DeserializeOwned>(path: &str) -> HashMap<Language, T> {
     File::open(path)
         .ok()
         .and_then(|file| serde_json::from_reader(BufReader::new(file)).ok())
         .unwrap_or_default()
 }
+/// Serialize the complete language map and replace the cache file via a sibling temporary file.
+/// Filesystem errors propagate so callers retain the prior live cache.
 pub fn save<T: Serialize>(path: &str, map: &HashMap<Language, T>) -> anyhow::Result<()> {
     std::fs::create_dir_all("cache")?;
     let temporary = format!("{path}.tmp");

@@ -15,12 +15,14 @@ use crate::{
 #[openapi(paths(get_leaderboard))]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_leaderboard).configure(uid::configure);
 }
@@ -59,6 +61,7 @@ struct LeaderboardParams {
 }
 
 impl From<database::achievement_scores::DbScoreAchievement> for Score {
+    /// Convert nonnullable database ranks and profile metadata to the public score payload.
     fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         Score {
             global_rank: db_score.global_rank,
@@ -86,6 +89,7 @@ impl From<database::achievement_scores::DbScoreAchievement> for Score {
     )
 )]
 #[get("/api/pages/leaderboard", guard = "private")]
+/// Build the leaderboard page from ranked score rows and the matching profile count.
 async fn get_leaderboard(
     leaderboard_params: web::Query<LeaderboardParams>,
     pool: web::Data<PgPool>,

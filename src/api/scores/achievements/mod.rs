@@ -36,6 +36,7 @@ struct ScoreAchievement {
 }
 
 impl From<database::achievement_scores::DbScoreAchievement> for ScoreAchievement {
+    /// Convert nonnullable database ranks and profile metadata to the public score payload.
     fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         ScoreAchievement {
             global_rank: db_score.global_rank,
@@ -52,12 +53,14 @@ impl From<database::achievement_scores::DbScoreAchievement> for ScoreAchievement
     }
 }
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_scores_achievements)
         .configure(uid::configure);
@@ -75,6 +78,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/scores/achievements")]
+/// Return ranked achievement scores with the requested region/name filters and pagination.
 async fn get_scores_achievements(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,

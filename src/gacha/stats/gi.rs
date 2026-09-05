@@ -13,6 +13,9 @@ use crate::{
 };
 
 /// Recalculates and upserts every Genshin stat row for one UID.
+/// Uses one banner snapshot and the caller’s connection without beginning or
+/// committing a transaction. A read/decode/upsert failure propagates immediately;
+/// import callers wrap all affected pools in their transaction for atomicity.
 pub(crate) async fn recalculate_gi_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -33,6 +36,7 @@ async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCat
 }
 
 /// Calculates permanent-pool pity averages.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let wishes = database::gi::wishes::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -49,6 +53,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
 }
 
 /// Calculates character-event pity, win rate, and confirmed streaks.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_character(
     uid: i32,
     banners: &BannerCatalog,
@@ -86,6 +91,7 @@ async fn calculate_stats_character(
 }
 
 /// Calculates weapon-event pity, win rate, and confirmed streaks.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_weapon(
     uid: i32,
     banners: &BannerCatalog,
@@ -117,6 +123,7 @@ async fn calculate_stats_weapon(
 }
 
 /// Calculates Chronicled Wish pity without applying a different win model.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_chronicled(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let wishes = database::gi::wishes::chronicled::get_infos_by_uid(uid, &mut *connection).await?;
 

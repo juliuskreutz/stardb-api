@@ -1,3 +1,7 @@
+//! NTE UID claims and raw pull persistence.
+//! A detached claim retains its profile with a nullable owner. API handlers authorize
+//! profile access; mutation helpers document any additional caller preconditions.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
@@ -64,6 +68,7 @@ impl fmt::Display for TrackerClaimError {
 
 impl Error for TrackerClaimError {}
 
+/// Resolves the numeric owner ID for an existing authenticated username.
 pub async fn get_tracker_user_id(username: &str, pool: &PgPool) -> Result<i64> {
     Ok(
         sqlx::query_scalar!("SELECT id FROM users WHERE username = $1", username)
@@ -72,6 +77,7 @@ pub async fn get_tracker_user_id(username: &str, pool: &PgPool) -> Result<i64> {
     )
 }
 
+/// Lists attached claims newest-first, including whether each has stored pulls.
 pub async fn tracker_claims_for_user(
     owner_user_id: i64,
     pool: &PgPool,
@@ -97,6 +103,7 @@ pub async fn tracker_claims_for_user(
     .await?)
 }
 
+/// Loads an attached or detached claim; only a missing UID returns `None`.
 pub async fn get_tracker_claim(uid: i64, pool: &PgPool) -> Result<Option<DbTrackerUidClaim>> {
     Ok(sqlx::query_as::<_, DbTrackerUidClaim>(
         r#"SELECT
@@ -118,6 +125,11 @@ pub async fn get_tracker_claim(uid: i64, pool: &PgPool) -> Result<Option<DbTrack
     .await?)
 }
 
+/// Creates or reattaches a self-claim while enforcing the per-user claim cap.
+///
+/// A user-row lock serializes cap checks. Reclaiming one's own UID is idempotent;
+/// competing owners and cap violations use the inner domain error, while database
+/// failures use the outer error.
 pub async fn claim_tracker_uid(
     owner_user_id: i64,
     uid: i64,
@@ -209,6 +221,9 @@ pub async fn claim_tracker_uid(
         .expect("created tracker claim should load")))
 }
 
+/// Updates only supplied nickname/region fields on a claim owned by the caller.
+///
+/// The inner error distinguishes a non-owned or missing row from database failures.
 pub async fn update_tracker_claim(
     owner_user_id: i64,
     uid: i64,
@@ -239,6 +254,9 @@ pub async fn update_tracker_claim(
         .expect("updated tracker claim should load")))
 }
 
+/// Deletes an owned claim and its cascading pull history in one transaction.
+///
+/// Returns the pre-deletion pull count, or an inner ownership error without deleting.
 pub async fn delete_tracker_uid_profile(
     owner_user_id: i64,
     uid: i64,
@@ -270,6 +288,9 @@ pub async fn delete_tracker_uid_profile(
     Ok(Ok(deleted_pulls))
 }
 
+/// Lists raw pulls newest-first, breaking timestamp ties by ordinal and record UID.
+///
+/// The caller decides whether this profile is visible; this query does not authorize.
 pub async fn tracker_pulls_for_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbTrackerPull>> {
     Ok(sqlx::query_as::<_, DbTrackerPull>(
         r#"SELECT
@@ -292,6 +313,7 @@ pub async fn tracker_pulls_for_uid(uid: i64, pool: &PgPool) -> Result<Vec<DbTrac
     .await?)
 }
 
+/// Counts all stored pull records for a UID, including detached profiles.
 pub async fn tracker_pull_count(uid: i64, pool: &PgPool) -> Result<i64> {
     Ok(sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*)::bigint FROM ntehelper_tracker_pull WHERE uid = $1",
@@ -301,6 +323,11 @@ pub async fn tracker_pull_count(uid: i64, pool: &PgPool) -> Result<i64> {
     .await?)
 }
 
+/// Inserts new pulls and updates mutable outcome details for existing record IDs.
+///
+/// The caller must authorize the UID, deduplicate record IDs, and ensure every pull
+/// has the requested UID. The claim row is locked so imports serialize; exceeding
+/// `max_total` returns `None` without writes. Otherwise all writes commit together.
 pub async fn import_tracker_pulls(
     uid: i64,
     pulls: &[DbTrackerPull],
@@ -428,6 +455,9 @@ pub async fn import_tracker_pulls(
     }))
 }
 
+/// Deletes all pulls and updates the claim timestamp in one transaction.
+///
+/// The claim itself remains attached. The caller must authorize ownership first.
 pub async fn clear_tracker_pulls(uid: i64, pool: &PgPool) -> Result<i64> {
     let mut tx = pool.begin().await?;
     let result = sqlx::query("DELETE FROM ntehelper_tracker_pull WHERE uid = $1")

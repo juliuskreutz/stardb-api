@@ -15,6 +15,7 @@ pub enum List {
     Favorites,
 }
 impl Game {
+    /// Return the fixed table prefix for this game; user input never forms an SQL identifier.
     fn prefix(self) -> &'static str {
         match self {
             Self::Hsr => "",
@@ -24,6 +25,7 @@ impl Game {
     }
 }
 impl List {
+    /// Return the fixed table suffix for this list kind.
     fn suffix(self) -> &'static str {
         match self {
             Self::Completed => "completed",
@@ -45,9 +47,11 @@ pub fn related_by_set(
     related
 }
 
-// Reverse traversal reproduces sequential additions: the last eligible member of a
-// set wins. Impossible completed entries must be skipped before claiming their set,
-// otherwise an ignored trailing entry would evict an earlier valid completion.
+/// Validate every requested ID and retain the last eligible member of each set in input order.
+///
+/// Reverse traversal reproduces sequential additions. Impossible completed entries are
+/// skipped before reserving their set so they cannot evict an earlier valid completion;
+/// favorites retain those entries.
 fn select_ids(ids: &[i32], rows: &[(i32, bool, Option<i32>)], completed: bool) -> Result<Vec<i32>> {
     let catalog: HashMap<_, _> = rows
         .iter()
@@ -118,6 +122,7 @@ pub async fn apply(
     Ok(())
 }
 
+/// Commit one batch atomically, including alternate eviction; unknown IDs leave the list unchanged.
 pub async fn add_all(
     game: Game,
     list: List,
@@ -130,6 +135,7 @@ pub async fn add_all(
     tx.commit().await?;
     Ok(())
 }
+/// Delete only the supplied IDs in one statement; absent IDs are harmless.
 pub async fn delete_all(
     game: Game,
     list: List,

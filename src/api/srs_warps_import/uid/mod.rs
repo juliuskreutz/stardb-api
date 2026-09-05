@@ -19,10 +19,12 @@ use crate::{api::ApiResult, database, mihomo, GachaType, Language};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_srs_warps_import);
 }
@@ -60,6 +62,9 @@ struct ParsedWarp {
     )
 )]
 #[post("/api/srs-warps-import/{uid}")]
+/// Imports SRS CSV as unofficial pulls for an admin or verified HSR connection.
+/// Preserves source order and stops each non-admin pool at its first overlap; unknown
+/// item IDs use rarity-based catalog samples. Invalid CSV/time/batches return 400.
 async fn post_srs_warps_import(
     session: Session,
     uid: web::Path<i32>,

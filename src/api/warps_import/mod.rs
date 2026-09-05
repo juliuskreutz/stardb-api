@@ -32,6 +32,7 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
@@ -42,6 +43,7 @@ lazy_static::lazy_static! {
     static ref DATA: web::Data<WarpsImportInfos> = web::Data::new(WarpsImportInfos::default());
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.app_data(DATA.clone())
         .service(post_warps_import)
@@ -108,6 +110,9 @@ struct WarpsImport {
     )
 )]
 #[post("/api/warps-import")]
+/// Starts or joins an official HSR import after validating the supplied URL.
+/// An authenticated caller also gains a verified UID connection; failed UID discovery
+/// returns an opaque error job, while background failures update job status.
 async fn post_warps_import(
     session: Session,
     params: web::Json<WarpsImportParams>,
@@ -249,6 +254,9 @@ async fn post_warps_import(
     Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
 }
 
+/// Fetches one official HSR pool and atomically writes its pulls and recalculated stats.
+/// Unless timestamps are ignored, the first row at or before existing history stops
+/// pagination; transport, parsing and persistence errors return to the job runner.
 async fn import_warps(
     uid: i32,
     original_url: &Url,
@@ -352,6 +360,7 @@ async fn import_warps(
     Ok(())
 }
 
+/// Builds the HSR official pool URL, copying only supported authentication parameters.
 fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::ParseError> {
     let endpoint = gacha_log_endpoint(gacha_type);
     let query = original_url.query_pairs().filter(|(name, _)| {
@@ -379,6 +388,7 @@ fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::
     Ok(url)
 }
 
+/// Selects the separate collaboration log endpoint for either HSR collab pool.
 fn gacha_log_endpoint(gacha_type: GachaType) -> &'static str {
     match gacha_type {
         // Collab banners have a different endpoint

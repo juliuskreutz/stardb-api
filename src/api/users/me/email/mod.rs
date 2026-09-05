@@ -16,10 +16,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_email)
         .service(put_email)
@@ -36,6 +38,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/email")]
+/// Returns the authenticated user's optional stored email address.
 async fn get_email(
     SessionUser(username): SessionUser,
     pool: web::Data<PgPool>,
@@ -61,6 +64,7 @@ pub struct EmailUpdate {
     )
 )]
 #[put("/api/users/me/email")]
+/// Trims and stores the authenticated user's email address; database errors propagate.
 async fn put_email(
     SessionUser(username): SessionUser,
     email_update: web::Json<EmailUpdate>,
@@ -81,6 +85,7 @@ async fn put_email(
     )
 )]
 #[delete("/api/users/me/email")]
+/// Clears the authenticated user's stored email address.
 async fn delete_email(
     SessionUser(username): SessionUser,
     pool: web::Data<PgPool>,

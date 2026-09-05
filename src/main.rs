@@ -1,3 +1,7 @@
+//! Application bootstrap and shared wire enums for StarDB's three game APIs.
+//! Startup loads environment settings before creating the runtime, and the outer Sentry guard
+//! flushes when the server returns.
+
 #[macro_use]
 extern crate tracing;
 
@@ -64,6 +68,7 @@ enum Language {
 }
 
 impl Language {
+    /// Returns the display label used for this supported language.
     pub fn name(&self) -> String {
         match self {
             Language::ZhCn => "简体中文",
@@ -83,6 +88,7 @@ impl Language {
         .to_string()
     }
 
+    /// Maps this language to Mihomo's expected language code.
     pub fn mihomo(&self) -> String {
         match self {
             Language::ZhCn => "chs",
@@ -129,6 +135,7 @@ enum GachaType {
 }
 
 impl GachaType {
+    /// Returns the HSR pool ID used by official imports and UIGF exports.
     pub fn id(self) -> i32 {
         match self {
             GachaType::Standard => 1,
@@ -167,6 +174,7 @@ enum ZzzGachaType {
 }
 
 impl ZzzGachaType {
+    /// Returns the current ZZZ pool ID emitted in new UIGF exports.
     pub fn id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1,
@@ -178,6 +186,7 @@ impl ZzzGachaType {
         }
     }
 
+    /// Returns the legacy RNG storage/UIGF pool ID accepted during import.
     pub fn old_id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1001,
@@ -240,8 +249,9 @@ enum Difficulty {
     Hard,
 }
 
-// Manual runtime setup (instead of #[actix_web::main]) so Sentry inits before the actix runtime —
-// the guard must outlive main and the panic handler must be installed pre-runtime.
+/// Loads environment settings and tracing/Sentry before entering the Actix runtime.
+///
+/// Keeping the Sentry guard outside the runtime lets normal shutdown flush pending events.
 fn main() -> anyhow::Result<()> {
     let dotenv_path = dotenv::dotenv().ok();
     if let Some(path) = dotenv_path {
@@ -294,6 +304,10 @@ fn main() -> anyhow::Result<()> {
     actix_web::rt::System::new().block_on(async_main())
 }
 
+/// Validates release configuration, migrates PostgreSQL, starts enabled jobs, and serves HTTP.
+///
+/// Startup errors propagate before serving; returning after server shutdown permits
+/// normal runtime and Sentry cleanup.
 async fn async_main() -> anyhow::Result<()> {
     api::validate_private_key()?;
     let app_config = load_app_config()?;
@@ -391,6 +405,14 @@ async fn async_main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Loads the base64 cookie key or generates and persists one when the file cannot be read.
+///
+/// Keeping this key stable preserves cookies across restarts. Decode/write failures
+/// propagate.
+///
+/// # Panics
+///
+/// The cookie key constructor panics if an existing decoded key is too short.
 fn session_key() -> anyhow::Result<actix_web::cookie::Key> {
     use actix_web::cookie::Key;
     use base64::{prelude::BASE64_STANDARD, Engine};
@@ -411,6 +433,9 @@ fn session_key() -> anyhow::Result<actix_web::cookie::Key> {
     Ok(key)
 }
 
+/// Loads the PKCS#8 export signing key, generating and persisting one only when absent.
+///
+/// Malformed existing keys and filesystem failures propagate rather than replacing the key.
 fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
     use ed25519_dalek::{
         pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey},
@@ -430,6 +455,7 @@ fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
     })
 }
 
+/// Deserializes environment-backed feature flags into shared immutable configuration.
 fn load_app_config() -> anyhow::Result<Arc<app_config::AppConfig>> {
     let config = envy::from_env::<app_config::AppConfig>()?;
     tracing::debug!("AppConfig loaded: {:#?}", config);

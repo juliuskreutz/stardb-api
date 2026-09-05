@@ -13,6 +13,9 @@ use crate::{
 };
 
 /// Recalculates and upserts every ZZZ stat row for one UID.
+/// Uses one banner snapshot and the caller’s connection without beginning or
+/// committing a transaction. A read/decode/upsert failure propagates immediately;
+/// import callers wrap all affected pools in their transaction for atomicity.
 pub(crate) async fn recalculate_zzz_uid(
     uid: i32,
     connection: &mut PgConnection,
@@ -34,7 +37,8 @@ async fn load_banners(connection: &mut PgConnection) -> anyhow::Result<BannerCat
     ))
 }
 
-/// Calculates Stable Channel pity averages.
+/// Calculates Stable Channel pity averages, excluding its first S-rank interval.
+/// A-rank intervals remain independent of S-rank resets, unlike tracker display counters.
 async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::standard::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -51,6 +55,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
 }
 
 /// Calculates Exclusive Channel pity and confirmed banner outcomes.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_special(
     uid: i32,
     catalog: &BannerCatalog,
@@ -88,6 +93,7 @@ async fn calculate_stats_special(
 }
 
 /// Calculates W-Engine Channel pity and confirmed banner outcomes.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_w_engine(
     uid: i32,
     catalog: &BannerCatalog,
@@ -125,6 +131,7 @@ async fn calculate_stats_w_engine(
 }
 
 /// Calculates Bangboo Channel pity; this pool has no win/loss metric.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> anyhow::Result<()> {
     let signals = database::zzz::signals::bangboo::get_infos_by_uid(uid, &mut *connection).await?;
 
@@ -140,6 +147,7 @@ async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> any
     Ok(())
 }
 /// Calculates Exclusive Rescreening pity and confirmed banner outcomes.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_exclusive_rescreening(
     uid: i32,
     catalog: &BannerCatalog,
@@ -180,6 +188,7 @@ async fn calculate_stats_exclusive_rescreening(
 }
 
 /// Calculates W-Engine Reverberation pity and confirmed banner outcomes.
+/// Reads pull-ID-ordered history and upserts this pool’s local stats on the caller’s connection.
 async fn calculate_stats_w_engine_reverberation(
     uid: i32,
     catalog: &BannerCatalog,

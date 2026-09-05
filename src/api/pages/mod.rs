@@ -1,3 +1,5 @@
+//! Server-composed page payloads and game-specific achievement-tracker caches.
+
 mod achievement_tracker;
 mod gi;
 mod leaderboard;
@@ -15,6 +17,7 @@ use utoipa::OpenApi;
 #[openapi(tags((name = "pages")))]
 struct ApiDoc;
 
+/// Combines page-route definitions for the API documentation.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievement_tracker::openapi());
@@ -26,6 +29,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
+/// Registers page handlers and initializes each game's independently typed tracker cache.
 pub fn configure(
     cfg: &mut web::ServiceConfig,
     pool: PgPool,

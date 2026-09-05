@@ -23,6 +23,8 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
+/// Refreshes supported pools sequentially, stopping at the first failure.
+/// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: &PgPool) -> Result<()> {
     info!("Starting standard");
     standard(pool).await?;
@@ -60,22 +62,29 @@ fn calculate_stats(
     .collect()
 }
 
+/// Refreshes the standard pool through the shared within-game batch path.
 async fn standard(pool: &PgPool) -> Result<()> {
     refresh(crate::GiGachaType::Standard, pool).await
 }
 
+/// Refreshes the character pool through the shared within-game batch path.
 async fn character(pool: &PgPool) -> Result<()> {
     refresh(crate::GiGachaType::Character, pool).await
 }
 
+/// Refreshes the weapon pool through the shared within-game batch path.
 async fn weapon(pool: &PgPool) -> Result<()> {
     refresh(crate::GiGachaType::Weapon, pool).await
 }
 
+/// Refreshes the chronicled pool through the shared within-game batch path.
 async fn chronicled(pool: &PgPool) -> Result<()> {
     refresh(crate::GiGachaType::Chronicled, pool).await
 }
 
+/// Fetches one pool’s population and writes calculated percentiles in bounded batches.
+/// Eligibility comes from the count query. Writes are separately committed,
+/// so failures may leave earlier batches refreshed until the next retry.
 async fn refresh(kind: crate::GiGachaType, pool: &PgPool) -> Result<()> {
     let stats = calculate_stats(database::gi::wishes_stats::get_all_by_pool(kind, pool).await?);
     for batch in stats.chunks(UPDATE_BATCH_SIZE) {

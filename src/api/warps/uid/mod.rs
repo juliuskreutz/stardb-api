@@ -1,3 +1,5 @@
+//! Localized HSR pull history, preserving the verified-owner privacy policy.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -40,6 +42,8 @@ struct Warp {
 
 impl TryFrom<database::warps::DbWarp> for Warp {
     type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
     fn try_from(warp: database::warps::DbWarp) -> anyhow::Result<Self> {
         let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
@@ -67,10 +71,12 @@ enum WarpType {
     LightCone,
 }
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_warps);
 }
@@ -85,6 +91,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/warps/{uid}")]
+/// Returns localized HSR histories, rejecting private UIDs without a verified
+/// owner connection. Administrators do not bypass this endpoint’s existing policy.
+/// Invalid stored rows or missing display names propagate as errors.
 async fn get_warps(
     session: Session,
     uid: web::Path<i32>,

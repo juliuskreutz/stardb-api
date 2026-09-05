@@ -1,3 +1,5 @@
+//! UIGF multi-game authorization, ordered history cutoffs and atomic unofficial persistence.
+
 use std::collections::HashMap;
 
 use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
@@ -20,10 +22,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_uigf_import);
 }
@@ -57,6 +61,7 @@ enum StringOrInt {
 }
 
 impl StringOrInt {
+    /// Parses a string UID or returns an already-numeric UID without range validation.
     fn parse(self) -> Result<i32, std::num::ParseIntError> {
         match self {
             StringOrInt::String(s) => s.parse(),
@@ -129,12 +134,14 @@ struct UigfNapEntry {
     time: String,
 }
 
+/// Parses a `vMAJOR.MINOR` version, returning None for any other syntax.
 fn parse_uigf_version(version: &str) -> Option<(u32, u32)> {
     let version = version.strip_prefix('v')?;
     let (major, minor) = version.split_once('.')?;
     Some((major.parse().ok()?, minor.parse().ok()?))
 }
 
+/// Allows an admin or a verified HSR connection; database failures propagate.
 async fn check_hsr_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> ApiResult<bool> {
     let allowed = admin
         || database::connections::get_by_username(username, pool)
@@ -146,6 +153,7 @@ async fn check_hsr_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) ->
     Ok(allowed)
 }
 
+/// Allows an admin or a verified ZZZ connection; database failures propagate.
 async fn check_zzz_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> ApiResult<bool> {
     let allowed = admin
         || database::zzz::connections::get_by_username(username, pool)
@@ -157,6 +165,7 @@ async fn check_zzz_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) ->
     Ok(allowed)
 }
 
+/// Allows an admin or a verified GI connection; database failures propagate.
 async fn check_gi_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> ApiResult<bool> {
     let allowed = admin
         || database::gi::connections::get_by_username(username, pool)
@@ -180,6 +189,9 @@ async fn check_gi_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> 
     )
 )]
 #[post("/api/uigf-import")]
+/// Imports authorized UIGF v4-or-later profiles in one cross-game transaction.
+/// Unauthorized UIDs increment skip counters; non-admin history stops at each pool's
+/// first overlap. Malformed data or batches return 400 before pulls or stats are written.
 async fn post_uigf_import(
     session: Session,
     params: web::Json<UigfImportParams>,
@@ -348,8 +360,9 @@ async fn post_uigf_import(
     Ok(HttpResponse::Ok().json(UigfImportSummary { hsr, gi, zzz }))
 }
 
-// Preserve source order within each pool. The first overlap truncates the rest
-// of that pool, even when later records have older timestamps.
+/// Yields records before the first overlap in source order, discarding the whole
+/// remaining pool tail even when later timestamps are older. Admins bypass this
+/// cutoff; pool-item validation applies later to the retained batch.
 fn before_cutoff(
     pulls: Vec<NormalizedPull>,
     earliest: Option<DateTime<Utc>>,
@@ -359,6 +372,9 @@ fn before_cutoff(
         .into_iter()
         .take_while(move |pull| admin || earliest.is_none_or(|time| pull.timestamp < time))
 }
+/// Parses a UIGF record's numeric IDs, localized item type and fixed-offset time.
+/// Returns an unofficial typed pull without I/O; pool compatibility is validated only
+/// after cutoff filtering, while malformed fields return parsing errors.
 fn parse_pull(
     uid: i32,
     pool: PullPool,

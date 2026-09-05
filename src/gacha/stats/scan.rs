@@ -22,7 +22,8 @@ pub(super) fn scan_pity<T>(
 ) -> Scan {
     scan_event(rows, rarity, |_| None, low, high, skip_first_high)
 }
-/// Scans rows in database chronology; incomplete trailing intervals are not averaged.
+/// Scans rows in the supplied order; callers use ascending database pull IDs.
+/// Incomplete trailing intervals are not averaged, and this function does not sort.
 /// The outcome callback runs only for high-rarity pulls. None marks a pool with
 /// no win model, while guaranteed results still contribute to high-rarity pity.
 pub(super) fn scan_event<T>(

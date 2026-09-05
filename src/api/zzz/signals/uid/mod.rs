@@ -1,3 +1,5 @@
+//! Localized ZZZ pull history with verified-owner or administrator access to private UIDs.
+
 use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
@@ -40,6 +42,8 @@ struct Signal {
 
 impl TryFrom<database::zzz::signals::DbSignal> for Signal {
     type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
     fn try_from(signal: database::zzz::signals::DbSignal) -> anyhow::Result<Self> {
         let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Character
@@ -70,10 +74,12 @@ enum SignalType {
     Bangboo,
 }
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_zzz_signals);
 }
@@ -88,6 +94,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/zzz/signals/{uid}")]
+/// Returns localized ZZZ histories after private-UID authorization.
+/// A verified owner or administrator may read private history; invalid rows
+/// or missing display names fail the response rather than producing partial data.
 async fn get_zzz_signals(
     session: Session,
     uid: web::Path<i32>,

@@ -51,6 +51,7 @@ struct Achievement {
 }
 
 impl From<database::zzz::achievements::DbAchievement> for Achievement {
+    /// Convert the localized database row to the API payload.
     fn from(db_achievement: database::zzz::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
@@ -84,12 +85,14 @@ impl From<database::zzz::achievements::DbAchievement> for Achievement {
     }
 }
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(id::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_zzz_achievements)
         .service(put_zzz_achievements)
@@ -106,6 +109,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/zzz/achievements")]
+/// Build related IDs from the complete localized catalog before applying viewer visibility.
 async fn get_zzz_achievements(
     session: Session,
     language_params: web::Query<LanguageParams>,
@@ -176,6 +180,8 @@ struct UpdateAchievement {
     )
 )]
 #[put("/api/zzz/achievements")]
+/// Require an administrator and update each supplied metadata row, preserving omitted fields.
+/// Updates are per-row statements rather than a transaction across the whole request.
 async fn put_zzz_achievements(
     session: Session,
     achievements: web::Json<Vec<UpdateAchievement>>,

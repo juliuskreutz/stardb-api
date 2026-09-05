@@ -32,6 +32,7 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
@@ -42,6 +43,7 @@ lazy_static::lazy_static! {
     static ref DATA: web::Data<SignalsImportInfos> = web::Data::new(SignalsImportInfos::default());
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.app_data(DATA.clone())
         .service(post_zzz_signals_import)
@@ -106,6 +108,9 @@ struct SignalsImport {
     )
 )]
 #[post("/api/zzz/signals-import")]
+/// Starts or joins an official ZZZ import using credentials from a validated URL.
+/// An authenticated caller gains a verified connection; discovery failures return an
+/// opaque error job and background failures update its status.
 async fn post_zzz_signals_import(
     session: Session,
     params: web::Json<SignalsImportParams>,
@@ -249,6 +254,8 @@ async fn post_zzz_signals_import(
     Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }))
 }
 
+/// Fetches every page for one official ZZZ pool and commits pulls with updated stats.
+/// Transport, decoding, validation and persistence errors propagate to the job runner.
 async fn import_signals(
     url: &Url,
     gacha_type: ZzzGachaType,

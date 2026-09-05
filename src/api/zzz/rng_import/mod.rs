@@ -15,10 +15,12 @@ use crate::{api::ApiResult, database, ZzzGachaType};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_rng_signals_import);
 }
@@ -47,6 +49,9 @@ struct Signal {
     )
 )]
 #[post("/api/zzz/rng-signals-import")]
+/// Imports the selected RNG profile after admin or verified ZZZ authorization.
+/// Malformed profile data or pull batches return 400; unauthorized claims return 403.
+/// All retained pulls and recalculated stats commit together as unofficial data.
 async fn post_rng_signals_import(
     session: Session,
     params: web::Json<RngSignalsImportParams>,
@@ -101,6 +106,9 @@ async fn post_rng_signals_import(
     Ok(HttpResponse::Ok().finish())
 }
 
+/// Parses RNG's pool-keyed items object into unofficial pulls without writing data.
+/// An empty object is valid; missing items, malformed IDs or out-of-range timestamps
+/// return errors for the endpoint to map to 400.
 fn parse_signals(uid: i32, items: &serde_json::Value) -> anyhow::Result<Vec<NormalizedPull>> {
     let items = items
         .as_object()

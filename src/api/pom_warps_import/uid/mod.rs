@@ -15,10 +15,12 @@ use crate::{api::ApiResult, database, mihomo, GachaType};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_pom_warps_import);
 }
@@ -65,6 +67,9 @@ struct Warp {
     security(("admin" = []))
 )]
 #[post("/api/pom-warps-import/{uid}")]
+/// Imports POM history for an admin or verified HSR connection as unofficial pulls.
+/// Enforces the per-pool count limit and non-admin first-overlap cutoff; malformed
+/// JSON, retained IDs, times or batches return 400 before transactional persistence.
 async fn post_pom_warps_import(
     session: Session,
     uid: web::Path<i32>,

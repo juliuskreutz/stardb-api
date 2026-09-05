@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(private::openapi());
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(private::configure)
         .service(put_user_gi_uid)
@@ -36,6 +38,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/gi/uids/{uid}")]
+/// Adds an unverified public GI connection, preserving any existing connection.
+/// The profile must already satisfy database foreign-key requirements; errors propagate.
 async fn put_user_gi_uid(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,
@@ -70,6 +74,7 @@ async fn put_user_gi_uid(
     )
 )]
 #[delete("/api/users/me/gi/uids/{uid}")]
+/// Deletes only the authenticated user's GI connection, leaving pull history intact.
 async fn delete_user_gi_uid(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,

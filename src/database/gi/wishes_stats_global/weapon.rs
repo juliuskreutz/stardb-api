@@ -1,3 +1,5 @@
+//! Genshin population-percentile persistence and pool-specific routing. This module targets the weapon pool.
+
 use anyhow::Result;
 use sqlx::PgPool;
 
@@ -26,6 +28,7 @@ pub async fn set_bulk(stats: &[DbWishesStatGlobal], pool: &PgPool) -> Result<()>
     Ok(())
 }
 
+/// Returns this UID’s stored percentile row, or None when it has not been ranked.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatGlobal>> {
     Ok(sqlx::query_file_as!(
         DbWishesStatGlobal,

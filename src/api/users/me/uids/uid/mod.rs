@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database, mihomo};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(private::openapi());
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(private::configure)
         .service(put_user_uid)
@@ -36,6 +38,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/uids/{uid}")]
+/// Adds an unverified public HSR connection after validating the UID range.
+/// Existing connections are left intact; profile lookup or stub seeding is attempted
+/// before insertion, and upstream or database errors propagate.
 async fn put_user_uid(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,
@@ -78,6 +83,7 @@ async fn put_user_uid(
     )
 )]
 #[delete("/api/users/me/uids/{uid}")]
+/// Deletes only the authenticated user's HSR connection, leaving pull history intact.
 async fn delete_user_uid(
     SessionUser(username): SessionUser,
     uid: web::Path<i32>,

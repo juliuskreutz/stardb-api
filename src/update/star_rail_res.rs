@@ -1,3 +1,5 @@
+//! Synchronize source assets before refreshing the mtime-based WebP cache and pruning removed sources.
+
 use std::{
     fs::{self, File},
     io::BufReader,
@@ -12,6 +14,7 @@ use image::{EncodableLayout, ImageFormat};
 use walkdir::WalkDir;
 use webp::Encoder;
 
+/// Start immediate asset refreshes on a dedicated runtime, repeating every ten minutes and logging failures.
 pub async fn spawn() {
     std::thread::spawn(move || {
         let rt = Runtime::new().unwrap();
@@ -42,6 +45,7 @@ pub async fn spawn() {
     });
 }
 
+/// Refresh the production StarRailRes source and WebP output directories.
 async fn update() -> Result<()> {
     update_from(
         Path::new("static"),
@@ -50,6 +54,8 @@ async fn update() -> Result<()> {
     .await
 }
 
+/// Synchronize the configured source before converting or pruning assets.
+/// Git failures propagate without treating incomplete source state as upstream deletions.
 async fn update_from(data_root: &Path, repo_url: &str) -> Result<()> {
     // Only a successful sync makes the source tree authoritative for conversion/pruning.
     // A failed clone or pull must not make missing source files look like upstream deletions.
@@ -68,6 +74,8 @@ async fn update_from(data_root: &Path, repo_url: &str) -> Result<()> {
     .await
 }
 
+/// Re-encode PNGs newer than their WebP outputs, preserving relative paths and character-icon resizing.
+/// Only after conversion succeeds, remove orphan WebPs; filesystem and image errors propagate.
 async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
     // Always scan: an interrupted conversion must recover even without a new commit.
     // Source mtimes invalidate existing outputs; mere output existence would retain

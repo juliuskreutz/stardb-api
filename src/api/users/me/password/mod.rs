@@ -18,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_password);
 }
@@ -41,6 +43,7 @@ pub struct PasswordUpdate {
     )
 )]
 #[put("/api/users/me/password")]
+/// Replaces the authenticated user's password with a newly salted Argon2 hash.
 async fn put_password(
     SessionUser(username): SessionUser,
     password_update: web::Json<PasswordUpdate>,

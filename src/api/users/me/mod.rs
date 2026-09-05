@@ -28,6 +28,7 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(achievements::openapi());
@@ -43,6 +44,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_me)
         .configure(achievements::configure)
@@ -86,6 +88,7 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
+/// Returns the authenticated user's account, connections and achievement selections.
 async fn get_me(
     SessionUser(username): SessionUser,
     pool: web::Data<PgPool>,

@@ -34,6 +34,7 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
@@ -44,6 +45,7 @@ lazy_static::lazy_static! {
     static ref DATA: web::Data<WishesImportInfos> = web::Data::new(WishesImportInfos::default());
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.app_data(DATA.clone())
         .service(post_gi_wishes_import)
@@ -109,6 +111,9 @@ struct WishesImport {
     )
 )]
 #[post("/api/gi/wishes-import")]
+/// Starts or joins an official GI import and snapshots item names once per new job.
+/// URL validation can return 400; discovery failures retain the UID-zero job response
+/// and background failures are published through the opaque job's status.
 async fn post_gi_wishes_import(
     session: Session,
     params: web::Json<WishesImportParams>,
@@ -292,6 +297,9 @@ async fn post_gi_wishes_import(
     Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }))
 }
 
+/// Fetches one official GI pool using the job's character-first name snapshot.
+/// The first existing timestamp stops pagination unless ignored. Unknown names return
+/// InvalidImportResponse; valid pulls and recalculated stats commit in one transaction.
 async fn import_wishes(
     uid: i32,
     url: &Url,
@@ -414,12 +422,14 @@ struct ImportNames {
     weapons: HashMap<String, i32>,
 }
 impl ImportNames {
+    /// Loads character and weapon name snapshots once per job; database failures abort the job.
     async fn load(pool: &PgPool) -> ApiResult<Self> {
         Ok(Self {
             characters: database::gi::characters_text::get_name_ids(pool).await?,
             weapons: database::gi::weapons_text::get_name_ids(pool).await?,
         })
     }
+    /// Resolves characters before weapons; an unknown name becomes an InvalidResponse job error.
     fn resolve(&self, name: &str) -> Result<i32, crate::api::import_jobs::InvalidImportResponse> {
         self.characters
             .get(name)
