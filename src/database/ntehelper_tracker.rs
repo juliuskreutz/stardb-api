@@ -373,73 +373,72 @@ pub async fn import_tracker_pulls(
     // The claim-row lock keeps imports for this UID serialized. The API deduplicates
     // incoming IDs, so this difference counts new rows without a second anti-join.
     let new_count = i64::try_from(pulls.len() - existing_pulls.len())?;
-    let existing_by_record_uid = existing_pulls
+    let existing_record_uids = existing_pulls
         .into_iter()
-        .map(|pull| (pull.record_uid.clone(), pull))
-        .collect::<std::collections::HashMap<_, _>>();
+        .map(|pull| pull.record_uid)
+        .collect::<std::collections::HashSet<_>>();
 
     if current_total + new_count > max_total {
         tx.rollback().await?;
         return Ok(None);
     }
 
-    let mut inserted = 0;
-    let mut updated = 0;
+    // Keep classification under the claim lock. Only repair fields may change on
+    // existing records; separate statements preserve accurate insert/update counts.
+    let (existing, new): (Vec<_>, Vec<_>) = pulls
+        .iter()
+        .partition(|pull| existing_record_uids.contains(&pull.record_uid));
+    let ids: Vec<_> = existing.iter().map(|p| p.record_uid.as_str()).collect();
+    let results: Vec<_> = existing.iter().map(|p| p.roll_result).collect();
+    let types: Vec<_> = existing.iter().map(|p| p.result_type.as_deref()).collect();
+    let quantities: Vec<_> = existing.iter().map(|p| p.quantity).collect();
+    let updated = sqlx::query(
+        "UPDATE ntehelper_tracker_pull p
+         SET roll_result = input.roll_result, result_type = input.result_type,
+             quantity = input.quantity
+         FROM UNNEST($2::text[], $3::int[], $4::text[], $5::int[])
+             AS input(record_uid, roll_result, result_type, quantity)
+         WHERE p.uid = $1 AND p.record_uid = input.record_uid
+           AND (p.roll_result, p.result_type, p.quantity)
+               IS DISTINCT FROM (input.roll_result, input.result_type, input.quantity)",
+    )
+    .bind(uid)
+    .bind(&ids)
+    .bind(&results)
+    .bind(&types)
+    .bind(&quantities)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected() as i64;
 
-    for pull in pulls {
-        if existing_by_record_uid.contains_key(&pull.record_uid) {
-            let result = sqlx::query(
-                r#"UPDATE ntehelper_tracker_pull
-                   SET roll_result = $3,
-                       result_type = $4,
-                       quantity = $5
-                   WHERE uid = $1
-                     AND record_uid = $2
-                     AND (
-                        roll_result IS DISTINCT FROM $3
-                        OR result_type IS DISTINCT FROM $4
-                        OR quantity IS DISTINCT FROM $5
-                     )"#,
-            )
-            .bind(pull.uid)
-            .bind(&pull.record_uid)
-            .bind(pull.roll_result)
-            .bind(&pull.result_type)
-            .bind(pull.quantity)
-            .execute(&mut *tx)
-            .await?;
-
-            updated += result.rows_affected() as i64;
-            continue;
-        }
-
-        let result = sqlx::query(
-            r#"INSERT INTO ntehelper_tracker_pull (
-                 uid,
-                 record_uid,
-                 pool_group_id,
-                 timestamp_raw,
-                 timestamp_group_ordinal,
-                 roll_result,
-                 result_type,
-                 reward_id,
-                 quantity
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"#,
-        )
-        .bind(pull.uid)
-        .bind(&pull.record_uid)
-        .bind(&pull.pool_group_id)
-        .bind(&pull.timestamp_raw)
-        .bind(pull.timestamp_group_ordinal)
-        .bind(pull.roll_result)
-        .bind(&pull.result_type)
-        .bind(&pull.reward_id)
-        .bind(pull.quantity)
-        .execute(&mut *tx)
-        .await?;
-
-        inserted += result.rows_affected() as i64;
-    }
+    let ids: Vec<_> = new.iter().map(|p| p.record_uid.as_str()).collect();
+    let groups: Vec<_> = new.iter().map(|p| p.pool_group_id.as_str()).collect();
+    let timestamps: Vec<_> = new.iter().map(|p| p.timestamp_raw.as_str()).collect();
+    let ordinals: Vec<_> = new.iter().map(|p| p.timestamp_group_ordinal).collect();
+    let results: Vec<_> = new.iter().map(|p| p.roll_result).collect();
+    let types: Vec<_> = new.iter().map(|p| p.result_type.as_deref()).collect();
+    let rewards: Vec<_> = new.iter().map(|p| p.reward_id.as_str()).collect();
+    let quantities: Vec<_> = new.iter().map(|p| p.quantity).collect();
+    let inserted = sqlx::query(
+        "INSERT INTO ntehelper_tracker_pull (
+             uid, record_uid, pool_group_id, timestamp_raw, timestamp_group_ordinal,
+             roll_result, result_type, reward_id, quantity)
+         SELECT $1, input.* FROM UNNEST(
+             $2::text[], $3::text[], $4::text[], $5::int[],
+             $6::int[], $7::text[], $8::text[], $9::int[]) AS input",
+    )
+    .bind(uid)
+    .bind(&ids)
+    .bind(&groups)
+    .bind(&timestamps)
+    .bind(&ordinals)
+    .bind(&results)
+    .bind(&types)
+    .bind(&rewards)
+    .bind(&quantities)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected() as i64;
 
     sqlx::query("UPDATE ntehelper_tracker_uid_claim SET updated_at = now() WHERE uid = $1")
         .bind(uid)
@@ -844,5 +843,95 @@ mod tests {
         );
 
         delete_test_user(&username, &pool).await;
+    }
+    #[sqlx::test]
+    async fn sql_performance_tracker_bulk_replay_repairs_and_concurrent_cap(pool: PgPool) {
+        let (_, user_id) = create_test_user(&pool).await;
+        let uid = next_uid();
+        claim_tracker_uid(user_id, uid, 3, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        // The same record ID under another UID is a separate history.
+        let other_uid = next_uid();
+        claim_tracker_uid(user_id, other_uid, 3, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        import_tracker_pulls(other_uid, &[sample_pull(other_uid, "seed-0")], 10, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut pulls: Vec<_> = (0..10_000)
+            .map(|i| sample_pull(uid, &format!("seed-{i}")))
+            .collect();
+        let first = import_tracker_pulls(uid, &pulls, 10_001, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            (first.inserted, first.updated, first.total),
+            (10_000, 0, 10_000)
+        );
+        let replay = import_tracker_pulls(uid, &pulls, 10_001, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!((replay.inserted, replay.updated), (0, 0));
+        pulls[0].quantity = None;
+        pulls[0].result_type = None;
+        pulls[0].roll_result = None;
+        pulls[0].reward_id = "must-not-replace".into();
+        pulls.push(sample_pull(uid, "new"));
+        let mixed = import_tracker_pulls(uid, &pulls, 10_001, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!((mixed.inserted, mixed.updated, mixed.total), (1, 1, 10_001));
+        let stored = tracker_pulls_for_uid(uid, &pool).await.unwrap();
+        let repaired = stored.iter().find(|p| p.record_uid == "seed-0").unwrap();
+        assert_eq!(repaired.quantity, None);
+        assert_eq!(repaired.result_type, None);
+        assert_eq!(repaired.roll_result, None);
+        assert_eq!(repaired.reward_id, "test_reward");
+        // An insert failure after a repair must roll the entire import back.
+        let mut repair = pulls[0].clone();
+        repair.quantity = Some(2);
+        let mut invalid = sample_pull(uid, "invalid-new");
+        invalid.timestamp_raw = "invalid".into();
+        assert!(import_tracker_pulls(uid, &[repair, invalid], 20_000, &pool)
+            .await
+            .is_err());
+        let stored = tracker_pulls_for_uid(uid, &pool).await.unwrap();
+        assert_eq!(stored.len(), 10_001);
+        assert_eq!(
+            stored
+                .iter()
+                .find(|p| p.record_uid == "seed-0")
+                .unwrap()
+                .quantity,
+            None
+        );
+        assert_eq!(
+            tracker_pulls_for_uid(other_uid, &pool).await.unwrap()[0].quantity,
+            Some(1)
+        );
+        // Two independent transactions compete for one remaining slot.
+        let a = [sample_pull(uid, "concurrent-a")];
+        let b = [sample_pull(uid, "concurrent-b")];
+        let (a, b) = futures::join!(
+            import_tracker_pulls(uid, &a, 10_002, &pool),
+            import_tracker_pulls(uid, &b, 10_002, &pool)
+        );
+        assert_eq!(
+            usize::from(a.unwrap().is_some()) + usize::from(b.unwrap().is_some()),
+            1
+        );
+        assert_eq!(tracker_pull_count(uid, &pool).await.unwrap(), 10_002);
+        let empty = import_tracker_pulls(uid, &[], 10_002, &pool)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!((empty.inserted, empty.updated, empty.total), (0, 0, 10_002));
     }
 }
