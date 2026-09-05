@@ -141,7 +141,7 @@ impl BannerCatalog {
             if let (Some(item), Some(pool)) = (banner.character, banner.character_gacha_type) {
                 let pool = match pool {
                     500 => Some(GiGachaType::Chronicled),
-                    301 | 400 => Some(GiGachaType::Character),
+                    301 => Some(GiGachaType::Character),
                     unknown => {
                         warn!("Skipping unknown banner pool {unknown}");
                         None
