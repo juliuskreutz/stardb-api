@@ -85,3 +85,38 @@ async fn login(
 
     Ok(HttpResponse::Ok().finish())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, App};
+
+    #[actix_web::test]
+    async fn malformed_token_is_an_empty_400_without_database_access() {
+        // The malformed-token path must reject before touching PostgreSQL or
+        // consuming any valid one-time token in the shared store.
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://unused:unused@localhost/unused")
+            .unwrap();
+        let valid_token = Uuid::new_v4();
+        let tokens = web::Data::new(Mutex::new(HashMap::from([(
+            valid_token,
+            "alice".to_string(),
+        )])));
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool))
+                .app_data(tokens.clone())
+                .service(login),
+        )
+        .await;
+        let request = test::TestRequest::post()
+            .uri("/api/users/auth/login")
+            .set_json(serde_json::json!({"token":"not-a-uuid"}))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), actix_web::http::StatusCode::BAD_REQUEST);
+        assert!(test::read_body(response).await.is_empty());
+        assert!(tokens.lock().await.contains_key(&valid_token));
+    }
+}
