@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH signal_counts AS (\n    SELECT uid, COUNT(*) AS signal_count\n    FROM zzz_signals_exclusive_rescreening\n    GROUP BY uid\n)\nSELECT stats.uid, stats.luck_a, stats.luck_s, counts.signal_count\nFROM zzz_signals_stats_exclusive_rescreening AS stats\nLEFT JOIN signal_counts AS counts USING (uid);\n",
+  "query": "WITH signal_counts AS (\n    SELECT uid, COUNT(*) AS signal_count\n    FROM zzz_signals_exclusive_rescreening\n    GROUP BY uid\n)\n-- The preserved side is NOT NULL even if the planner reverses the LEFT JOIN.\n-- Pin SQLx nullability; only a missing history count is optional.\nSELECT stats.uid AS \"uid!\", stats.luck_a AS \"luck_a!\", stats.luck_s AS \"luck_s!\", counts.signal_count AS \"signal_count?\"\nFROM zzz_signals_stats_exclusive_rescreening AS stats\nLEFT JOIN signal_counts AS counts USING (uid);\n",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "uid",
+        "name": "uid!",
         "type_info": "Int4",
         "origin": {
           "Table": {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "luck_a",
+        "name": "luck_a!",
         "type_info": "Float8",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "luck_s",
+        "name": "luck_s!",
         "type_info": "Float8",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "signal_count",
+        "name": "signal_count?",
         "type_info": "Int8",
         "origin": "Expression"
       }
@@ -53,5 +53,5 @@
       true
     ]
   },
-  "hash": "60bda60d22deb4ab73fc661ae826e8aa92e197f5bd5b29447a829285bc5135c3"
+  "hash": "e1f01f899063bc717f258d83cb0f43b3259896b5a7332483c2acc5a951896eb4"
 }
