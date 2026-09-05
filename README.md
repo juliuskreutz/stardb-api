@@ -47,6 +47,25 @@ scripts/test-db.sh reset                # Delete ONLY this Compose project's tes
 scripts/test-db.sh url                  # Print the isolated test database URL
 ```
 
+The SQL performance regression tests generate their own synthetic data in isolated
+SQLx test databases and remove those databases after successful runs:
+
+```sh
+scripts/test-db.sh test sql_performance -- --nocapture
+```
+
+Fixtures cover 20,000 NTE completions, 10,000 tracker pulls, concurrent import caps,
+1,000 leaderboard profiles, all 15 percentile pools, 10,000 users for index plans,
+repeated Paimon items, and HSR copies across all six pools. These are deterministic
+correctness and query-plan checks, not production latency benchmarks. SQLx's test
+runner needs database-creation privileges; the Docker test role provides them.
+Failed SQLx test databases can remain for diagnosis. `reset` removes the disposable
+volume, including those databases; no persistent realistic seed corpus is required.
+
+The username-index migration uses ordinary transactional index creation. On a large
+production sessions/connections dataset, schedule migration during low traffic:
+index creation can block writes while the indexes are built.
+
 After `reset`, run `migrate` before SQL tooling; DB-backed tests migrate themselves.
 Commit `.sqlx` changes together with their queries. Clippy CI type-checks and lints
 all targets offline in a single pass; database tests and SQLx schema verification

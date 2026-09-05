@@ -410,3 +410,123 @@ mod decode_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod collection_count_tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn sql_performance_collection_counts_preserve_copies_and_localization(pool: PgPool) {
+        assert!(get_characters_count_by_uid(1, Language::En, &pool)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(get_light_cones_count_by_uid(1, Language::En, &pool)
+            .await
+            .unwrap()
+            .is_empty());
+        sqlx::query("INSERT INTO mihomo(uid, region, name, level, signature, avatar_icon, achievement_count)
+            VALUES (1, 'na', 'seed', 1, '', '', 0), (2, 'eu', 'other', 1, '', '', 0)")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO characters(id, rarity) VALUES (1, 5), (2, 4)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO light_cones(id, rarity) VALUES (3, 5), (4, 3)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO characters_text(id, language, name, element, path)
+            SELECT id, lang, lang || id, 'element-' || lang, 'path-' || lang
+            FROM characters CROSS JOIN UNNEST(ARRAY['en','fr']) lang",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO light_cones_text(id, language, name, path)
+            SELECT id, lang, lang || id, 'path-' || lang
+            FROM light_cones CROSS JOIN UNNEST(ARRAY['en','fr']) lang",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        for table in [
+            "warps_departure",
+            "warps_standard",
+            "warps_special",
+            "warps_lc",
+            "warps_collab",
+            "warps_collab_lc",
+        ] {
+            // Every item appears repeatedly in every pool; another UID must not add copies.
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO {table}(uid, id, character, light_cone, timestamp, official)
+                 SELECT uid, i, CASE WHEN i % 4 < 2 THEN 1 + i % 4 END,
+                    CASE WHEN i % 4 >= 2 THEN 1 + i % 4 END, now(), i % 2 = 0
+                 FROM mihomo CROSS JOIN generate_series(1, 600) i"
+            )))
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        let characters = get_characters_count_by_uid(1, Language::Fr, &pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            characters
+                .iter()
+                .map(|c| (c.id, c.rarity, c.name.as_str(), c.count))
+                .collect::<Vec<_>>(),
+            vec![(1, 5, "fr1", Some(900)), (2, 4, "fr2", Some(900))]
+        );
+        assert!(characters.iter().all(|c| c.path == "path-fr"
+            && c.path_id == "path-en"
+            && c.element == "element-fr"
+            && c.element_id == "element-en"));
+        let cones = get_light_cones_count_by_uid(1, Language::Fr, &pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            cones
+                .iter()
+                .map(|c| (c.id, c.rarity, c.name.as_str(), c.count))
+                .collect::<Vec<_>>(),
+            vec![(3, 5, "fr3", Some(900)), (4, 3, "fr4", Some(900))]
+        );
+        assert!(cones
+            .iter()
+            .all(|c| c.path == "path-fr" && c.path_id == "path-en"));
+        // LEFT JOIN must retain counts with absent text; typed display reads still reject missing labels.
+        sqlx::query("DELETE FROM characters_text WHERE id = 1")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM light_cones_text WHERE id = 3 AND language = 'fr'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        for query in [
+            include_str!("../../../sql/warps/get_characters_count_by_uid.sql"),
+            include_str!("../../../sql/warps/get_light_cones_count_by_uid.sql"),
+        ] {
+            use sqlx::Row;
+            let rows = sqlx::query(query)
+                .bind(1_i32)
+                .bind("fr")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 2);
+            assert_eq!(rows[0].get::<i64, _>("count"), 900);
+            assert_eq!(rows[0].get::<Option<String>, _>("name"), None);
+        }
+        assert!(get_characters_count_by_uid(1, Language::Fr, &pool)
+            .await
+            .is_err());
+        assert!(get_light_cones_count_by_uid(1, Language::Fr, &pool)
+            .await
+            .is_err());
+    }
+}
