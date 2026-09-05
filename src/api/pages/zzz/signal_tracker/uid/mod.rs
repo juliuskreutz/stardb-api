@@ -281,7 +281,7 @@ async fn get_signal_tracker(
     Ok(HttpResponse::Ok().json(signal_tracker))
 }
 
-/// Pool parameters keep historical caps explicit; None preserves Departure's zero summaries.
+/// Pool-specific next-pull rates and displayed pity caps, in percentage units.
 #[derive(Clone, Copy)]
 struct Pity {
     base_4: f64,
@@ -294,6 +294,8 @@ struct Pity {
     max_5: usize,
 }
 impl Pity {
+    // Counters are completed pulls since the last reset. The threshold therefore
+    // describes the next pull (for example, 89 elapsed pulls imply 100% at pull 90).
     fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
         (
             if low < self.hard_4 {
@@ -309,6 +311,7 @@ impl Pity {
         )
     }
 }
+/// Annotates chronological history separately from aggregate luck calculations.
 fn build_set(rows: Vec<Signal>, kind: ZzzGachaType, catalog: &BannerCatalog) -> Signals {
     let pity = match kind {
         ZzzGachaType::Standard => Some(Pity {
@@ -360,12 +363,16 @@ fn build_set(rows: Vec<Signal>, kind: ZzzGachaType, catalog: &BannerCatalog) -> 
     for (index, mut row) in rows.into_iter().enumerate() {
         pull_4 += 1;
         pull_5 += 1;
+        // The winning row displays the interval it completed, so annotate before
+        // resetting counters for the next row.
         row.pull = index + 1;
         row.pull_4 = pull_4;
         row.pull_5 = pull_5;
         if row.rarity == 3 {
             pull_4 = 0;
         }
+        // An S-rank pull resets both displayed pity counters in ZZZ. HSR/GI and
+        // aggregate ZZZ luck calculations intentionally use independent resets.
         if row.rarity == 4 {
             pull_5 = 0;
             pull_4 = 0;

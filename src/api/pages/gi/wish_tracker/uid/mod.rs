@@ -256,7 +256,7 @@ async fn get_wish_tracker(
     Ok(HttpResponse::Ok().json(wish_tracker))
 }
 
-/// Pool parameters keep historical caps explicit; None preserves Departure's zero summaries.
+/// Pool-specific next-pull rates and displayed pity caps, in percentage units.
 #[derive(Clone, Copy)]
 struct Pity {
     base_4: f64,
@@ -269,6 +269,8 @@ struct Pity {
     max_5: usize,
 }
 impl Pity {
+    // Counters are completed pulls since the last reset. The threshold therefore
+    // describes the next pull (for example, 89 elapsed pulls imply 100% at pull 90).
     fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
         (
             if low < self.hard_4 {
@@ -284,6 +286,7 @@ impl Pity {
         )
     }
 }
+/// Annotates chronological history separately from aggregate luck calculations.
 fn build_set(rows: Vec<Wish>, kind: GiGachaType, catalog: &BannerCatalog) -> Wishes {
     let pity = match kind {
         GiGachaType::Beginner => Some(Pity {
@@ -343,12 +346,15 @@ fn build_set(rows: Vec<Wish>, kind: GiGachaType, catalog: &BannerCatalog) -> Wis
     for (index, mut row) in rows.into_iter().enumerate() {
         pull_4 += 1;
         pull_5 += 1;
+        // The winning row displays the interval it completed, so annotate before
+        // resetting counters for the next row.
         row.pull = index + 1;
         row.pull_4 = pull_4;
         row.pull_5 = pull_5;
         if row.rarity == 4 {
             pull_4 = 0;
         }
+        // A five-star pull does not reset the four-star counter in this game.
         if row.rarity == 5 {
             pull_5 = 0;
             let item = match kind {
@@ -356,6 +362,7 @@ fn build_set(rows: Vec<Wish>, kind: GiGachaType, catalog: &BannerCatalog) -> Wis
                 GiGachaType::Standard => None,
                 GiGachaType::Character => Some(PullItem::Character(row.item_id)),
                 GiGachaType::Weapon => Some(PullItem::Weapon(row.item_id)),
+                // Chronicled keeps its existing pity-only output; no guarantee model.
                 GiGachaType::Chronicled => None,
             };
             if let Some(item) = item {

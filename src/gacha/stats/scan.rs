@@ -11,7 +11,8 @@ pub(super) struct Scan {
     pub win_streak: i32,
     pub loss_streak: i32,
 }
-/// The first high-rarity Stable Channel pull is excluded from its pity average.
+/// Computes completed pity intervals without a banner win/loss model.
+/// `skip_first_high` preserves ZZZ Stable Channel's special first S-rank exclusion.
 pub(super) fn scan_pity<T>(
     rows: &[T],
     rarity: impl Fn(&T) -> i32,
@@ -21,6 +22,9 @@ pub(super) fn scan_pity<T>(
 ) -> Scan {
     scan_event(rows, rarity, |_| None, low, high, skip_first_high)
 }
+/// Scans rows in database chronology; incomplete trailing intervals are not averaged.
+/// The outcome callback runs only for high-rarity pulls. None marks a pool with
+/// no win model, while guaranteed results still contribute to high-rarity pity.
 pub(super) fn scan_event<T>(
     rows: &[T],
     rarity: impl Fn(&T) -> i32,
@@ -38,11 +42,15 @@ pub(super) fn scan_event<T>(
         pull_low += 1;
         pull_high += 1;
         let rank = rarity(row);
+        // Aggregate low/high intervals reset independently, including in ZZZ.
+        // ZZZ's tracker display resets A-rank on S-rank too; that is a different policy.
         if rank == low {
             sum_low += pull_low;
             count_low += 1;
             pull_low = 0;
         } else if rank == high {
+            // Discard only the first completed high interval, then start measuring
+            // from that pull. Do not clear the independent low-rarity interval.
             if skip_first_high {
                 skip_first_high = false;
                 pull_high = 0;
@@ -53,6 +61,9 @@ pub(super) fn scan_event<T>(
             pull_high = 0;
             if let Some(outcome) = outcome(row) {
                 match state.advance(outcome) {
+                    // Guaranteed pulls neither enter the win-rate denominator nor
+                    // break/extend confirmed decision streaks. Trackers label them
+                    // explicitly, but stats measure only non-guaranteed decisions.
                     GuaranteedOutcome::GuaranteedWin => {}
                     GuaranteedOutcome::Win => {
                         decisions += 1;

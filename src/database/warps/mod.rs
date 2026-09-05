@@ -6,6 +6,10 @@ use sqlx::PgPool;
 
 use crate::Language;
 
+/// A stored pull with a validated item identity and catalog rarity.
+///
+/// Localized names remain optional because UIGF permits missing labels. Display
+/// endpoints require a name in their fallible conversion instead of inventing one.
 pub struct DbWarp {
     pub item: PullItem,
     pub id: i64,
@@ -14,6 +18,8 @@ pub struct DbWarp {
     pub timestamp: DateTime<Utc>,
     pub official: bool,
 }
+// SQL LEFT JOINs can yield NULL catalog fields, and historical rows can violate
+// the import invariant. Keep the raw columns until TryFrom checks both conditions.
 struct RawDbWarp {
     pub id: i64,
     pub character: Option<i32>,
@@ -26,6 +32,8 @@ struct RawDbWarp {
 impl TryFrom<RawDbWarp> for DbWarp {
     type Error = anyhow::Error;
     fn try_from(r: RawDbWarp) -> anyhow::Result<Self> {
+        // Check exactly one column before choosing an item: coalescing first would
+        // hide ambiguous rows. Column identity also supports synthetic numeric IDs.
         let item = match (r.character, r.light_cone) {
             (Some(id), None) => PullItem::Character(id),
             (None, Some(id)) => PullItem::LightCone(id),
@@ -44,6 +52,7 @@ impl TryFrom<RawDbWarp> for DbWarp {
     }
 }
 
+/// Label-free stats input; it enforces the same identity/rarity rules as full reads.
 pub struct DbWarpInfo {
     pub item: PullItem,
     pub rarity: i32,
@@ -73,6 +82,8 @@ impl TryFrom<RawDbWarpInfo> for DbWarpInfo {
     }
 }
 
+/// Write arrays retain explicit item columns; item kind must never be inferred
+/// from numeric ID ranges when binding these arrays to a pool's SQL parameters.
 #[derive(Default)]
 pub struct SetAll {
     pub id: Vec<i64>,
@@ -146,7 +157,10 @@ pub async fn get_light_cones_count_by_uid(
     .await?)
 }
 
-// One registry owns SQL paths, pool variants, and routing. SQLx needs literal paths.
+// SQLx's file macros require literal paths (not concat!), so the registry keeps
+// every path explicit while stamping the existing public per-pool function names.
+// Keep set_all's item-column order aligned with its SQL parameters: both arrays
+// share the same Rust type, so swapping them would compile but corrupt identity.
 macro_rules! pool_fn {
     (set_all, $sql:literal, $item_column:ident) => {
         pub async fn set_all(
@@ -239,6 +253,8 @@ macro_rules! pool_fn {
         }
     };
 }
+// Enum dispatch is generated from the same entries as the pool modules so a new
+// pool cannot acquire working SQL wrappers while being omitted from these routes.
 macro_rules! pool_registry {
  ($( $module:ident => $variant:ident, $item:ident { $( $function:ident : $sql:literal ),* $(,)? } ),* $(,)?) => {
 $(pub mod $module {

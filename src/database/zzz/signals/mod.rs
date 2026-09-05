@@ -3,6 +3,10 @@ use crate::gacha::imports::PullItem;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
+/// A stored pull with a validated item identity and catalog rarity.
+///
+/// Localized names remain optional because UIGF permits missing labels. Display
+/// endpoints require a name in their fallible conversion instead of inventing one.
 pub struct DbSignal {
     pub item: PullItem,
     pub id: i64,
@@ -11,6 +15,8 @@ pub struct DbSignal {
     pub timestamp: DateTime<Utc>,
     pub official: bool,
 }
+// SQL LEFT JOINs can yield NULL catalog fields, and historical rows can violate
+// the import invariant. Keep the raw columns until TryFrom checks both conditions.
 struct RawDbSignal {
     pub id: i64,
     pub character: Option<i32>,
@@ -24,6 +30,8 @@ struct RawDbSignal {
 impl TryFrom<RawDbSignal> for DbSignal {
     type Error = anyhow::Error;
     fn try_from(r: RawDbSignal) -> anyhow::Result<Self> {
+        // Check exactly one column before choosing an item: coalescing first would
+        // hide ambiguous rows. Column identity also supports synthetic numeric IDs.
         let item = match (r.character, r.bangboo, r.w_engine) {
             (Some(id), None, None) => PullItem::Character(id),
             (None, Some(id), None) => PullItem::Bangboo(id),
@@ -43,6 +51,7 @@ impl TryFrom<RawDbSignal> for DbSignal {
     }
 }
 
+/// Label-free stats input; it enforces the same identity/rarity rules as full reads.
 pub struct DbSignalInfo {
     pub item: PullItem,
     pub rarity: i32,
@@ -74,6 +83,8 @@ impl TryFrom<RawDbSignalInfo> for DbSignalInfo {
     }
 }
 
+/// Write arrays retain explicit item columns; item kind must never be inferred
+/// from numeric ID ranges when binding these arrays to a pool's SQL parameters.
 #[derive(Default)]
 pub struct SetAll {
     pub id: Vec<i64>,
@@ -94,7 +105,10 @@ pub async fn get_uids(pool: &PgPool) -> anyhow::Result<Vec<i32>> {
         .collect())
 }
 
-// One registry owns SQL paths, pool variants, and routing. SQLx needs literal paths.
+// SQLx's file macros require literal paths (not concat!), so the registry keeps
+// every path explicit while stamping the existing public per-pool function names.
+// Keep set_all's item-column order aligned with its SQL parameters: both arrays
+// share the same Rust type, so swapping them would compile but corrupt identity.
 macro_rules! pool_fn {
     (set_all, $sql:literal, $item_column:ident) => {
         pub async fn set_all(
@@ -173,6 +187,8 @@ macro_rules! pool_fn {
         }
     };
 }
+// The registry's item column is bangboo only for that pool; all other pools bind
+// character followed by w_engine. It is a schema choice, not an ID-range heuristic.
 macro_rules! pool_registry {
  ($( $module:ident => $variant:ident, $item:ident { $( $function:ident : $sql:literal ),* $(,)? } ),* $(,)?) => {
 $(pub mod $module {
