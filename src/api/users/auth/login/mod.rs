@@ -70,7 +70,10 @@ async fn login(
             username.clone()
         }
         UserLogin::Token { token } => {
-            let Some(username) = tokens.lock().await.remove(&token.parse()?) else {
+            let Ok(token) = token.parse::<Uuid>() else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
+            let Some(username) = tokens.lock().await.remove(&token) else {
                 return Ok(HttpResponse::BadRequest().finish());
             };
 

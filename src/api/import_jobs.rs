@@ -35,7 +35,6 @@ pub(crate) enum ImportErrorCode {
     UpstreamUnavailable,
     InvalidResponse,
     PersistenceFailed,
-    CalculationFailed,
 }
 
 /// Maps transport and decoding failures to closed public error codes.
@@ -43,6 +42,9 @@ pub(crate) fn classify_import_error(
     error: &(dyn std::error::Error + 'static),
     fallback: ImportErrorCode,
 ) -> ImportErrorCode {
+    if error.is::<InvalidImportResponse>() {
+        return ImportErrorCode::InvalidResponse;
+    }
     match error.downcast_ref::<reqwest::Error>() {
         Some(error) if error.is_decode() => ImportErrorCode::InvalidResponse,
         Some(_) => ImportErrorCode::UpstreamUnavailable,
@@ -63,28 +65,14 @@ pub(crate) fn redacted_error(error: Box<dyn std::error::Error>) -> String {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ImportStatus {
     Pending,
-    Calculating,
     Finished,
     Error(ImportErrorCode),
 }
 
 struct ImportJob<T> {
     uid: Option<i32>,
+    finished: bool,
     info: Arc<Mutex<T>>,
-}
-
-struct ImportJobs<T> {
-    jobs_by_id: HashMap<ImportJobId, ImportJob<T>>,
-    active_job_by_uid: HashMap<i32, ImportJobId>,
-}
-
-impl<T> Default for ImportJobs<T> {
-    fn default() -> Self {
-        Self {
-            jobs_by_id: HashMap::new(),
-            active_job_by_uid: HashMap::new(),
-        }
-    }
 }
 
 /// Result of creating or joining an active import job.
@@ -96,41 +84,40 @@ pub(crate) struct StartedImportJob<T> {
 
 /// Concurrent job store with at most one UID-bound job active per UID.
 pub(crate) struct ImportJobStore<T> {
-    jobs: Mutex<ImportJobs<T>>,
+    jobs: Arc<Mutex<HashMap<ImportJobId, ImportJob<T>>>>,
 }
 
 impl<T> Default for ImportJobStore<T> {
     fn default() -> Self {
         Self {
-            jobs: Mutex::new(ImportJobs::default()),
+            jobs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
-impl<T> ImportJobStore<T> {
+impl<T: Send + 'static> ImportJobStore<T> {
     /// Starts a UID-bound job or joins the existing active job for that UID.
     pub(crate) async fn start(&self, uid: i32, initial: T) -> StartedImportJob<T> {
         let mut jobs = self.jobs.lock().await;
 
-        if let Some(id) = jobs.active_job_by_uid.get(&uid).copied() {
-            if let Some(job) = jobs.jobs_by_id.get(&id) {
-                return StartedImportJob {
-                    id,
-                    info: job.info.clone(),
-                    is_new: false,
-                };
-            }
-
-            jobs.active_job_by_uid.remove(&uid);
+        if let Some((id, job)) = jobs
+            .iter()
+            .find(|(_, job)| job.uid == Some(uid) && !job.finished)
+        {
+            return StartedImportJob {
+                id: *id,
+                info: job.info.clone(),
+                is_new: false,
+            };
         }
 
         let id = ImportJobId::new();
         let info = Arc::new(Mutex::new(initial));
-        jobs.active_job_by_uid.insert(uid, id);
-        jobs.jobs_by_id.insert(
+        jobs.insert(
             id,
             ImportJob {
                 uid: Some(uid),
+                finished: false,
                 info: info.clone(),
             },
         );
@@ -147,10 +134,11 @@ impl<T> ImportJobStore<T> {
         let mut jobs = self.jobs.lock().await;
         let id = ImportJobId::new();
         let info = Arc::new(Mutex::new(initial));
-        jobs.jobs_by_id.insert(
+        jobs.insert(
             id,
             ImportJob {
                 uid: None,
+                finished: false,
                 info: info.clone(),
             },
         );
@@ -164,26 +152,32 @@ impl<T> ImportJobStore<T> {
 
     /// Returns shared mutable job state for an exact opaque identifier.
     pub(crate) async fn get(&self, id: ImportJobId) -> Option<Arc<Mutex<T>>> {
-        self.jobs
-            .lock()
-            .await
-            .jobs_by_id
-            .get(&id)
-            .map(|job| job.info.clone())
+        self.jobs.lock().await.get(&id).map(|job| job.info.clone())
     }
 
-    /// Removes a completed job and its UID-active index entry atomically.
-    pub(crate) async fn remove(&self, id: ImportJobId) {
+    /// First completion starts the retention window; repeats never extend it.
+    pub(crate) async fn complete(&self, id: ImportJobId) {
+        self.complete_with_retention(id, std::time::Duration::from_secs(60))
+            .await;
+    }
+    async fn complete_with_retention(&self, id: ImportJobId, retention: std::time::Duration) {
         let mut jobs = self.jobs.lock().await;
-        let Some(job) = jobs.jobs_by_id.remove(&id) else {
+        let Some(job) = jobs.get_mut(&id) else {
             return;
         };
-
-        if let Some(uid) = job.uid {
-            if jobs.active_job_by_uid.get(&uid) == Some(&id) {
-                jobs.active_job_by_uid.remove(&uid);
-            }
+        if job.finished {
+            return;
         }
+        job.finished = true;
+        let jobs = self.jobs.clone();
+        actix_web::rt::spawn(async move {
+            actix_web::rt::time::sleep(retention).await;
+            jobs.lock().await.remove(&id);
+        });
+    }
+    #[cfg(test)]
+    pub(crate) async fn remove(&self, id: ImportJobId) {
+        self.jobs.lock().await.remove(&id);
     }
 }
 
@@ -392,5 +386,52 @@ mod gacha_security {
                 .await
                 .expect("GI character fixture cleans up");
         }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct InvalidImportResponse;
+impl std::fmt::Display for InvalidImportResponse {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("invalid import response")
+    }
+}
+impl std::error::Error for InvalidImportResponse {}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    #[actix_web::test]
+    async fn completed_jobs_remain_pollable_and_new_starts_do_not_join_them() {
+        let store = ImportJobStore::default();
+        let first = store.start(1, ()).await;
+        store.complete(first.id).await;
+        store.complete(first.id).await;
+        assert!(store.get(first.id).await.is_some());
+        let next = store.start(1, ()).await;
+        assert!(next.is_new);
+        assert_ne!(first.id, next.id);
+        assert_eq!(store.start(1, ()).await.id, next.id);
+    }
+}
+
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+    #[actix_web::test]
+    async fn repeated_completion_does_not_extend_retention_or_remove_new_job() {
+        let store = ImportJobStore::default();
+        let first = store.start(1, ()).await;
+        store
+            .complete_with_retention(first.id, std::time::Duration::from_millis(20))
+            .await;
+        store
+            .complete_with_retention(first.id, std::time::Duration::from_secs(60))
+            .await;
+        let second = store.start(1, ()).await;
+        assert!(store.get(first.id).await.is_some());
+        actix_web::rt::time::sleep(std::time::Duration::from_millis(40)).await;
+        assert!(store.get(first.id).await.is_none());
+        assert!(store.get(second.id).await.is_some());
     }
 }

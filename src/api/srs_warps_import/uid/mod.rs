@@ -70,40 +70,13 @@ async fn post_srs_warps_import(
 
     let uid = *uid;
 
-    let admin = database::admins::exists(&username, &pool).await?;
-
-    let allowed = admin
-        || database::connections::get_by_username(&username, &pool)
-            .await?
-            .iter()
-            .find(|c| c.uid == uid)
-            .map(|c| c.verified)
-            .unwrap_or_default();
+    let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     let mut warps_map: HashMap<_, Vec<ParsedWarp>> = HashMap::new();
 
@@ -111,7 +84,10 @@ async fn post_srs_warps_import(
     for warp in reader.deserialize() {
         let warp: Warp = warp?;
 
-        let time = DateTime::parse_from_rfc3339(&warp.time).unwrap().to_utc();
+        let Ok(time) = DateTime::parse_from_rfc3339(&warp.time) else {
+            return Ok(HttpResponse::BadRequest().finish());
+        };
+        let time = time.to_utc();
 
         warps_map
             .entry(warp.gacha_type)
@@ -207,10 +183,14 @@ async fn post_srs_warps_import(
 
             if item_id == 0 {
                 if pity >= 9 {
-                    item_id = *light_cone_4_ids.choose(&mut rand::rng()).unwrap();
+                    item_id = *light_cone_4_ids
+                        .choose(&mut rand::rng())
+                        .ok_or_else(|| anyhow::anyhow!("missing light cone catalog"))?;
                     rarity = 4;
                 } else {
-                    item_id = *light_cone_3_ids.choose(&mut rand::rng()).unwrap();
+                    item_id = *light_cone_3_ids
+                        .choose(&mut rand::rng())
+                        .ok_or_else(|| anyhow::anyhow!("missing light cone catalog"))?;
                     rarity = 3;
                 }
             }
@@ -256,7 +236,7 @@ async fn post_srs_warps_import(
             (GachaType::Collab, &set_all_collab),
             (GachaType::CollabLc, &set_all_collab_lc),
         ],
-        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+        crate::gacha::imports::PullProvenance::Unofficial,
         &pool,
     )
     .await?;

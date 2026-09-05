@@ -1,3 +1,4 @@
+use crate::api::users::SessionUser;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use utoipa::OpenApi;
@@ -29,11 +30,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[post("/api/users/auth/renew")]
-async fn post_renew(session: Session) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+async fn post_renew(
+    session: Session,
+    SessionUser(username): SessionUser,
+) -> ApiResult<impl Responder> {
     session.renew();
 
     Ok(HttpResponse::Ok().json(username))

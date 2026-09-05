@@ -188,13 +188,7 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
     let name = re
         .replace_all(&mihomo.player.nickname, |_: &Captures| "")
         .to_string();
-    let region = match uid.to_string().chars().next() {
-        Some('6') => "na",
-        Some('7') => "eu",
-        Some('8') | Some('9') => "asia",
-        _ => "cn",
-    }
-    .to_string();
+    let region = region_for_uid(uid).to_string();
     let level = mihomo.player.level;
     let avatar_icon = mihomo.player.avatar.icon.clone();
     let signature = re
@@ -240,4 +234,46 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
     debug!(uid, language = %language, timestamp = %timestamp, "mihomo update_and_get complete");
 
     Ok(Some(json))
+}
+
+pub(crate) fn region_for_uid(uid: i32) -> crate::api::Region {
+    use crate::api::Region;
+    match uid.to_string().chars().next() {
+        Some('6') => Region::Na,
+        Some('7') => Region::Eu,
+        Some('8' | '9') => Region::Asia,
+        _ => Region::Cn,
+    }
+}
+/// Preserve the epoch stub when upstream has no profile.
+pub(crate) async fn ensure_row(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    if !database::mihomo::exists(uid, pool).await? && get(uid, Language::En, pool).await?.is_none()
+    {
+        database::mihomo::set(
+            &database::mihomo::DbMihomo {
+                uid,
+                region: region_for_uid(uid).to_string(),
+                ..Default::default()
+            },
+            pool,
+        )
+        .await?;
+    }
+    Ok(())
+}
+#[cfg(test)]
+mod region_tests {
+    #[test]
+    fn uid_regions() {
+        for (uid, region) in [
+            (600000001, "na"),
+            (700000001, "eu"),
+            (800000001, "asia"),
+            (900000001, "asia"),
+            (100000001, "cn"),
+            (0, "cn"),
+        ] {
+            assert_eq!(super::region_for_uid(uid).to_string(), region);
+        }
+    }
 }

@@ -31,6 +31,18 @@ pub(crate) enum PullItem {
     Bangboo(i32),
 }
 
+impl PullItem {
+    pub(crate) fn id(self) -> i32 {
+        match self {
+            Self::Character(id)
+            | Self::LightCone(id)
+            | Self::Weapon(id)
+            | Self::WEngine(id)
+            | Self::Bangboo(id) => id,
+        }
+    }
+}
+
 /// Whether a pull came from an official endpoint or an alternate source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PullProvenance {
@@ -49,20 +61,11 @@ pub(crate) struct NormalizedPull {
     pub provenance: PullProvenance,
 }
 
-/// Authorization and provenance rules attached to an import batch.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ImportPolicy {
-    pub is_admin: bool,
-    pub is_verified: bool,
-    pub provenance: PullProvenance,
-    pub may_overlap_history: bool,
-}
-
 /// A validated, deterministically ordered set of pulls.
 #[derive(Clone, Debug)]
 pub(crate) struct ImportBatch {
     pulls: Vec<NormalizedPull>,
-    policy: ImportPolicy,
+    provenance: PullProvenance,
 }
 
 /// Closed validation failures safe for adapters to map to client errors.
@@ -71,7 +74,6 @@ pub(crate) enum ImportValidationError {
     InvalidItemForPool,
     ConflictingDuplicate,
     ProvenanceMismatch,
-    UnverifiedImporter,
 }
 
 impl fmt::Display for ImportValidationError {
@@ -79,8 +81,7 @@ impl fmt::Display for ImportValidationError {
         let message = match self {
             Self::InvalidItemForPool => "item is not valid for pull pool",
             Self::ConflictingDuplicate => "duplicate pull records disagree",
-            Self::ProvenanceMismatch => "pull provenance does not match import policy",
-            Self::UnverifiedImporter => "importer is not verified for this UID",
+            Self::ProvenanceMismatch => "pull provenance does not match batch provenance",
         };
         formatter.write_str(message)
     }
@@ -96,15 +97,12 @@ impl ImportBatch {
     /// value wins.
     pub(crate) fn new(
         pulls: impl IntoIterator<Item = NormalizedPull>,
-        policy: ImportPolicy,
+        provenance: PullProvenance,
     ) -> Result<Self, ImportValidationError> {
-        if !policy.is_admin && !policy.is_verified {
-            return Err(ImportValidationError::UnverifiedImporter);
-        }
         let mut unique = HashMap::new();
 
         for pull in pulls {
-            if pull.provenance != policy.provenance {
+            if pull.provenance != provenance {
                 return Err(ImportValidationError::ProvenanceMismatch);
             }
             if !item_is_valid(pull.pool, pull.item) {
@@ -125,7 +123,7 @@ impl ImportBatch {
 
         let mut pulls: Vec<_> = unique.into_values().collect();
         pulls.sort_by_key(|pull| (pool_order(pull.pool), pull.uid, pull.id));
-        Ok(Self { pulls, policy })
+        Ok(Self { pulls, provenance })
     }
 
     /// Returns the validated pulls in stable persistence order.
@@ -139,28 +137,6 @@ impl ImportBatch {
             .iter()
             .map(|pull| (PullGame::from(pull.pool), pull.uid))
             .collect()
-    }
-}
-
-impl ImportPolicy {
-    /// Policy for data fetched directly from an official game endpoint.
-    pub(crate) fn official() -> Self {
-        Self {
-            is_admin: false,
-            is_verified: true,
-            provenance: PullProvenance::Official,
-            may_overlap_history: true,
-        }
-    }
-
-    /// Policy for files and third-party import formats.
-    pub(crate) fn unofficial(is_admin: bool, is_verified: bool, may_overlap_history: bool) -> Self {
-        Self {
-            is_admin,
-            is_verified,
-            provenance: PullProvenance::Unofficial,
-            may_overlap_history,
-        }
     }
 }
 
@@ -184,7 +160,7 @@ pub(crate) async fn persist_batch(
     debug_assert!(batch
         .pulls()
         .iter()
-        .all(|pull| pull.provenance == batch.policy.provenance));
+        .all(|pull| pull.provenance == batch.provenance));
     let mut hsr: HashMap<GachaType, database::warps::SetAll> = HashMap::new();
     let mut gi: HashMap<GiGachaType, database::gi::wishes::SetAll> = HashMap::new();
     let mut zzz: HashMap<ZzzGachaType, database::zzz::signals::SetAll> = HashMap::new();
@@ -246,65 +222,16 @@ pub(crate) async fn persist_batch(
 
     let mut hsr_changed = 0;
     for (pool, set) in hsr {
-        hsr_changed += match pool {
-            GachaType::Standard => {
-                database::warps::standard::set_all(&set, &mut *connection).await?
-            }
-            GachaType::Departure => {
-                database::warps::departure::set_all(&set, &mut *connection).await?
-            }
-            GachaType::Special => database::warps::special::set_all(&set, &mut *connection).await?,
-            GachaType::Lc => database::warps::lc::set_all(&set, &mut *connection).await?,
-            GachaType::Collab => database::warps::collab::set_all(&set, &mut *connection).await?,
-            GachaType::CollabLc => {
-                database::warps::collab_lc::set_all(&set, &mut *connection).await?
-            }
-        };
+        hsr_changed += database::warps::set_all_by_pool(pool, &set, &mut *connection).await?;
     }
     let mut gi_changed = 0;
     for (pool, set) in gi {
-        gi_changed += match pool {
-            GiGachaType::Beginner => {
-                database::gi::wishes::beginner::set_all(&set, &mut *connection).await?
-            }
-            GiGachaType::Standard => {
-                database::gi::wishes::standard::set_all(&set, &mut *connection).await?
-            }
-            GiGachaType::Character => {
-                database::gi::wishes::character::set_all(&set, &mut *connection).await?
-            }
-            GiGachaType::Weapon => {
-                database::gi::wishes::weapon::set_all(&set, &mut *connection).await?
-            }
-            GiGachaType::Chronicled => {
-                database::gi::wishes::chronicled::set_all(&set, &mut *connection).await?
-            }
-        };
+        gi_changed += database::gi::wishes::set_all_by_pool(pool, &set, &mut *connection).await?;
     }
     let mut zzz_changed = 0;
     for (pool, set) in zzz {
-        zzz_changed += match pool {
-            ZzzGachaType::Standard => {
-                database::zzz::signals::standard::set_all(&set, &mut *connection).await?
-            }
-            ZzzGachaType::Special => {
-                database::zzz::signals::special::set_all(&set, &mut *connection).await?
-            }
-            ZzzGachaType::WEngine => {
-                database::zzz::signals::w_engine::set_all(&set, &mut *connection).await?
-            }
-            ZzzGachaType::Bangboo => {
-                database::zzz::signals::bangboo::set_all(&set, &mut *connection).await?
-            }
-            ZzzGachaType::ExclusiveRescreening => {
-                database::zzz::signals::exclusive_rescreening::set_all(&set, &mut *connection)
-                    .await?
-            }
-            ZzzGachaType::WEngineReverberation => {
-                database::zzz::signals::w_engine_reverberation::set_all(&set, &mut *connection)
-                    .await?
-            }
-        };
+        zzz_changed +=
+            database::zzz::signals::set_all_by_pool(pool, &set, &mut *connection).await?;
     }
 
     Ok(PersistenceSummary {
@@ -347,28 +274,28 @@ pub(crate) async fn persist_batch_in_transaction(
 /// Normalizes and transactionally persists a collection of HSR adapter sets.
 pub(crate) async fn persist_hsr_sets_in_transaction(
     sets: &[(GachaType, &database::warps::SetAll)],
-    policy: ImportPolicy,
+    provenance: PullProvenance,
     pool: &PgPool,
 ) -> anyhow::Result<PersistenceSummary> {
     let mut pulls = Vec::new();
     for (pull_pool, set) in sets {
         pulls.extend(normalize_hsr_set(*pull_pool, set)?);
     }
-    let batch = ImportBatch::new(pulls, policy)?;
+    let batch = ImportBatch::new(pulls, provenance)?;
     persist_batch_in_transaction(&batch, pool).await
 }
 
 /// Normalizes and transactionally persists a collection of Genshin adapter sets.
 pub(crate) async fn persist_gi_sets_in_transaction(
     sets: &[(GiGachaType, &database::gi::wishes::SetAll)],
-    policy: ImportPolicy,
+    provenance: PullProvenance,
     pool: &PgPool,
 ) -> anyhow::Result<PersistenceSummary> {
     let mut pulls = Vec::new();
     for (pull_pool, set) in sets {
         pulls.extend(normalize_gi_set(*pull_pool, set)?);
     }
-    let batch = ImportBatch::new(pulls, policy)?;
+    let batch = ImportBatch::new(pulls, provenance)?;
     persist_batch_in_transaction(&batch, pool).await
 }
 
@@ -438,6 +365,18 @@ pub(crate) fn normalize_zzz_set(
             )
         },
         |index| {
+            if [
+                set.character[index],
+                set.bangboo[index],
+                set.w_engine[index],
+            ]
+            .iter()
+            .filter(|item| item.is_some())
+            .count()
+                != 1
+            {
+                return Err(ImportValidationError::InvalidItemForPool);
+            }
             exactly_one(
                 set.character[index]
                     .map(PullItem::Character)
@@ -544,13 +483,8 @@ mod gacha_imports {
         }
     }
 
-    fn policy() -> ImportPolicy {
-        ImportPolicy {
-            is_admin: false,
-            is_verified: true,
-            provenance: PullProvenance::Official,
-            may_overlap_history: true,
-        }
+    fn policy() -> PullProvenance {
+        PullProvenance::Official
     }
 
     #[test]
@@ -618,6 +552,38 @@ mod gacha_imports {
             ImportValidationError::ConflictingDuplicate
         );
     }
+    #[test]
+    fn normalization_rejects_multiple_zzz_items_before_collapse() {
+        let mut set = database::zzz::signals::SetAll::default();
+        set.id.push(1);
+        set.uid.push(1);
+        set.character.push(Some(1));
+        set.bangboo.push(Some(2));
+        set.w_engine.push(None);
+        set.timestamp.push(Utc::now());
+        set.official.push(false);
+        assert_eq!(
+            normalize_zzz_set(ZzzGachaType::Standard, &set).unwrap_err(),
+            ImportValidationError::InvalidItemForPool
+        );
+        set.character[0] = None;
+        set.bangboo[0] = None;
+        assert_eq!(
+            normalize_zzz_set(ZzzGachaType::Standard, &set).unwrap_err(),
+            ImportValidationError::InvalidItemForPool
+        );
+    }
+    #[test]
+    fn mixed_provenance_rejected() {
+        let first = pull(PullPool::Hsr(GachaType::Standard), PullItem::Character(1));
+        let mut other = first.clone();
+        other.id += 1;
+        other.provenance = PullProvenance::Unofficial;
+        assert_eq!(
+            ImportBatch::new([first, other], PullProvenance::Official).unwrap_err(),
+            ImportValidationError::ProvenanceMismatch
+        );
+    }
 }
 
 #[cfg(test)]
@@ -629,7 +595,7 @@ mod gacha_import_db {
         use uuid::Uuid;
 
         #[actix_web::test]
-        async fn only_official_data_repairs_an_unofficial_pull_in_every_game() {
+        async fn only_official_data_repairs_an_unofficial_pull_in_all_17_pools() {
             let database_url =
                 std::env::var("DATABASE_URL").expect("DATABASE_URL is required for DB tests");
             let pool = PgPoolOptions::new()
@@ -659,7 +625,15 @@ mod gacha_import_db {
                 .execute(&mut *transaction)
                 .await
                 .unwrap();
-            for table in ["characters", "gi_characters", "zzz_characters"] {
+            for table in [
+                "characters",
+                "light_cones",
+                "gi_characters",
+                "gi_weapons",
+                "zzz_characters",
+                "zzz_w_engines",
+                "zzz_bangboos",
+            ] {
                 sqlx::query(&format!(
                     "INSERT INTO {table} (id, rarity) VALUES ($1, 5), ($2, 5)"
                 ))
@@ -672,20 +646,118 @@ mod gacha_import_db {
 
             let timestamp = Utc.timestamp_opt(1_700_000_000, 0).unwrap();
             let games = [
-                (PullPool::Hsr(GachaType::Standard), "warps_standard"),
-                (PullPool::Gi(GiGachaType::Standard), "gi_wishes_standard"),
+                (
+                    PullPool::Hsr(GachaType::Standard),
+                    "warps_standard",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Hsr(GachaType::Departure),
+                    "warps_departure",
+                    "light_cone",
+                    PullItem::LightCone(repaired_item),
+                ),
+                (
+                    PullPool::Hsr(GachaType::Special),
+                    "warps_special",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Hsr(GachaType::Lc),
+                    "warps_lc",
+                    "light_cone",
+                    PullItem::LightCone(repaired_item),
+                ),
+                (
+                    PullPool::Hsr(GachaType::Collab),
+                    "warps_collab",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Hsr(GachaType::CollabLc),
+                    "warps_collab_lc",
+                    "light_cone",
+                    PullItem::LightCone(repaired_item),
+                ),
+                (
+                    PullPool::Gi(GiGachaType::Beginner),
+                    "gi_wishes_beginner",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Gi(GiGachaType::Standard),
+                    "gi_wishes_standard",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Gi(GiGachaType::Character),
+                    "gi_wishes_character",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Gi(GiGachaType::Weapon),
+                    "gi_wishes_weapon",
+                    "weapon",
+                    PullItem::Weapon(repaired_item),
+                ),
+                (
+                    PullPool::Gi(GiGachaType::Chronicled),
+                    "gi_wishes_chronicled",
+                    "weapon",
+                    PullItem::Weapon(repaired_item),
+                ),
                 (
                     PullPool::Zzz(ZzzGachaType::Standard),
                     "zzz_signals_standard",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Zzz(ZzzGachaType::Special),
+                    "zzz_signals_special",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Zzz(ZzzGachaType::WEngine),
+                    "zzz_signals_w_engine",
+                    "w_engine",
+                    PullItem::WEngine(repaired_item),
+                ),
+                (
+                    PullPool::Zzz(ZzzGachaType::Bangboo),
+                    "zzz_signals_bangboo",
+                    "bangboo",
+                    PullItem::Bangboo(repaired_item),
+                ),
+                (
+                    PullPool::Zzz(ZzzGachaType::ExclusiveRescreening),
+                    "zzz_signals_exclusive_rescreening",
+                    "character",
+                    PullItem::Character(repaired_item),
+                ),
+                (
+                    PullPool::Zzz(ZzzGachaType::WEngineReverberation),
+                    "zzz_signals_w_engine_reverberation",
+                    "w_engine",
+                    PullItem::WEngine(repaired_item),
                 ),
             ];
-
-            for (game_index, (pull_pool, table)) in games.into_iter().enumerate() {
+            assert_eq!(games.len(), 17);
+            for (game_index, (pull_pool, table, column, repaired_pull_item)) in
+                games.into_iter().enumerate()
+            {
                 for transition in 0..4_i64 {
                     let id = 9_000_000_000 + game_index as i64 * 10 + transition;
                     let stored_official = matches!(transition, 1 | 2);
                     let incoming_official = matches!(transition, 0 | 2);
-                    sqlx::query(&format!("INSERT INTO {table} (id, uid, character, timestamp, official) VALUES ($1, $2, $3, $4, $5)"))
+                    sqlx::query(&format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES ($1, $2, $3, $4, $5)"))
                         .bind(id).bind(uid).bind(first_item).bind(timestamp).bind(stored_official)
                         .execute(&mut *transaction).await.unwrap();
 
@@ -699,14 +771,11 @@ mod gacha_import_db {
                             uid,
                             id,
                             pool: pull_pool,
-                            item: PullItem::Character(repaired_item),
+                            item: repaired_pull_item,
                             timestamp: timestamp + Duration::hours(1),
                             provenance,
                         }],
-                        ImportPolicy {
-                            provenance,
-                            ..ImportPolicy::official()
-                        },
+                        provenance,
                     )
                     .unwrap();
                     let summary = persist_batch(&batch, &mut transaction).await.unwrap();
@@ -714,7 +783,7 @@ mod gacha_import_db {
                     assert_eq!(summary.changed_records, u64::from(expected_repair));
 
                     let row: (i32, bool) = sqlx::query_as(&format!(
-                        "SELECT character, official FROM {table} WHERE uid = $1 AND id = $2"
+                        "SELECT {column}, official FROM {table} WHERE uid = $1 AND id = $2"
                     ))
                     .bind(uid)
                     .bind(id)
@@ -771,7 +840,15 @@ mod gacha_import_db {
                 .execute(&pool)
                 .await
                 .unwrap();
-            for table in ["characters", "gi_characters", "zzz_characters"] {
+            for table in [
+                "characters",
+                "light_cones",
+                "gi_characters",
+                "gi_weapons",
+                "zzz_characters",
+                "zzz_w_engines",
+                "zzz_bangboos",
+            ] {
                 sqlx::query(&format!("INSERT INTO {table} (id, rarity) VALUES ($1, 5)"))
                     .bind(item)
                     .execute(&pool)
@@ -780,7 +857,7 @@ mod gacha_import_db {
             }
 
             let timestamp = Utc.timestamp_opt(1_700_000_000, 0).unwrap();
-            let policy = ImportPolicy::unofficial(false, true, false);
+            let policy = PullProvenance::Unofficial;
             let invalid = ImportBatch::new(
                 [
                     NormalizedPull {
@@ -925,6 +1002,60 @@ mod gacha_import_db {
                 .await
                 .unwrap();
             sqlx::query("DELETE FROM zzz_characters WHERE id = $1")
+                .bind(item)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+    }
+}
+
+#[cfg(test)]
+mod new_pool_uid_tests {
+    use super::*;
+    #[actix_web::test]
+    async fn uid_with_only_a_2026_pool_is_included() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(2)
+            .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL required"))
+            .await
+            .unwrap();
+        sqlx::migrate!().run(&pool).await.unwrap();
+        let suffix = (uuid::Uuid::new_v4().as_u128() % 100_000_000) as i32;
+        let item = 1_900_000_000 + suffix;
+        for table in ["zzz_characters", "zzz_w_engines"] {
+            sqlx::query(&format!("INSERT INTO {table} (id, rarity) VALUES ($1, 4)"))
+                .bind(item)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        for (offset, (table, column)) in [
+            ("zzz_signals_exclusive_rescreening", "character"),
+            ("zzz_signals_w_engine_reverberation", "w_engine"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let uid = 1_200_000_000 + suffix + offset as i32;
+            sqlx::query("INSERT INTO zzz_uids (uid) VALUES ($1)")
+                .bind(uid)
+                .execute(&pool)
+                .await
+                .unwrap();
+            sqlx::query(&format!("INSERT INTO {table} (id, uid, {column}, timestamp, official) VALUES (1, $1, $2, NOW(), false)")).bind(uid).bind(item).execute(&pool).await.unwrap();
+            assert!(database::zzz::signals::get_uids(&pool)
+                .await
+                .unwrap()
+                .contains(&uid));
+            sqlx::query("DELETE FROM zzz_uids WHERE uid = $1")
+                .bind(uid)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        for table in ["zzz_characters", "zzz_w_engines"] {
+            sqlx::query(&format!("DELETE FROM {table} WHERE id = $1"))
                 .bind(item)
                 .execute(&pool)
                 .await

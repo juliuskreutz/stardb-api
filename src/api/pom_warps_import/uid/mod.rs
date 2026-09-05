@@ -4,7 +4,7 @@ use chrono::NaiveDateTime;
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, mihomo, GachaType, Language};
+use crate::{api::ApiResult, database, mihomo, GachaType};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -76,40 +76,13 @@ async fn post_pom_warps_import(
 
     let uid = *uid;
 
-    let admin = database::admins::exists(&username, &pool).await?;
-
-    let allowed = admin
-        || database::connections::get_by_username(&username, &pool)
-            .await?
-            .iter()
-            .find(|c| c.uid == uid)
-            .map(|c| c.verified)
-            .unwrap_or_default();
+    let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..std::default::Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     let timestamp_offset = chrono::Duration::hours(match uid.to_string().chars().next() {
         Some('6') => -5,
@@ -179,8 +152,12 @@ async fn post_pom_warps_import(
                 }
             }
 
-            let id = warp.id.parse::<i64>().unwrap();
-            let item_id = warp.item_id.parse().unwrap();
+            let Ok(id) = warp.id.parse::<i64>() else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
+            let Ok(item_id) = warp.item_id.parse() else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
             let (character, light_cone) = if item_id < 2000 {
                 (Some(item_id), None)
             } else {
@@ -214,7 +191,7 @@ async fn post_pom_warps_import(
             (GachaType::Collab, &set_all_collab),
             (GachaType::CollabLc, &set_all_collab_lc),
         ],
-        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+        crate::gacha::imports::PullProvenance::Unofficial,
         &pool,
     )
     .await?;

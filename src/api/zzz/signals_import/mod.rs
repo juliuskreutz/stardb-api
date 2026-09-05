@@ -1,3 +1,4 @@
+use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
 mod uid;
 
 use std::{sync::Arc, time::Duration};
@@ -180,11 +181,7 @@ async fn post_zzz_signals_import(
             })
             .await;
         let job_id = job.id;
-        let jobs = signals_import_infos.clone();
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-            jobs.remove(job_id).await;
-        });
+        signals_import_infos.complete(job_id).await;
 
         return Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }));
     }
@@ -246,11 +243,7 @@ async fn post_zzz_signals_import(
             info.lock().await.status = ImportStatus::Finished;
         }
 
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-
-            signals_import_infos.remove(job_id).await;
-        });
+        signals_import_infos.complete(job_id).await;
     });
 
     Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }))
@@ -269,7 +262,7 @@ async fn import_signals(
         .extend_pairs(&[("real_gacha_type", gacha_type.id().to_string())])
         .finish();
 
-    let mut set_all = database::zzz::signals::SetAll::default();
+    let mut pulls = Vec::new();
 
     loop {
         let mut i = 0;
@@ -292,7 +285,10 @@ async fn import_signals(
             break;
         }
 
-        let tz = FixedOffset::east_opt(3600 * gacha_log.data.region_time_zone).unwrap();
+        let tz = (gacha_log.data.region_time_zone as i32)
+            .checked_mul(3600)
+            .and_then(FixedOffset::east_opt)
+            .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;
 
         for entry in gacha_log.data.list {
             end_id.clone_from(&entry.id);
@@ -302,35 +298,28 @@ async fn import_signals(
 
             let item: i32 = entry.item_id.parse()?;
 
-            let mut character =
-                (entry.item_type == "Agents" || entry.item_type == "代理人").then_some(item);
-            let mut w_engine =
-                (entry.item_type == "W-Engines" || entry.item_type == "音擎").then_some(item);
-            let mut bangboo =
-                (entry.item_type == "Bangboo" || entry.item_type == "邦布").then_some(item);
-
-            if character.is_none() && w_engine.is_none() && bangboo.is_none() {
-                if item >= 50000 {
-                    bangboo = Some(item);
-                } else if item >= 12000 {
-                    w_engine = Some(item);
-                } else {
-                    character = Some(item);
-                }
-            }
-
+            let item = match entry.item_type.as_str() {
+                "Agents" | "代理人" => PullItem::Character(item),
+                "W-Engines" | "音擎" => PullItem::WEngine(item),
+                "Bangboo" | "邦布" => PullItem::Bangboo(item),
+                _ if item >= 50000 => PullItem::Bangboo(item),
+                _ if item >= 12000 => PullItem::WEngine(item),
+                _ => PullItem::Character(item),
+            };
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
-                .unwrap()
+                .single()
+                .ok_or_else(|| anyhow::anyhow!("invalid local time"))?
                 .to_utc();
 
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.w_engine.push(w_engine);
-            set_all.bangboo.push(bangboo);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(true);
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Zzz(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Official,
+            });
 
             match gacha_type {
                 ZzzGachaType::Standard => info.lock().await.standard += 1,
@@ -343,10 +332,9 @@ async fn import_signals(
         }
     }
 
-    let pulls = crate::gacha::imports::normalize_zzz_set(gacha_type, &set_all)?;
     let batch = crate::gacha::imports::ImportBatch::new(
         pulls,
-        crate::gacha::imports::ImportPolicy::official(),
+        crate::gacha::imports::PullProvenance::Official,
     )?;
     crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
 

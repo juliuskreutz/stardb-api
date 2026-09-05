@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, mihomo, GachaType, Language};
+use crate::{api::ApiResult, database, mihomo, GachaType};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -82,43 +82,23 @@ async fn post_srgf_warps_import(
 
     let uid = srgf.info.uid.parse()?;
 
-    let admin = database::admins::exists(&username, &pool).await?;
-
-    let allowed = admin
-        || database::connections::get_by_username(&username, &pool)
-            .await?
-            .iter()
-            .find(|c| c.uid == uid)
-            .map(|c| c.verified)
-            .unwrap_or_default();
+    let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     let mut warps_map: HashMap<_, Vec<ParsedWarp>> = HashMap::new();
-    let tz = FixedOffset::east_opt(3600 * srgf.info.region_time_zone).unwrap();
+    let Some(tz) = srgf
+        .info
+        .region_time_zone
+        .checked_mul(3600)
+        .and_then(FixedOffset::east_opt)
+    else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
 
     for entry in &srgf.list {
         let gacha_type = match entry.gacha_type.as_str() {
@@ -133,7 +113,8 @@ async fn post_srgf_warps_import(
 
         let time = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
             .and_local_timezone(tz)
-            .unwrap()
+            .single()
+            .ok_or_else(|| anyhow::anyhow!("invalid local time"))?
             .to_utc();
 
         warps_map.entry(gacha_type).or_default().push(ParsedWarp {
@@ -234,7 +215,7 @@ async fn post_srgf_warps_import(
             (GachaType::Collab, &set_all_collab),
             (GachaType::CollabLc, &set_all_collab_lc),
         ],
-        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
+        crate::gacha::imports::PullProvenance::Unofficial,
         &pool,
     )
     .await?;

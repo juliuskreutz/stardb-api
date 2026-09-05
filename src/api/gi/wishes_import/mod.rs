@@ -1,3 +1,5 @@
+use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
+use std::collections::HashMap;
 mod uid;
 
 use std::{sync::Arc, time::Duration};
@@ -187,11 +189,7 @@ async fn post_gi_wishes_import(
             })
             .await;
         let job_id = job.id;
-        let jobs = wishes_import_infos.clone();
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-            jobs.remove(job_id).await;
-        });
+        wishes_import_infos.complete(job_id).await;
 
         return Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }));
     }
@@ -248,6 +246,15 @@ async fn post_gi_wishes_import(
     let info = job.info;
 
     rt::spawn(async move {
+        let names = match ImportNames::load(&pool).await {
+            Ok(names) => names,
+            Err(error) => {
+                error!(game = "gi", uid, %job_id, error = %redacted_error(error), "gacha catalog load failed");
+                info.lock().await.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed);
+                wishes_import_infos.complete(job_id).await;
+                return;
+            }
+        };
         let mut error = Ok(());
 
         for gacha_type in GiGachaType::iter() {
@@ -259,6 +266,7 @@ async fn post_gi_wishes_import(
                 params.ignore_timestamps,
                 gacha_type,
                 &info,
+                &names,
                 &pool,
             )
             .await
@@ -278,11 +286,7 @@ async fn post_gi_wishes_import(
             info.lock().await.status = ImportStatus::Finished;
         }
 
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-
-            wishes_import_infos.remove(job_id).await;
-        });
+        wishes_import_infos.complete(job_id).await;
     });
 
     Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }))
@@ -294,6 +298,7 @@ async fn import_wishes(
     ignore_timestamps: bool,
     gacha_type: GiGachaType,
     info: &Arc<Mutex<WishesImportInfo>>,
+    names: &ImportNames,
     pool: &PgPool,
 ) -> ApiResult<()> {
     let mut url = url.clone();
@@ -312,7 +317,7 @@ async fn import_wishes(
         )])
         .finish();
 
-    let mut set_all = database::gi::wishes::SetAll::default();
+    let mut pulls = Vec::new();
 
     let latest_timestamp = match gacha_type {
         GiGachaType::Beginner => {
@@ -359,12 +364,16 @@ async fn import_wishes(
             _ => 8,
         };
 
-        let tz = FixedOffset::east_opt(3600 * region_time_zone).unwrap();
+        let tz = (region_time_zone as i32)
+            .checked_mul(3600)
+            .and_then(FixedOffset::east_opt)
+            .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;
 
         for entry in gacha_log.data.list {
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
-                .unwrap()
+                .single()
+                .ok_or_else(|| anyhow::anyhow!("invalid local time"))?
                 .to_utc();
 
             if !ignore_timestamps {
@@ -379,31 +388,22 @@ async fn import_wishes(
 
             let id = entry.id.parse()?;
 
-            let item: i32 = if let Ok(id) =
-                database::gi::characters_text::get_id_by_name(&entry.name, pool).await
-            {
-                id
-            } else {
-                database::gi::weapons_text::get_id_by_name(&entry.name, pool).await?
+            let item = names.resolve(&entry.name)?;
+
+            let item = match entry.item_type.as_str() {
+                "Character" => PullItem::Character(item),
+                "Weapon" => PullItem::Weapon(item),
+                _ if item >= 10000000 => PullItem::Character(item),
+                _ => PullItem::Weapon(item),
             };
-
-            let mut character = (entry.item_type == "Character").then_some(item);
-            let mut weapon = (entry.item_type == "Weapon").then_some(item);
-
-            if character.is_none() && weapon.is_none() {
-                if item >= 10000000 {
-                    character = Some(item);
-                } else {
-                    weapon = Some(item);
-                }
-            }
-
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.weapon.push(weapon);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(true);
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Gi(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Official,
+            });
 
             match gacha_type {
                 GiGachaType::Beginner => info.lock().await.beginner += 1,
@@ -415,12 +415,52 @@ async fn import_wishes(
         }
     }
 
-    let pulls = crate::gacha::imports::normalize_gi_set(gacha_type, &set_all)?;
     let batch = crate::gacha::imports::ImportBatch::new(
         pulls,
-        crate::gacha::imports::ImportPolicy::official(),
+        crate::gacha::imports::PullProvenance::Official,
     )?;
     crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
 
     Ok(())
+}
+
+struct ImportNames {
+    characters: HashMap<String, i32>,
+    weapons: HashMap<String, i32>,
+}
+impl ImportNames {
+    async fn load(pool: &PgPool) -> ApiResult<Self> {
+        Ok(Self {
+            characters: database::gi::characters_text::get_name_ids(pool).await?,
+            weapons: database::gi::weapons_text::get_name_ids(pool).await?,
+        })
+    }
+    fn resolve(&self, name: &str) -> Result<i32, crate::api::import_jobs::InvalidImportResponse> {
+        self.characters
+            .get(name)
+            .or_else(|| self.weapons.get(name))
+            .copied()
+            .ok_or(crate::api::import_jobs::InvalidImportResponse)
+    }
+}
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+    #[test]
+    fn character_precedence_weapon_and_missing_name() {
+        let names = ImportNames {
+            characters: HashMap::from([("shared".into(), 1)]),
+            weapons: HashMap::from([("shared".into(), 2), ("weapon".into(), 3)]),
+        };
+        assert_eq!(names.resolve("shared").unwrap(), 1);
+        assert_eq!(names.resolve("weapon").unwrap(), 3);
+        assert!(names.resolve("missing").is_err());
+        assert!(matches!(
+            classify_import_error(
+                &names.resolve("missing").unwrap_err(),
+                ImportErrorCode::PersistenceFailed
+            ),
+            ImportErrorCode::InvalidResponse
+        ));
+    }
 }

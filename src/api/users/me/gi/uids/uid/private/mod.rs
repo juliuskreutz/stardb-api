@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -32,14 +32,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 )]
 #[put("/api/users/me/gi/uids/{uid}/private")]
 async fn put_user_gi_uid_private(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let allowed = database::gi::connections::get_by_username(&username, &pool)
         .await?
         .iter()
@@ -68,14 +64,10 @@ async fn put_user_gi_uid_private(
 )]
 #[delete("/api/users/me/gi/uids/{uid}/private")]
 async fn delete_user_gi_uid_private(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let allowed = database::gi::connections::get_by_username(&username, &pool)
         .await?
         .iter()

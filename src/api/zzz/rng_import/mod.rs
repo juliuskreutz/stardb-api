@@ -1,6 +1,8 @@
+use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
 use crate::{api::ApiResult, database, ZzzGachaType};
@@ -54,14 +56,18 @@ async fn post_rng_signals_import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let json: serde_json::Value = serde_json::from_str(&params.data)?;
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&params.data) else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
 
     let profile = json["data"]["profiles"][&params.profile.to_string()].clone();
 
     let Some(uid) = profile["bindUid"].as_i64() else {
         return Ok(HttpResponse::BadRequest().finish());
     };
-    let uid = uid as i32;
+    let Ok(uid) = i32::try_from(uid) else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
 
     let admin = database::admins::exists(&username, &pool).await?;
 
@@ -81,94 +87,70 @@ async fn post_rng_signals_import(
         return Ok(HttpResponse::Forbidden().finish());
     }
 
-    let signals = profile["stores"]["0"]["items"].clone();
+    let Ok(normalized_pulls) = parse_signals(uid, &profile["stores"]["0"]["items"]) else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
 
-    let standard_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Standard.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    let special_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Special.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    let w_engine_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::WEngine.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    let bangboo_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::Bangboo.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    let exclusive_rescreening_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::ExclusiveRescreening.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-    let w_engine_reverberation_signals: Vec<Signal> = signals
-        .get(ZzzGachaType::WEngineReverberation.old_id().to_string())
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-
-    let mut normalized_pulls = Vec::new();
-    for (signals, gacha_type) in [
-        (standard_signals, ZzzGachaType::Standard),
-        (special_signals, ZzzGachaType::Special),
-        (w_engine_signals, ZzzGachaType::WEngine),
-        (bangboo_signals, ZzzGachaType::Bangboo),
-        (
-            exclusive_rescreening_signals,
-            ZzzGachaType::ExclusiveRescreening,
-        ),
-        (
-            w_engine_reverberation_signals,
-            ZzzGachaType::WEngineReverberation,
-        ),
-    ] {
-        let mut set_all = database::zzz::signals::SetAll::default();
-
-        for signal in signals {
-            let id = signal.uid.parse()?;
-
-            let mut character = None;
-            let mut w_engine = None;
-            let mut bangboo = None;
-
-            if signal.id >= 50000 {
-                bangboo = Some(signal.id);
-            } else if signal.id >= 12000 {
-                w_engine = Some(signal.id);
-            } else {
-                character = Some(signal.id);
-            }
-
-            let timestamp = chrono::DateTime::from_timestamp(
-                if signal.timestamp > 1_000_000_000_000 {
-                    signal.timestamp / 1000
-                } else {
-                    signal.timestamp
-                },
-                0,
-            )
-            .unwrap();
-
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.w_engine.push(w_engine);
-            set_all.bangboo.push(bangboo);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(false);
-        }
-
-        normalized_pulls.extend(crate::gacha::imports::normalize_zzz_set(
-            gacha_type, &set_all,
-        )?);
-    }
-
-    let batch = crate::gacha::imports::ImportBatch::new(
-        normalized_pulls,
-        crate::gacha::imports::ImportPolicy::unofficial(admin, true, admin),
-    )?;
+    let Ok(batch) =
+        crate::gacha::imports::ImportBatch::new(normalized_pulls, PullProvenance::Unofficial)
+    else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
     crate::gacha::imports::persist_batch_in_transaction(&batch, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+fn parse_signals(uid: i32, items: &serde_json::Value) -> anyhow::Result<Vec<NormalizedPull>> {
+    let items = items
+        .as_object()
+        .ok_or_else(|| anyhow::anyhow!("missing signal items"))?;
+    let mut pulls = Vec::new();
+    for gacha_type in ZzzGachaType::iter() {
+        let Some(values) = items.get(&gacha_type.old_id().to_string()) else {
+            continue;
+        };
+        for signal in serde_json::from_value::<Vec<Signal>>(values.clone())? {
+            let item = if signal.id >= 50000 {
+                PullItem::Bangboo(signal.id)
+            } else if signal.id >= 12000 {
+                PullItem::WEngine(signal.id)
+            } else {
+                PullItem::Character(signal.id)
+            };
+            let seconds = if signal.timestamp > 1_000_000_000_000 {
+                signal.timestamp / 1000
+            } else {
+                signal.timestamp
+            };
+            let timestamp = chrono::DateTime::from_timestamp(seconds, 0)
+                .ok_or_else(|| anyhow::anyhow!("invalid signal timestamp"))?;
+            pulls.push(NormalizedPull {
+                uid,
+                id: signal.uid.parse()?,
+                pool: PullPool::Zzz(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Unofficial,
+            });
+        }
+    }
+    Ok(pulls)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn empty_export_is_valid_but_missing_or_malformed_items_are_not() {
+        assert!(parse_signals(1, &serde_json::json!({})).unwrap().is_empty());
+        assert!(parse_signals(1, &serde_json::Value::Null).is_err());
+        let key = ZzzGachaType::Standard.old_id().to_string();
+        for value in [
+            serde_json::json!("bad"),
+            serde_json::json!([{"uid":"bad","id":1,"timestamp":0}]),
+            serde_json::json!([{"uid":"1","id":1,"timestamp":i64::MAX}]),
+        ] {
+            assert!(parse_signals(1, &serde_json::json!({key.clone():value})).is_err());
+        }
+    }
 }

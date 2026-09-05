@@ -1,6 +1,6 @@
 mod uid;
 
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -34,11 +34,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/uids")]
-async fn get_user_uids(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+async fn get_user_uids(
+    SessionUser(username): SessionUser,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
     let uids: Vec<_> = database::connections::get_by_username(&username, &pool)
         .await?
         .iter()

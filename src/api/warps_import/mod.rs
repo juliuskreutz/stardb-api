@@ -1,3 +1,4 @@
+use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
 mod uid;
 
 use std::{sync::Arc, time::Duration};
@@ -20,7 +21,7 @@ use crate::{
         },
         validate_import_url, ApiResult,
     },
-    database, mihomo, GachaType, Language,
+    database, mihomo, GachaType,
 };
 
 #[derive(OpenApi)]
@@ -170,35 +171,12 @@ async fn post_warps_import(
             })
             .await;
         let job_id = job.id;
-        let jobs = warps_import_infos.clone();
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-            jobs.remove(job_id).await;
-        });
+        warps_import_infos.complete(job_id).await;
 
         return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0, job_id }));
     };
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::connections::DbConnection {
@@ -265,11 +243,7 @@ async fn post_warps_import(
             info.lock().await.status = ImportStatus::Finished;
         }
 
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
-
-            warps_import_infos.remove(job_id).await;
-        });
+        warps_import_infos.complete(job_id).await;
     });
 
     Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
@@ -290,7 +264,7 @@ async fn import_warps(
         .extend_pairs(&[("gacha_type", &gacha_type.id().to_string())])
         .finish();
 
-    let mut set_all = database::warps::SetAll::default();
+    let mut pulls = Vec::new();
 
     let latest_timestamp = match gacha_type {
         GachaType::Departure => {
@@ -332,12 +306,16 @@ async fn import_warps(
             break;
         }
 
-        let tz = FixedOffset::east_opt(3600 * gacha_log.data.region_time_zone).unwrap();
+        let tz = (gacha_log.data.region_time_zone as i32)
+            .checked_mul(3600)
+            .and_then(FixedOffset::east_opt)
+            .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;
 
         for entry in gacha_log.data.list {
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
-                .unwrap()
+                .single()
+                .ok_or_else(|| anyhow::anyhow!("invalid local time"))?
                 .to_utc();
 
             if !ignore_timestamps {
@@ -354,27 +332,21 @@ async fn import_warps(
 
             let item: i32 = entry.item_id.parse()?;
 
-            let mut character =
-                (entry.item_type == "Character" || entry.item_type == "角色").then_some(item);
-            let mut light_cone =
-                (entry.item_type == "Light Cone" || entry.item_type == "光錐").then_some(item);
-
-            if character.is_none() && light_cone.is_none() {
-                if item >= 20000 {
-                    light_cone = Some(item);
-                } else if item <= 10000 {
-                    character = Some(item);
-                } else {
-                    return Err(anyhow::anyhow!("{} is weird...", entry.item_type).into());
-                }
-            }
-
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.light_cone.push(light_cone);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(true);
+            let item = match entry.item_type.as_str() {
+                "Character" | "角色" => PullItem::Character(item),
+                "Light Cone" | "光錐" => PullItem::LightCone(item),
+                _ if item >= 20000 => PullItem::LightCone(item),
+                _ if item <= 10000 => PullItem::Character(item),
+                _ => return Err(anyhow::anyhow!("invalid item type").into()),
+            };
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Hsr(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Official,
+            });
 
             match gacha_type {
                 GachaType::Standard => info.lock().await.standard += 1,
@@ -387,10 +359,9 @@ async fn import_warps(
         }
     }
 
-    let pulls = crate::gacha::imports::normalize_hsr_set(gacha_type, &set_all)?;
     let batch = crate::gacha::imports::ImportBatch::new(
         pulls,
-        crate::gacha::imports::ImportPolicy::official(),
+        crate::gacha::imports::PullProvenance::Official,
     )?;
     crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
 

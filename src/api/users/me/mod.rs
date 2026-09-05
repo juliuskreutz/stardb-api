@@ -9,7 +9,7 @@ mod uids;
 mod username;
 mod zzz;
 
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::Serialize;
 use sqlx::PgPool;
@@ -86,11 +86,10 @@ pub struct User {
     )
 )]
 #[get("/api/users/me")]
-async fn get_me(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+async fn get_me(
+    SessionUser(username): SessionUser,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
     //session.renew();
 
     let admin = database::admins::exists(&username, &pool).await?;

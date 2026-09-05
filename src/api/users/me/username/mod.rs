@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
@@ -29,10 +29,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/username")]
-async fn get_username(session: Session) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+async fn get_username(SessionUser(username): SessionUser) -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().json(username))
 }

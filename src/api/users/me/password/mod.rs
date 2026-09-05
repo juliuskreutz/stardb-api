@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{put, web, HttpResponse, Responder};
 use argon2::Config;
 use rand::Rng;
@@ -42,14 +42,10 @@ pub struct PasswordUpdate {
 )]
 #[put("/api/users/me/password")]
 async fn put_password(
-    session: Session,
+    SessionUser(username): SessionUser,
     password_update: web::Json<PasswordUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let salt = rand::rng().random::<[u8; 32]>();
 
     let password = argon2::hash_encoded(

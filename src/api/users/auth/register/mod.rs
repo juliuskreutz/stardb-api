@@ -60,7 +60,10 @@ async fn register(
 ) -> ApiResult<impl Responder> {
     let username = user_register.username.trim().to_lowercase();
     let password = user_register.password.clone();
-    let email = user_register.email.clone();
+    let email = user_register
+        .email
+        .as_ref()
+        .map(|email| email.trim().to_string());
 
     if username.len() > 32
         || password.len() > 64

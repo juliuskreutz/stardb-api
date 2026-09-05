@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use super::Leaderboard;
 use crate::{
     api::{private, ApiResult, Region},
-    database, mihomo, Language,
+    database, mihomo,
 };
 
 #[derive(OpenApi)]
@@ -40,26 +40,7 @@ async fn get_leaderboard_entry(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     let Some(score) = database::achievement_scores::get_by_uid(uid, &pool).await? else {
         return Ok(HttpResponse::NotFound().finish());

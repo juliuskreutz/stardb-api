@@ -30,10 +30,10 @@ pub async fn delete_oldest_by_username(username: &str, pool: &PgPool) -> Result<
     Ok(())
 }
 
-pub async fn get_one_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<DbSession> {
+pub async fn get_one_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<Option<DbSession>> {
     Ok(
         sqlx::query_file_as!(DbSession, "sql/sessions/get_one_by_uuid.sql", uuid)
-            .fetch_one(pool)
+            .fetch_optional(pool)
             .await?,
     )
 }
