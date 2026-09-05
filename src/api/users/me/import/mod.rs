@@ -50,33 +50,15 @@ async fn import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if let Some(achievements) = &import_data.hsr_achievements {
-        database::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::users_achievements_completed::add(&achievement_completed, &pool).await?;
-        }
+    use database::achievement_lists::{apply, Game, List};
+    let mut tx = pool.begin().await?;
+    if let Some(ids) = &import_data.hsr_achievements {
+        apply(Game::Hsr, List::Completed, &username, ids, true, &mut tx).await?;
     }
-
-    if let Some(achievements) = &import_data.gi_achievements {
-        database::gi::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::gi::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::gi::users_achievements_completed::add(&achievement_completed, &pool).await?;
-        }
+    if let Some(ids) = &import_data.gi_achievements {
+        apply(Game::Gi, List::Completed, &username, ids, true, &mut tx).await?;
     }
+    tx.commit().await?;
 
     Ok(HttpResponse::Ok().finish())
 }

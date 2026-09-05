@@ -1,4 +1,4 @@
-mod git_data;
+pub(super) mod git_data;
 
 pub mod gi;
 pub mod hsr;

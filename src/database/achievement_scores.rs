@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 #[derive(Default)]
 pub struct DbScoreAchievement {
-    pub global_rank: Option<i64>,
-    pub regional_rank: Option<i64>,
+    pub global_rank: i64,
+    pub regional_rank: i64,
     pub uid: i32,
     pub region: String,
     pub name: String,
@@ -17,28 +17,15 @@ pub struct DbScoreAchievement {
     pub timestamp: DateTime<Utc>,
 }
 
-pub async fn set(score: &DbScoreAchievement, pool: &PgPool) -> Result<DbScoreAchievement> {
-    sqlx::query_as!(
-        Score,
-        "
-        INSERT INTO
-            scores_achievement(uid, timestamp)
-        VALUES
-            ($1, $2)
-        ON CONFLICT
-            (uid)
-        DO UPDATE SET
-            timestamp = EXCLUDED.timestamp
-        ",
-        score.uid,
-        score.timestamp,
-    )
-    .execute(pool)
-    .await?;
+pub struct DbScoreAchievementWrite {
+    pub uid: i32,
+    pub timestamp: DateTime<Utc>,
+}
 
-    get_by_uid(score.uid, pool)
-        .await?
-        .ok_or_else(|| anyhow!("score achievement unavailable after set"))
+pub async fn set(score: &DbScoreAchievementWrite, pool: &PgPool) -> Result<()> {
+    sqlx::query!("INSERT INTO scores_achievement(uid, timestamp) VALUES ($1, $2) ON CONFLICT (uid) DO UPDATE SET timestamp = EXCLUDED.timestamp", score.uid, score.timestamp)
+        .execute(pool).await?;
+    Ok(())
 }
 
 pub async fn get(
@@ -52,7 +39,7 @@ pub async fn get(
         DbScoreAchievement,
         "
         SELECT
-            *
+            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at, timestamp
         FROM
             (
                 SELECT
@@ -101,7 +88,7 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchieve
         DbScoreAchievement,
         "
         SELECT
-            *
+            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at, timestamp
         FROM
             (
                 SELECT

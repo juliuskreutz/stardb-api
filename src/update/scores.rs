@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use actix_web::rt::{self, Runtime};
+use actix_web::rt;
 use anyhow::Result;
 use chrono::Utc;
 use regex::{Captures, Regex};
@@ -9,57 +9,19 @@ use sqlx::PgPool;
 use crate::{database, mihomo, Language};
 
 pub async fn spawn(pool: PgPool) {
-    {
-        let pool = pool.clone();
-
-        std::thread::spawn(move || {
-            let rt = Runtime::new().unwrap();
-
-            let handle = rt.spawn(async move {
-                loop {
-                    let start = Instant::now();
-
-                    if let Err(e) = update_top_100(pool.clone()).await {
-                        error!(
-                            "Scores top 100 update failed with {e} in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    } else {
-                        info!(
-                            "Scores top 100 update succeeded in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    }
-                }
-            });
-
-            rt.block_on(handle).unwrap();
-        });
-    }
-
-    std::thread::spawn(move || {
-        let rt = Runtime::new().unwrap();
-
-        let handle = rt.spawn(async move {
-            loop {
-                let start = Instant::now();
-
-                if let Err(e) = update_lower_100(pool.clone()).await {
-                    error!(
-                        "Scores lower 100 update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Scores lower 100 update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-            }
-        });
-
-        rt.block_on(handle).unwrap();
-    });
+    let top_pool = pool.clone();
+    super::spawn_periodic(
+        "Scores top 100",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(30),
+        move || update_top_100(top_pool.clone()),
+    );
+    super::spawn_periodic(
+        "Scores lower 100",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(30),
+        move || update_lower_100(pool.clone()),
+    );
 }
 
 async fn update_top_100(pool: PgPool) -> Result<()> {
@@ -126,11 +88,11 @@ struct RecordInfo {
 
 async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     for uid in uids {
-        loop {
-            rt::time::sleep(std::time::Duration::from_secs(5)).await;
-
-            if update_score(uid, pool).await.is_ok() {
-                break;
+        for attempt in 0..3 {
+            rt::time::sleep(std::time::Duration::from_secs(5 * (1 << attempt))).await;
+            match update_score(uid, pool).await {
+                Ok(()) => break,
+                Err(e) => warn!("Score uid {uid} attempt {} failed: {e}", attempt + 1),
             }
         }
     }
@@ -179,13 +141,7 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let name = re
         .replace_all(&enka.detail_info.nickname, |_: &Captures| "")
         .to_string();
-    let region = match uid.to_string().chars().next() {
-        Some('6') => "na",
-        Some('7') => "eu",
-        Some('8') | Some('9') => "asia",
-        _ => "cn",
-    }
-    .to_string();
+    let region = mihomo::region_for_uid(uid).to_string();
     let level = enka.detail_info.level;
     let signature = re
         .replace_all(
@@ -231,11 +187,8 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
 
     database::mihomo::set(&db_mihomo, pool).await?;
 
-    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
-        uid,
-        timestamp,
-        ..Default::default()
-    };
+    let db_score_achievement =
+        database::achievement_scores::DbScoreAchievementWrite { uid, timestamp };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
 

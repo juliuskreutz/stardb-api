@@ -116,8 +116,6 @@ struct Buddy {
     id: i32,
 }
 
-
-
 struct Configs {
     achievement_second_class: HashMap<String, Vec<AchieveSecondClass>>,
     achievement: HashMap<String, Vec<Achievement>>,
@@ -163,7 +161,7 @@ pub async fn spawn(pool: PgPool) {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if git_data::sync_data_repo(DATA_REPO_URL, DATA_DIR).await? {
+    if git_data::sync_data_repo("dimbreath", DATA_REPO_URL, DATA_DIR).await? {
         *up_to_date = false;
     }
 

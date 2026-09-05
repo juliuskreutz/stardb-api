@@ -120,6 +120,9 @@ async fn get_zzz_achievements(
     let mut db_achievements =
         database::zzz::achievements::get_all(language_params.lang, &pool).await?;
 
+    let related_by_set =
+        database::achievement_lists::related_by_set(db_achievements.iter().map(|a| (a.id, a.set)));
+
     if !admin {
         db_achievements.retain(|a| !(a.hidden && a.impossible));
     }
@@ -132,8 +135,11 @@ async fn get_zzz_achievements(
     for achievement in &mut achievements {
         if let Some(set) = achievement.set {
             achievement.related = Some(
-                database::zzz::achievements::get_all_related_ids(achievement.id, set, &pool)
-                    .await?,
+                related_by_set[&set]
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != achievement.id)
+                    .collect(),
             );
         }
     }

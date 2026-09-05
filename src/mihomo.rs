@@ -233,11 +233,8 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
 
     database::mihomo::set(&db_mihomo, pool).await?;
 
-    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
-        uid,
-        timestamp,
-        ..Default::default()
-    };
+    let db_score_achievement =
+        database::achievement_scores::DbScoreAchievementWrite { uid, timestamp };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
     debug!(uid, language = %language, timestamp = %timestamp, "mihomo update_and_get complete");

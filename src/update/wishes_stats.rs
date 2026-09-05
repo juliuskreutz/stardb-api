@@ -1,8 +1,7 @@
 //! Periodically rebuilds Genshin population percentiles in database batches.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use actix_web::rt;
 use anyhow::Result;
 use sqlx::PgPool;
 
@@ -13,34 +12,17 @@ use crate::{
 
 /// Spawns the hourly Genshin global-stat updater.
 pub async fn spawn(pool: PgPool) {
-    actix::Arbiter::new().spawn(async move {
-        let mut success = true;
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60));
-
-        loop {
-            if success {
-                interval.tick().await;
-            }
-
-            let start = Instant::now();
-            if let Err(error) = update(&pool).await {
-                error!(
-                    "Wishes stats update failed with {error} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-                success = false;
-            } else {
-                info!(
-                    "Wishes stats update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-                success = true;
-            }
-        }
-    });
+    super::spawn_periodic(
+        "wishes_stats",
+        Duration::from_secs(3600),
+        Duration::from_secs(30),
+        move || {
+            let pool = pool.clone();
+            async move { update(&pool).await }
+        },
+    );
 }
 
-/// Refreshes every Genshin pool in a predictable order.
 async fn update(pool: &PgPool) -> Result<()> {
     info!("Starting standard");
     standard(pool).await?;

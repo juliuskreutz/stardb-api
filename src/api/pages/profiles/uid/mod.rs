@@ -204,8 +204,8 @@ async fn get_profile_json(
         return Ok(None);
     };
 
-    let rank_global = score_achievement.global_rank.unwrap_or_default();
-    let rank_regional = score_achievement.regional_rank.unwrap_or_default();
+    let rank_global = score_achievement.global_rank;
+    let rank_regional = score_achievement.regional_rank;
 
     let count_global = database::achievement_scores::count(None, None, pool).await?;
     let count_regional =

@@ -116,6 +116,9 @@ async fn get_achievements(
 ) -> ApiResult<impl Responder> {
     let db_achievements = database::achievements::get_all(language_params.lang, &pool).await?;
 
+    let related_by_set =
+        database::achievement_lists::related_by_set(db_achievements.iter().map(|a| (a.id, a.set)));
+
     let mut achievements = db_achievements
         .into_iter()
         .map(Achievement::from)
@@ -124,7 +127,11 @@ async fn get_achievements(
     for achievement in &mut achievements {
         if let Some(set) = achievement.set {
             achievement.related = Some(
-                database::achievements::get_all_related_ids(achievement.id, set, &pool).await?,
+                related_by_set[&set]
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != achievement.id)
+                    .collect(),
             );
         }
     }

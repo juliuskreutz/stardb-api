@@ -122,7 +122,7 @@ struct Configs {
 }
 
 async fn update(up_to_date: &mut bool, pool: PgPool) -> anyhow::Result<()> {
-    if git_data::sync_data_repo(DATA_REPO_URL, DATA_DIR).await? {
+    if git_data::sync_data_repo("dimbreath", DATA_REPO_URL, DATA_DIR).await? {
         *up_to_date = false;
     }
 

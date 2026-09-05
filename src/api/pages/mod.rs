@@ -38,3 +38,5 @@ pub fn configure(
         .configure(|sc| gi::configure(sc, pool.clone(), app_config.clone()))
         .configure(|sc| zzz::configure(sc, pool.clone(), app_config.clone()));
 }
+
+mod achievement_tracker_core;

@@ -134,58 +134,16 @@ pub async fn update_achievement_by_id(
     Ok(())
 }
 
-pub async fn update_version_by_id(id: i32, version: Option<&str>, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/gi/achievements/update_version_by_id.sql", id, version)
-        .execute(pool)
-        .await?;
-
-    Ok(())
+pub struct DbImportAchievement {
+    pub id: i32,
+    pub version: Option<String>,
+    pub difficulty: Option<String>,
+    pub comment: Option<String>,
+    pub impossible: bool,
+    pub timegated: Option<String>,
 }
 
-pub async fn update_comment_by_id(id: i32, comment: Option<&str>, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/gi/achievements/update_comment_by_id.sql", id, comment)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-pub async fn update_difficulty_by_id(
-    id: i32,
-    difficulty: Option<&str>,
-    pool: &PgPool,
-) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/achievements/update_difficulty_by_id.sql",
-        id,
-        difficulty,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn update_timegated_by_id(id: i32, timegated: Option<&str>, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/achievements/update_timegated_by_id.sql",
-        id,
-        timegated
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn update_impossible_by_id(id: i32, impossible: bool, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/achievements/update_impossible_by_id.sql",
-        id,
-        impossible,
-    )
-    .execute(pool)
-    .await?;
-
+pub async fn import_metadata(achievement: &DbImportAchievement, pool: &PgPool) -> Result<()> {
+    sqlx::query!("UPDATE gi_achievements SET version = $2, difficulty = $3, comment = $4, impossible = $5, timegated = $6 WHERE id = $1", achievement.id, achievement.version, achievement.difficulty, achievement.comment, achievement.impossible, achievement.timegated).execute(pool).await?;
     Ok(())
 }

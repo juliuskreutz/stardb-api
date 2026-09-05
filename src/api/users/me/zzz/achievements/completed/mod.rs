@@ -75,14 +75,7 @@ async fn put_zzz_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::zzz::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        database::zzz::users_achievements_completed::add(&complete, &pool).await?;
-    }
+    database::zzz::users_achievements_completed::add_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -107,14 +100,7 @@ async fn delete_zzz_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::zzz::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        database::zzz::users_achievements_completed::delete(&complete, &pool).await?;
-    }
+    database::zzz::users_achievements_completed::delete_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

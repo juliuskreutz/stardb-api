@@ -7,47 +7,27 @@ pub struct DbUserAchievementCompleted {
 }
 
 pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    if sqlx::query!(
-        "SELECT impossible FROM zzz_achievements WHERE id = $1",
-        user_achievement.id
+    add_all(&user_achievement.username, &[user_achievement.id], pool).await
+}
+pub async fn add_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::add_all(
+        crate::database::achievement_lists::Game::Zzz,
+        crate::database::achievement_lists::List::Completed,
+        username,
+        ids,
+        pool,
     )
-    .fetch_one(pool)
-    .await?
-    .impossible
-    {
-        return Ok(());
-    }
-
-    sqlx::query!(
-        "INSERT INTO zzz_users_achievements_completed(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
-        user_achievement.username,
-        user_achievement.id,
+    .await
+}
+pub async fn delete_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::delete_all(
+        crate::database::achievement_lists::Game::Zzz,
+        crate::database::achievement_lists::List::Completed,
+        username,
+        ids,
+        pool,
     )
-    .execute(pool)
-    .await?;
-
-    if let Some(set) = sqlx::query!(
-        "SELECT set FROM zzz_achievements WHERE id = $1",
-        user_achievement.id,
-    )
-    .fetch_one(pool)
-    .await?
-    .set
-    {
-        for related in
-            super::achievements::get_all_related_ids(user_achievement.id, set, pool).await?
-        {
-            sqlx::query!(
-                "DELETE FROM zzz_users_achievements_completed WHERE username = $1 AND id = $2",
-                user_achievement.username,
-                related,
-            )
-            .execute(pool)
-            .await?;
-        }
-    }
-
-    Ok(())
+    .await
 }
 
 pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {

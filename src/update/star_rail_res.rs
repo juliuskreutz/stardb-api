@@ -7,7 +7,6 @@ use std::{
 
 use actix_web::rt::{self, Runtime};
 use anyhow::{anyhow, Result};
-use async_process::Command;
 use image::{EncodableLayout, ImageFormat};
 
 use walkdir::WalkDir;
@@ -20,14 +19,12 @@ pub async fn spawn() {
         let handle = rt.spawn(async move {
             let mut interval = rt::time::interval(Duration::from_secs(60 * 10));
 
-            let mut up_to_date = false;
-
             loop {
                 interval.tick().await;
 
                 let start = Instant::now();
 
-                if let Err(e) = update(&mut up_to_date).await {
+                if let Err(e) = update().await {
                     error!(
                         "StarRailRes update failed with {e} in {}s",
                         start.elapsed().as_secs_f64()
@@ -45,52 +42,30 @@ pub async fn spawn() {
     });
 }
 
-async fn update(up_to_date: &mut bool) -> Result<()> {
-    if !Path::new("static/StarRailRes").exists() {
-        Command::new("git")
-            .args([
-                "clone",
-                "--depth",
-                "1",
-                "https://github.com/Mar-7th/StarRailRes",
-            ])
-            .current_dir("static")
-            .output()
-            .await?;
-
-        *up_to_date = false;
-    }
-
-    let output = String::from_utf8(
-        Command::new("git")
-            .arg("pull")
-            .current_dir("static/StarRailRes")
-            .output()
-            .await?
-            .stdout,
-    )?;
-
-    if !output.contains("Already up to date.") {
-        *up_to_date = false;
-    }
-
-    if *up_to_date {
-        return Ok(());
-    }
-
+async fn update() -> Result<()> {
+    super::dimbreath::git_data::sync_data_repo(
+        "static",
+        "https://github.com/Mar-7th/StarRailRes",
+        "StarRailRes",
+    )
+    .await?;
+    // Always scan: an interrupted conversion must recover even without a new commit.
     for path in WalkDir::new("static/StarRailRes/icon")
         .into_iter()
         .chain(WalkDir::new("static/StarRailRes/image"))
-        .flatten()
-        .map(|e| e.into_path())
-        .filter(|p| p.is_file())
     {
+        let path = path?.into_path();
+        if !path.is_file() {
+            continue;
+        }
         if path.extension().and_then(|o| o.to_str()) == Some("png") {
             let mut new_path = PathBuf::from("static/StarRailResWebp")
                 .join(path.strip_prefix("static/StarRailRes")?);
             new_path.set_extension("webp");
 
-            if new_path.exists() {
+            if new_path.exists()
+                && fs::metadata(&new_path)?.modified()? >= fs::metadata(&path)?.modified()?
+            {
                 continue;
             }
 
@@ -116,7 +91,22 @@ async fn update(up_to_date: &mut bool) -> Result<()> {
         rt::task::yield_now().await;
     }
 
-    *up_to_date = true;
+    let output_root = Path::new("static/StarRailResWebp");
+    if output_root.exists() {
+        for entry in WalkDir::new(output_root) {
+            let entry = entry?;
+            if entry.file_type().is_file()
+                && entry.path().extension().and_then(|s| s.to_str()) == Some("webp")
+            {
+                let mut source =
+                    Path::new("static/StarRailRes").join(entry.path().strip_prefix(output_root)?);
+                source.set_extension("png");
+                if !source.exists() {
+                    fs::remove_file(entry.path())?;
+                }
+            }
+        }
+    }
 
     Ok(())
 }

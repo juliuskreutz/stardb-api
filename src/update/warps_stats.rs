@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use actix_web::rt;
 use anyhow::Result;
 use sqlx::PgPool;
 
@@ -11,35 +10,12 @@ use crate::{
 };
 
 pub async fn spawn(pool: PgPool) {
-    actix::Arbiter::new().spawn(async move {
-        let mut success = true;
-
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60));
-
-        loop {
-            if success {
-                interval.tick().await;
-            }
-
-            let start = Instant::now();
-
-            if let Err(e) = update(pool.clone()).await {
-                error!(
-                    "Warps stats update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-
-                success = false;
-            } else {
-                info!(
-                    "Warps stats update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-
-                success = true;
-            }
-        }
-    });
+    super::spawn_periodic(
+        "warps_stats",
+        Duration::from_secs(3600),
+        Duration::from_secs(30),
+        move || update(pool.clone()),
+    );
 }
 
 async fn update(pool: PgPool) -> Result<()> {

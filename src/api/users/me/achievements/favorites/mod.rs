@@ -74,14 +74,7 @@ async fn put_user_achievements_favorites(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut favorite =
-        database::users_achievements_favorites::DbUserAchievementFavorite { username, id: 0 };
-
-    for id in ids.0 {
-        favorite.id = id;
-
-        database::users_achievements_favorites::add(&favorite, &pool).await?;
-    }
+    database::users_achievements_favorites::add_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

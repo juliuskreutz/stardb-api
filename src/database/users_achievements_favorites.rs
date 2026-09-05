@@ -7,36 +7,27 @@ pub struct DbUserAchievementFavorite {
 }
 
 pub async fn add(user_achievement: &DbUserAchievementFavorite, pool: &PgPool) -> Result<()> {
-    sqlx::query!(
-        "INSERT INTO users_achievements_favorites(username, id) VALUES($1, $2) ON CONFLICT(username, id) DO NOTHING",
-        user_achievement.username,
-        user_achievement.id,
+    add_all(&user_achievement.username, &[user_achievement.id], pool).await
+}
+pub async fn add_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::add_all(
+        crate::database::achievement_lists::Game::Hsr,
+        crate::database::achievement_lists::List::Favorites,
+        username,
+        ids,
+        pool,
     )
-    .execute(pool)
-    .await?;
-
-    if let Some(set) = sqlx::query!(
-        "SELECT set FROM achievements WHERE id = $1",
-        user_achievement.id,
+    .await
+}
+pub async fn delete_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::delete_all(
+        crate::database::achievement_lists::Game::Hsr,
+        crate::database::achievement_lists::List::Favorites,
+        username,
+        ids,
+        pool,
     )
-    .fetch_one(pool)
-    .await?
-    .set
-    {
-        for related in
-            super::achievements::get_all_related_ids(user_achievement.id, set, pool).await?
-        {
-            sqlx::query!(
-                "DELETE FROM users_achievements_favorites WHERE username = $1 AND id = $2",
-                user_achievement.username,
-                related,
-            )
-            .execute(pool)
-            .await?;
-        }
-    }
-
-    Ok(())
+    .await
 }
 
 pub async fn delete(user_achievement: &DbUserAchievementFavorite, pool: &PgPool) -> Result<()> {

@@ -38,8 +38,8 @@ struct ScoreAchievement {
 impl From<database::achievement_scores::DbScoreAchievement> for ScoreAchievement {
     fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         ScoreAchievement {
-            global_rank: db_score.global_rank.unwrap(),
-            regional_rank: db_score.regional_rank.unwrap(),
+            global_rank: db_score.global_rank,
+            regional_rank: db_score.regional_rank,
             uid: db_score.uid,
             region: db_score.region.parse().unwrap(),
             name: db_score.name,

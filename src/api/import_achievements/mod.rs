@@ -87,65 +87,19 @@ async fn import_achievements(
     for achievement in reader.deserialize() {
         let achievement: Achievement = achievement?;
 
-        database::achievements::update_version_by_id(
-            achievement.key,
-            achievement.version.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_difficulty_by_id(
-            achievement.key,
-            achievement.difficulty.map(|d| d.to_lowercase()).as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_comment_by_id(
-            achievement.key,
-            achievement.comment.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_reference_by_id(
-            achievement.key,
-            achievement.reference.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_video_by_id(
-            achievement.key,
-            achievement.video.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_gacha_by_id(
-            achievement.key,
-            achievement.gacha.is_some(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_impossible_by_id(
-            achievement.key,
-            achievement.impossible.is_some(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_timegated_by_id(
-            achievement.key,
-            achievement.timegated.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::achievements::update_missable_by_id(
-            achievement.key,
-            achievement.missable.is_some(),
+        database::achievements::import_metadata(
+            &database::achievements::DbImportAchievement {
+                id: achievement.key,
+                version: achievement.version,
+                difficulty: achievement.difficulty.map(|d| d.to_lowercase()),
+                comment: achievement.comment,
+                reference: achievement.reference,
+                video: achievement.video,
+                gacha: achievement.gacha.is_some(),
+                impossible: achievement.impossible.is_some(),
+                timegated: achievement.timegated,
+                missable: achievement.missable.is_some(),
+            },
             &pool,
         )
         .await?;

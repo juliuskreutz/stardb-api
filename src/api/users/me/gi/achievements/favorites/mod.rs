@@ -74,14 +74,7 @@ async fn put_gi_user_achievements_favorites(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut favorite =
-        database::gi::users_achievements_favorites::DbUserAchievementFavorite { username, id: 0 };
-
-    for id in ids.0 {
-        favorite.id = id;
-
-        database::gi::users_achievements_favorites::add(&favorite, &pool).await?;
-    }
+    database::gi::users_achievements_favorites::add_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

@@ -1,23 +1,17 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs::File,
-    io::BufReader,
     sync::Mutex,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use actix_session::Session;
-use actix_web::{
-    get,
-    rt::{self, Runtime},
-    web, HttpResponse, Responder,
-};
+use actix_web::{get, web, HttpResponse, Responder};
 use async_rwlock::RwLock;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
+use crate::api::pages::achievement_tracker_core as core;
 use crate::{
     api::{private, ApiResult, Language, LanguageParams},
     app_config::AppConfig,
@@ -56,33 +50,10 @@ pub struct AchievementTrackerCache {
     achievement_tracker_map: RwLock<HashMap<Language, AchievementTracker>>,
 }
 
+type AchievementTracker = core::Tracker<Achievement, Extra>;
 #[derive(Clone, Serialize, Deserialize)]
-struct AchievementTracker {
-    achievement_count: usize,
-    achievement_count_current: usize,
-    currency_count: i32,
-    currency_count_current: i32,
+struct Extra {
     user_count: i64,
-    language: Language,
-    versions: Vec<String>,
-    series: Vec<Series>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct Series {
-    series: String,
-    achievement_count: usize,
-    achievement_count_current: usize,
-    currency_count: i32,
-    currency_count_current: i32,
-    achievement_groups: Vec<AchievementGroup>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct AchievementGroup {
-    complete: Option<i32>,
-    favorite: Option<i32>,
-    achievements: Vec<Achievement>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -138,20 +109,23 @@ impl From<database::achievements::DbAchievement> for Achievement {
     }
 }
 
+impl core::Item for Achievement {
+    fn id(&self) -> i32 {
+        self.id
+    }
+    fn currency(&self) -> i32 {
+        self.currency
+    }
+    fn set_series_index(&mut self, index: usize) {
+        self.series_index = index;
+    }
+}
+
 pub fn cache(
     pool: PgPool,
     app_config: web::Data<Arc<AppConfig>>,
 ) -> web::Data<AchievementTrackerCache> {
-    let achievement_tracker_map = RwLock::new(
-        if let Ok(file) = File::open("cache/achievement_tracker_map.json") {
-            serde_json::from_reader::<_, HashMap<Language, AchievementTracker>>(BufReader::new(
-                file,
-            ))
-            .unwrap_or_default()
-        } else {
-            HashMap::new()
-        },
-    );
+    let achievement_tracker_map = RwLock::new(core::load("cache/achievement_tracker_map.json"));
 
     let achievement_tracker_cache = web::Data::new(AchievementTrackerCache {
         achievement_tracker_map,
@@ -161,46 +135,12 @@ pub fn cache(
         let achievement_tracker_cache = achievement_tracker_cache.clone();
 
         if app_config.enable_update_achievement_trackers {
-            std::thread::spawn(move || {
-                let rt = Runtime::new().unwrap();
-
-                let handle = rt.spawn(async move {
-                    let mut success = true;
-
-                    let mut interval = rt::time::interval(Duration::from_secs(60));
-
-                    loop {
-                        if success {
-                            interval.tick().await;
-                        }
-
-                        let start = Instant::now();
-
-                        if let Err(e) = update_achievement_tracker(
-                            achievement_tracker_cache.clone(),
-                            pool.clone(),
-                        )
-                        .await
-                        {
-                            success = false;
-
-                            error!(
-                                "Achievement Tracker update failed with {e} in {}s",
-                                start.elapsed().as_secs_f64()
-                            );
-                        } else {
-                            success = true;
-
-                            info!(
-                                "Achievement Tracker update succeeded in {}s",
-                                start.elapsed().as_secs_f64()
-                            );
-                        }
-                    }
-                });
-
-                rt.block_on(handle).unwrap();
-            });
+            crate::update::spawn_periodic(
+                "Achievement tracker",
+                Duration::from_secs(60),
+                Duration::from_secs(10),
+                move || update_achievement_tracker(achievement_tracker_cache.clone(), pool.clone()),
+            );
         }
     }
 
@@ -211,112 +151,27 @@ async fn update_achievement_tracker(
     achievement_tracker_cache: web::Data<AchievementTrackerCache>,
     pool: PgPool,
 ) -> anyhow::Result<()> {
-    let mut achievement_tracker_map = HashMap::new();
-
-    let user_count = database::users_achievements_completed::user_count(&pool).await?;
-
-    for language in Language::iter() {
-        let achievements = database::achievements::get_all(language, &pool).await?;
-
-        let mut versions = HashSet::new();
-        let mut series = Vec::new();
-
-        let mut current_series = None;
-        let mut current_set = None;
-
-        for achievement in achievements {
-            versions.insert(achievement.version.clone().unwrap_or_default());
-
-            if current_series != Some(achievement.series_name.clone()) {
-                current_series = Some(achievement.series_name.clone());
-
-                series.push(Series {
-                    series: achievement.series_name.clone(),
-                    achievement_count: 0,
-                    achievement_count_current: 0,
-                    currency_count: 0,
-                    currency_count_current: 0,
-                    achievement_groups: Vec::new(),
-                });
-            }
-
-            if achievement
-                .set
-                .map(|set| current_set == Some(set))
-                .unwrap_or(false)
-            {
-                let mut achievement: Achievement = achievement.into();
-                achievement.series_index = series.len() - 1;
-
-                series
-                    .last_mut()
-                    .unwrap()
-                    .achievement_groups
-                    .last_mut()
-                    .unwrap()
-                    .achievements
-                    .push(achievement);
-            } else {
-                current_set = achievement.set;
-
-                let mut achievement: Achievement = achievement.into();
-                achievement.series_index = series.len() - 1;
-
-                series
-                    .last_mut()
-                    .unwrap()
-                    .achievement_groups
-                    .push(AchievementGroup {
-                        complete: None,
-                        favorite: None,
-                        achievements: vec![achievement],
-                    });
-            }
-        }
-
-        let mut achievement_count = 0;
-        let mut currency_count = 0;
-
-        for series in series.iter_mut() {
-            series.achievement_count = series.achievement_groups.len();
-            series.currency_count = series
-                .achievement_groups
-                .iter()
-                .map(|group| group.achievements[0].currency)
-                .sum();
-
-            achievement_count += series.achievement_count;
-            currency_count += series.currency_count;
-        }
-
-        let mut versions = versions.into_iter().collect::<Vec<_>>();
-        versions.sort_unstable();
-
-        let achievement_tracker = AchievementTracker {
-            achievement_count,
-            achievement_count_current: 0,
-            currency_count,
-            currency_count_current: 0,
-            user_count,
-            language,
-            versions,
-            series,
-        };
-
-        achievement_tracker_map.insert(language, achievement_tracker);
-    }
-
-    std::fs::write(
+    let extra = Extra {
+        user_count: database::users_achievements_completed::user_count(&pool).await?,
+    };
+    // HSR intentionally retains hidden impossible entries; GI/ZZZ filter them.
+    core::refresh(
+        &achievement_tracker_cache.achievement_tracker_map,
+        pool,
         "cache/achievement_tracker_map.json",
-        serde_json::to_vec(&achievement_tracker_map)?,
-    )?;
-
-    *achievement_tracker_cache
-        .achievement_tracker_map
-        .write()
-        .await = achievement_tracker_map;
-
-    Ok(())
+        extra,
+        false,
+        |language, pool| async move { database::achievements::get_all(language, &pool).await },
+        |a| core::Entry {
+            set: a.set,
+            series_name: a.series_name.clone(),
+            version: a.version.clone(),
+            hidden: a.hidden,
+            impossible: a.impossible,
+            achievement: Achievement::from(a),
+        },
+    )
+    .await
 }
 
 #[utoipa::path(
@@ -354,50 +209,7 @@ async fn get_achievement_tracker(
             .map(|c| c.id)
             .collect::<HashSet<_>>();
 
-        let mut achievement_count_current_total = 0;
-        let mut currency_count_current_total = 0;
-
-        for series in achievement_tracker.series.iter_mut() {
-            let mut achievement_count_current = 0;
-            let mut currency_count_current = 0;
-
-            for group in series.achievement_groups.iter_mut() {
-                let complete = group
-                    .achievements
-                    .iter()
-                    .map(|c| c.id)
-                    .find(|id| completed.contains(id));
-
-                let favorite = group
-                    .achievements
-                    .iter()
-                    .map(|c| c.id)
-                    .find(|id| favorites.contains(id));
-
-                group.complete = complete;
-                group.favorite = favorite;
-
-                if let Some(complete) = complete {
-                    achievement_count_current += 1;
-
-                    currency_count_current += group
-                        .achievements
-                        .iter()
-                        .find(|a| a.id == complete)
-                        .unwrap()
-                        .currency;
-                }
-            }
-
-            series.achievement_count_current = achievement_count_current;
-            series.currency_count_current = currency_count_current;
-
-            achievement_count_current_total += achievement_count_current;
-            currency_count_current_total += currency_count_current;
-        }
-
-        achievement_tracker.achievement_count_current = achievement_count_current_total;
-        achievement_tracker.currency_count_current = currency_count_current_total;
+        achievement_tracker.annotate(&completed, &favorites);
     }
 
     Ok(HttpResponse::Ok().json(achievement_tracker))

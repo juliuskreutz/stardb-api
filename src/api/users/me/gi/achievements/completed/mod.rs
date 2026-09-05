@@ -75,14 +75,7 @@ async fn put_gi_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::gi::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        let _ = database::gi::users_achievements_completed::add(&complete, &pool).await;
-    }
+    database::gi::users_achievements_completed::add_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -107,14 +100,7 @@ async fn delete_gi_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::gi::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        database::gi::users_achievements_completed::delete(&complete, &pool).await?;
-    }
+    database::gi::users_achievements_completed::delete_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

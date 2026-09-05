@@ -3,14 +3,13 @@ use std::{env, fs, path::Path};
 use anyhow::{Context as _, Result};
 use async_process::Command;
 
-const DATA_ROOT: &str = "dimbreath";
 const GITHUB_DATA_PAT_ENV: &str = "GITHUB_DATA_PAT";
 
 /// Syncs a cached data repo and returns true when downstream import work should rerun.
-pub async fn sync_data_repo(repo_url: &str, data_dir: &str) -> Result<bool> {
-    fs::create_dir_all(DATA_ROOT)?;
+pub async fn sync_data_repo(data_root: &str, repo_url: &str, data_dir: &str) -> Result<bool> {
+    fs::create_dir_all(data_root)?;
 
-    let data_path = Path::new(DATA_ROOT).join(data_dir);
+    let data_path = Path::new(data_root).join(data_dir);
     let remote_url = remote_url(repo_url);
     let mut changed = false;
 
@@ -28,7 +27,7 @@ pub async fn sync_data_repo(repo_url: &str, data_dir: &str) -> Result<bool> {
     if !data_path.exists() {
         git_output(
             &["clone", "--depth", "1", &remote_url, data_dir],
-            Path::new(DATA_ROOT),
+            Path::new(data_root),
         )
         .await?;
         changed = true;
