@@ -14,7 +14,6 @@ pub struct DbScoreAchievement {
     pub avatar_icon: String,
     pub achievement_count: i32,
     pub updated_at: DateTime<Utc>,
-    pub timestamp: DateTime<Utc>,
 }
 
 pub struct DbScoreAchievementWrite {
@@ -39,7 +38,7 @@ pub async fn get(
         DbScoreAchievement,
         "
         SELECT
-            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at, timestamp
+            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at
         FROM
             (
                 SELECT
@@ -88,7 +87,7 @@ pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchieve
         DbScoreAchievement,
         "
         SELECT
-            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at, timestamp
+            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at
         FROM
             (
                 SELECT

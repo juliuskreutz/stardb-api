@@ -31,26 +31,7 @@ pub async fn delete_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()
 }
 
 pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/users/achievements/completed/delete.sql",
-        user_achievement.username,
-        user_achievement.id,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn delete_by_username(username: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/users/achievements/completed/delete_by_username.sql",
-        username,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
+    delete_all(&user_achievement.username, &[user_achievement.id], pool).await
 }
 
 pub async fn get_by_username(
