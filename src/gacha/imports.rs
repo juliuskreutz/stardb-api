@@ -271,85 +271,8 @@ pub(crate) async fn persist_batch_in_transaction(
     Ok(summary)
 }
 
-/// Normalizes and transactionally persists a collection of HSR adapter sets.
-pub(crate) async fn persist_hsr_sets_in_transaction(
-    sets: &[(GachaType, &database::warps::SetAll)],
-    provenance: PullProvenance,
-    pool: &PgPool,
-) -> anyhow::Result<PersistenceSummary> {
-    let mut pulls = Vec::new();
-    for (pull_pool, set) in sets {
-        pulls.extend(normalize_hsr_set(*pull_pool, set)?);
-    }
-    let batch = ImportBatch::new(pulls, provenance)?;
-    persist_batch_in_transaction(&batch, pool).await
-}
-
-/// Normalizes and transactionally persists a collection of Genshin adapter sets.
-pub(crate) async fn persist_gi_sets_in_transaction(
-    sets: &[(GiGachaType, &database::gi::wishes::SetAll)],
-    provenance: PullProvenance,
-    pool: &PgPool,
-) -> anyhow::Result<PersistenceSummary> {
-    let mut pulls = Vec::new();
-    for (pull_pool, set) in sets {
-        pulls.extend(normalize_gi_set(*pull_pool, set)?);
-    }
-    let batch = ImportBatch::new(pulls, provenance)?;
-    persist_batch_in_transaction(&batch, pool).await
-}
-
-/// Converts the column-oriented HSR repository payload to normalized pulls.
-pub(crate) fn normalize_hsr_set(
-    pool: GachaType,
-    set: &database::warps::SetAll,
-) -> Result<Vec<NormalizedPull>, ImportValidationError> {
-    normalize_columns(
-        set.id.len(),
-        |index| {
-            (
-                set.id[index],
-                set.uid[index],
-                set.timestamp[index],
-                set.official[index],
-            )
-        },
-        |index| {
-            exactly_one(
-                set.character[index].map(PullItem::Character),
-                set.light_cone[index].map(PullItem::LightCone),
-            )
-        },
-        PullPool::Hsr(pool),
-    )
-}
-
-/// Converts the column-oriented Genshin repository payload to normalized pulls.
-pub(crate) fn normalize_gi_set(
-    pool: GiGachaType,
-    set: &database::gi::wishes::SetAll,
-) -> Result<Vec<NormalizedPull>, ImportValidationError> {
-    normalize_columns(
-        set.id.len(),
-        |index| {
-            (
-                set.id[index],
-                set.uid[index],
-                set.timestamp[index],
-                set.official[index],
-            )
-        },
-        |index| {
-            exactly_one(
-                set.character[index].map(PullItem::Character),
-                set.weapon[index].map(PullItem::Weapon),
-            )
-        },
-        PullPool::Gi(pool),
-    )
-}
-
-/// Converts the column-oriented ZZZ repository payload to normalized pulls.
+/// Regression fixture for the retired column-oriented ZZZ adapter.
+#[cfg(test)]
 pub(crate) fn normalize_zzz_set(
     pool: ZzzGachaType,
     set: &database::zzz::signals::SetAll,
@@ -388,6 +311,7 @@ pub(crate) fn normalize_zzz_set(
     )
 }
 
+#[cfg(test)]
 fn normalize_columns(
     len: usize,
     row: impl Fn(usize) -> (i64, i32, DateTime<Utc>, bool),
@@ -413,6 +337,7 @@ fn normalize_columns(
         .collect()
 }
 
+#[cfg(test)]
 fn exactly_one(
     first: Option<PullItem>,
     second: Option<PullItem>,
