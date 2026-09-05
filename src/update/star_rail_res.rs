@@ -1,4 +1,4 @@
-//! Synchronize source assets before refreshing the mtime-based WebP cache and pruning removed sources.
+//! Keep WebPs and one completed Git revision; source clones exist only during refresh.
 
 use std::{
     fs::{self, File},
@@ -9,7 +9,7 @@ use std::{
 
 use actix_web::rt::{self, Runtime};
 use anyhow::{anyhow, Result};
-use image::{EncodableLayout, ImageFormat};
+use image::ImageFormat;
 
 use walkdir::WalkDir;
 use webp::Encoder;
@@ -54,32 +54,72 @@ async fn update() -> Result<()> {
     .await
 }
 
-/// Synchronize the configured source before converting or pruning assets.
-/// Git failures propagate without treating incomplete source state as upstream deletions.
+/// Skip unchanged revisions; rebuild changed revisions with a disposable shallow clone.
+/// Invalidate success before touching outputs so partial failures and upstream reversions retry.
 async fn update_from(data_root: &Path, repo_url: &str) -> Result<()> {
-    // Only a successful sync makes the source tree authoritative for conversion/pruning.
-    // A failed clone or pull must not make missing source files look like upstream deletions.
-    super::dimbreath::git_data::sync_data_repo(
-        data_root
-            .to_str()
-            .ok_or_else(|| anyhow!("non-UTF8 asset root"))?,
-        repo_url,
-        "StarRailRes",
-    )
-    .await?;
-    convert_assets(
-        &data_root.join("StarRailRes"),
-        &data_root.join("StarRailResWebp"),
-    )
-    .await
+    use super::dimbreath::git_data;
+    fs::create_dir_all(data_root)?;
+    let source = data_root.join("StarRailRes");
+    let output = data_root.join("StarRailResWebp");
+    let marker = data_root.join(".StarRailResWebp-revision");
+    // This reserved cache path is disposable, including leftovers from older versions.
+    if source.exists() {
+        fs::remove_dir_all(&source)?;
+    }
+    let latest = git_data::remote_head(repo_url, data_root).await?;
+    if output.is_dir() && fs::read_to_string(&marker).is_ok_and(|old| old == latest) {
+        return Ok(());
+    }
+    match fs::remove_file(&marker) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    // ponytail: rebuild every image per upstream commit; add per-file tracking only
+    // if full refresh cost matters. Remove the marker to repair individual missing WebPs.
+    let result = async {
+        git_data::sync_data_repo(
+            data_root
+                .to_str()
+                .ok_or_else(|| anyhow!("non-UTF8 asset root"))?,
+            repo_url,
+            "StarRailRes",
+        )
+        .await?;
+        // A push between ls-remote and clone is fine: record what was actually converted.
+        let revision = git_data::checkout_head(&source).await?;
+        convert_assets(&source, &output).await?;
+        write_atomic(&marker, revision.as_bytes())
+    }
+    .await;
+    // Free PNGs and Git objects on failure too; the invalidated marker ensures retry.
+    let cleanup = if source.exists() {
+        fs::remove_dir_all(&source)
+    } else {
+        Ok(())
+    };
+    result?;
+    cleanup?;
+    Ok(())
 }
 
-/// Re-encode PNGs newer than their WebP outputs, preserving relative paths and character-icon resizing.
+/// Publish complete bytes via a sibling file so readers never see a partial WebP or marker.
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    let temporary = path.with_extension("tmp");
+    let result = (|| {
+        fs::write(&temporary, bytes)?;
+        fs::rename(&temporary, path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(temporary);
+    }
+    result
+}
+
+/// Convert a complete checkout, preserving URLs, lossless encoding, and character-icon resizing.
 /// Only after conversion succeeds, remove orphan WebPs; filesystem and image errors propagate.
 async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
-    // Always scan: an interrupted conversion must recover even without a new commit.
-    // Source mtimes invalidate existing outputs; mere output existence would retain
-    // stale icons after git updates. Prune only after every conversion has succeeded.
     for path in WalkDir::new(source_root.join("icon"))
         .into_iter()
         .chain(WalkDir::new(source_root.join("image")))
@@ -91,12 +131,6 @@ async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
         if path.extension().and_then(|o| o.to_str()) == Some("png") {
             let mut new_path = output_root.join(path.strip_prefix(source_root)?);
             new_path.set_extension("webp");
-
-            if new_path.exists()
-                && fs::metadata(&new_path)?.modified()? >= fs::metadata(&path)?.modified()?
-            {
-                continue;
-            }
 
             fs::create_dir_all(new_path.parent().unwrap())?;
 
@@ -115,7 +149,7 @@ async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
             let encoder = Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height());
             let encoded_webp = encoder.encode_lossless();
 
-            fs::write(new_path, encoded_webp.as_bytes())?;
+            write_atomic(&new_path, &encoded_webp)?;
         }
 
         rt::task::yield_now().await;
@@ -142,28 +176,9 @@ async fn convert_assets(source_root: &Path, output_root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{fs::FileTimes, path::PathBuf, process::Command, time::SystemTime};
+    use std::process::Command;
 
-    struct Scratch(PathBuf);
-    impl Scratch {
-        fn new() -> Self {
-            let root = std::env::temp_dir().join(format!("stardb-assets-{}", uuid::Uuid::new_v4()));
-            fs::create_dir_all(&root).unwrap();
-            Self(root)
-        }
-    }
-    impl Drop for Scratch {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-    fn png(path: &Path, color: [u8; 4]) {
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        image::RgbaImage::from_pixel(2, 2, image::Rgba(color))
-            .save_with_format(path, ImageFormat::Png)
-            .unwrap();
-    }
-    fn git(root: &Path, args: &[&str]) {
+    fn git(root: &Path, args: &[&str]) -> String {
         let output = Command::new("git")
             .current_dir(root)
             .args(args)
@@ -174,98 +189,82 @@ mod tests {
             "git {args:?}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+        String::from_utf8(output.stdout).unwrap().trim().to_owned()
     }
-    #[actix_web::test]
-    async fn changed_png_is_reencoded_and_orphan_webp_is_removed() {
-        let scratch = Scratch::new();
-        let source = scratch.0.join("source");
-        let output = scratch.0.join("output");
-        fs::create_dir_all(source.join("image")).unwrap();
-        let source_png = source.join("icon/avatar/test.png");
-        let webp = output.join("icon/avatar/test.webp");
-        png(&source_png, [255, 0, 0, 255]);
-        convert_assets(&source, &output).await.unwrap();
-        let first = fs::read(&webp).unwrap();
-        // No wall-clock sleeps or filesystem timestamp-resolution assumptions.
-        File::options()
-            .write(true)
-            .open(&webp)
-            .unwrap()
-            .set_times(FileTimes::new().set_modified(SystemTime::UNIX_EPOCH))
+    fn png(path: &Path, color: [u8; 4]) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        image::RgbaImage::from_pixel(2, 2, image::Rgba(color))
+            .save_with_format(path, ImageFormat::Png)
             .unwrap();
-        png(&source_png, [0, 0, 255, 255]);
-        convert_assets(&source, &output).await.unwrap();
-        assert_ne!(fs::read(&webp).unwrap(), first);
-        let unrelated = output.join("keep.txt");
-        fs::write(&unrelated, "keep").unwrap();
-        fs::remove_file(&source_png).unwrap();
-        convert_assets(&source, &output).await.unwrap();
-        assert!(!webp.exists());
-        assert!(unrelated.exists());
     }
-    #[actix_web::test]
-    async fn current_webp_is_not_reencoded() {
-        let scratch = Scratch::new();
-        let source = scratch.0.join("source");
-        let output = scratch.0.join("output");
-        fs::create_dir_all(source.join("image")).unwrap();
-        let source_png = source.join("icon/avatar/test.png");
-        png(&source_png, [255, 0, 0, 255]);
-        convert_assets(&source, &output).await.unwrap();
-        let webp = output.join("icon/avatar/test.webp");
-        let before = fs::metadata(&webp).unwrap().modified().unwrap();
-        // An invalid but older source must be skipped instead of decoded.
-        fs::write(&source_png, "not a PNG").unwrap();
-        File::options()
-            .write(true)
-            .open(&source_png)
-            .unwrap()
-            .set_times(FileTimes::new().set_modified(SystemTime::UNIX_EPOCH))
-            .unwrap();
-        convert_assets(&source, &output).await.unwrap();
-        assert_eq!(fs::metadata(&webp).unwrap().modified().unwrap(), before);
+    fn commit(root: &Path) {
+        git(root, &["add", "."]);
+        git(
+            root,
+            &["-c", "commit.gpgsign=false", "commit", "-m", "fixture"],
+        );
     }
+
     #[actix_web::test]
-    async fn failed_local_git_pull_propagates_before_conversion() {
-        let scratch = Scratch::new();
-        let upstream = scratch.0.join("upstream");
-        let data = scratch.0.join("static");
+    async fn revision_cache_skips_rebuilds_and_recovers_failed_partial_reversions() {
+        let scratch = std::env::temp_dir().join(format!("stardb-assets-{}", uuid::Uuid::new_v4()));
+        let upstream = scratch.join("upstream");
+        let data = scratch.join("static");
         fs::create_dir_all(&upstream).unwrap();
         git(&upstream, &["init", "-b", "main"]);
-        png(&upstream.join("icon/avatar/test.png"), [255, 0, 0, 255]);
-        fs::create_dir_all(upstream.join("image")).unwrap();
-        fs::write(upstream.join("image/.gitkeep"), "").unwrap();
-        git(&upstream, &["add", "."]);
+        git(&upstream, &["config", "user.name", "Asset Test"]);
         git(
             &upstream,
-            &[
-                "-c",
-                "user.name=Asset Test",
-                "-c",
-                "user.email=asset@example.invalid",
-                "-c",
-                "commit.gpgsign=false",
-                "commit",
-                "-m",
-                "fixture",
-            ],
+            &["config", "user.email", "asset@example.invalid"],
         );
-        update_from(&data, upstream.to_str().unwrap())
-            .await
-            .unwrap();
-        let webp = data.join("StarRailResWebp/icon/avatar/test.webp");
-        let original = fs::read(&webp).unwrap();
-        // Remote removal is entirely local and makes the subsequent pull fail.
+        let character = upstream.join("icon/character/test.png");
+        png(&character, [255, 0, 0, 255]);
+        png(&upstream.join("image/old.png"), [0, 255, 0, 255]);
+        fs::write(upstream.join("image/.gitkeep"), "").unwrap();
+        commit(&upstream);
+        let repo = upstream.to_str().unwrap();
+        let output = data.join("StarRailResWebp/icon/character/test.webp");
+        let marker = data.join(".StarRailResWebp-revision");
+        let source = data.join("StarRailRes");
+        update_from(&data, repo).await.unwrap();
+        let first = fs::read(&output).unwrap();
+        let decoded = webp::Decoder::new(&first).decode().unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (128, 128));
+        assert!(!source.exists());
+        let modified = fs::metadata(&output).unwrap().modified().unwrap();
+        update_from(&data, repo).await.unwrap();
+        assert_eq!(fs::metadata(&output).unwrap().modified().unwrap(), modified);
+        assert!(!source.exists());
+
+        png(&character, [0, 0, 255, 255]);
+        fs::remove_file(upstream.join("image/old.png")).unwrap();
+        commit(&upstream);
+        let good_revision = git(&upstream, &["rev-parse", "HEAD"]);
+        update_from(&data, repo).await.unwrap();
+        let good = fs::read(&output).unwrap();
+        assert_ne!(good, first);
+        assert!(!data.join("StarRailResWebp/image/old.webp").exists());
+        assert_eq!(fs::read_to_string(&marker).unwrap(), good_revision);
+        assert!(!source.exists());
+
+        // Icon conversion happens before the image tree, guaranteeing a partial
+        // published change before the invalid PNG fails the rest of the refresh.
+        png(&character, [0, 255, 0, 255]);
+        fs::write(upstream.join("image/bad.png"), "invalid PNG").unwrap();
+        commit(&upstream);
+        assert!(update_from(&data, repo).await.is_err());
+        assert_ne!(fs::read(&output).unwrap(), good);
+        assert!(!marker.exists());
+        assert!(!source.exists());
+        git(&upstream, &["reset", "--hard", &good_revision]);
+        update_from(&data, repo).await.unwrap();
+        assert_eq!(fs::read(&output).unwrap(), good);
+        assert_eq!(fs::read_to_string(&marker).unwrap(), good_revision);
+        assert!(!source.exists());
         fs::remove_dir_all(&upstream).unwrap();
-        fs::remove_file(data.join("StarRailRes/icon/avatar/test.png")).unwrap();
-        let error = update_from(&data, upstream.to_str().unwrap())
-            .await
-            .unwrap_err();
-        assert!(error.to_string().contains("git pull failed"), "{error}");
-        assert_eq!(
-            fs::read(&webp).unwrap(),
-            original,
-            "failed sync must not prune or publish assets"
-        );
+        assert!(update_from(&data, repo).await.is_err());
+        assert_eq!(fs::read(&output).unwrap(), good);
+        assert!(!source.exists());
+        fs::remove_dir_all(scratch).unwrap();
     }
 }

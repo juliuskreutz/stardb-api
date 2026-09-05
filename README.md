@@ -87,6 +87,22 @@ Open `target/cargo-timings/cargo-timing.html`. Compare the same command and cach
 state when measuring improvements; a warm check and a cold build are different
 workloads. These choices follow the [Cargo build-performance guide](https://doc.rust-lang.org/cargo/guide/build-performance.html).
 
+## HSR image storage
+
+The StarRailRes updater keeps `static/StarRailResWebp` and the successful-revision
+marker `static/.StarRailResWebp-revision`. Every ten minutes it checks upstream HEAD. When the
+revision changes, it uses the existing shallow Git clone and PNG-to-WebP conversion
+flow, then deletes the source checkout and its Git objects. Original
+`/static/StarRailRes` PNG URLs are retired; clients use `/static/StarRailResWebp`.
+
+This favors simple maintenance over minimizing downloads: every upstream revision
+requires a full clone and conversion pass. The source checkout is temporary, so
+allow room for it during a refresh; it is removed afterward. WebP paths, lossless
+encoding, and 128×128 character-icon resizing are preserved. The revision marker
+is invalidated before publishing changed outputs, so interrupted conversions retry
+even if upstream reverts. Unchanged revisions skip conversion; remove the revision
+marker to force a rebuild when individual outputs have been manually removed.
+
 ## Dependency upgrades
 
 `Cargo.toml` declares the minimum Rust version; use `Cargo.lock` and `--locked` for

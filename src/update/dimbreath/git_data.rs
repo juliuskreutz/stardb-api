@@ -49,6 +49,24 @@ pub async fn sync_data_repo(data_root: &str, repo_url: &str, data_dir: &str) -> 
     Ok(changed)
 }
 
+/// Check the upstream default revision without retaining a local repository.
+pub async fn remote_head(repo_url: &str, current_dir: &Path) -> Result<String> {
+    let output = git_output(&["ls-remote", &remote_url(repo_url), "HEAD"], current_dir).await?;
+    output
+        .split_whitespace()
+        .next()
+        .map(str::to_owned)
+        .context("remote has no HEAD")
+}
+
+/// Return the exact checked-out revision for a successfully generated asset cache.
+pub async fn checkout_head(path: &Path) -> Result<String> {
+    Ok(git_output(&["rev-parse", "HEAD"], path)
+        .await?
+        .trim()
+        .to_owned())
+}
+
 /// Run git in the cache directory and reject nonzero status with credential-redacted diagnostics.
 async fn git_output(args: &[&str], current_dir: &Path) -> Result<String> {
     let output = git_command()
