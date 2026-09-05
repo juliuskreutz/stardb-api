@@ -314,48 +314,32 @@ impl Pity {
 /// Annotates chronological history separately from aggregate luck calculations.
 fn build_set(rows: Vec<Signal>, kind: ZzzGachaType, catalog: &BannerCatalog) -> Signals {
     let pity = match kind {
-        ZzzGachaType::Standard => Some(Pity {
-            base_4: 9.4,
-            base_5: 0.6,
-            gain_5: 6.0,
-            soft_start_5: 72,
-            hard_4: 9,
-            hard_5: 89,
-            max_4: 10,
-            max_5: 90,
-        }),
-        ZzzGachaType::Special => Some(Pity {
-            base_4: 9.4,
-            base_5: 0.6,
-            gain_5: 6.0,
-            soft_start_5: 72,
-            hard_4: 9,
-            hard_5: 89,
-            max_4: 10,
-            max_5: 90,
-        }),
-        ZzzGachaType::WEngine => Some(Pity {
-            base_4: 15.0,
-            base_5: 1.0,
-            gain_5: 7.0,
-            soft_start_5: 64,
-            hard_4: 9,
-            hard_5: 79,
-            max_4: 10,
-            max_5: 80,
-        }),
-        ZzzGachaType::Bangboo => Some(Pity {
-            base_4: 15.0,
-            base_5: 1.0,
-            gain_5: 7.0,
-            soft_start_5: 64,
-            hard_4: 9,
-            hard_5: 79,
-            max_4: 10,
-            max_5: 80,
-        }),
-        ZzzGachaType::ExclusiveRescreening => None,
-        ZzzGachaType::WEngineReverberation => None,
+        // Rescreening uses the same pity schedule as the original character channel.
+        ZzzGachaType::Standard | ZzzGachaType::Special | ZzzGachaType::ExclusiveRescreening => {
+            Some(Pity {
+                base_4: 9.4,
+                base_5: 0.6,
+                gain_5: 6.0,
+                soft_start_5: 72,
+                hard_4: 9,
+                hard_5: 89,
+                max_4: 10,
+                max_5: 90,
+            })
+        }
+        // Reverberation retains the W-Engine channel's earlier soft/hard pity.
+        ZzzGachaType::WEngine | ZzzGachaType::Bangboo | ZzzGachaType::WEngineReverberation => {
+            Some(Pity {
+                base_4: 15.0,
+                base_5: 1.0,
+                gain_5: 7.0,
+                soft_start_5: 64,
+                hard_4: 9,
+                hard_5: 79,
+                max_4: 10,
+                max_5: 80,
+            })
+        }
     };
     let mut result = Signals::default();
     let (mut pull_4, mut pull_5) = (0, 0);

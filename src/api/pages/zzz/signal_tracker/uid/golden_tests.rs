@@ -202,3 +202,49 @@ fn soft_and_hard_pity_boundaries() {
     assert_eq!(p.probabilities(0, 73).1, 6.6);
     assert_eq!(p.probabilities(9, 89), (100.0, 100.0));
 }
+
+#[test]
+fn drought_histories_preserve_each_pools_soft_and_hard_pity() {
+    let catalog = BannerCatalog::default();
+    // No pity resets: these lengths actually reach both weapon and character
+    // thresholds, unlike the mixed histories used by the annotation fixture.
+    let cases: [(ZzzGachaType, fn(Vec<Signal>, &BannerCatalog) -> Signals); 6] = [
+        (ZzzGachaType::Standard, baseline::standard),
+        (ZzzGachaType::Special, baseline::special),
+        (ZzzGachaType::WEngine, baseline::w_engine),
+        (ZzzGachaType::Bangboo, baseline::bangboo),
+        (
+            ZzzGachaType::ExclusiveRescreening,
+            baseline::exclusive_rescreening,
+        ),
+        (
+            ZzzGachaType::WEngineReverberation,
+            baseline::w_engine_reverberation,
+        ),
+    ];
+    for (kind, reference) in cases {
+        for length in [65, 73, 79, 89, 95] {
+            let rows = || {
+                (0..length)
+                    .map(|i| Signal {
+                        r#type: SignalType::Agent,
+                        id: i.to_string(),
+                        name: "drought".into(),
+                        rarity: 2,
+                        item_id: 9001,
+                        timestamp: DateTime::from_timestamp(1700000000 + i as i64, 0).unwrap(),
+                        pull: 0,
+                        pull_4: 0,
+                        pull_5: 0,
+                        win: None,
+                    })
+                    .collect()
+            };
+            assert_eq!(
+                serde_json::to_vec(&build_set(rows(), kind, &catalog)).unwrap(),
+                serde_json::to_vec(&reference(rows(), &catalog)).unwrap(),
+                "{kind:?}, drought {length}"
+            );
+        }
+    }
+}

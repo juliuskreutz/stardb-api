@@ -163,3 +163,42 @@ fn soft_and_hard_pity_boundaries() {
     assert_eq!(p.probabilities(0, 73).1, 6.6);
     assert_eq!(p.probabilities(9, 89), (100.0, 100.0));
 }
+
+#[test]
+fn drought_histories_preserve_each_pools_soft_and_hard_pity() {
+    let catalog = BannerCatalog::default();
+    // No pity resets: these lengths actually reach both weapon and character
+    // thresholds, unlike the mixed histories used by the annotation fixture.
+    let cases: [(GiGachaType, fn(Vec<Wish>, &BannerCatalog) -> Wishes); 5] = [
+        (GiGachaType::Beginner, baseline::beginner),
+        (GiGachaType::Standard, baseline::standard),
+        (GiGachaType::Character, baseline::character),
+        (GiGachaType::Weapon, baseline::weapon),
+        (GiGachaType::Chronicled, baseline::chronicled),
+    ];
+    for (kind, reference) in cases {
+        for length in [65, 73, 79, 89, 95] {
+            let rows = || {
+                (0..length)
+                    .map(|i| Wish {
+                        r#type: WishType::Character,
+                        id: i.to_string(),
+                        name: "drought".into(),
+                        rarity: 3,
+                        item_id: 9001,
+                        timestamp: DateTime::from_timestamp(1700000000 + i as i64, 0).unwrap(),
+                        pull: 0,
+                        pull_4: 0,
+                        pull_5: 0,
+                        win: None,
+                    })
+                    .collect()
+            };
+            assert_eq!(
+                serde_json::to_vec(&build_set(rows(), kind, &catalog)).unwrap(),
+                serde_json::to_vec(&reference(rows(), &catalog)).unwrap(),
+                "{kind:?}, drought {length}"
+            );
+        }
+    }
+}
