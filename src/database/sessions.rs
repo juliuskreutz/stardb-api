@@ -60,3 +60,118 @@ pub async fn delete_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod username_index_tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn sql_performance_username_indexes_and_pruning(pool: PgPool) {
+        // Many unrelated users make the username-leading access path meaningful.
+        sqlx::query(
+            "INSERT INTO users(username, password)
+            SELECT 'index-' || i, 'test' FROM generate_series(1, 10000) i",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO mihomo(uid, region, name, level, signature, avatar_icon, achievement_count)
+            SELECT i, 'na', 'seed', 1, '', '', 0 FROM generate_series(1, 10000) i")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO gi_profiles(uid, name) SELECT uid, name FROM mihomo")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO zzz_uids(uid) SELECT uid FROM mihomo")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO sessions(uuid, username, expiry)
+            SELECT gen_random_uuid(), username, now() + interval '1 day' FROM users",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        for table in ["connections", "gi_connections", "zzz_connections"] {
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO {table}(uid, username, verified, private)
+                 SELECT uid, 'index-' || uid, false, false FROM mihomo"
+            )))
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        for table in [
+            "sessions",
+            "connections",
+            "gi_connections",
+            "zzz_connections",
+        ] {
+            // These identifiers are a closed test-only list, never request data.
+            sqlx::query(sqlx::AssertSqlSafe(format!("ANALYZE {table}")))
+                .execute(&pool)
+                .await
+                .unwrap();
+            let plan: serde_json::Value = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "EXPLAIN (FORMAT JSON) SELECT * FROM {table} WHERE username = 'index-1'"
+            )))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+            assert!(
+                plan.to_string().contains(&format!("{table}_username_idx")),
+                "{table}: {plan}"
+            );
+        }
+        for remaining in 2..=12 {
+            set(
+                &DbSession {
+                    uuid: Uuid::new_v4(),
+                    username: "index-1".into(),
+                    expiry: Utc::now() + chrono::Duration::days(remaining),
+                },
+                &pool,
+            )
+            .await
+            .unwrap();
+        }
+        delete_oldest_by_username("index-1", &pool).await.unwrap();
+        let expiries: Vec<DateTime<Utc>> =
+            sqlx::query_scalar("SELECT expiry FROM sessions WHERE username = 'index-1'")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(expiries.len(), 9);
+        assert!(expiries
+            .iter()
+            .all(|e| *e > Utc::now() + chrono::Duration::days(3)));
+        let other: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM sessions WHERE username != 'index-1'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(other, 9999);
+        assert_eq!(
+            crate::database::connections::get_by_username("index-1", &pool)
+                .await
+                .unwrap()[0]
+                .uid,
+            1
+        );
+        assert_eq!(
+            crate::database::gi::connections::get_by_username("index-1", &pool)
+                .await
+                .unwrap()[0]
+                .uid,
+            1
+        );
+        assert_eq!(
+            crate::database::zzz::connections::get_by_username("index-1", &pool)
+                .await
+                .unwrap()[0]
+                .uid,
+            1
+        );
+    }
+}
