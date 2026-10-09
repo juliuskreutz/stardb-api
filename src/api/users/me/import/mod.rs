@@ -28,6 +28,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 struct ImportData {
     hsr_achievements: Option<Vec<i32>>,
     gi_achievements: Option<Vec<i32>>,
+    zzz_achievements: Option<Vec<i32>>,
 }
 
 #[utoipa::path(
@@ -75,6 +76,20 @@ async fn import(
             achievement_completed.id = achievement;
 
             database::gi::users_achievements_completed::add(&achievement_completed, &pool).await?;
+        }
+    }
+
+    if let Some(achievements) = &import_data.zzz_achievements {
+        database::zzz::users_achievements_completed::delete_by_username(&username, &pool).await?;
+        let mut achievement_completed =
+            database::zzz::users_achievements_completed::DbUserAchievementCompleted {
+                username: username.clone(),
+                id: 0,
+            };
+        for &achievement in achievements {
+            achievement_completed.id = achievement;
+
+            database::zzz::users_achievements_completed::add(&achievement_completed, &pool).await?;
         }
     }
 
