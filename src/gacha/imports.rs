@@ -258,20 +258,49 @@ pub(crate) async fn persist_batch_in_transaction(
     let mut transaction = pool.begin().await?;
     let summary = persist_batch(batch, &mut transaction).await?;
     for (game, uid) in batch.affected_uids() {
-        match game {
-            PullGame::Hsr => {
-                crate::gacha::stats::hsr::recalculate_hsr_uid(uid, &mut transaction).await?
-            }
-            PullGame::Gi => {
-                crate::gacha::stats::gi::recalculate_gi_uid(uid, &mut transaction).await?
-            }
-            PullGame::Zzz => {
-                crate::gacha::stats::zzz::recalculate_zzz_uid(uid, &mut transaction).await?
-            }
-        }
+        recalculate_uid(game, uid, &mut transaction).await?;
     }
     transaction.commit().await?;
     Ok(summary)
+}
+
+/// Persists one batch in its own transaction without recalculating stats.
+///
+/// Multi-pool official imports call this once per pool and then
+/// [`recalculate_uid_in_transaction`] once, instead of rescanning every pool
+/// after each one.
+pub(crate) async fn persist_batch_without_stats(
+    batch: &ImportBatch,
+    pool: &PgPool,
+) -> anyhow::Result<PersistenceSummary> {
+    let mut transaction = pool.begin().await?;
+    let summary = persist_batch(batch, &mut transaction).await?;
+    transaction.commit().await?;
+    Ok(summary)
+}
+
+/// Recalculates one UID's stats for a game in its own transaction.
+pub(crate) async fn recalculate_uid_in_transaction(
+    game: PullGame,
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    let mut transaction = pool.begin().await?;
+    recalculate_uid(game, uid, &mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn recalculate_uid(
+    game: PullGame,
+    uid: i32,
+    connection: &mut PgConnection,
+) -> anyhow::Result<()> {
+    match game {
+        PullGame::Hsr => crate::gacha::stats::hsr::recalculate_hsr_uid(uid, connection).await,
+        PullGame::Gi => crate::gacha::stats::gi::recalculate_gi_uid(uid, connection).await,
+        PullGame::Zzz => crate::gacha::stats::zzz::recalculate_zzz_uid(uid, connection).await,
+    }
 }
 
 /// Regression fixture for the retired column-oriented ZZZ adapter.

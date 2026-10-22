@@ -239,6 +239,20 @@ async fn post_warps_import(
             }
         }
 
+        // Pools commit individually, so recalculate once afterwards even when a
+        // later pool failed; stats then cover every pool that was saved.
+        if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+            crate::gacha::imports::PullGame::Hsr,
+            uid,
+            &pool,
+        )
+        .await
+        {
+            if error.is_ok() {
+                error = Err(e.into());
+            }
+        }
+
         if let Err(e) = error {
             let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
             let gacha_type = info.lock().await.gacha_type;
@@ -254,7 +268,7 @@ async fn post_warps_import(
     Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
 }
 
-/// Fetches one official HSR pool and atomically writes its pulls and recalculated stats.
+/// Fetches one official HSR pool and atomically writes its pulls; stats are recalculated by the job runner.
 /// Unless timestamps are ignored, the first row at or before existing history stops
 /// pagination; transport, parsing and persistence errors return to the job runner.
 async fn import_warps(
@@ -355,7 +369,7 @@ async fn import_warps(
         pulls,
         crate::gacha::imports::PullProvenance::Official,
     )?;
-    crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
+    crate::gacha::imports::persist_batch_without_stats(&batch, pool).await?;
 
     Ok(())
 }

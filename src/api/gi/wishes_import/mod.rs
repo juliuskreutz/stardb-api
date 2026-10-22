@@ -282,6 +282,20 @@ async fn post_gi_wishes_import(
             }
         }
 
+        // Pools commit individually, so recalculate once afterwards even when a
+        // later pool failed; stats then cover every pool that was saved.
+        if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+            crate::gacha::imports::PullGame::Gi,
+            uid,
+            &pool,
+        )
+        .await
+        {
+            if error.is_ok() {
+                error = Err(e.into());
+            }
+        }
+
         if let Err(e) = error {
             let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
             let gacha_type = info.lock().await.gacha_type;
@@ -299,7 +313,7 @@ async fn post_gi_wishes_import(
 
 /// Fetches one official GI pool using the job's character-first name snapshot.
 /// The first existing timestamp stops pagination unless ignored. Unknown names return
-/// InvalidImportResponse; valid pulls and recalculated stats commit in one transaction.
+/// InvalidImportResponse; valid pulls commit in one transaction; the job runner recalculates stats.
 async fn import_wishes(
     uid: i32,
     url: &Url,
@@ -412,7 +426,7 @@ async fn import_wishes(
         pulls,
         crate::gacha::imports::PullProvenance::Official,
     )?;
-    crate::gacha::imports::persist_batch_in_transaction(&batch, pool).await?;
+    crate::gacha::imports::persist_batch_without_stats(&batch, pool).await?;
 
     Ok(())
 }
