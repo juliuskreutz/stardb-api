@@ -48,7 +48,6 @@ struct UigfImportSummary {
 struct UigfGameImportSummary {
     imported: u64,
     unchanged: u64,
-    repaired: u64,
     skipped_uids: u64,
     skipped_records: u64,
 }
