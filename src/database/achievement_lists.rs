@@ -16,6 +16,9 @@ impl std::fmt::Display for UnknownAchievementId {
 
 impl std::error::Error for UnknownAchievementId {}
 
+/// Advisory lock namespace for per-user achievement-list mutations.
+const ACHIEVEMENT_LIST_LOCK: i32 = 0x5354_4442;
+
 #[derive(Clone, Copy)]
 pub enum Game {
     Hsr,
@@ -107,9 +110,12 @@ pub async fn apply(
     // Lock the user rather than existing list rows: an empty list still needs mutual
     // exclusion, and competing imports must not interleave alternate eviction/insertion.
     // The caller's transaction retains this lock through its final commit or rollback.
-    sqlx::query("SELECT username FROM users WHERE username = $1 FOR UPDATE")
+    // An advisory lock avoids locking the users row, which would block unrelated
+    // profile writes; a hashtext collision only serializes two users' list updates.
+    sqlx::query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
+        .bind(ACHIEVEMENT_LIST_LOCK)
         .bind(username)
-        .fetch_optional(&mut *conn)
+        .execute(&mut *conn)
         .await?;
     // Only closed game/list enums supply identifiers; request data remains bound.
     let catalog = format!("{}achievements", game.prefix());
