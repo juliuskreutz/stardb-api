@@ -39,6 +39,17 @@ pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool
     delete_all(&user_achievement.username, &[user_achievement.id], pool).await
 }
 
+pub async fn delete_by_username(username: &str, pool: &PgPool) -> Result<()> {
+    sqlx::query!(
+        "DELETE FROM zzz_users_achievements_completed WHERE username = $1",
+        username,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 /// Fetch the user's stored achievement IDs; an empty list is a successful result.
 pub async fn get_by_username(
     username: &str,
