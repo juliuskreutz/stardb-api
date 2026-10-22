@@ -42,7 +42,7 @@ struct ImportData {
     request_body = ImportData,
     responses(
         (status = 200, description = "Successfully imported"),
-        (status = 400, description = "Not logged in"),
+        (status = 400, description = "Not logged in or unknown achievement id"),
     )
 )]
 #[put("/api/users/me/import")]
@@ -57,16 +57,22 @@ async fn import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    use database::achievement_lists::{apply, Game, List};
+    use database::achievement_lists::{apply, Game, List, UnknownAchievementId};
     let mut tx = pool.begin().await?;
-    if let Some(ids) = &import_data.hsr_achievements {
-        apply(Game::Hsr, List::Completed, &username, ids, true, &mut tx).await?;
-    }
-    if let Some(ids) = &import_data.gi_achievements {
-        apply(Game::Gi, List::Completed, &username, ids, true, &mut tx).await?;
-    }
-    if let Some(ids) = &import_data.zzz_achievements {
-        apply(Game::Zzz, List::Completed, &username, ids, true, &mut tx).await?;
+    for (game, ids) in [
+        (Game::Hsr, &import_data.hsr_achievements),
+        (Game::Gi, &import_data.gi_achievements),
+        (Game::Zzz, &import_data.zzz_achievements),
+    ] {
+        let Some(ids) = ids else {
+            continue;
+        };
+        if let Err(error) = apply(game, List::Completed, &username, ids, true, &mut tx).await {
+            if let Some(UnknownAchievementId(id)) = error.downcast_ref() {
+                return Ok(HttpResponse::BadRequest().body(format!("Unknown achievement id {id}")));
+            }
+            return Err(error.into());
+        }
     }
     tx.commit().await?;
 

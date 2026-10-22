@@ -1,7 +1,20 @@
 //! Atomic achievement-list mutations. Identifiers come exclusively from these enums.
-use anyhow::{bail, Result};
+use anyhow::Result;
 use sqlx::{PgConnection, PgPool};
 use std::collections::{HashMap, HashSet};
+
+/// An achievement ID that is not in the game's catalog, so callers can report
+/// bad input instead of a server error.
+#[derive(Debug)]
+pub struct UnknownAchievementId(pub i32);
+
+impl std::fmt::Display for UnknownAchievementId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown achievement id {}", self.0)
+    }
+}
+
+impl std::error::Error for UnknownAchievementId {}
 
 #[derive(Clone, Copy)]
 pub enum Game {
@@ -62,7 +75,7 @@ fn select_ids(ids: &[i32], rows: &[(i32, bool, Option<i32>)], completed: bool) -
     let mut selected = Vec::new();
     for &id in ids.iter().rev() {
         let Some(&(impossible, set)) = catalog.get(&id) else {
-            bail!("Unknown achievement id {id}");
+            return Err(UnknownAchievementId(id).into());
         };
         if completed && impossible {
             continue;
@@ -191,7 +204,11 @@ mod tests {
         assert_eq!(select_ids(&[1, 2, 3, 4], &rows, true).unwrap(), vec![2, 3]);
         assert_eq!(select_ids(&[1, 2, 3, 4], &rows, false).unwrap(), vec![2, 4]);
         assert_eq!(select_ids(&[3, 2, 1, 1], &rows, true).unwrap(), vec![2, 1]);
-        assert!(select_ids(&[1, 99], &rows, true).is_err());
+        let error = select_ids(&[1, 99], &rows, true).unwrap_err();
+        assert!(matches!(
+            error.downcast_ref(),
+            Some(UnknownAchievementId(99))
+        ));
     }
 }
 
