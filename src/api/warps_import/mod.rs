@@ -318,7 +318,9 @@ async fn import_warps(
             break;
         }
 
-        let tz = (gacha_log.data.region_time_zone as i32)
+        let tz = gacha_log
+            .data
+            .region_time_zone
             .checked_mul(3600)
             .and_then(FixedOffset::east_opt)
             .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;

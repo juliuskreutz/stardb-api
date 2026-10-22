@@ -371,13 +371,13 @@ async fn import_wishes(
             break;
         }
 
-        let region_time_zone = match gacha_log.data.region.as_str() {
+        let region_time_zone: i32 = match gacha_log.data.region.as_str() {
             "os_usa" => -5,
             "os_euro" => 1,
             _ => 8,
         };
 
-        let tz = (region_time_zone as i32)
+        let tz = region_time_zone
             .checked_mul(3600)
             .and_then(FixedOffset::east_opt)
             .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;
