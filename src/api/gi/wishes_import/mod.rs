@@ -250,63 +250,69 @@ async fn post_gi_wishes_import(
 
     let info = job.info;
 
-    rt::spawn(async move {
-        let names = match ImportNames::load(&pool).await {
-            Ok(names) => names,
-            Err(error) => {
-                error!(game = "gi", uid, %job_id, error = %redacted_error(error), "gacha catalog load failed");
-                info.lock().await.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed);
-                wishes_import_infos.complete(job_id).await;
-                return;
+    let jobs = wishes_import_infos.clone();
+    jobs.spawn_job(
+        job_id,
+        info.clone(),
+        |info| info.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed),
+        async move {
+            let names = match ImportNames::load(&pool).await {
+                Ok(names) => names,
+                Err(error) => {
+                    error!(game = "gi", uid, %job_id, error = %redacted_error(error), "gacha catalog load failed");
+                    info.lock().await.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed);
+                    wishes_import_infos.complete(job_id).await;
+                    return;
+                }
+            };
+            let mut error = Ok(());
+
+            for gacha_type in GiGachaType::iter() {
+                info.lock().await.gacha_type = gacha_type;
+
+                if let Err(e) = import_wishes(
+                    uid,
+                    &url,
+                    params.ignore_timestamps,
+                    gacha_type,
+                    &info,
+                    &names,
+                    &pool,
+                )
+                .await
+                {
+                    error = Err(e);
+
+                    break;
+                }
             }
-        };
-        let mut error = Ok(());
 
-        for gacha_type in GiGachaType::iter() {
-            info.lock().await.gacha_type = gacha_type;
-
-            if let Err(e) = import_wishes(
+            // Pools commit individually, so recalculate once afterwards even when a
+            // later pool failed; stats then cover every pool that was saved.
+            if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+                crate::gacha::imports::PullGame::Gi,
                 uid,
-                &url,
-                params.ignore_timestamps,
-                gacha_type,
-                &info,
-                &names,
                 &pool,
             )
             .await
             {
-                error = Err(e);
-
-                break;
+                if error.is_ok() {
+                    error = Err(e.into());
+                }
             }
-        }
 
-        // Pools commit individually, so recalculate once afterwards even when a
-        // later pool failed; stats then cover every pool that was saved.
-        if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
-            crate::gacha::imports::PullGame::Gi,
-            uid,
-            &pool,
-        )
-        .await
-        {
-            if error.is_ok() {
-                error = Err(e.into());
+            if let Err(e) = error {
+                let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+                let gacha_type = info.lock().await.gacha_type;
+                error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+                info.lock().await.status = ImportStatus::Error(code);
+            } else {
+                info.lock().await.status = ImportStatus::Finished;
             }
-        }
 
-        if let Err(e) = error {
-            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
-            let gacha_type = info.lock().await.gacha_type;
-            error!(game = "gi", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
-            info.lock().await.status = ImportStatus::Error(code);
-        } else {
-            info.lock().await.status = ImportStatus::Finished;
-        }
-
-        wishes_import_infos.complete(job_id).await;
-    });
+            wishes_import_infos.complete(job_id).await;
+        },
+    );
 
     Ok(HttpResponse::Ok().json(WishesImport { uid, job_id }))
 }

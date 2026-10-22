@@ -226,44 +226,50 @@ async fn post_zzz_signals_import(
 
     let info = job.info;
 
-    rt::spawn(async move {
-        let mut error = Ok(());
+    let jobs = signals_import_infos.clone();
+    jobs.spawn_job(
+        job_id,
+        info.clone(),
+        |info| info.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed),
+        async move {
+            let mut error = Ok(());
 
-        for gacha_type in ZzzGachaType::iter() {
-            info.lock().await.gacha_type = gacha_type;
+            for gacha_type in ZzzGachaType::iter() {
+                info.lock().await.gacha_type = gacha_type;
 
-            if let Err(e) = import_signals(&url, gacha_type, &info, &pool).await {
-                error = Err(e);
+                if let Err(e) = import_signals(&url, gacha_type, &info, &pool).await {
+                    error = Err(e);
 
-                break;
+                    break;
+                }
             }
-        }
 
-        // Pools commit individually, so recalculate once afterwards even when a
-        // later pool failed; stats then cover every pool that was saved.
-        if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
-            crate::gacha::imports::PullGame::Zzz,
-            uid,
-            &pool,
-        )
-        .await
-        {
-            if error.is_ok() {
-                error = Err(e.into());
+            // Pools commit individually, so recalculate once afterwards even when a
+            // later pool failed; stats then cover every pool that was saved.
+            if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+                crate::gacha::imports::PullGame::Zzz,
+                uid,
+                &pool,
+            )
+            .await
+            {
+                if error.is_ok() {
+                    error = Err(e.into());
+                }
             }
-        }
 
-        if let Err(e) = error {
-            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
-            let gacha_type = info.lock().await.gacha_type;
-            error!(game = "zzz", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
-            info.lock().await.status = ImportStatus::Error(code);
-        } else {
-            info.lock().await.status = ImportStatus::Finished;
-        }
+            if let Err(e) = error {
+                let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+                let gacha_type = info.lock().await.gacha_type;
+                error!(game = "zzz", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+                info.lock().await.status = ImportStatus::Error(code);
+            } else {
+                info.lock().await.status = ImportStatus::Finished;
+            }
 
-        signals_import_infos.complete(job_id).await;
-    });
+            signals_import_infos.complete(job_id).await;
+        },
+    );
 
     Ok(HttpResponse::Ok().json(SignalsImport { uid, job_id }))
 }

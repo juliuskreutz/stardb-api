@@ -184,6 +184,27 @@ impl<T: Send + 'static> ImportJobStore<T> {
             jobs.lock().await.remove(&id);
         });
     }
+    /// Runs `job` in the background and always completes `id` afterwards.
+    ///
+    /// If `job` panics, `on_panic` records a failure first, so later imports for
+    /// the same UID start a new job instead of joining one that never finishes.
+    pub(crate) fn spawn_job(
+        &self,
+        id: ImportJobId,
+        info: Arc<Mutex<T>>,
+        on_panic: fn(&mut T),
+        job: impl std::future::Future<Output = ()> + 'static,
+    ) {
+        let store = Self {
+            jobs: self.jobs.clone(),
+        };
+        actix_web::rt::spawn(async move {
+            if actix_web::rt::spawn(job).await.is_err() {
+                on_panic(&mut *info.lock().await);
+            }
+            store.complete(id).await;
+        });
+    }
     #[cfg(test)]
     pub(crate) async fn remove(&self, id: ImportJobId) {
         self.jobs.lock().await.remove(&id);
@@ -209,6 +230,32 @@ mod gacha_security {
             let first_info = *first.info.lock().await;
             let second_info = *second.info.lock().await;
             assert_eq!(first_info, second_info);
+        }
+
+        #[actix_web::test]
+        async fn panicking_job_is_failed_and_completed() {
+            let store = ImportJobStore::default();
+            let first = store.start(123, "pending").await;
+
+            store.spawn_job(
+                first.id,
+                first.info.clone(),
+                |info| *info = "failed",
+                async {
+                    panic!("import task panicked");
+                },
+            );
+            for _ in 0..100 {
+                if *first.info.lock().await == "failed" {
+                    break;
+                }
+                actix_web::rt::task::yield_now().await;
+            }
+            actix_web::rt::task::yield_now().await;
+
+            assert_eq!(*first.info.lock().await, "failed");
+            let second = store.start(123, "second").await;
+            assert!(second.is_new);
         }
 
         #[actix_web::test]

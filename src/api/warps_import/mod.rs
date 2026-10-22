@@ -217,53 +217,59 @@ async fn post_warps_import(
 
     let info = job.info;
 
-    rt::spawn(async move {
-        let mut error = Ok(());
+    let jobs = warps_import_infos.clone();
+    jobs.spawn_job(
+        job_id,
+        info.clone(),
+        |info| info.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed),
+        async move {
+            let mut error = Ok(());
 
-        for gacha_type in GachaType::iter() {
-            info.lock().await.gacha_type = gacha_type;
+            for gacha_type in GachaType::iter() {
+                info.lock().await.gacha_type = gacha_type;
 
-            if let Err(e) = import_warps(
+                if let Err(e) = import_warps(
+                    uid,
+                    &original_url,
+                    params.ignore_timestamps,
+                    gacha_type,
+                    &info,
+                    &pool,
+                )
+                .await
+                {
+                    error = Err(e);
+
+                    break;
+                }
+            }
+
+            // Pools commit individually, so recalculate once afterwards even when a
+            // later pool failed; stats then cover every pool that was saved.
+            if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+                crate::gacha::imports::PullGame::Hsr,
                 uid,
-                &original_url,
-                params.ignore_timestamps,
-                gacha_type,
-                &info,
                 &pool,
             )
             .await
             {
-                error = Err(e);
-
-                break;
+                if error.is_ok() {
+                    error = Err(e.into());
+                }
             }
-        }
 
-        // Pools commit individually, so recalculate once afterwards even when a
-        // later pool failed; stats then cover every pool that was saved.
-        if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
-            crate::gacha::imports::PullGame::Hsr,
-            uid,
-            &pool,
-        )
-        .await
-        {
-            if error.is_ok() {
-                error = Err(e.into());
+            if let Err(e) = error {
+                let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+                let gacha_type = info.lock().await.gacha_type;
+                error!(game = "hsr", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+                info.lock().await.status = ImportStatus::Error(code);
+            } else {
+                info.lock().await.status = ImportStatus::Finished;
             }
-        }
 
-        if let Err(e) = error {
-            let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
-            let gacha_type = info.lock().await.gacha_type;
-            error!(game = "hsr", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
-            info.lock().await.status = ImportStatus::Error(code);
-        } else {
-            info.lock().await.status = ImportStatus::Finished;
-        }
-
-        warps_import_infos.complete(job_id).await;
-    });
+            warps_import_infos.complete(job_id).await;
+        },
+    );
 
     Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
 }
