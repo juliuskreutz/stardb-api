@@ -1,3 +1,4 @@
+use crate::api::users::SessionUser;
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use utoipa::OpenApi;
@@ -11,10 +12,12 @@ use crate::api::ApiResult;
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_renew);
 }
@@ -29,11 +32,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[post("/api/users/auth/renew")]
-async fn post_renew(session: Session) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+/// Rotates the authenticated session key and returns its username.
+async fn post_renew(
+    session: Session,
+    SessionUser(username): SessionUser,
+) -> ApiResult<impl Responder> {
     session.renew();
 
     Ok(HttpResponse::Ok().json(username))

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO warps_departure (id, uid, character, light_cone, timestamp, official)\nSELECT\n    *\nFROM\n    UNNEST($1::bigint[], $2::integer[], $3::integer[], $4::integer[], $5::timestamp[], $6::boolean[])\nON CONFLICT (uid, id) DO UPDATE SET\n    character = EXCLUDED.character,\n    light_cone = EXCLUDED.light_cone,\n    timestamp = EXCLUDED.timestamp,\n    official = TRUE\nWHERE EXCLUDED.official AND NOT warps_departure.official;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "TimestampArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5bd49fc1daf6c5feace3c6eb3ae79f1786c1eeaddb397805a0bf14c000e4e3d5"
+}

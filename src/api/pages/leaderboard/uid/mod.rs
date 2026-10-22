@@ -4,18 +4,20 @@ use utoipa::OpenApi;
 
 use super::Leaderboard;
 use crate::{
-    api::{private, ApiResult, Region},
-    database, mihomo, Language,
+    api::{private, ApiResult},
+    database, mihomo,
 };
 
 #[derive(OpenApi)]
 #[openapi(paths(get_leaderboard_entry))]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_leaderboard_entry);
 }
@@ -30,6 +32,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/pages/leaderboard/{uid}", guard = "private")]
+/// Returns one UID's score with regional totals after invoking mihomo profile seeding.
+/// An invalid UID returns 400 and an absent score returns 404; profile fetches may
+/// update the cache and database before the leaderboard is read.
 async fn get_leaderboard_entry(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -40,43 +45,23 @@ async fn get_leaderboard_entry(
         return Ok(HttpResponse::BadRequest().finish());
     }
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     let Some(score) = database::achievement_scores::get_by_uid(uid, &pool).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
     let score = score.into();
 
-    let count_na =
-        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
-    let count_eu =
-        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
-    let count_asia =
-        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
+    let counts = database::achievement_scores::leaderboard_counts(None, None, &pool).await?;
+    let count = counts.total();
+    let database::achievement_scores::LeaderboardCounts {
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        ..
+    } = counts;
     let count_query = 1;
-
-    let count = count_na + count_eu + count_asia + count_cn;
 
     let scores = vec![score];
 

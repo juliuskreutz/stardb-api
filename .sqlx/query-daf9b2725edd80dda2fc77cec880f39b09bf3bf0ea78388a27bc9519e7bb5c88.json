@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM zzz_signals_stats_global_exclusive_rescreening\nWHERE uid = ANY($1::integer[]);\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "daf9b2725edd80dda2fc77cec880f39b09bf3bf0ea78388a27bc9519e7bb5c88"
+}

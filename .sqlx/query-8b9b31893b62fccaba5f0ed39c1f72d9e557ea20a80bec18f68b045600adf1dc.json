@@ -1,0 +1,108 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Count numeric item identities before joining catalog/localized text. UNION ALL\n-- retains every copy, including duplicates across standard and collab pools.\nWITH copies AS (\n    SELECT character, COUNT(*) AS count\n    FROM (\n        SELECT character FROM warps_departure WHERE uid = $1\n        UNION ALL\n        SELECT character FROM warps_standard WHERE uid = $1\n        UNION ALL\n        SELECT character FROM warps_special WHERE uid = $1\n        UNION ALL\n        SELECT character FROM warps_lc WHERE uid = $1\n        UNION ALL\n        SELECT character FROM warps_collab WHERE uid = $1\n        UNION ALL\n        SELECT character FROM warps_collab_lc WHERE uid = $1\n    ) warps\n    WHERE character IS NOT NULL\n    GROUP BY character\n)\nSELECT\n    characters.id,\n    characters.rarity,\n    characters_text.name,\n    characters_text.path,\n    characters_text.element,\n    characters_text_en.path path_id,\n    characters_text_en.element element_id,\n    copies.count\nFROM copies\n    LEFT JOIN characters ON characters.id = character\n    LEFT JOIN characters_text ON characters_text.id = character\n        AND characters_text.language = $2\n    LEFT JOIN characters_text AS characters_text_en ON characters_text_en.id = character\n        AND characters_text_en.language = 'en'\nORDER BY\n    rarity DESC,\n    id DESC;\n\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "characters",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "rarity",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "characters",
+            "name": "rarity"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "characters_text",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "characters_text",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "element",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "characters_text",
+            "name": "element"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "path_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "characters_text",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "element_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "characters_text",
+            "name": "element"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "8b9b31893b62fccaba5f0ed39c1f72d9e557ea20a80bec18f68b045600adf1dc"
+}

@@ -14,10 +14,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_score_achievement)
         .service(put_score_achievement);
@@ -32,6 +34,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/scores/achievements/{uid}")]
+/// Return the UID's current ranked score, or 404 when no joined score exists.
 async fn get_score_achievement(
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
@@ -54,6 +57,7 @@ async fn get_score_achievement(
     )
 )]
 #[put("/api/scores/achievements/{uid}")]
+/// Attempt a mihomo refresh before reading the ranked score; return 404 if it remains unavailable.
 async fn put_score_achievement(
     uid: web::Path<i32>,
     language_param: web::Query<LanguageParams>,

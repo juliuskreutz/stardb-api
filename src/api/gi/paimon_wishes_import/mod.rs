@@ -1,8 +1,10 @@
+use crate::gacha::imports::{ImportBatch, NormalizedPull, PullItem, PullPool, PullProvenance};
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
 use chrono::NaiveDateTime;
 use rand::seq::IndexedRandom as _;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use utoipa::OpenApi;
 
 use crate::{api::ApiResult, database, GiGachaType};
@@ -15,10 +17,12 @@ use crate::{api::ApiResult, database, GiGachaType};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(post_paimon_warps_import);
 }
@@ -56,6 +60,9 @@ struct Pull {
     security(("admin" = []))
 )]
 #[post("/api/gi/paimon-wishes-import")]
+/// Imports a claimed Paimon profile as unofficial GI pulls and recalculates stats.
+/// Every pool stops at its first overlap, including for admins. Missing pity entries
+/// are filled from the weapon catalog; other parsing or storage failures propagate.
 async fn post_paimon_warps_import(
     session: Session,
     params: web::Json<PaimonWishesImportParams>,
@@ -70,9 +77,18 @@ async fn post_paimon_warps_import(
     let wish_uid = json[format!("{}wish-uid", params.profile)].clone();
 
     let uid = if let Some(uid) = wish_uid.as_i64() {
-        uid as i32
+        let Ok(uid) = i32::try_from(uid) else {
+            return Ok(HttpResponse::BadRequest().finish());
+        };
+        uid
     } else {
-        wish_uid.as_str().unwrap().parse()?
+        let Some(uid) = wish_uid
+            .as_str()
+            .and_then(|value| value.parse::<i32>().ok())
+        else {
+            return Ok(HttpResponse::BadRequest().finish());
+        };
+        uid
     };
 
     let admin = database::admins::exists(&username, &pool).await?;
@@ -128,11 +144,9 @@ async fn post_paimon_warps_import(
         .filter_map(|w| (w.rarity == 4).then_some(w.id))
         .collect();
 
-    let mut set_all_beginner = database::gi::wishes::SetAll::default();
-    let mut set_all_standard = database::gi::wishes::SetAll::default();
-    let mut set_all_character = database::gi::wishes::SetAll::default();
-    let mut set_all_weapon = database::gi::wishes::SetAll::default();
-    let mut set_all_chronicled = database::gi::wishes::SetAll::default();
+    let mut pulls = Vec::new();
+    // Share successful named resolutions across pools, only for this import request.
+    let mut resolved_items = HashMap::new();
 
     for (wishes, gacha_type) in [
         (&wish_counter_beginners, GiGachaType::Beginner),
@@ -145,23 +159,9 @@ async fn post_paimon_warps_import(
             continue;
         };
 
-        let earliest_timestamp = match gacha_type {
-            GiGachaType::Beginner => {
-                database::gi::wishes::beginner::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GiGachaType::Standard => {
-                database::gi::wishes::standard::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GiGachaType::Character => {
-                database::gi::wishes::character::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GiGachaType::Weapon => {
-                database::gi::wishes::weapon::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-            GiGachaType::Chronicled => {
-                database::gi::wishes::chronicled::get_earliest_timestamp_by_uid(uid, &pool).await?
-            }
-        };
+        let earliest_timestamp =
+            database::gi::wishes::get_earliest_timestamp_by_uid_by_pool(gacha_type, uid, &pool)
+                .await?;
 
         let mut pity_4 = 1;
         let mut pity_5 = 1;
@@ -170,7 +170,8 @@ async fn post_paimon_warps_import(
         for wish in wishes.pulls.iter() {
             let timestamp = NaiveDateTime::parse_from_str(&wish.time, "%Y-%m-%d %H:%M:%S")?
                 .and_utc()
-                - timestamp_offset;
+                .checked_sub_signed(timestamp_offset)
+                .ok_or_else(|| anyhow::anyhow!("invalid timestamp offset"))?;
 
             if let Some(earliest_timestamp) = earliest_timestamp {
                 if timestamp >= earliest_timestamp {
@@ -178,30 +179,17 @@ async fn post_paimon_warps_import(
                 }
             }
 
-            let (character, weapon, rarity) = match wish.id.as_str() {
-                "unknown_3_star" => (None, weapons_3_ids.choose(&mut rand::rng()).copied(), 3),
-                "unknown_4_star" => (None, weapons_4_ids.choose(&mut rand::rng()).copied(), 4),
-                _ => match wish.r#type.as_str() {
-                    "character" => {
-                        let character =
-                            database::gi::characters::get_by_paimon_moe_id(&wish.id, &pool).await?;
-                        (Some(character.id), None, character.rarity)
-                    }
-                    "weapon" => {
-                        let weapon =
-                            database::gi::weapons::get_by_paimon_moe_id(&wish.id, &pool).await?;
-                        (None, Some(weapon.id), weapon.rarity)
-                    }
-                    _ => return Ok(HttpResponse::BadRequest().finish()),
-                },
-            };
-
-            let set_all = match gacha_type {
-                GiGachaType::Beginner => &mut set_all_beginner,
-                GiGachaType::Standard => &mut set_all_standard,
-                GiGachaType::Character => &mut set_all_character,
-                GiGachaType::Weapon => &mut set_all_weapon,
-                GiGachaType::Chronicled => &mut set_all_chronicled,
+            let Some((item, rarity)) = resolve_item(
+                &wish.r#type,
+                &wish.id,
+                &weapons_3_ids,
+                &weapons_4_ids,
+                &mut resolved_items,
+                &pool,
+            )
+            .await?
+            else {
+                return Ok(HttpResponse::BadRequest().finish());
             };
 
             let mut pity = 1;
@@ -225,25 +213,21 @@ async fn post_paimon_warps_import(
 
             if rarity == 5 {
                 while pity < wish.pity {
-                    set_all.id.push(id);
-                    set_all.uid.push(uid);
-                    set_all.character.push(None);
-                    set_all.timestamp.push(timestamp);
-                    set_all.official.push(false);
-
-                    if pity_4 < 10 {
-                        let id = weapons_3_ids.choose(&mut rand::rng()).copied();
-
-                        set_all.weapon.push(id);
-
+                    let filler = if pity_4 < 10 {
                         pity_4 += 1;
+                        random_weapon(&weapons_3_ids)?
                     } else {
-                        let id = weapons_4_ids.choose(&mut rand::rng()).copied();
-
-                        set_all.weapon.push(id);
-
                         pity_4 = 1;
-                    }
+                        random_weapon(&weapons_4_ids)?
+                    };
+                    pulls.push(NormalizedPull {
+                        uid,
+                        id,
+                        pool: PullPool::Gi(gacha_type),
+                        item: filler,
+                        timestamp,
+                        provenance: PullProvenance::Unofficial,
+                    });
 
                     id += 1;
                     pity += 1;
@@ -252,22 +236,151 @@ async fn post_paimon_warps_import(
                 pity_4 = 1;
             }
 
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.weapon.push(weapon);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(false);
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Gi(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Unofficial,
+            });
 
             id += 1;
         }
     }
 
-    database::gi::wishes::beginner::set_all(&set_all_beginner, &pool).await?;
-    database::gi::wishes::standard::set_all(&set_all_standard, &pool).await?;
-    database::gi::wishes::character::set_all(&set_all_character, &pool).await?;
-    database::gi::wishes::weapon::set_all(&set_all_weapon, &pool).await?;
-    database::gi::wishes::chronicled::set_all(&set_all_chronicled, &pool).await?;
+    let Ok(batch) = ImportBatch::new(pulls, PullProvenance::Unofficial) else {
+        return Ok(HttpResponse::BadRequest().finish());
+    };
+    crate::gacha::imports::persist_batch_in_transaction(&batch, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+/// Samples a weapon ID for reconstructed history, failing if its rarity catalog is empty.
+fn random_weapon(ids: &[i32]) -> anyhow::Result<PullItem> {
+    ids.choose(&mut rand::rng())
+        .copied()
+        .map(PullItem::Weapon)
+        .ok_or_else(|| anyhow::anyhow!("missing weapon catalog"))
+}
+
+/// Resolve each named item once per request. Unknown entries must sample on every
+/// occurrence, and failures are never cached. Item type separates identical names.
+async fn resolve_item(
+    item_type: &str,
+    id: &str,
+    weapons_3: &[i32],
+    weapons_4: &[i32],
+    resolved: &mut HashMap<(String, String), (PullItem, i32)>,
+    pool: &PgPool,
+) -> anyhow::Result<Option<(PullItem, i32)>> {
+    match id {
+        "unknown_3_star" => return Ok(Some((random_weapon(weapons_3)?, 3))),
+        "unknown_4_star" => return Ok(Some((random_weapon(weapons_4)?, 4))),
+        _ => {}
+    }
+    let key = (item_type.to_owned(), id.to_owned());
+    if let Some(item) = resolved.get(&key) {
+        return Ok(Some(*item));
+    }
+    let item = match item_type {
+        "character" => {
+            let item = database::gi::characters::get_by_paimon_moe_id(id, pool).await?;
+            (PullItem::Character(item.id), item.rarity)
+        }
+        "weapon" => {
+            let item = database::gi::weapons::get_by_paimon_moe_id(id, pool).await?;
+            (PullItem::Weapon(item.id), item.rarity)
+        }
+        _ => return Ok(None),
+    };
+    resolved.insert(key, item);
+    Ok(Some(item))
+}
+
+#[cfg(test)]
+mod resolution_tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn sql_performance_paimon_reuses_known_items_only(pool: PgPool) {
+        sqlx::query("INSERT INTO gi_characters(id, rarity) VALUES (1, 5)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO gi_weapons(id, rarity) VALUES (2, 4)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO gi_characters_text(id, language, name) VALUES (1, 'en', 'Seed Name')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO gi_weapons_text(id, language, name) VALUES (2, 'en', 'Seed Name')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let mut cache = HashMap::new();
+        assert_eq!(
+            resolve_item("character", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap(),
+            Some((PullItem::Character(1), 5))
+        );
+        assert_eq!(
+            resolve_item("weapon", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap(),
+            Some((PullItem::Weapon(2), 4))
+        );
+        assert_eq!(cache.len(), 2);
+        assert!(
+            resolve_item("weapon", "missing", &[], &[], &mut cache, &pool)
+                .await
+                .is_err()
+        );
+        assert_eq!(cache.len(), 2);
+        // A closed pool proves repeat resolutions need no database connection.
+        pool.close().await;
+        for _ in 0..1000 {
+            assert_eq!(
+                resolve_item("character", "seed_name", &[], &[], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Character(1), 5))
+            );
+        }
+        // Different singleton catalogs make accidental unknown-item caching deterministic.
+        for id in [10, 11] {
+            assert_eq!(
+                resolve_item("weapon", "unknown_3_star", &[id], &[], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Weapon(id), 3))
+            );
+            assert_eq!(
+                resolve_item("weapon", "unknown_4_star", &[], &[id], &mut cache, &pool)
+                    .await
+                    .unwrap(),
+                Some((PullItem::Weapon(id), 4))
+            );
+        }
+        assert_eq!(cache.len(), 2);
+        assert!(
+            resolve_item("weapon", "unknown_3_star", &[], &[], &mut cache, &pool)
+                .await
+                .is_err()
+        );
+        assert!(
+            resolve_item("invalid", "seed_name", &[], &[], &mut cache, &pool)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
 }

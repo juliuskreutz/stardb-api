@@ -25,7 +25,9 @@ struct GiBanner {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
+    character_gacha_type: Option<i32>,
     weapon: Option<i32>,
+    weapon_gacha_type: Option<i32>,
 }
 
 impl From<database::gi::banners::DbBanner> for GiBanner {
@@ -36,7 +38,9 @@ impl From<database::gi::banners::DbBanner> for GiBanner {
             start: banner.start,
             end: banner.end,
             character: banner.character,
+            character_gacha_type: banner.character_gacha_type,
             weapon: banner.weapon,
+            weapon_gacha_type: banner.weapon_gacha_type,
         }
     }
 }

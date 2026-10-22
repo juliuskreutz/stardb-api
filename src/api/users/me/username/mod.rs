@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{get, web, HttpResponse, Responder};
 use utoipa::OpenApi;
 
@@ -11,10 +11,12 @@ use crate::api::ApiResult;
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_username);
 }
@@ -29,10 +31,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/username")]
-async fn get_username(session: Session) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+/// Returns the username provided by the authenticated-session extractor.
+async fn get_username(SessionUser(username): SessionUser) -> ApiResult<impl Responder> {
     Ok(HttpResponse::Ok().json(username))
 }

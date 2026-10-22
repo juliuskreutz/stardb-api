@@ -6,22 +6,46 @@
       {
         "ordinal": 0,
         "name": "uid",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_global_lc",
+            "name": "uid"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "count_percentile",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_global_lc",
+            "name": "count_percentile"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "luck_4_percentile",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_global_lc",
+            "name": "luck_4_percentile"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "luck_5_percentile",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_global_lc",
+            "name": "luck_5_percentile"
+          }
+        }
       }
     ],
     "parameters": {

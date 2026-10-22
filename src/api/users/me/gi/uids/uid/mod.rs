@@ -1,6 +1,6 @@
 mod private;
 
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(private::openapi());
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(private::configure)
         .service(put_user_gi_uid)
@@ -36,15 +38,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/gi/uids/{uid}")]
+/// Adds an unverified public GI connection, preserving any existing connection.
+/// The profile must already satisfy database foreign-key requirements; errors propagate.
 async fn put_user_gi_uid(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     if database::gi::connections::get_by_uid_and_username(*uid, &username, &pool)
         .await
         .is_ok()
@@ -74,15 +74,12 @@ async fn put_user_gi_uid(
     )
 )]
 #[delete("/api/users/me/gi/uids/{uid}")]
+/// Deletes only the authenticated user's GI connection, leaving pull history intact.
 async fn delete_user_gi_uid(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let connection = database::gi::connections::DbConnection {
         username,
         uid: *uid,

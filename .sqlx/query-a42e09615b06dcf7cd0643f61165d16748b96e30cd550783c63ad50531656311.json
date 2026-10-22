@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO zzz_signals_stats_global_standard (uid, count_percentile, luck_a_percentile, luck_s_percentile)\nSELECT *\nFROM UNNEST(\n    $1::integer[],\n    $2::double precision[],\n    $3::double precision[],\n    $4::double precision[]\n)\nON CONFLICT (uid)\nDO UPDATE SET\n    count_percentile = EXCLUDED.count_percentile,\n    luck_a_percentile = EXCLUDED.luck_a_percentile,\n    luck_s_percentile = EXCLUDED.luck_s_percentile\n-- Identical hourly results need no new heap tuple; changed percentiles still update.\nWHERE (zzz_signals_stats_global_standard.count_percentile, zzz_signals_stats_global_standard.luck_a_percentile, zzz_signals_stats_global_standard.luck_s_percentile)\n    IS DISTINCT FROM (EXCLUDED.count_percentile, EXCLUDED.luck_a_percentile, EXCLUDED.luck_s_percentile);\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a42e09615b06dcf7cd0643f61165d16748b96e30cd550783c63ad50531656311"
+}

@@ -1,83 +1,45 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::database::gi::achievements::DbAchievement;
-
 pub struct DbUserAchievementCompleted {
     pub username: String,
     pub id: i32,
 }
 
+/// Apply the transactional batch rules to one achievement, including alternate eviction.
 pub async fn add(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    if sqlx::query_file!(
-        "sql/gi/achievements/get_one_by_id.sql",
-        user_achievement.id,
-        "en"
-    )
-    .fetch_one(pool)
-    .await?
-    .impossible
-    {
-        return Ok(());
-    }
-
-    sqlx::query_file!(
-        "sql/gi/users/achievements/completed/set.sql",
-        user_achievement.username,
-        user_achievement.id,
-    )
-    .execute(pool)
-    .await?;
-
-    if let Some(set) = sqlx::query_file_as!(
-        DbAchievement,
-        "sql/gi/achievements/get_one_by_id.sql",
-        user_achievement.id,
-        "en"
-    )
-    .fetch_one(pool)
-    .await?
-    .set
-    {
-        for related in
-            super::achievements::get_all_related_ids(user_achievement.id, set, pool).await?
-        {
-            sqlx::query_file!(
-                "sql/gi/users/achievements/completed/delete.sql",
-                user_achievement.username,
-                related,
-            )
-            .execute(pool)
-            .await?;
-        }
-    }
-
-    Ok(())
+    add_all(&user_achievement.username, &[user_achievement.id], pool).await
 }
-
-pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/users/achievements/completed/delete.sql",
-        user_achievement.username,
-        user_achievement.id,
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-pub async fn delete_by_username(username: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!(
-        "sql/gi/users/achievements/completed/delete_by_username.sql",
+/// Atomically add completed IDs, ignoring impossible entries and retaining the last eligible ID per set.
+/// Unknown IDs fail the whole batch before any list mutation.
+pub async fn add_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::add_all(
+        crate::database::achievement_lists::Game::Gi,
+        crate::database::achievement_lists::List::Completed,
         username,
+        ids,
+        pool,
     )
-    .execute(pool)
-    .await?;
-
-    Ok(())
+    .await
+}
+/// Delete the requested IDs in one statement without disturbing other list entries.
+pub async fn delete_all(username: &str, ids: &[i32], pool: &PgPool) -> Result<()> {
+    crate::database::achievement_lists::delete_all(
+        crate::database::achievement_lists::Game::Gi,
+        crate::database::achievement_lists::List::Completed,
+        username,
+        ids,
+        pool,
+    )
+    .await
 }
 
+/// Delete one achievement through the shared batch deletion path.
+pub async fn delete(user_achievement: &DbUserAchievementCompleted, pool: &PgPool) -> Result<()> {
+    delete_all(&user_achievement.username, &[user_achievement.id], pool).await
+}
+
+/// Fetch the user's stored achievement IDs; an empty list is a successful result.
 pub async fn get_by_username(
     username: &str,
     pool: &PgPool,

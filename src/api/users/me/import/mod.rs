@@ -1,3 +1,5 @@
+//! Transactional replacement of the signed-in user's supplied achievement lists across games.
+
 use actix_session::Session;
 use actix_web::{put, web, HttpResponse, Responder};
 use serde::Deserialize;
@@ -16,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import);
 }
@@ -38,10 +42,12 @@ struct ImportData {
     request_body = ImportData,
     responses(
         (status = 200, description = "Successfully imported"),
-        (status = 400, description = "Not logged in"),
+        (status = 400, description = "Not logged in or unknown achievement id"),
     )
 )]
 #[put("/api/users/me/import")]
+/// Replace supplied HSR/GI/ZZZ completion lists in one transaction for the signed-in user.
+/// Omitted games remain untouched; an unknown ID in any game rolls back the complete import.
 async fn import(
     session: Session,
     import_data: web::Json<ImportData>,
@@ -51,47 +57,24 @@ async fn import(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    if let Some(achievements) = &import_data.hsr_achievements {
-        database::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::users_achievements_completed::add(&achievement_completed, &pool).await?;
+    use database::achievement_lists::{apply, Game, List, UnknownAchievementId};
+    let mut tx = pool.begin().await?;
+    for (game, ids) in [
+        (Game::Hsr, &import_data.hsr_achievements),
+        (Game::Gi, &import_data.gi_achievements),
+        (Game::Zzz, &import_data.zzz_achievements),
+    ] {
+        let Some(ids) = ids else {
+            continue;
+        };
+        if let Err(error) = apply(game, List::Completed, &username, ids, true, &mut tx).await {
+            if let Some(UnknownAchievementId(id)) = error.downcast_ref() {
+                return Ok(HttpResponse::BadRequest().body(format!("Unknown achievement id {id}")));
+            }
+            return Err(error.into());
         }
     }
-
-    if let Some(achievements) = &import_data.gi_achievements {
-        database::gi::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::gi::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::gi::users_achievements_completed::add(&achievement_completed, &pool).await?;
-        }
-    }
-
-    if let Some(achievements) = &import_data.zzz_achievements {
-        database::zzz::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::zzz::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::zzz::users_achievements_completed::add(&achievement_completed, &pool).await?;
-        }
-    }
+    tx.commit().await?;
 
     Ok(HttpResponse::Ok().finish())
 }

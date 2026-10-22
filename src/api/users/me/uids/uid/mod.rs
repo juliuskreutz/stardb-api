@@ -1,11 +1,11 @@
 mod private;
 
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, mihomo, Language};
+use crate::{api::ApiResult, database, mihomo};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database, mihomo, Language};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(private::openapi());
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(private::configure)
         .service(put_user_uid)
@@ -36,15 +38,14 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/uids/{uid}")]
+/// Adds an unverified public HSR connection after validating the UID range.
+/// Existing connections are left intact; profile lookup or stub seeding is attempted
+/// before insertion, and upstream or database errors propagate.
 async fn put_user_uid(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let uid = *uid;
 
     if !(100000000..1000000000).contains(&uid) {
@@ -65,26 +66,7 @@ async fn put_user_uid(
         private: false,
     };
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     database::connections::set(&connection, &pool).await?;
 
@@ -101,15 +83,12 @@ async fn put_user_uid(
     )
 )]
 #[delete("/api/users/me/uids/{uid}")]
+/// Deletes only the authenticated user's HSR connection, leaving pull history intact.
 async fn delete_user_uid(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let connection = database::connections::DbConnection {
         username,
         uid: *uid,

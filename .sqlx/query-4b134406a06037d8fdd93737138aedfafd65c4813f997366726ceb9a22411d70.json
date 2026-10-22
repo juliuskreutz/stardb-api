@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH signal_counts AS (\n    SELECT uid, COUNT(*) AS signal_count\n    FROM zzz_signals_special\n    GROUP BY uid\n)\n-- The preserved side is NOT NULL even if the planner reverses the LEFT JOIN.\n-- Pin SQLx nullability; only a missing history count is optional.\nSELECT stats.uid AS \"uid!\", stats.luck_a AS \"luck_a!\", stats.luck_s AS \"luck_s!\", counts.signal_count AS \"signal_count?\"\nFROM zzz_signals_stats_special AS stats\nLEFT JOIN signal_counts AS counts USING (uid);\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "uid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a!",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "luck_a"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s!",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_special",
+            "name": "luck_s"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "signal_count?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4b134406a06037d8fdd93737138aedfafd65c4813f997366726ceb9a22411d70"
+}

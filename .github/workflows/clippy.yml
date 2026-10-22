@@ -1,23 +1,23 @@
 name: Clippy
 
-on: push
+on:
+  push:
+  pull_request:
 
 jobs:
-  deploy:
-    name: Clippy
+  clippy:
+    name: Offline Clippy
     runs-on: ubuntu-latest
-
+    env:
+      SQLX_OFFLINE: "true"
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Get Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7.0.1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           components: clippy
-
-      - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
+      # Reuse dependency artifacts across runs; Clippy also type-checks all targets.
+      - uses: Swatinem/rust-cache@v2.9.2
+      - name: Check and lint all targets without a database
+        run: cargo clippy --locked --all-targets
+      - name: Check whitespace
+        run: git diff --check

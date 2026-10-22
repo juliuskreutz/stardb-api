@@ -1,9 +1,16 @@
+//! HSR per-UID pity and win-stat persistence; count reads feed population ranking. This module targets the collab lc pool.
+
 use anyhow::Result;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 
 use crate::database::warps_stats::{DbWarpsStat, DbWarpsStatCount};
 
-pub async fn set(stat: &DbWarpsStat, pool: &PgPool) -> Result<()> {
+/// Upserts one UID’s calculated stats through the supplied executor.
+/// The caller owns transaction commit/rollback; database failures propagate.
+pub async fn set<'e, E>(stat: &DbWarpsStat, executor: E) -> Result<()>
+where
+    E: Executor<'e, Database = Postgres>,
+{
     sqlx::query_file!(
         "sql/warps_stats/collab_lc/set.sql",
         stat.uid,
@@ -13,12 +20,14 @@ pub async fn set(stat: &DbWarpsStat, pool: &PgPool) -> Result<()> {
         stat.win_streak,
         stat.loss_streak,
     )
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
 }
 
+/// Reads local stats joined with per-pool pull counts for population ranking.
+/// SQL limits the population to UIDs with at least 100 pulls. Result order is unspecified.
 pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatCount>> {
     Ok(sqlx::query_file_as!(
         DbWarpsStatCount,
@@ -28,6 +37,7 @@ pub async fn get_all(pool: &PgPool) -> Result<Vec<DbWarpsStatCount>> {
     .await?)
 }
 
+/// Returns this UID’s stored local stats, or None before recalculation.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStat>> {
     Ok(
         sqlx::query_file_as!(DbWarpsStat, "sql/warps_stats/collab_lc/get_by_uid.sql", uid)

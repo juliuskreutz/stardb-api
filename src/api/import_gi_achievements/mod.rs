@@ -19,10 +19,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import_gi_achievements);
 }
@@ -55,6 +57,8 @@ struct Achievement {
     )
 )]
 #[post("/api/import-gi-achievements")]
+/// Require an administrator and import CSV metadata with one replacement statement per row.
+/// Rows commit individually; a later parse/database error does not roll back earlier rows.
 async fn import_gi_achievements(
     session: Session,
     file: MultipartForm<File>,
@@ -78,37 +82,15 @@ async fn import_gi_achievements(
     for achievement in reader.deserialize() {
         let achievement: Achievement = achievement?;
 
-        database::gi::achievements::update_version_by_id(
-            achievement.key,
-            achievement.version.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::gi::achievements::update_difficulty_by_id(
-            achievement.key,
-            achievement.difficulty.map(|d| d.to_lowercase()).as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::gi::achievements::update_comment_by_id(
-            achievement.key,
-            achievement.comment.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::gi::achievements::update_impossible_by_id(
-            achievement.key,
-            achievement.impossible.as_deref() == Some("Yes"),
-            &pool,
-        )
-        .await?;
-
-        database::gi::achievements::update_timegated_by_id(
-            achievement.key,
-            achievement.timegated.as_deref(),
+        database::gi::achievements::import_metadata(
+            &database::gi::achievements::DbImportAchievement {
+                id: achievement.key,
+                version: achievement.version,
+                difficulty: achievement.difficulty.map(|d| d.to_lowercase()),
+                comment: achievement.comment,
+                impossible: achievement.impossible.as_deref() == Some("Yes"),
+                timegated: achievement.timegated,
+            },
             &pool,
         )
         .await?;

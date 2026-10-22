@@ -1,10 +1,15 @@
+//! UIGF v4.1 exports with game-specific item labels, pool IDs, and server-local timestamps.
+//! Each game keeps its own conversion policy while registry dispatch enumerates its pools.
+
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{FixedOffset, Utc};
 use sqlx::PgPool;
 use utoipa::OpenApi;
 
-use crate::{api::ApiResult, database, Language};
+use crate::{api::ApiResult, database, GachaType, GiGachaType, Language, ZzzGachaType};
+use strum::IntoEnumIterator;
 
 #[derive(utoipa::OpenApi)]
 #[openapi(
@@ -19,10 +24,12 @@ use crate::{api::ApiResult, database, Language};
 )]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_export_uigf);
 }
@@ -73,6 +80,8 @@ struct UIGFListItem {
     id: String,
 }
 
+/// Returns the game’s fixed server offset in hours inferred from the UID prefix.
+/// Unknown prefixes retain the existing UTC+8 fallback; daylight saving is not applied.
 fn get_timezone_offset(uid: i32, game: &str) -> i32 {
     let uid_str = uid.to_string();
     let first_char = uid_str.chars().next().unwrap_or('0');
@@ -99,26 +108,31 @@ fn get_timezone_offset(uid: i32, game: &str) -> i32 {
     }
 }
 
+/// Formats a UTC instant in the selected fixed server offset without a timezone suffix.
+/// The offset must be valid for chrono; callers use the bounded server-offset mapping.
 fn format_uigf_time(chrono_datetime: chrono::DateTime<Utc>, offset_hours: i32) -> String {
     let offset = FixedOffset::east_opt(offset_hours * 3600).unwrap();
     let local_time = chrono_datetime.with_timezone(&offset);
     local_time.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-
+/// Converts a validated HSR row using UIGF’s exact Character/Light Cone labels.
+/// Keeps nullable names, string IDs, and the caller’s pool ID and server offset.
 fn warp_to_uigf_item(
     warp: database::warps::DbWarp,
     gacha_type: &str,
     gacha_id: Option<&str>,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = warp.character {
-        (char_id.to_string(), Some("Character".to_string()))
-    } else if let Some(lc_id) = warp.light_cone {
-        (lc_id.to_string(), Some("Light Cone".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = warp.item.id().to_string();
+    let item_type = Some(
+        match warp.item {
+            StoredItem::Character(_) => "Character",
+            StoredItem::LightCone(_) => "Light Cone",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: None,
@@ -129,25 +143,28 @@ fn warp_to_uigf_item(
         time: format_uigf_time(warp.timestamp, offset),
         name: warp.name,
         item_type,
-        rank_type: warp.rarity.map(|r| r.to_string()),
+        rank_type: Some(warp.rarity.to_string()),
         id: warp.id.to_string(),
     }
 }
 
+/// Converts a validated ZZZ row using UIGF’s exact Agents/W-Engines/Bangboo labels.
+/// Keeps nullable names and emits the caller’s current pool ID, not a legacy alias.
 fn signal_to_uigf_item(
     signal: database::zzz::signals::DbSignal,
     gacha_type: &str,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = signal.character {
-        (char_id.to_string(), Some("Agents".to_string()))
-    } else if let Some(we_id) = signal.w_engine {
-        (we_id.to_string(), Some("W-Engines".to_string()))
-    } else if let Some(bb_id) = signal.bangboo {
-        (bb_id.to_string(), Some("Bangboo".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = signal.item.id().to_string();
+    let item_type = Some(
+        match signal.item {
+            StoredItem::Character(_) => "Agents",
+            StoredItem::WEngine(_) => "W-Engines",
+            StoredItem::Bangboo(_) => "Bangboo",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: None,
@@ -158,24 +175,28 @@ fn signal_to_uigf_item(
         time: format_uigf_time(signal.timestamp, offset),
         name: signal.name,
         item_type,
-        rank_type: signal.rarity.map(|r| r.to_string()),
+        rank_type: Some(signal.rarity.to_string()),
         id: signal.id.to_string(),
     }
 }
 
+/// Converts a validated GI row using UIGF’s Character/Weapon labels.
+/// Keeps both gacha-type fields explicit and formats time in the caller’s server offset.
 fn wish_to_uigf_item(
     wish: database::gi::wishes::DbWish,
     gacha_type: &str,
     uigf_gacha_type: &str,
     offset: i32,
 ) -> UIGFListItem {
-    let (item_id, item_type) = if let Some(char_id) = wish.character {
-        (char_id.to_string(), Some("Character".to_string()))
-    } else if let Some(weapon_id) = wish.weapon {
-        (weapon_id.to_string(), Some("Weapon".to_string()))
-    } else {
-        ("0".to_string(), None)
-    };
+    let item_id = wish.item.id().to_string();
+    let item_type = Some(
+        match wish.item {
+            StoredItem::Character(_) => "Character",
+            StoredItem::Weapon(_) => "Weapon",
+            _ => unreachable!("read model validates game item kinds"),
+        }
+        .to_string(),
+    );
 
     UIGFListItem {
         uigf_gacha_type: Some(uigf_gacha_type.to_string()),
@@ -186,7 +207,7 @@ fn wish_to_uigf_item(
         time: format_uigf_time(wish.timestamp, offset),
         name: wish.name,
         item_type,
-        rank_type: wish.rarity.map(|r| r.to_string()),
+        rank_type: Some(wish.rarity.to_string()),
         id: wish.id.to_string(),
     }
 }
@@ -201,10 +222,10 @@ fn wish_to_uigf_item(
     )
 )]
 #[get("/api/users/me/export-uigf")]
-async fn get_export_uigf(
-    session: Session,
-    pool: web::Data<PgPool>,
-) -> ApiResult<impl Responder> {
+/// Exports all connected histories in UIGF v4.1; requires a session username.
+/// Sorts each UID’s list by formatted time then string ID, preserving insertion
+/// order for ties, and omits empty UID lists. Read/conversion errors abort the export.
+async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
@@ -217,23 +238,11 @@ async fn get_export_uigf(
 
         let mut list = Vec::new();
 
-        for warp in database::warps::departure::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "2", Some("2"), offset));
-        }
-        for warp in database::warps::standard::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "1", Some("1"), offset));
-        }
-        for warp in database::warps::special::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "11", Some("11"), offset));
-        }
-        for warp in database::warps::lc::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "12", Some("12"), offset));
-        }
-        for warp in database::warps::collab::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "21", Some("21"), offset));
-        }
-        for warp in database::warps::collab_lc::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(warp_to_uigf_item(warp, "22", Some("22"), offset));
+        for kind in hsr_export_pools() {
+            let id = kind.id().to_string();
+            for warp in database::warps::get_by_uid_by_pool(kind, uid, Language::En, &pool).await? {
+                list.push(warp_to_uigf_item(warp, &id, Some(&id), offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -256,20 +265,13 @@ async fn get_export_uigf(
 
         let mut list = Vec::new();
 
-        for signal in database::zzz::signals::standard::get_by_uid(uid, Language::En, &pool).await?
-        {
-            list.push(signal_to_uigf_item(signal, "1", offset));
-        }
-        for signal in database::zzz::signals::special::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(signal, "2", offset));
-        }
-        for signal in
-            database::zzz::signals::w_engine::get_by_uid(uid, Language::En, &pool).await?
-        {
-            list.push(signal_to_uigf_item(signal, "3", offset));
-        }
-        for signal in database::zzz::signals::bangboo::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(signal_to_uigf_item(signal, "5", offset));
+        for kind in ZzzGachaType::iter() {
+            let id = kind.id().to_string();
+            for signal in
+                database::zzz::signals::get_by_uid_by_pool(kind, uid, Language::En, &pool).await?
+            {
+                list.push(signal_to_uigf_item(signal, &id, offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -292,20 +294,13 @@ async fn get_export_uigf(
 
         let mut list = Vec::new();
 
-        for wish in database::gi::wishes::beginner::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "100", "100", offset));
-        }
-        for wish in database::gi::wishes::standard::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "200", "200", offset));
-        }
-        for wish in database::gi::wishes::character::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "301", "301", offset));
-        }
-        for wish in database::gi::wishes::weapon::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "302", "302", offset));
-        }
-        for wish in database::gi::wishes::chronicled::get_by_uid(uid, Language::En, &pool).await? {
-            list.push(wish_to_uigf_item(wish, "500", "500", offset));
+        for kind in GiGachaType::iter() {
+            let id = gi_uigf_type(kind);
+            for wish in
+                database::gi::wishes::get_by_uid_by_pool(kind, uid, Language::En, &pool).await?
+            {
+                list.push(wish_to_uigf_item(wish, id, id, offset));
+            }
         }
 
         list.sort_by(|a, b| a.time.cmp(&b.time).then(a.id.cmp(&b.id)));
@@ -333,4 +328,142 @@ async fn get_export_uigf(
     };
 
     Ok(HttpResponse::Ok().json(export))
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use super::*;
+    #[test]
+    fn every_item_kind_preserves_export_wire_strings() {
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(warp_to_uigf_item(row, "11", Some("11"), 0)).unwrap();
+        assert_eq!(value["item_type"], "Character");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::LightCone(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(warp_to_uigf_item(row, "11", Some("11"), 0)).unwrap();
+        assert_eq!(value["item_type"], "Light Cone");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(wish_to_uigf_item(row, "301", "301", 0)).unwrap();
+        assert_eq!(value["item_type"], "Character");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Weapon(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(wish_to_uigf_item(row, "301", "301", 0)).unwrap();
+        assert_eq!(value["item_type"], "Weapon");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "Agents");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::WEngine(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "W-Engines");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Bangboo(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(signal_to_uigf_item(row, "2", 0)).unwrap();
+        assert_eq!(value["item_type"], "Bangboo");
+        assert_eq!(value["item_id"], "1700000000");
+        assert_eq!(value["rank_type"], "4");
+        assert_eq!(value["time"], "2023-11-14 22:13:20");
+    }
+}
+
+/// Preserve the original insertion order for equal timestamp/id keys in stable sorting.
+fn hsr_export_pools() -> impl Iterator<Item = GachaType> {
+    std::iter::once(GachaType::Departure)
+        .chain(GachaType::iter().filter(|kind| *kind != GachaType::Departure))
+}
+
+/// Returns the canonical UIGF pool ID for each Genshin pool; exports emit no legacy aliases.
+fn gi_uigf_type(kind: GiGachaType) -> &'static str {
+    match kind {
+        GiGachaType::Beginner => "100",
+        GiGachaType::Standard => "200",
+        GiGachaType::Character => "301",
+        GiGachaType::Weapon => "302",
+        GiGachaType::Chronicled => "500",
+    }
+}
+
+#[cfg(test)]
+mod pool_order_tests {
+    use super::*;
+    #[test]
+    fn all_pool_ids_and_stable_tie_order_match_existing_exports() {
+        assert_eq!(
+            hsr_export_pools().map(GachaType::id).collect::<Vec<_>>(),
+            [2, 1, 11, 12, 21, 22]
+        );
+        assert_eq!(
+            ZzzGachaType::iter()
+                .map(ZzzGachaType::id)
+                .collect::<Vec<_>>(),
+            [1, 2, 3, 5, 102, 103]
+        );
+        assert_eq!(
+            GiGachaType::iter().map(gi_uigf_type).collect::<Vec<_>>(),
+            ["100", "200", "301", "302", "500"]
+        );
+    }
 }

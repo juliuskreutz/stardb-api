@@ -1,7 +1,11 @@
+//! Signed account exports containing achievements, connections, and every registered pull pool.
+//! The signature covers serialized user data, including stored provenance flags.
+
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
-use ed25519_dalek::{ed25519::signature::SignerMut, SigningKey};
+use ed25519_dalek::{Signer, SigningKey};
 use futures::lock::Mutex;
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -34,10 +38,12 @@ use crate::{api::ApiResult, database, Language};
 )]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_export);
 }
@@ -76,6 +82,8 @@ struct Warps {
     standard: Vec<Warp>,
     character: Vec<Warp>,
     light_cone: Vec<Warp>,
+    collab: Vec<Warp>,
+    collab_lc: Vec<Warp>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -114,6 +122,8 @@ struct Signals {
     character: Vec<Signal>,
     w_engine: Vec<Signal>,
     bangboo: Vec<Signal>,
+    exclusive_rescreening: Vec<Signal>,
+    w_engine_reverberation: Vec<Signal>,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -173,8 +183,9 @@ enum WishType {
 }
 
 impl From<database::warps::DbWarp> for Warp {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(warp: database::warps::DbWarp) -> Self {
-        let r#type = if warp.character.is_some() {
+        let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
         } else {
             WarpType::LightCone
@@ -183,7 +194,7 @@ impl From<database::warps::DbWarp> for Warp {
         Self {
             r#type,
             id: warp.id.to_string(),
-            item_id: warp.character.or(warp.light_cone).unwrap(),
+            item_id: warp.item.id(),
             timestamp: warp.timestamp,
             official: warp.official,
         }
@@ -191,10 +202,11 @@ impl From<database::warps::DbWarp> for Warp {
 }
 
 impl From<database::zzz::signals::DbSignal> for Signal {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(signal: database::zzz::signals::DbSignal) -> Self {
-        let r#type = if signal.character.is_some() {
+        let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Character
-        } else if signal.w_engine.is_some() {
+        } else if matches!(signal.item, StoredItem::WEngine(_)) {
             SignalType::WEngine
         } else {
             SignalType::Bangboo
@@ -203,11 +215,7 @@ impl From<database::zzz::signals::DbSignal> for Signal {
         Self {
             r#type,
             id: signal.id.to_string(),
-            item_id: signal
-                .character
-                .or(signal.w_engine)
-                .or(signal.bangboo)
-                .unwrap(),
+            item_id: signal.item.id(),
             timestamp: signal.timestamp,
             official: signal.official,
         }
@@ -215,8 +223,9 @@ impl From<database::zzz::signals::DbSignal> for Signal {
 }
 
 impl From<database::gi::wishes::DbWish> for Wish {
+    /// Maps stored item identity and provenance to the signed export’s wire fields.
     fn from(wish: database::gi::wishes::DbWish) -> Self {
-        let r#type = if wish.character.is_some() {
+        let r#type = if matches!(wish.item, StoredItem::Character(_)) {
             WishType::Character
         } else {
             WishType::Weapon
@@ -225,7 +234,7 @@ impl From<database::gi::wishes::DbWish> for Wish {
         Self {
             r#type,
             id: wish.id.to_string(),
-            item_id: wish.character.or(wish.weapon).unwrap(),
+            item_id: wish.item.id(),
             timestamp: wish.timestamp,
             official: wish.official,
         }
@@ -242,6 +251,9 @@ impl From<database::gi::wishes::DbWish> for Wish {
     )
 )]
 #[get("/api/users/me/export")]
+/// Exports the signed-in account’s achievements and pull histories, then signs the
+/// serialized user payload. Returns 400 without a session username and propagates
+/// database, row-validation, and serialization errors rather than returning a partial file.
 async fn get_export(
     session: Session,
     signing_key: web::Data<Mutex<SigningKey>>,
@@ -290,11 +302,23 @@ async fn get_export(
                 .map(Warp::from)
                 .collect();
 
+            let collab = database::warps::collab::get_by_uid(uid, Language::En, &pool)
+                .await?
+                .into_iter()
+                .map(Into::into)
+                .collect();
+            let collab_lc = database::warps::collab_lc::get_by_uid(uid, Language::En, &pool)
+                .await?
+                .into_iter()
+                .map(Into::into)
+                .collect();
             let warps = Warps {
                 departure,
                 standard,
                 character,
                 light_cone,
+                collab,
+                collab_lc,
             };
 
             uids.push(HsrUid {
@@ -347,11 +371,29 @@ async fn get_export(
                 .map(Signal::from)
                 .collect();
 
+            let exclusive_rescreening =
+                database::zzz::signals::exclusive_rescreening::get_by_uid(uid, Language::En, &pool)
+                    .await?
+                    .into_iter()
+                    .map(Into::into)
+                    .collect();
+            let w_engine_reverberation =
+                database::zzz::signals::w_engine_reverberation::get_by_uid(
+                    uid,
+                    Language::En,
+                    &pool,
+                )
+                .await?
+                .into_iter()
+                .map(Into::into)
+                .collect();
             let signals = Signals {
                 standard,
                 character,
                 w_engine,
                 bangboo,
+                exclusive_rescreening,
+                w_engine_reverberation,
             };
 
             uids.push(ZzzUid {
@@ -442,4 +484,179 @@ async fn get_export(
     let export = Export { user, signature };
 
     Ok(HttpResponse::Ok().json(export))
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_signing_key_preserves_rfc8032_signature_and_export_encoding() {
+        use ed25519_dalek::{
+            pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey},
+            Signature, Verifier,
+        };
+
+        // Public test vector 1 from RFC 8032 section 7.1 (empty message):
+        // https://www.rfc-editor.org/rfc/rfc8032#section-7.1
+        // Wrapped in PKCS#8 v2, including its public key, as dalek 2 persisted keys.
+        // This fixture is deliberately independent of the installed dalek encoder.
+        const LEGACY_PEM: &str = concat!(
+            "-----BEGIN PRIVATE KEY-----\n",
+            "MFECAQEwBQYDK2VwBCIEIJ1hsZ3v/VpguoRK9JLsLMREScVpezJpGXA7rAMcrn9g\n",
+            "gSEA11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\n",
+            "-----END PRIVATE KEY-----\n",
+        );
+        // ed25519 2's Display used uppercase hex, which is the existing export wire form.
+        const LEGACY_SIGNATURE: &str = concat!(
+            "E5564300C360AC729086E2CC806E828A84877F1EB8E5D974D873E065224901555F",
+            "B8821590A33BACC61E39701CF9B46BD25BF5F0595BBE24655141438E7A100B",
+        );
+
+        let key = SigningKey::from_pkcs8_pem(LEGACY_PEM).unwrap();
+        assert_eq!(
+            key.to_pkcs8_pem(LineEnding::LF).unwrap().as_str(),
+            LEGACY_PEM
+        );
+        let exported_signature = key.sign(b"").to_string();
+        assert_eq!(exported_signature, LEGACY_SIGNATURE);
+
+        let parsed: Signature = exported_signature.parse().unwrap();
+        key.verifying_key().verify(b"", &parsed).unwrap();
+        assert!(key.verifying_key().verify(b"modified", &parsed).is_err());
+    }
+    #[test]
+    fn every_item_kind_preserves_export_wire_strings() {
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Warp::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"character","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::warps::DbWarp {
+            id: 42,
+            item: StoredItem::LightCone(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Warp::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"light_cone","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Wish::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"character","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::gi::wishes::DbWish {
+            id: 42,
+            item: StoredItem::Weapon(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Wish::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"weapon","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Character(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Signal::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"character","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::WEngine(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Signal::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"w_engine","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+        let row = database::zzz::signals::DbSignal {
+            id: 42,
+            item: StoredItem::Bangboo(1700000000),
+            rarity: 4,
+            name: Some("fixture".into()),
+            timestamp: chrono::DateTime::from_timestamp(1700000000, 0).unwrap(),
+            official: true,
+        };
+        let value = serde_json::to_value(Signal::from(row)).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({"id":"42","item_id":1700000000,"type":"bangboo","timestamp":"2023-11-14T22:13:20Z","official":true})
+        );
+    }
+    #[test]
+    fn signed_export_includes_collab_and_2026_pool_fields() {
+        let timestamp = chrono::DateTime::from_timestamp(1700000000, 0).unwrap();
+        let signal = || Signal {
+            id: "42".into(),
+            item_id: 1,
+            r#type: SignalType::Character,
+            timestamp,
+            official: true,
+        };
+        let signals = Signals {
+            standard: vec![],
+            character: vec![],
+            w_engine: vec![],
+            bangboo: vec![],
+            exclusive_rescreening: vec![signal()],
+            w_engine_reverberation: vec![signal()],
+        };
+        let value = serde_json::to_value(signals).unwrap();
+        assert_eq!(value["exclusive_rescreening"].as_array().unwrap().len(), 1);
+        assert_eq!(value["w_engine_reverberation"].as_array().unwrap().len(), 1);
+        let warp = || Warp {
+            id: "42".into(),
+            item_id: 1,
+            r#type: WarpType::Character,
+            timestamp,
+            official: true,
+        };
+        let value = serde_json::to_value(Warps {
+            departure: vec![],
+            standard: vec![],
+            character: vec![],
+            light_cone: vec![],
+            collab: vec![warp()],
+            collab_lc: vec![warp()],
+        })
+        .unwrap();
+        assert_eq!(value["collab"].as_array().unwrap().len(), 1);
+        assert_eq!(value["collab_lc"].as_array().unwrap().len(), 1);
+    }
 }

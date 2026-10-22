@@ -25,7 +25,9 @@ struct Banner {
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     character: Option<i32>,
+    character_gacha_type: Option<i32>,
     light_cone: Option<i32>,
+    light_cone_gacha_type: Option<i32>,
 }
 
 impl From<database::banners::DbBanner> for Banner {
@@ -36,7 +38,9 @@ impl From<database::banners::DbBanner> for Banner {
             start: banner.start,
             end: banner.end,
             character: banner.character,
+            character_gacha_type: banner.character_gacha_type,
             light_cone: banner.light_cone,
+            light_cone_gacha_type: banner.light_cone_gacha_type,
         }
     }
 }

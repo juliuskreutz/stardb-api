@@ -1,20 +1,26 @@
+//! Genshin population-percentile persistence and pool-specific routing. This module targets the character pool.
+
 use anyhow::Result;
 use sqlx::PgPool;
 
-pub struct DbWishesStatGlobalCharacter {
-    pub uid: i32,
-    pub count_percentile: f64,
-    pub luck_4_percentile: f64,
-    pub luck_5_percentile: f64,
-}
+use super::DbWishesStatGlobal;
 
-pub async fn set(stat: &DbWishesStatGlobalCharacter, pool: &PgPool) -> Result<()> {
+/// Upserts a batch of global percentile rows in one round trip.
+pub async fn set_bulk(stats: &[DbWishesStatGlobal], pool: &PgPool) -> Result<()> {
+    if stats.is_empty() {
+        return Ok(());
+    }
+    let uids: Vec<_> = stats.iter().map(|stat| stat.uid).collect();
+    let count: Vec<_> = stats.iter().map(|stat| stat.count_percentile).collect();
+    let luck_4: Vec<_> = stats.iter().map(|stat| stat.luck_4_percentile).collect();
+    let luck_5: Vec<_> = stats.iter().map(|stat| stat.luck_5_percentile).collect();
+
     sqlx::query_file!(
-        "sql/gi/wishes_stats_global/character/set.sql",
-        stat.uid,
-        stat.count_percentile,
-        stat.luck_4_percentile,
-        stat.luck_5_percentile,
+        "sql/gi/wishes_stats_global/character/set_bulk.sql",
+        &uids,
+        &count,
+        &luck_4,
+        &luck_5,
     )
     .execute(pool)
     .await?;
@@ -22,9 +28,10 @@ pub async fn set(stat: &DbWishesStatGlobalCharacter, pool: &PgPool) -> Result<()
     Ok(())
 }
 
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatGlobalCharacter>> {
+/// Returns this UID’s stored percentile row, or None when it has not been ranked.
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWishesStatGlobal>> {
     Ok(sqlx::query_file_as!(
-        DbWishesStatGlobalCharacter,
+        DbWishesStatGlobal,
         "sql/gi/wishes_stats_global/character/get_by_uid.sql",
         uid
     )

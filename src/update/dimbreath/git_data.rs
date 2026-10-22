@@ -1,16 +1,20 @@
+//! Shared cached-repository synchronization with checked exit status and token-redacted errors.
+
 use std::{env, fs, path::Path};
 
 use anyhow::{Context as _, Result};
 use async_process::Command;
 
-const DATA_ROOT: &str = "dimbreath";
 const GITHUB_DATA_PAT_ENV: &str = "GITHUB_DATA_PAT";
 
-/// Syncs a cached data repo and returns true when downstream import work should rerun.
-pub async fn sync_data_repo(repo_url: &str, data_dir: &str) -> Result<bool> {
-    fs::create_dir_all(DATA_ROOT)?;
+/// Sync a cached repository and report whether downstream import work should rerun.
+/// Create the cache root, clone missing repositories, or replace caches whose origin no
+/// longer matches. Git failures propagate with credentials redacted from diagnostics;
+/// callers must pass a disposable data-cache directory, not a development checkout.
+pub async fn sync_data_repo(data_root: &str, repo_url: &str, data_dir: &str) -> Result<bool> {
+    fs::create_dir_all(data_root)?;
 
-    let data_path = Path::new(DATA_ROOT).join(data_dir);
+    let data_path = Path::new(data_root).join(data_dir);
     let remote_url = remote_url(repo_url);
     let mut changed = false;
 
@@ -28,7 +32,7 @@ pub async fn sync_data_repo(repo_url: &str, data_dir: &str) -> Result<bool> {
     if !data_path.exists() {
         git_output(
             &["clone", "--depth", "1", &remote_url, data_dir],
-            Path::new(DATA_ROOT),
+            Path::new(data_root),
         )
         .await?;
         changed = true;
@@ -45,6 +49,25 @@ pub async fn sync_data_repo(repo_url: &str, data_dir: &str) -> Result<bool> {
     Ok(changed)
 }
 
+/// Check the upstream default revision without retaining a local repository.
+pub async fn remote_head(repo_url: &str, current_dir: &Path) -> Result<String> {
+    let output = git_output(&["ls-remote", &remote_url(repo_url), "HEAD"], current_dir).await?;
+    output
+        .split_whitespace()
+        .next()
+        .map(str::to_owned)
+        .context("remote has no HEAD")
+}
+
+/// Return the exact checked-out revision for a successfully generated asset cache.
+pub async fn checkout_head(path: &Path) -> Result<String> {
+    Ok(git_output(&["rev-parse", "HEAD"], path)
+        .await?
+        .trim()
+        .to_owned())
+}
+
+/// Run git in the cache directory and reject nonzero status with credential-redacted diagnostics.
 async fn git_output(args: &[&str], current_dir: &Path) -> Result<String> {
     let output = git_command()
         .args(args)
@@ -80,10 +103,12 @@ async fn git_output(args: &[&str], current_dir: &Path) -> Result<String> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
+/// Construct the git subprocess used for cache synchronization.
 fn git_command() -> Command {
     Command::new("git")
 }
 
+/// Add configured GitHub data credentials to HTTPS URLs; leave local repository paths unchanged.
 fn remote_url(repo_url: &str) -> String {
     if let Ok(token) = env::var(GITHUB_DATA_PAT_ENV) {
         let token = token.trim();
@@ -96,6 +121,7 @@ fn remote_url(repo_url: &str) -> String {
     repo_url.to_string()
 }
 
+/// Remove HTTPS user information before comparing cached and configured repository identities.
 fn strip_auth(repo_url: &str) -> String {
     let Some(rest) = repo_url.strip_prefix("https://") else {
         return repo_url.to_string();
@@ -107,6 +133,7 @@ fn strip_auth(repo_url: &str) -> String {
     }
 }
 
+/// Remove the configured data token from strings before surfacing command diagnostics.
 fn redact(value: String) -> String {
     let Ok(token) = env::var(GITHUB_DATA_PAT_ENV) else {
         return value;

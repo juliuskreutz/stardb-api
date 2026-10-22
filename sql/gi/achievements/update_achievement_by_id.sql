@@ -1,16 +1,16 @@
 UPDATE
     gi_achievements
 SET
-    version = $2,
-    comment = $3,
-    reference = $4,
-    difficulty = $5,
-    video = $6,
-    gacha = $7,
-    timegated = $8,
-    missable = $9,
-    impossible = $10,
-    "set" = $11
+    version = COALESCE($2, version),
+    comment = COALESCE($3, comment),
+    reference = COALESCE($4, reference),
+    difficulty = COALESCE($5, difficulty),
+    video = COALESCE($6, video),
+    gacha = COALESCE($7, gacha),
+    timegated = COALESCE($8, timegated),
+    missable = COALESCE($9, missable),
+    impossible = COALESCE($10, impossible),
+    "set" = COALESCE($11, "set")
 WHERE
-    id = $1;
+    id = COALESCE($1, id);
 

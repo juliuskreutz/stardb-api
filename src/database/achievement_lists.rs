@@ -1,0 +1,382 @@
+//! Atomic achievement-list mutations. Identifiers come exclusively from these enums.
+use anyhow::Result;
+use sqlx::{PgConnection, PgPool};
+use std::collections::{HashMap, HashSet};
+
+/// An achievement ID that is not in the game's catalog, so callers can report
+/// bad input instead of a server error.
+#[derive(Debug)]
+pub struct UnknownAchievementId(pub i32);
+
+impl std::fmt::Display for UnknownAchievementId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown achievement id {}", self.0)
+    }
+}
+
+impl std::error::Error for UnknownAchievementId {}
+
+/// Advisory lock namespace for per-user achievement-list mutations.
+const ACHIEVEMENT_LIST_LOCK: i32 = 0x5354_4442;
+
+#[derive(Clone, Copy)]
+pub enum Game {
+    Hsr,
+    Gi,
+    Zzz,
+}
+#[derive(Clone, Copy)]
+pub enum List {
+    Completed,
+    Favorites,
+}
+impl Game {
+    /// Return the fixed table prefix for this game; user input never forms an SQL identifier.
+    fn prefix(self) -> &'static str {
+        match self {
+            Self::Hsr => "",
+            Self::Gi => "gi_",
+            Self::Zzz => "zzz_",
+        }
+    }
+}
+impl List {
+    /// Return the fixed table suffix for this list kind.
+    fn suffix(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::Favorites => "favorites",
+        }
+    }
+}
+
+/// Build relationships from the full catalog before applying visibility filters.
+pub fn related_by_set(
+    rows: impl IntoIterator<Item = (i32, Option<i32>)>,
+) -> HashMap<i32, Vec<i32>> {
+    let mut related = HashMap::<i32, Vec<i32>>::new();
+    for (id, set) in rows {
+        if let Some(set) = set {
+            related.entry(set).or_default().push(id);
+        }
+    }
+    related
+}
+
+/// Validate every requested ID and retain the last eligible member of each set in input order.
+///
+/// Reverse traversal reproduces sequential additions. Impossible completed entries are
+/// skipped before reserving their set so they cannot evict an earlier valid completion;
+/// favorites retain those entries.
+fn select_ids(ids: &[i32], rows: &[(i32, bool, Option<i32>)], completed: bool) -> Result<Vec<i32>> {
+    let catalog: HashMap<_, _> = rows
+        .iter()
+        .map(|&(id, impossible, set)| (id, (impossible, set)))
+        .collect();
+    let mut sets = HashSet::new();
+    let mut seen = HashSet::new();
+    let mut selected = Vec::new();
+    for &id in ids.iter().rev() {
+        let Some(&(impossible, set)) = catalog.get(&id) else {
+            return Err(UnknownAchievementId(id).into());
+        };
+        if completed && impossible {
+            continue;
+        }
+        if !seen.insert(id) {
+            continue;
+        }
+        if let Some(set) = set {
+            if !sets.insert(set) {
+                continue;
+            }
+        }
+        selected.push(id);
+    }
+    selected.reverse();
+    Ok(selected)
+}
+
+/// Apply one list within the caller's transaction. Full imports share that transaction
+/// across games so a later invalid list rolls back every earlier replacement.
+pub async fn apply(
+    game: Game,
+    list: List,
+    username: &str,
+    ids: &[i32],
+    replace: bool,
+    conn: &mut PgConnection,
+) -> Result<()> {
+    // Lock the user rather than existing list rows: an empty list still needs mutual
+    // exclusion, and competing imports must not interleave alternate eviction/insertion.
+    // The caller's transaction retains this lock through its final commit or rollback.
+    // An advisory lock avoids locking the users row, which would block unrelated
+    // profile writes; a hashtext collision only serializes two users' list updates.
+    sqlx::query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
+        .bind(ACHIEVEMENT_LIST_LOCK)
+        .bind(username)
+        .execute(&mut *conn)
+        .await?;
+    // Only closed game/list enums supply identifiers; request data remains bound.
+    let catalog = format!("{}achievements", game.prefix());
+    let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
+    let rows = sqlx::query_as::<_, (i32, bool, Option<i32>)>(sqlx::AssertSqlSafe(format!(
+        "SELECT id, impossible, \"set\" FROM {catalog} WHERE id = ANY($1)"
+    )))
+    .bind(ids)
+    .fetch_all(&mut *conn)
+    .await?;
+    // Validate the entire requested list before either replacement or alternate eviction.
+    // Missing IDs are errors even when another member of the same set would supersede them.
+    let selected = select_ids(ids, &rows, matches!(list, List::Completed))?;
+    if replace {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE username = $1"
+        )))
+        .bind(username)
+        .execute(&mut *conn)
+        .await?;
+    }
+    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} u USING {catalog} a WHERE u.username = $1 AND u.id = a.id AND a.\"set\" IN (SELECT \"set\" FROM {catalog} WHERE id = ANY($2)) AND NOT (u.id = ANY($2))")))
+        .bind(username).bind(&selected).execute(&mut *conn).await?;
+    sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table}(username, id) SELECT $1, UNNEST($2::int[]) ON CONFLICT(username, id) DO NOTHING")))
+        .bind(username).bind(&selected).execute(&mut *conn).await?;
+    Ok(())
+}
+
+/// Commit one batch atomically, including alternate eviction; unknown IDs leave the list unchanged.
+pub async fn add_all(
+    game: Game,
+    list: List,
+    username: &str,
+    ids: &[i32],
+    pool: &PgPool,
+) -> Result<()> {
+    let mut tx = pool.begin().await?;
+    apply(game, list, username, ids, false, &mut tx).await?;
+    tx.commit().await?;
+    Ok(())
+}
+/// Delete only the supplied IDs in one statement; absent IDs are harmless.
+pub async fn delete_all(
+    game: Game,
+    list: List,
+    username: &str,
+    ids: &[i32],
+    pool: &PgPool,
+) -> Result<()> {
+    // Only closed game/list enums supply identifiers; request data remains bound.
+    let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DELETE FROM {table} WHERE username = $1 AND id = ANY($2)"
+    )))
+    .bind(username)
+    .bind(ids)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn relations_include_members_before_visibility_filtering() {
+        let full_catalog = [(1, Some(7), false), (2, Some(7), true), (3, None, false)];
+        let related = related_by_set(
+            full_catalog
+                .iter()
+                .map(|&(id, set, _hidden_impossible)| (id, set)),
+        );
+        let visible: Vec<_> = full_catalog.iter().filter(|a| !a.2).collect();
+        assert_eq!(visible.len(), 2);
+        assert_eq!(
+            related[&7]
+                .iter()
+                .copied()
+                .filter(|id| *id != visible[0].0)
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
+    }
+    #[test]
+    fn last_possible_member_wins_and_unknown_ids_fail() {
+        let rows = [
+            (1, false, Some(7)),
+            (2, false, None),
+            (3, false, Some(7)),
+            (4, true, Some(7)),
+        ];
+        assert_eq!(select_ids(&[1, 2, 3, 4], &rows, true).unwrap(), vec![2, 3]);
+        assert_eq!(select_ids(&[1, 2, 3, 4], &rows, false).unwrap(), vec![2, 4]);
+        assert_eq!(select_ids(&[3, 2, 1, 1], &rows, true).unwrap(), vec![2, 1]);
+        let error = select_ids(&[1, 99], &rows, true).unwrap_err();
+        assert!(matches!(
+            error.downcast_ref(),
+            Some(UnknownAchievementId(99))
+        ));
+    }
+}
+
+#[cfg(test)]
+mod database_tests {
+    use super::*;
+    use sqlx::Connection;
+
+    async fn connection() -> PgConnection {
+        let url = std::env::var("DATABASE_URL").expect("DATABASE_URL required for DB tests");
+        let mut conn = PgConnection::connect(&url).await.unwrap();
+        // Session-local tables exercise actual production mutation SQL without fixture collisions.
+        sqlx::query("CREATE TEMP TABLE users(username text PRIMARY KEY)")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO users VALUES ('achievement_test')")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        for game in [Game::Hsr, Game::Gi, Game::Zzz] {
+            let catalog = format!("{}achievements", game.prefix());
+            sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TEMP TABLE {catalog}(id int PRIMARY KEY, impossible bool NOT NULL, \"set\" int)"))).execute(&mut conn).await.unwrap();
+            sqlx::query(sqlx::AssertSqlSafe(format!(
+                "INSERT INTO {catalog} VALUES (1,false,7),(2,false,NULL),(3,false,7),(4,true,7)"
+            )))
+            .execute(&mut conn)
+            .await
+            .unwrap();
+            for list in [List::Completed, List::Favorites] {
+                let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
+                sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TEMP TABLE {table}(username text REFERENCES users, id int REFERENCES {catalog}, PRIMARY KEY(username,id))"))).execute(&mut conn).await.unwrap();
+            }
+        }
+        conn
+    }
+    async fn ids(game: Game, list: List, conn: &mut PgConnection) -> Vec<i32> {
+        sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "SELECT id FROM {}users_achievements_{} ORDER BY id",
+            game.prefix(),
+            list.suffix()
+        )))
+        .fetch_all(conn)
+        .await
+        .unwrap()
+    }
+    #[actix_web::test]
+    async fn all_games_batch_eviction_impossible_and_unknown_are_atomic() {
+        let mut conn = connection().await;
+        for game in [Game::Hsr, Game::Gi, Game::Zzz] {
+            for list in [List::Completed, List::Favorites] {
+                let mut tx = conn.begin().await.unwrap();
+                apply(game, list, "achievement_test", &[1], false, &mut tx)
+                    .await
+                    .unwrap();
+                tx.commit().await.unwrap();
+                let mut tx = conn.begin().await.unwrap();
+                apply(game, list, "achievement_test", &[2, 3, 4], false, &mut tx)
+                    .await
+                    .unwrap();
+                tx.commit().await.unwrap();
+                let expected = if matches!(list, List::Completed) {
+                    vec![2, 3]
+                } else {
+                    vec![2, 4]
+                };
+                assert_eq!(ids(game, list, &mut conn).await, expected);
+                let mut tx = conn.begin().await.unwrap();
+                assert!(
+                    apply(game, list, "achievement_test", &[1, 99], true, &mut tx)
+                        .await
+                        .is_err()
+                );
+                tx.rollback().await.unwrap();
+                assert_eq!(ids(game, list, &mut conn).await, expected);
+            }
+        }
+    }
+    #[actix_web::test]
+    async fn failed_cross_game_full_import_preserves_original_lists() {
+        let mut conn = connection().await;
+        let mut tx = conn.begin().await.unwrap();
+        for game in [Game::Hsr, Game::Gi] {
+            apply(
+                game,
+                List::Completed,
+                "achievement_test",
+                &[1],
+                false,
+                &mut tx,
+            )
+            .await
+            .unwrap();
+        }
+        tx.commit().await.unwrap();
+        let mut tx = conn.begin().await.unwrap();
+        apply(
+            Game::Hsr,
+            List::Completed,
+            "achievement_test",
+            &[2],
+            true,
+            &mut tx,
+        )
+        .await
+        .unwrap();
+        assert!(apply(
+            Game::Gi,
+            List::Completed,
+            "achievement_test",
+            &[99],
+            true,
+            &mut tx
+        )
+        .await
+        .is_err());
+        tx.rollback().await.unwrap();
+        for game in [Game::Hsr, Game::Gi] {
+            assert_eq!(ids(game, List::Completed, &mut conn).await, vec![1]);
+        }
+    }
+    #[actix_web::test]
+    async fn omitted_put_columns_preserve_stored_metadata_in_all_games() {
+        let mut conn = connection().await;
+        for (game, sql) in [
+            (
+                Game::Hsr,
+                include_str!("../../sql/achievements/update_achievement_by_id.sql"),
+            ),
+            (
+                Game::Gi,
+                include_str!("../../sql/gi/achievements/update_achievement_by_id.sql"),
+            ),
+            (
+                Game::Zzz,
+                include_str!("../../sql/zzz/achievements/update_achievement_by_id.sql"),
+            ),
+        ] {
+            let table = format!("{}achievements", game.prefix());
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE {table} ADD version text DEFAULT '1.0', ADD comment text DEFAULT 'old', ADD reference text DEFAULT 'ref', ADD difficulty text DEFAULT 'easy', ADD video text DEFAULT 'video', ADD gacha bool DEFAULT true, ADD timegated text DEFAULT 'time', ADD missable bool DEFAULT true"))).execute(&mut conn).await.unwrap();
+            sqlx::query(sql)
+                .bind(1i32)
+                .bind(None::<String>)
+                .bind(Some("new"))
+                .bind(None::<String>)
+                .bind(None::<String>)
+                .bind(None::<String>)
+                .bind(None::<bool>)
+                .bind(None::<String>)
+                .bind(None::<bool>)
+                .bind(None::<bool>)
+                .bind(None::<i32>)
+                .execute(&mut conn)
+                .await
+                .unwrap();
+            let row: (String, String, bool, i32) = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+                "SELECT version, comment, gacha, \"set\" FROM {table} WHERE id = 1"
+            )))
+            .fetch_one(&mut conn)
+            .await
+            .unwrap();
+            assert_eq!(row, ("1.0".into(), "new".into(), true, 7));
+        }
+    }
+}

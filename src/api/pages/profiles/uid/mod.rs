@@ -1,9 +1,12 @@
+//! HSR profile responses combining mihomo data, achievement ranking, and pull collections.
+
 use actix_session::Session;
 use actix_web::{get, put, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgPool;
+use strum::IntoEnumIterator;
 use utoipa::OpenApi;
 
 use crate::{
@@ -15,10 +18,12 @@ use crate::{
 #[openapi(paths(get_profile, update_profile))]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_profile).service(update_profile);
 }
@@ -69,6 +74,7 @@ struct LightCone {
 }
 
 impl From<database::warps::DbCharacterCount> for Character {
+    /// Maps catalog copy counts into the profile collection’s wire fields.
     fn from(db_character: database::warps::DbCharacterCount) -> Self {
         Character {
             id: db_character.id,
@@ -84,6 +90,7 @@ impl From<database::warps::DbCharacterCount> for Character {
 }
 
 impl From<database::warps::DbLightConeCount> for LightCone {
+    /// Maps catalog copy counts into the profile collection’s wire fields.
     fn from(db_light_cone: database::warps::DbLightConeCount) -> Self {
         LightCone {
             id: db_light_cone.id,
@@ -107,6 +114,8 @@ impl From<database::warps::DbLightConeCount> for LightCone {
     )
 )]
 #[get("/api/pages/profiles/{uid}", guard = "private")]
+/// Returns the HSR profile after enforcing private-UID ownership.
+/// Missing mihomo or achievement-score data uses the existing 500 response.
 async fn get_profile(
     session: Session,
     uid: web::Path<i32>,
@@ -152,6 +161,8 @@ async fn get_profile(
     )
 )]
 #[put("/api/pages/profiles/{uid}", guard = "private")]
+/// Refreshes mihomo profile data after the route’s API-key and privacy checks.
+/// Missing profile/ranking data uses the existing 500 response.
 async fn update_profile(
     session: Session,
     uid: web::Path<i32>,
@@ -186,6 +197,10 @@ async fn update_profile(
     Ok(HttpResponse::Ok().json(profile))
 }
 
+/// Combines mihomo data and achievement ranks with counts from every HSR pool.
+/// The update flag forces the upstream refresh path; otherwise mihomo applies
+/// its cache policy. Returns None if profile or score data is missing, and
+/// propagates upstream/database errors. Collection totals include collab pulls.
 async fn get_profile_json(
     update: bool,
     uid: i32,
@@ -204,8 +219,8 @@ async fn get_profile_json(
         return Ok(None);
     };
 
-    let rank_global = score_achievement.global_rank.unwrap_or_default();
-    let rank_regional = score_achievement.regional_rank.unwrap_or_default();
+    let rank_global = score_achievement.global_rank;
+    let rank_regional = score_achievement.regional_rank;
 
     let count_global = database::achievement_scores::count(None, None, pool).await?;
     let count_regional =
@@ -221,11 +236,19 @@ async fn get_profile_json(
     let character_counts = database::warps::get_characters_count_by_uid(uid, lang, pool).await?;
     let light_cones_counts = database::warps::get_light_cones_count_by_uid(uid, lang, pool).await?;
 
-    let departure = database::warps::departure::get_count_by_uid(uid, pool).await?;
-    let standard = database::warps::standard::get_count_by_uid(uid, pool).await?;
-    let special = database::warps::special::get_count_by_uid(uid, pool).await?;
-    let lc = database::warps::lc::get_count_by_uid(uid, pool).await?;
-    let total = departure + standard + special + lc;
+    // Count every registered pool; the existing per-pool response fields remain explicit.
+    let (mut departure, mut standard, mut special, mut lc, mut total) = (0, 0, 0, 0, 0);
+    for kind in crate::GachaType::iter() {
+        let count = database::warps::get_count_by_uid_by_pool(kind, uid, pool).await?;
+        total += count;
+        match kind {
+            crate::GachaType::Departure => departure = count,
+            crate::GachaType::Standard => standard = count,
+            crate::GachaType::Special => special = count,
+            crate::GachaType::Lc => lc = count,
+            crate::GachaType::Collab | crate::GachaType::CollabLc => {}
+        }
+    }
 
     let characters = character_counts.into_iter().map(From::from).collect();
     let light_cones = light_cones_counts.into_iter().map(From::from).collect();
