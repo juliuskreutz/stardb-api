@@ -371,19 +371,14 @@ impl From<PullPool> for PullGame {
 }
 
 /// Checks game and pool item-kind compatibility without consulting numeric ID ranges.
+/// Light cone, weapon and W-Engine pools also drop 4-star characters, so every
+/// non-Bangboo pool accepts both of its game's item kinds.
 fn item_is_valid(pool: PullPool, item: PullItem) -> bool {
     match pool {
-        PullPool::Hsr(GachaType::Lc | GachaType::CollabLc) => {
-            matches!(item, PullItem::LightCone(_))
-        }
         PullPool::Hsr(_) => matches!(item, PullItem::Character(_) | PullItem::LightCone(_)),
-        PullPool::Gi(GiGachaType::Weapon) => matches!(item, PullItem::Weapon(_)),
         PullPool::Gi(_) => matches!(item, PullItem::Character(_) | PullItem::Weapon(_)),
         PullPool::Zzz(ZzzGachaType::Bangboo) => {
             matches!(item, PullItem::Bangboo(_) | PullItem::WEngine(_))
-        }
-        PullPool::Zzz(ZzzGachaType::WEngine | ZzzGachaType::WEngineReverberation) => {
-            matches!(item, PullItem::WEngine(_))
         }
         PullPool::Zzz(_) => matches!(item, PullItem::Character(_) | PullItem::WEngine(_)),
     }
@@ -464,6 +459,19 @@ mod gacha_imports {
             result.unwrap_err(),
             ImportValidationError::InvalidItemForPool
         );
+    }
+
+    #[test]
+    fn normalize_accepts_characters_from_item_pools() {
+        for pool in [
+            PullPool::Hsr(GachaType::Lc),
+            PullPool::Hsr(GachaType::CollabLc),
+            PullPool::Gi(GiGachaType::Weapon),
+            PullPool::Zzz(ZzzGachaType::WEngine),
+            PullPool::Zzz(ZzzGachaType::WEngineReverberation),
+        ] {
+            assert!(ImportBatch::new([pull(pool, PullItem::Character(1))], policy()).is_ok());
+        }
     }
 
     #[test]
