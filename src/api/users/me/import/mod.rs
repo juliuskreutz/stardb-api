@@ -46,8 +46,8 @@ struct ImportData {
     )
 )]
 #[put("/api/users/me/import")]
-/// Replace supplied HSR/GI completion lists in one transaction for the signed-in user.
-/// Omitted games remain untouched; an unknown ID in either game rolls back the complete import.
+/// Replace supplied HSR/GI/ZZZ completion lists in one transaction for the signed-in user.
+/// Omitted games remain untouched; an unknown ID in any game rolls back the complete import.
 async fn import(
     session: Session,
     import_data: web::Json<ImportData>,
@@ -65,21 +65,10 @@ async fn import(
     if let Some(ids) = &import_data.gi_achievements {
         apply(Game::Gi, List::Completed, &username, ids, true, &mut tx).await?;
     }
-    tx.commit().await?;
-
-    if let Some(achievements) = &import_data.zzz_achievements {
-        database::zzz::users_achievements_completed::delete_by_username(&username, &pool).await?;
-        let mut achievement_completed =
-            database::zzz::users_achievements_completed::DbUserAchievementCompleted {
-                username: username.clone(),
-                id: 0,
-            };
-        for &achievement in achievements {
-            achievement_completed.id = achievement;
-
-            database::zzz::users_achievements_completed::add(&achievement_completed, &pool).await?;
-        }
+    if let Some(ids) = &import_data.zzz_achievements {
+        apply(Game::Zzz, List::Completed, &username, ids, true, &mut tx).await?;
     }
+    tx.commit().await?;
 
     Ok(HttpResponse::Ok().finish())
 }
