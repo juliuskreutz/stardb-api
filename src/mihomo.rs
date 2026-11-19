@@ -1,6 +1,6 @@
 //! Mihomo profile fetching, localized disk caching and database profile/score refreshes.
 
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf, sync::LazyLock};
 
 use chrono::{DateTime, Utc};
 use regex::{Captures, Regex};
@@ -11,7 +11,13 @@ use utoipa::ToSchema;
 
 use anyhow::{anyhow, Context, Result};
 
-use crate::{database, Language};
+use crate::{backoff::Backoff, database, Language};
+
+/// Cooldown shared by every Mihomo request after Cloudflare rate limits us.
+static BACKOFF: Backoff = Backoff::new("mihomo");
+
+/// Cached profiles older than this are refreshed when read.
+const MAX_CACHE_AGE_HOURS: i64 = 24;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct Mihomo {
@@ -38,6 +44,17 @@ pub struct SpaceInfo {
     pub achievement_count: i32,
 }
 
+/// Identifies StarDB to upstream APIs; Mihomo asks high-frequency clients to put app info here.
+pub(crate) const USER_AGENT: &str = "stardb";
+
+/// Shared client so Mihomo requests carry the User-Agent and reuse connections.
+static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .build()
+        .expect("mihomo http client should build")
+});
+
 /// Returns the Brotli cache path for a UID and mihomo language code.
 fn cache_path(language: &Language, uid: i32) -> String {
     format!("mihomo/{}_{uid}.br", language.mihomo())
@@ -54,14 +71,43 @@ fn load_cached(language: &Language, uid: i32) -> Result<Option<Mihomo>> {
     }
 }
 
+/// Reads a cached profile's raw JSON without contacting Mihomo; None when absent.
+pub(crate) fn cached_json(language: &Language, uid: i32) -> Result<Option<Value>> {
+    let path = cache_path(language, uid);
+    if PathBuf::from(&path).exists() {
+        let decompressor = brotli::Decompressor::new(File::open(&path)?, 4096);
+        Ok(Some(serde_json::from_reader(decompressor)?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Whether Mihomo calls are currently paused after a rate limit.
+pub(crate) fn rate_limited() -> Option<std::time::Duration> {
+    BACKOFF.remaining()
+}
+
 /// Fetches upstream JSON, treating non-success HTTP status as an absent profile.
+/// While a rate-limit cooldown is active no request is sent and None is returned.
 /// Transport, body-read and JSON-decoding failures propagate with request context.
 async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Result<Option<Value>> {
-    let response = reqwest::get(url)
+    if let Some(remaining) = BACKOFF.remaining() {
+        debug!(uid, language = %language, label, remaining_secs = remaining.as_secs(), "mihomo paused, skipping request");
+        return Ok(None);
+    }
+
+    let response = CLIENT
+        .get(url)
+        .send()
         .await
         .with_context(|| format!("{label} request failed for uid {uid} language {language}"))?;
 
     let status = response.status();
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        BACKOFF.rate_limited(crate::backoff::retry_after(response.headers()));
+    } else if status.is_success() {
+        BACKOFF.succeeded();
+    }
     if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
         warn!(
@@ -100,33 +146,34 @@ async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Res
     }
 }
 
-/// Returns a cached profile or refreshes a missing or stale localized cache.
-/// English cache entries are reused; localized freshness is compared with cached English data.
+/// Returns a cached profile or refreshes a missing or stale cache.
+/// A cache is stale once older than [`MAX_CACHE_AGE_HOURS`]; a localized cache is also
+/// stale when the English cache is newer. If a stale refresh yields nothing (rate limit,
+/// upstream error status), the stale cache is served instead.
 pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<Value>> {
-    let path = cache_path(&language, uid);
+    let Some(cached_json) = cached_json(&language, uid)? else {
+        return update_and_get(uid, language, pool).await;
+    };
+    let cached: Mihomo = serde_json::from_value(cached_json.clone())?;
 
-    if PathBuf::from(&path).exists() {
-        let decompressor = brotli::Decompressor::new(File::open(&path)?, 4096);
-        let cached_json: Value = serde_json::from_reader(decompressor)?;
-        let cached: Mihomo = serde_json::from_value(cached_json.clone())?;
-
-        let should_update = if language == Language::En {
-            false
-        } else {
-            match load_cached(&Language::En, uid)? {
-                Some(en) => cached.updated_at < en.updated_at,
-                None => true,
-            }
+    let max_age = chrono::Duration::try_hours(MAX_CACHE_AGE_HOURS).unwrap();
+    let mut should_update = cached.updated_at < Utc::now() - max_age;
+    if !should_update && language != Language::En {
+        should_update = match load_cached(&Language::En, uid)? {
+            Some(en) => cached.updated_at < en.updated_at,
+            None => true,
         };
-
-        if should_update {
-            update_and_get(uid, language, pool).await
-        } else {
-            Ok(Some(cached_json))
-        }
-    } else {
-        update_and_get(uid, language, pool).await
     }
+
+    if !should_update {
+        return Ok(Some(cached_json));
+    }
+
+    Ok(Some(
+        update_and_get(uid, language, pool)
+            .await?
+            .unwrap_or(cached_json),
+    ))
 }
 
 /// Fetches localized and English profile data and updates the cache, mihomo row and score timestamp.

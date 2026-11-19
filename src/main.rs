@@ -7,6 +7,7 @@ extern crate tracing;
 
 mod api;
 mod app_config;
+mod backoff;
 mod database;
 mod gacha;
 mod mihomo;
