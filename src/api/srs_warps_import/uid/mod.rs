@@ -32,6 +32,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct SrsWarpsImportParams {
     data: String,
+    /// Admin only: also import pulls at or after the earliest one already on the site
+    #[serde(default)]
+    force: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -63,7 +66,8 @@ struct ParsedWarp {
 )]
 #[post("/api/srs-warps-import/{uid}")]
 /// Imports SRS CSV as unofficial pulls for an admin or verified HSR connection.
-/// Preserves source order and stops each non-admin pool at its first overlap; unknown
+/// Preserves source order and stops each pool at its first overlap unless an
+/// admin sets `force`; unknown
 /// item IDs use rarity-based catalog samples. Invalid CSV/time/batches return 400.
 async fn post_srs_warps_import(
     session: Session,
@@ -78,6 +82,7 @@ async fn post_srs_warps_import(
     let uid = *uid;
 
     let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
+    let force = admin && params.force;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
@@ -145,7 +150,7 @@ async fn post_srs_warps_import(
             let timestamp = warp.time;
 
             // File order is significant: stop this pool at its first overlap.
-            if !admin {
+            if !force {
                 if let Some(earliest_timestamp) = earliest_timestamp {
                     if timestamp >= earliest_timestamp {
                         break;

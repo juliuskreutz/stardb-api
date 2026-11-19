@@ -28,6 +28,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct PomWarpsImportParams {
     data: String,
+    /// Admin only: also import pulls at or after the earliest one already on the site
+    #[serde(default)]
+    force: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -68,7 +71,7 @@ struct Warp {
 )]
 #[post("/api/pom-warps-import/{uid}")]
 /// Imports POM history for an admin or verified HSR connection as unofficial pulls.
-/// Enforces the per-pool count limit and non-admin first-overlap cutoff; malformed
+/// Enforces the per-pool count limit and first-overlap cutoff (admins may `force`); malformed
 /// JSON, retained IDs, times or batches return 400 before transactional persistence.
 async fn post_pom_warps_import(
     session: Session,
@@ -83,6 +86,7 @@ async fn post_pom_warps_import(
     let uid = *uid;
 
     let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
+    let force = admin && params.force;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
@@ -126,7 +130,7 @@ async fn post_pom_warps_import(
             };
 
             // File order is significant: stop this pool at its first overlap.
-            if !admin {
+            if !force {
                 if let Some(earliest_timestamp) = earliest_timestamp {
                     if timestamp >= earliest_timestamp {
                         break;

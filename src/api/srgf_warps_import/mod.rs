@@ -32,6 +32,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(Deserialize, utoipa::ToSchema)]
 struct Data {
     data: String,
+    /// Admin only: also import pulls at or after the earliest one already on the site
+    #[serde(default)]
+    force: bool,
 }
 
 #[derive(Deserialize)]
@@ -73,7 +76,7 @@ struct ParsedWarp {
 )]
 #[post("/api/srgf-warps-import")]
 /// Imports SRGF JSON as one unofficial HSR batch after admin or UID verification.
-/// Non-admin pools stop at their first overlap; invalid JSON, IDs, times or batches
+/// Pools stop at their first overlap unless an admin sets `force`; invalid JSON, IDs, times or batches
 /// return 400. Pull writes and stat recalculation share one transaction.
 async fn post_srgf_warps_import(
     session: Session,
@@ -93,6 +96,7 @@ async fn post_srgf_warps_import(
     };
 
     let (admin, allowed) = crate::api::users::verified_or_admin(&username, uid, &pool).await?;
+    let force = admin && data.force;
 
     if !allowed {
         return Ok(HttpResponse::Forbidden().finish());
@@ -158,7 +162,7 @@ async fn post_srgf_warps_import(
             let timestamp = warp.time;
 
             // File order is significant: stop this pool at its first overlap.
-            if !admin {
+            if !force {
                 if let Some(earliest_timestamp) = earliest_timestamp {
                     if timestamp >= earliest_timestamp {
                         break;

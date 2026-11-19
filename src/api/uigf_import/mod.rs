@@ -35,6 +35,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 struct UigfImportParams {
     data: String,
+    /// Admin only: also import pulls at or after the earliest one already on the site
+    #[serde(default)]
+    force: bool,
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -189,8 +192,9 @@ async fn check_gi_auth(admin: bool, username: &str, uid: i32, pool: &PgPool) -> 
 )]
 #[post("/api/uigf-import")]
 /// Imports authorized UIGF v4-or-later profiles in one cross-game transaction.
-/// Unauthorized UIDs increment skip counters; non-admin history stops at each pool's
-/// first overlap. Malformed data or batches return 400 before pulls or stats are written.
+/// Unauthorized UIDs increment skip counters; history stops at each pool's first overlap
+/// unless an admin sets `force`. Malformed data or batches return 400 before pulls or
+/// stats are written.
 async fn post_uigf_import(
     session: Session,
     params: web::Json<UigfImportParams>,
@@ -210,6 +214,7 @@ async fn post_uigf_import(
     }
 
     let admin = database::admins::exists(&username, &pool).await?;
+    let force = admin && params.force;
     let mut normalized_pulls = Vec::new();
     let mut hsr_skipped = UigfGameImportSummary::default();
     let mut gi_skipped = UigfGameImportSummary::default();
@@ -252,7 +257,7 @@ async fn post_uigf_import(
             let earliest =
                 database::warps::get_earliest_timestamp_by_uid_by_pool(gacha_type, uid, &pool)
                     .await?;
-            normalized_pulls.extend(before_cutoff(pulls, earliest, admin));
+            normalized_pulls.extend(before_cutoff(pulls, earliest, force));
         }
     }
 
@@ -289,7 +294,7 @@ async fn post_uigf_import(
                 gacha_type, uid, &pool,
             )
             .await?;
-            normalized_pulls.extend(before_cutoff(pulls, earliest, admin));
+            normalized_pulls.extend(before_cutoff(pulls, earliest, force));
         }
     }
 
@@ -331,7 +336,7 @@ async fn post_uigf_import(
             let earliest =
                 database::gi::wishes::get_earliest_timestamp_by_uid_by_pool(gacha_type, uid, &pool)
                     .await?;
-            normalized_pulls.extend(before_cutoff(pulls, earliest, admin));
+            normalized_pulls.extend(before_cutoff(pulls, earliest, force));
         }
     }
 
@@ -362,16 +367,16 @@ async fn post_uigf_import(
 }
 
 /// Yields records before the first overlap in source order, discarding the whole
-/// remaining pool tail even when later timestamps are older. Admins bypass this
-/// cutoff; pool-item validation applies later to the retained batch.
+/// remaining pool tail even when later timestamps are older. `force` (admins only)
+/// bypasses this cutoff; pool-item validation applies later to the retained batch.
 fn before_cutoff(
     pulls: Vec<NormalizedPull>,
     earliest: Option<DateTime<Utc>>,
-    admin: bool,
+    force: bool,
 ) -> impl Iterator<Item = NormalizedPull> {
     pulls
         .into_iter()
-        .take_while(move |pull| admin || earliest.is_none_or(|time| pull.timestamp < time))
+        .take_while(move |pull| force || earliest.is_none_or(|time| pull.timestamp < time))
 }
 /// Parses a UIGF record's numeric IDs, localized item type and fixed-offset time.
 /// Returns an unofficial typed pull without I/O; pool compatibility is validated only
