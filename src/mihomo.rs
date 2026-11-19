@@ -1,3 +1,5 @@
+//! Mihomo profile fetching, localized disk caching and database profile/score refreshes.
+
 use std::{fs::File, path::PathBuf};
 
 use chrono::{DateTime, Utc};
@@ -36,10 +38,12 @@ pub struct SpaceInfo {
     pub achievement_count: i32,
 }
 
+/// Returns the Brotli cache path for a UID and mihomo language code.
 fn cache_path(language: &Language, uid: i32) -> String {
     format!("mihomo/{}_{uid}.br", language.mihomo())
 }
 
+/// Decodes a cached profile, returning None for an absent file and errors for unreadable data.
 fn load_cached(language: &Language, uid: i32) -> Result<Option<Mihomo>> {
     let path = cache_path(language, uid);
     if PathBuf::from(&path).exists() {
@@ -50,6 +54,8 @@ fn load_cached(language: &Language, uid: i32) -> Result<Option<Mihomo>> {
     }
 }
 
+/// Fetches upstream JSON, treating non-success HTTP status as an absent profile.
+/// Transport, body-read and JSON-decoding failures propagate with request context.
 async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Result<Option<Value>> {
     let response = reqwest::get(url)
         .await
@@ -94,6 +100,8 @@ async fn fetch_json(url: &str, uid: i32, language: Language, label: &str) -> Res
     }
 }
 
+/// Returns a cached profile or refreshes a missing or stale localized cache.
+/// English cache entries are reused; localized freshness is compared with cached English data.
 pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<Value>> {
     let path = cache_path(&language, uid);
 
@@ -121,6 +129,8 @@ pub async fn get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<V
     }
 }
 
+/// Fetches localized and English profile data and updates the cache, mihomo row and score timestamp.
+/// An upstream non-success status returns None; decoding, cache and database errors propagate.
 pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Result<Option<Value>> {
     let now = Utc::now();
     debug!(uid, language = %language, "mihomo update_and_get start");
@@ -188,13 +198,7 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
     let name = re
         .replace_all(&mihomo.player.nickname, |_: &Captures| "")
         .to_string();
-    let region = match uid.to_string().chars().next() {
-        Some('6') => "na",
-        Some('7') => "eu",
-        Some('8') | Some('9') => "asia",
-        _ => "cn",
-    }
-    .to_string();
+    let region = region_for_uid(uid).to_string();
     let level = mihomo.player.level;
     let avatar_icon = mihomo.player.avatar.icon.clone();
     let signature = re
@@ -233,14 +237,56 @@ pub async fn update_and_get(uid: i32, language: Language, pool: &PgPool) -> Resu
 
     database::mihomo::set(&db_mihomo, pool).await?;
 
-    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
-        uid,
-        timestamp,
-        ..Default::default()
-    };
+    let db_score_achievement =
+        database::achievement_scores::DbScoreAchievementWrite { uid, timestamp };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
     debug!(uid, language = %language, timestamp = %timestamp, "mihomo update_and_get complete");
 
     Ok(Some(json))
+}
+
+/// Maps UID prefixes 6/7/8-or-9 to NA/EU/Asia and all others to CN without validating ranges.
+pub(crate) fn region_for_uid(uid: i32) -> crate::api::Region {
+    use crate::api::Region;
+    match uid.to_string().chars().next() {
+        Some('6') => Region::Na,
+        Some('7') => Region::Eu,
+        Some('8' | '9') => Region::Asia,
+        _ => Region::Cn,
+    }
+}
+/// For an absent database row, consults the English profile and seeds an epoch stub on None.
+/// Cache, transport and database errors propagate. A cached Some result is reused
+/// as-is, so this path does not recreate a missing row from cached JSON.
+pub(crate) async fn ensure_row(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
+    if !database::mihomo::exists(uid, pool).await? && get(uid, Language::En, pool).await?.is_none()
+    {
+        database::mihomo::set(
+            &database::mihomo::DbMihomo {
+                uid,
+                region: region_for_uid(uid).to_string(),
+                ..Default::default()
+            },
+            pool,
+        )
+        .await?;
+    }
+    Ok(())
+}
+#[cfg(test)]
+mod region_tests {
+    #[test]
+    fn uid_regions() {
+        for (uid, region) in [
+            (600000001, "na"),
+            (700000001, "eu"),
+            (800000001, "asia"),
+            (900000001, "asia"),
+            (100000001, "cn"),
+            (0, "cn"),
+        ] {
+            assert_eq!(super::region_for_uid(uid).to_string(), region);
+        }
+    }
 }

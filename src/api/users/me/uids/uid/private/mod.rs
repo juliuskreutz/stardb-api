@@ -1,4 +1,4 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{delete, put, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -12,10 +12,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_user_uid_private)
         .service(delete_user_uid_private);
@@ -31,15 +33,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[put("/api/users/me/uids/{uid}/private")]
+/// Makes the caller's HSR connection private; an unverified or missing claim returns 403.
 async fn put_user_uid_private(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let allowed = database::connections::get_by_username(&username, &pool)
         .await?
         .iter()
@@ -66,15 +65,12 @@ async fn put_user_uid_private(
     )
 )]
 #[delete("/api/users/me/uids/{uid}/private")]
+/// Clears privacy on the caller's verified HSR connection, otherwise returning 403.
 async fn delete_user_uid_private(
-    session: Session,
+    SessionUser(username): SessionUser,
     uid: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let allowed = database::connections::get_by_username(&username, &pool)
         .await?
         .iter()

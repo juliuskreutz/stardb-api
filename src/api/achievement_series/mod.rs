@@ -26,6 +26,7 @@ struct AchievementSeries {
 }
 
 impl From<database::achievement_series::DbAchievementSeries> for AchievementSeries {
+    /// Convert the localized database row to the API payload.
     fn from(db_series: database::achievement_series::DbAchievementSeries) -> Self {
         Self {
             id: db_series.id,
@@ -34,12 +35,14 @@ impl From<database::achievement_series::DbAchievementSeries> for AchievementSeri
     }
 }
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(id::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_achievement_seriess)
         .configure(id::configure);
@@ -55,6 +58,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/achievement-series")]
+/// Return localized achievement-series metadata in display order.
 async fn get_achievement_seriess(
     language_param: web::Query<LanguageParams>,
     pool: web::Data<PgPool>,

@@ -6,97 +6,206 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "series",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "series"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "polychromes",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "polychromes"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "hidden",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "hidden"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "version",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "version"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "comment",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "comment"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "reference",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "reference"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "difficulty",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "difficulty"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "video",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "video"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "gacha",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "gacha"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "timegated",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "timegated"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "missable",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "missable"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "impossible",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "impossible"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "set",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "set"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "arcade",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements",
+            "name": "arcade"
+          }
+        }
       },
       {
         "ordinal": 15,
         "name": "name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements_text",
+            "name": "name"
+          }
+        }
       },
       {
         "ordinal": 16,
         "name": "description",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements_text",
+            "name": "description"
+          }
+        }
       },
       {
         "ordinal": 17,
         "name": "percent",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": "Expression"
       },
       {
         "ordinal": 18,
         "name": "series_name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievement_series_text",
+            "name": "name"
+          }
+        }
       }
     ],
     "parameters": {

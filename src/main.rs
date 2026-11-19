@@ -1,9 +1,14 @@
+//! Application bootstrap and shared wire enums for StarDB's three game APIs.
+//! Startup loads environment settings before creating the runtime, and the outer Sentry guard
+//! flushes when the server returns.
+
 #[macro_use]
 extern crate tracing;
 
 mod api;
 mod app_config;
 mod database;
+mod gacha;
 mod mihomo;
 mod pg_session_store;
 mod update;
@@ -22,7 +27,7 @@ use actix_web::{
 use ed25519_dalek::SecretKey;
 use futures::lock::Mutex;
 use pg_session_store::PgSessionStore;
-use rand::RngCore;
+use rand::Rng;
 use sentry_tracing::EventFilter;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -63,6 +68,7 @@ enum Language {
 }
 
 impl Language {
+    /// Returns the display label used for this supported language.
     pub fn name(&self) -> String {
         match self {
             Language::ZhCn => "简体中文",
@@ -82,6 +88,7 @@ impl Language {
         .to_string()
     }
 
+    /// Maps this language to Mihomo's expected language code.
     pub fn mihomo(&self) -> String {
         match self {
             Language::ZhCn => "chs",
@@ -103,6 +110,7 @@ impl Language {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -127,6 +135,9 @@ enum GachaType {
 }
 
 impl GachaType {
+    /// Returns the HSR pool ID used by official imports and UIGF exports.
+    /// genshin.py calls the collaboration pools FATE_CHARACTER/FATE_WEAPON;
+    /// WEAPON refers to light cones, including the regular pool (12).
     pub fn id(self) -> i32 {
         match self {
             GachaType::Standard => 1,
@@ -140,8 +151,12 @@ impl GachaType {
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
+    PartialEq,
+    Eq,
+    Hash,
     strum::Display,
     strum::EnumIter,
     strum::EnumString,
@@ -161,6 +176,7 @@ enum ZzzGachaType {
 }
 
 impl ZzzGachaType {
+    /// Returns the official `real_gacha_type`, also emitted in new UIGF exports.
     pub fn id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1,
@@ -172,6 +188,8 @@ impl ZzzGachaType {
         }
     }
 
+    /// Returns the legacy RNG storage/UIGF pool ID accepted during import.
+    /// These compatibility keys are not official `real_gacha_type` values.
     pub fn old_id(self) -> i32 {
         match self {
             ZzzGachaType::Standard => 1001,
@@ -182,9 +200,19 @@ impl ZzzGachaType {
             ZzzGachaType::WEngineReverberation => 13001,
         }
     }
+
+    /// Maps current and accepted legacy UIGF IDs to one ZZZ pool.
+    ///
+    /// Exports always emit [`Self::id`]; accepting legacy IDs keeps older RNG
+    /// exports importable without propagating those IDs into new files.
+    pub fn from_uigf_id(id: &str) -> Option<Self> {
+        use strum::IntoEnumIterator;
+        Self::iter().find(|pool| id == pool.id().to_string() || id == pool.old_id().to_string())
+    }
 }
 
 #[derive(
+    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -224,8 +252,9 @@ enum Difficulty {
     Hard,
 }
 
-// Manual runtime setup (instead of #[actix_web::main]) so Sentry inits before the actix runtime —
-// the guard must outlive main and the panic handler must be installed pre-runtime.
+/// Loads environment settings and tracing/Sentry before entering the Actix runtime.
+///
+/// Keeping the Sentry guard outside the runtime lets normal shutdown flush pending events.
 fn main() -> anyhow::Result<()> {
     let dotenv_path = dotenv::dotenv().ok();
     if let Some(path) = dotenv_path {
@@ -239,20 +268,15 @@ fn main() -> anyhow::Result<()> {
     let _sentry_guard = env::var("SENTRY_DSN").ok().map(|dsn| {
         sentry::init((
             dsn,
-            sentry::ClientOptions {
-                release: sentry::release_name!(),
-                environment: Some(
-                    if cfg!(debug_assertions) {
-                        "development"
-                    } else {
-                        "production"
-                    }
-                    .into(),
-                ),
-                traces_sample_rate: 0.0,
-                attach_stacktrace: true,
-                ..Default::default()
-            },
+            // Defaults disable tracing and capture all error events.
+            sentry::ClientOptions::new()
+                .maybe_release(sentry::release_name!())
+                .environment(if cfg!(debug_assertions) {
+                    "development"
+                } else {
+                    "production"
+                })
+                .attach_stacktrace(true),
         ))
     });
 
@@ -278,7 +302,12 @@ fn main() -> anyhow::Result<()> {
     actix_web::rt::System::new().block_on(async_main())
 }
 
+/// Validates release configuration, migrates PostgreSQL, starts enabled jobs, and serves HTTP.
+///
+/// Startup errors propagate before serving; returning after server shutdown permits
+/// normal runtime and Sentry cleanup.
 async fn async_main() -> anyhow::Result<()> {
+    api::validate_private_key()?;
     let app_config = load_app_config()?;
     info!("Starting api!");
 
@@ -294,7 +323,6 @@ async fn async_main() -> anyhow::Result<()> {
         .connect(&env::var("DATABASE_URL")?)
         .await?;
     sqlx::migrate!().run(&pool).await?;
-
     if app_config.enable_update_hsr_achievements_percent {
         update::achievements_percent::spawn(pool.clone()).await;
     }
@@ -371,9 +399,18 @@ async fn async_main() -> anyhow::Result<()> {
 
     info!("Stopping api!");
 
-    std::process::exit(0)
+    // Returning drops the runtime and then the outer Sentry guard, flushing pending events.
+    Ok(())
 }
 
+/// Loads the base64 cookie key or generates and persists one when the file cannot be read.
+///
+/// Keeping this key stable preserves cookies across restarts. Decode/write failures
+/// propagate.
+///
+/// # Panics
+///
+/// The cookie key constructor panics if an existing decoded key is too short.
 fn session_key() -> anyhow::Result<actix_web::cookie::Key> {
     use actix_web::cookie::Key;
     use base64::{prelude::BASE64_STANDARD, Engine};
@@ -394,6 +431,9 @@ fn session_key() -> anyhow::Result<actix_web::cookie::Key> {
     Ok(key)
 }
 
+/// Loads the PKCS#8 export signing key, generating and persisting one only when absent.
+///
+/// Malformed existing keys and filesystem failures propagate rather than replacing the key.
 fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
     use ed25519_dalek::{
         pkcs8::{spki::der::pem::LineEnding, DecodePrivateKey, EncodePrivateKey},
@@ -413,8 +453,41 @@ fn signing_key() -> anyhow::Result<ed25519_dalek::SigningKey> {
     })
 }
 
+/// Deserializes environment-backed feature flags into shared immutable configuration.
 fn load_app_config() -> anyhow::Result<Arc<app_config::AppConfig>> {
     let config = envy::from_env::<app_config::AppConfig>()?;
     tracing::debug!("AppConfig loaded: {:#?}", config);
     Ok(Arc::new(config))
+}
+
+#[cfg(test)]
+mod uigf_mapping_tests {
+    use super::ZzzGachaType;
+    use strum::IntoEnumIterator;
+
+    mod zzz_banner {
+        use super::*;
+
+        #[test]
+        fn six_pool_roundtrip() {
+            // Pin each semantic pool to both external vocabularies: deriving
+            // expectations from id()/old_id() alone would miss swapped IDs.
+            let cases = [
+                (ZzzGachaType::Standard, 1, 1001),
+                (ZzzGachaType::Special, 2, 2001),
+                (ZzzGachaType::WEngine, 3, 3001),
+                (ZzzGachaType::Bangboo, 5, 5001),
+                (ZzzGachaType::ExclusiveRescreening, 102, 12001),
+                (ZzzGachaType::WEngineReverberation, 103, 13001),
+            ];
+            assert_eq!(cases.len(), ZzzGachaType::iter().count());
+            for (pool, current, legacy) in cases {
+                assert_eq!(pool.id(), current);
+                assert_eq!(pool.old_id(), legacy);
+                assert_eq!(ZzzGachaType::from_uigf_id(&current.to_string()), Some(pool));
+                assert_eq!(ZzzGachaType::from_uigf_id(&legacy.to_string()), Some(pool));
+            }
+            assert_eq!(ZzzGachaType::from_uigf_id("999"), None);
+        }
+    }
 }

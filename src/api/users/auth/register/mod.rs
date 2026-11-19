@@ -1,6 +1,6 @@
 use actix_session::Session;
 use actix_web::{post, web, HttpResponse, Responder};
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -18,10 +18,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(register);
 }
@@ -53,6 +55,9 @@ pub struct UserRegister {
     )
 )]
 #[post("/api/users/auth/register", guard = "private")]
+/// Creates a user with a normalized username, trimmed email and salted password hash.
+/// Rejects oversized fields with 400 and an existing username with 409, then records
+/// the new username in the session; this route also requires the API-key guard.
 async fn register(
     session: Session,
     user_register: web::Json<UserRegister>,
@@ -60,7 +65,10 @@ async fn register(
 ) -> ApiResult<impl Responder> {
     let username = user_register.username.trim().to_lowercase();
     let password = user_register.password.clone();
-    let email = user_register.email.clone();
+    let email = user_register
+        .email
+        .as_ref()
+        .map(|email| email.trim().to_string());
 
     if username.len() > 32
         || password.len() > 64

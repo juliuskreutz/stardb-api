@@ -8,6 +8,8 @@ pub struct DbAchievementSeries {
     pub name: String,
 }
 
+/// Upsert catalog rows from aligned parallel slices; each index must describe the same record.
+/// Database errors propagate to the catalog refresh caller.
 pub async fn set_all(id: &[i32], priority: &[i32], pool: &PgPool) -> Result<()> {
     sqlx::query!(
         "
@@ -31,6 +33,7 @@ pub async fn set_all(id: &[i32], priority: &[i32], pool: &PgPool) -> Result<()> 
     Ok(())
 }
 
+/// Fetch localized series ordered by descending priority and then ID.
 pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievementSeries>> {
     let language = language.to_string();
 
@@ -55,6 +58,7 @@ pub async fn get_all(language: Language, pool: &PgPool) -> Result<Vec<DbAchievem
     .await?)
 }
 
+/// Fetch one localized series row; an absent ID or translation propagates a database row-not-found error.
 pub async fn get_by_id(id: i32, language: Language, pool: &PgPool) -> Result<DbAchievementSeries> {
     let language = language.to_string();
 

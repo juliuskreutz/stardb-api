@@ -19,10 +19,12 @@ use crate::{
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(import_zzz_achievements);
 }
@@ -63,6 +65,8 @@ struct Achievement {
     )
 )]
 #[post("/api/import-zzz-achievements")]
+/// Require an administrator and import CSV metadata with one replacement statement per row.
+/// Rows commit individually; a later parse/database error does not roll back earlier rows.
 async fn import_zzz_achievements(
     session: Session,
     file: MultipartForm<File>,
@@ -86,65 +90,19 @@ async fn import_zzz_achievements(
     for achievement in reader.deserialize() {
         let achievement: Achievement = achievement?;
 
-        database::zzz::achievements::update_version_by_id(
-            achievement.key,
-            achievement.version.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_difficulty_by_id(
-            achievement.key,
-            achievement.difficulty.map(|d| d.to_lowercase()).as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_comment_by_id(
-            achievement.key,
-            achievement.comment.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_reference_by_id(
-            achievement.key,
-            achievement.reference.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_video_by_id(
-            achievement.key,
-            achievement.video.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_gacha_by_id(
-            achievement.key,
-            achievement.gacha.is_some(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_impossible_by_id(
-            achievement.key,
-            achievement.impossible.is_some(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_timegated_by_id(
-            achievement.key,
-            achievement.timegated.as_deref(),
-            &pool,
-        )
-        .await?;
-
-        database::zzz::achievements::update_missable_by_id(
-            achievement.key,
-            achievement.missable.is_some(),
+        database::zzz::achievements::import_metadata(
+            &database::zzz::achievements::DbImportAchievement {
+                id: achievement.key,
+                version: achievement.version,
+                difficulty: achievement.difficulty.map(|d| d.to_lowercase()),
+                comment: achievement.comment,
+                reference: achievement.reference,
+                video: achievement.video,
+                gacha: achievement.gacha.is_some(),
+                impossible: achievement.impossible.is_some(),
+                timegated: achievement.timegated,
+                missable: achievement.missable.is_some(),
+            },
             &pool,
         )
         .await?;

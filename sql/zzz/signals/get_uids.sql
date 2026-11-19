@@ -25,7 +25,11 @@ WHERE
             SELECT
                 uid
             FROM
-                zzz_signals_bangboo) zzz_signals
+                zzz_signals_bangboo
+            UNION ALL
+            SELECT uid FROM zzz_signals_exclusive_rescreening
+            UNION ALL
+            SELECT uid FROM zzz_signals_w_engine_reverberation) zzz_signals
         WHERE
             zzz_uids.uid = zzz_signals.uid)
     AND NOT EXISTS (
@@ -36,4 +40,3 @@ WHERE
         WHERE
             zzz_uids.uid = zzz_connections.uid
             AND zzz_connections.private);
-

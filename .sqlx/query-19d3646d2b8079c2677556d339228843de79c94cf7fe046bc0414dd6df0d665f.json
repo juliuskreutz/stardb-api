@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE\n    zzz_achievements\nSET\n    version = COALESCE($2, version),\n    comment = COALESCE($3, comment),\n    reference = COALESCE($4, reference),\n    difficulty = COALESCE($5, difficulty),\n    video = COALESCE($6, video),\n    gacha = COALESCE($7, gacha),\n    timegated = COALESCE($8, timegated),\n    missable = COALESCE($9, missable),\n    impossible = COALESCE($10, impossible),\n    \"set\" = COALESCE($11, \"set\")\nWHERE\n    id = COALESCE($1, id);\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "19d3646d2b8079c2677556d339228843de79c94cf7fe046bc0414dd6df0d665f"
+}

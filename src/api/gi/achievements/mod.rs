@@ -51,6 +51,7 @@ struct Achievement {
 }
 
 impl From<database::gi::achievements::DbAchievement> for Achievement {
+    /// Convert the localized database row to the API payload.
     fn from(db_achievement: database::gi::achievements::DbAchievement) -> Self {
         Achievement {
             id: db_achievement.id,
@@ -83,12 +84,14 @@ impl From<database::gi::achievements::DbAchievement> for Achievement {
     }
 }
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(id::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_gi_achievements)
         .service(put_gi_achievements)
@@ -105,6 +108,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/gi/achievements")]
+/// Build related IDs from the complete localized catalog before applying viewer visibility.
 async fn get_gi_achievements(
     session: Session,
     language_params: web::Query<LanguageParams>,
@@ -119,6 +123,9 @@ async fn get_gi_achievements(
     let mut db_achievements =
         database::gi::achievements::get_all(language_params.lang, &pool).await?;
 
+    let related_by_set =
+        database::achievement_lists::related_by_set(db_achievements.iter().map(|a| (a.id, a.set)));
+
     if !admin {
         db_achievements.retain(|a| !(a.hidden && a.impossible));
     }
@@ -131,7 +138,11 @@ async fn get_gi_achievements(
     for achievement in &mut achievements {
         if let Some(set) = achievement.set {
             achievement.related = Some(
-                database::gi::achievements::get_all_related_ids(achievement.id, set, &pool).await?,
+                related_by_set[&set]
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != achievement.id)
+                    .collect(),
             );
         }
     }
@@ -168,6 +179,8 @@ struct UpdateAchievement {
     )
 )]
 #[put("/api/gi/achievements")]
+/// Require an administrator and update each supplied metadata row, preserving omitted fields.
+/// Updates are per-row statements rather than a transaction across the whole request.
 async fn put_gi_achievements(
     session: Session,
     achievements: web::Json<Vec<UpdateAchievement>>,

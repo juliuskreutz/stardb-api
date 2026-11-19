@@ -9,10 +9,12 @@ use utoipa::OpenApi;
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(logout);
 }
@@ -26,6 +28,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[post("/api/users/auth/logout")]
+/// Purges the current session and returns success even when no user was logged in.
 async fn logout(session: Session) -> impl Responder {
     session.purge();
 

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO banners (id, name, start, \"end\", character, character_gacha_type, light_cone, light_cone_gacha_type)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nON CONFLICT (id)\n    DO UPDATE SET\n        name = excluded.name,\n        start = excluded.start,\n        \"end\" = excluded.\"end\",\n        character = excluded.character,\n        character_gacha_type = excluded.character_gacha_type,\n        light_cone = excluded.light_cone,\n        light_cone_gacha_type = excluded.light_cone_gacha_type;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fef570869c9f060fa52658e82972fcdf82fae8e3adb073f4b90574b838959bc4"
+}

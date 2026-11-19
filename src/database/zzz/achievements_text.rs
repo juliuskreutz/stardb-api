@@ -3,6 +3,8 @@ use sqlx::PgPool;
 
 use crate::Language;
 
+/// Upsert catalog rows from aligned parallel slices; each index must describe the same record.
+/// Database errors propagate to the catalog refresh caller.
 pub async fn set_all(
     id: &[i32],
     language: &[Language],

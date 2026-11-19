@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+//! HSR tracker payloads combining pull annotations, pity forecasts, and stored statistics.
 
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -8,21 +9,25 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{
-        banner_helpers::{self, HSR_STANDARD},
-        private, ApiResult, LanguageParams,
-    },
+    api::{private, ApiResult, LanguageParams},
     database,
+    gacha::{
+        banner::{BannerCatalog, GuaranteeState, GuaranteedOutcome},
+        imports::{PullItem, PullPool},
+    },
+    GachaType,
 };
 
 #[derive(OpenApi)]
 #[openapi(paths(get_warp_tracker))]
 struct ApiDoc;
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_warp_tracker);
 }
@@ -56,26 +61,31 @@ enum WinType {
     Guarantee,
 }
 
-impl From<database::warps::DbWarp> for Warp {
-    fn from(warp: database::warps::DbWarp) -> Self {
-        let r#type = if warp.character.is_some() {
+impl TryFrom<database::warps::DbWarp> for Warp {
+    type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
+    fn try_from(warp: database::warps::DbWarp) -> anyhow::Result<Self> {
+        let r#type = if matches!(warp.item, StoredItem::Character(_)) {
             WarpType::Character
         } else {
             WarpType::LightCone
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: warp.id.to_string(),
-            name: warp.name.unwrap(),
-            rarity: warp.rarity.unwrap(),
-            item_id: warp.character.or(warp.light_cone).unwrap(),
+            name: warp
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: warp.rarity,
+            item_id: warp.item.id(),
             timestamp: warp.timestamp,
             pull: 0,
             pull_4: 0,
             pull_5: 0,
             win: None,
-        }
+        })
     }
 }
 
@@ -135,6 +145,8 @@ struct GlobalStats {
     )
 )]
 #[get("/api/pages/warp-tracker/{uid}", guard = "private")]
+/// Builds an authorized HSR tracker response from localized history and stored stats.
+/// Returns 404 without a mihomo row; database and required-label failures propagate.
 async fn get_warp_tracker(
     session: Session,
     uid: web::Path<i32>,
@@ -171,421 +183,90 @@ async fn get_warp_tracker(
     };
     let name = mihomo.name;
 
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(&pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
+    let banner_catalog = BannerCatalog::from_hsr(database::banners::get_all(&pool).await?);
 
     // region Departure
-    let mut departure = Warps::default();
-    let mut departure_pull = 0;
-    let mut departure_pull_4 = 0;
-    let mut departure_pull_5 = 0;
-
-    for warp in database::warps::departure::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        departure_pull += 1;
-        departure_pull_4 += 1;
-        departure_pull_5 += 1;
-
-        warp.pull = departure_pull;
-        warp.pull_4 = departure_pull_4;
-        warp.pull_5 = departure_pull_5;
-
-        match warp.rarity {
-            4 => departure_pull_4 = 0,
-            5 => departure_pull_5 = 0,
-            _ => {}
-        }
-
-        departure.warps.push(warp);
-    }
-
-    departure.count = departure.warps.len();
+    let departure = build_set(
+        database::warps::departure::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::Departure,
+        &banner_catalog,
+    );
     // endregion Departure
 
     // region Standard
-    let mut standard = Warps::default();
-    let mut standard_pull = 0;
-    let mut standard_pull_4 = 0;
-    let mut standard_pull_5 = 0;
-
-    for warp in database::warps::standard::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        standard_pull += 1;
-        standard_pull_4 += 1;
-        standard_pull_5 += 1;
-
-        warp.pull = standard_pull;
-        warp.pull_4 = standard_pull_4;
-        warp.pull_5 = standard_pull_5;
-
-        match warp.rarity {
-            4 => standard_pull_4 = 0,
-            5 => standard_pull_5 = 0,
-            _ => {}
-        }
-
-        standard.warps.push(warp);
-    }
-
-    standard.pull_4 = standard_pull_4;
-    standard.max_pull_4 = 10;
-    standard.probability_4 = if standard_pull_4 < 9 { 5.1 } else { 100.0 };
-
-    standard.pull_5 = standard_pull_5;
-    standard.max_pull_5 = 90;
-    standard.probability_5 = if standard_pull_5 < 89 {
-        0.6 + 6.0 * standard_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    standard.count = standard.warps.len();
+    let mut standard = build_set(
+        database::warps::standard::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::Standard,
+        &banner_catalog,
+    );
     // endregion Standard
 
     // region Special
-    let mut special = Warps::default();
-    let mut special_pull = 0;
-    let mut special_pull_4 = 0;
-    let mut special_pull_5 = 0;
-    let mut guarantee = false;
-
-    for warp in database::warps::special::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        special_pull += 1;
-        special_pull_4 += 1;
-        special_pull_5 += 1;
-
-        warp.pull = special_pull;
-        warp.pull_4 = special_pull_4;
-        warp.pull_5 = special_pull_5;
-
-        match warp.rarity {
-            4 => special_pull_4 = 0,
-            5 => {
-                special_pull_5 = 0;
-
-                warp.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
-            }
-            _ => {}
-        }
-
-        special.warps.push(warp);
-    }
-
-    special.pull_4 = special_pull_4;
-    special.max_pull_4 = 10;
-    special.probability_4 = if special_pull_4 < 9 { 5.1 } else { 100.0 };
-
-    special.pull_5 = special_pull_5;
-    special.max_pull_5 = 90;
-    special.probability_5 = if special_pull_5 < 89 {
-        0.6 + 6.0 * special_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    special.count = special.warps.len();
+    let mut special = build_set(
+        database::warps::special::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::Special,
+        &banner_catalog,
+    );
     // endregion Special
 
     // region Lc
-    let mut lc = Warps::default();
-    let mut lc_pull = 0;
-    let mut lc_pull_4 = 0;
-    let mut lc_pull_5 = 0;
-    let mut guarantee = false;
-
-    for warp in database::warps::lc::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        lc_pull += 1;
-        lc_pull_4 += 1;
-        lc_pull_5 += 1;
-
-        warp.pull = lc_pull;
-        warp.pull_4 = lc_pull_4;
-        warp.pull_5 = lc_pull_5;
-
-        match warp.rarity {
-            4 => lc_pull_4 = 0,
-            5 => {
-                lc_pull_5 = 0;
-
-                warp.win = Some(if guarantee {
-                    guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    guarantee = true;
-                    WinType::Loss
-                });
-            }
-            _ => {}
-        }
-
-        lc.warps.push(warp);
-    }
-
-    lc.pull_4 = lc_pull_4;
-    lc.max_pull_4 = 10;
-    lc.probability_4 = if lc_pull_4 < 9 { 6.6 } else { 100.0 };
-
-    lc.pull_5 = lc_pull_5;
-    lc.max_pull_5 = 80;
-    lc.probability_5 = if lc_pull_5 < 79 {
-        0.8 + 7.0 * lc_pull_5.saturating_sub(64) as f64
-    } else {
-        100.0
-    };
-
-    lc.count = lc.warps.len();
+    let mut lc = build_set(
+        database::warps::lc::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::Lc,
+        &banner_catalog,
+    );
     // endregion Lc
 
     // region Collab
-    let mut collab = Warps::default();
-    let mut collab_pull = 0;
-    let mut collab_pull_4 = 0;
-    let mut collab_pull_5 = 0;
-    let mut collab_guarantee = false;
-
-    for warp in database::warps::collab::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        collab_pull += 1;
-        collab_pull_4 += 1;
-        collab_pull_5 += 1;
-
-        warp.pull = collab_pull;
-        warp.pull_4 = collab_pull_4;
-        warp.pull_5 = collab_pull_5;
-
-        match warp.rarity {
-            4 => collab_pull_4 = 0,
-            5 => {
-                collab_pull_5 = 0;
-
-                warp.win = Some(if collab_guarantee {
-                    collab_guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    collab_guarantee = true;
-                    WinType::Loss
-                });
-            }
-            _ => {}
-        }
-
-        collab.warps.push(warp);
-    }
-
-    collab.pull_4 = collab_pull_4;
-    collab.max_pull_4 = 10;
-    collab.probability_4 = if collab_pull_4 < 9 { 5.1 } else { 100.0 };
-
-    collab.pull_5 = collab_pull_5;
-    collab.max_pull_5 = 90;
-    collab.probability_5 = if collab_pull_5 < 89 {
-        0.6 + 6.0 * collab_pull_5.saturating_sub(72) as f64
-    } else {
-        100.0
-    };
-
-    collab.count = collab.warps.len();
+    let mut collab = build_set(
+        database::warps::collab::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::Collab,
+        &banner_catalog,
+    );
     // endregion Collab
 
     // region Collab LC
-    let mut collab_lc = Warps::default();
-    let mut collab_lc_pull = 0;
-    let mut collab_lc_pull_4 = 0;
-    let mut collab_lc_pull_5 = 0;
-    let mut collab_lc_guarantee = false;
-
-    for warp in database::warps::collab_lc::get_by_uid(uid, language, &pool).await? {
-        let mut warp: Warp = warp.into();
-
-        collab_lc_pull += 1;
-        collab_lc_pull_4 += 1;
-        collab_lc_pull_5 += 1;
-
-        warp.pull = collab_lc_pull;
-        warp.pull_4 = collab_lc_pull_4;
-        warp.pull_5 = collab_lc_pull_5;
-
-        match warp.rarity {
-            4 => collab_lc_pull_4 = 0,
-            5 => {
-                collab_lc_pull_5 = 0;
-
-                warp.win = Some(if collab_lc_guarantee {
-                    collab_lc_guarantee = false;
-                    WinType::Guarantee
-                } else if is_win(warp.item_id, warp.timestamp) {
-                    WinType::Win
-                } else {
-                    collab_lc_guarantee = true;
-                    WinType::Loss
-                });
-            }
-            _ => {}
-        }
-
-        collab_lc.warps.push(warp);
-    }
-
-    collab_lc.pull_4 = collab_lc_pull_4;
-    collab_lc.max_pull_4 = 10;
-    collab_lc.probability_4 = if collab_lc_pull_4 < 9 { 6.6 } else { 100.0 };
-
-    collab_lc.pull_5 = collab_lc_pull_5;
-    collab_lc.max_pull_5 = 80;
-    collab_lc.probability_5 = if collab_lc_pull_5 < 79 {
-        0.8 + 7.0 * collab_lc_pull_5.saturating_sub(64) as f64
-    } else {
-        100.0
-    };
-
-    collab_lc.count = collab_lc.warps.len();
+    let mut collab_lc = build_set(
+        database::warps::collab_lc::get_by_uid(uid, language, &pool)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<anyhow::Result<Vec<_>>>()?,
+        GachaType::CollabLc,
+        &banner_catalog,
+    );
     // endregion Collab LC
 
     // region Stats
-    if let Some(stats) = database::warps_stats::standard::get_by_uid(uid, &pool).await? {
-        let global_stats = database::warps_stats_global::standard::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
+    set_stats(&mut standard, GachaType::Standard, uid, &pool).await?;
 
-        standard.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats: None,
-            global_stats,
-        });
-    }
+    set_stats(&mut special, GachaType::Special, uid, &pool).await?;
 
-    if let Some(stats) = database::warps_stats::special::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
+    set_stats(&mut lc, GachaType::Lc, uid, &pool).await?;
 
-        let global_stats = database::warps_stats_global::special::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
+    set_stats(&mut collab, GachaType::Collab, uid, &pool).await?;
 
-        special.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        });
-    }
-
-    if let Some(stats) = database::warps_stats::lc::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
-
-        let global_stats = database::warps_stats_global::lc::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        lc.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        });
-    }
-
-    if let Some(stats) = database::warps_stats::collab::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
-
-        let global_stats = database::warps_stats_global::collab::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        collab.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        });
-    }
-
-    if let Some(stats) = database::warps_stats::collab_lc::get_by_uid(uid, &pool).await? {
-        let win_stats = Some(WinStats {
-            win_rate: stats.win_rate,
-            win_streak: stats.win_streak,
-            loss_streak: stats.loss_streak,
-        });
-
-        let global_stats = database::warps_stats_global::collab_lc::get_by_uid(uid, &pool)
-            .await?
-            .map(|stats| GlobalStats {
-                count_percentile: stats.count_percentile,
-                luck_4_percentile: stats.luck_4_percentile,
-                luck_5_percentile: stats.luck_5_percentile,
-            });
-
-        collab_lc.stats = Some(Stats {
-            luck_4: stats.luck_4,
-            luck_5: stats.luck_5,
-            win_stats,
-            global_stats,
-        });
-    }
+    set_stats(&mut collab_lc, GachaType::CollabLc, uid, &pool).await?;
     // endregion Stats
 
     let warp_tracker = WarpTracker {
@@ -600,3 +281,200 @@ async fn get_warp_tracker(
 
     Ok(HttpResponse::Ok().json(warp_tracker))
 }
+
+/// Pool parameters keep historical caps explicit; None preserves Departure's zero summaries.
+#[derive(Clone, Copy)]
+struct Pity {
+    base_4: f64,
+    base_5: f64,
+    gain_5: f64,
+    soft_start_5: usize,
+    hard_4: usize,
+    hard_5: usize,
+    max_4: usize,
+    max_5: usize,
+}
+impl Pity {
+    // Counters are completed pulls since the last reset. The threshold therefore
+    // describes the next pull (for example, 89 elapsed pulls imply 100% at pull 90).
+    /// Calculates next-pull percentages from completed pulls since each rarity reset.
+    /// The hard thresholds apply before the next pull; configured caps describe the UI model.
+    fn probabilities(self, low: usize, high: usize) -> (f64, f64) {
+        (
+            if low < self.hard_4 {
+                self.base_4
+            } else {
+                100.0
+            },
+            if high < self.hard_5 {
+                self.base_5 + self.gain_5 * high.saturating_sub(self.soft_start_5) as f64
+            } else {
+                100.0
+            },
+        )
+    }
+}
+/// Annotates chronological history separately from aggregate luck calculations.
+fn build_set(rows: Vec<Warp>, kind: GachaType, catalog: &BannerCatalog) -> Warps {
+    let pity = match kind {
+        GachaType::Departure => None,
+        GachaType::Standard => Some(Pity {
+            base_4: 5.1,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GachaType::Special => Some(Pity {
+            base_4: 5.1,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GachaType::Lc => Some(Pity {
+            base_4: 6.6,
+            base_5: 0.8,
+            gain_5: 7.0,
+            soft_start_5: 64,
+            hard_4: 9,
+            hard_5: 79,
+            max_4: 10,
+            max_5: 80,
+        }),
+        GachaType::Collab => Some(Pity {
+            base_4: 5.1,
+            base_5: 0.6,
+            gain_5: 6.0,
+            soft_start_5: 72,
+            hard_4: 9,
+            hard_5: 89,
+            max_4: 10,
+            max_5: 90,
+        }),
+        GachaType::CollabLc => Some(Pity {
+            base_4: 6.6,
+            base_5: 0.8,
+            gain_5: 7.0,
+            soft_start_5: 64,
+            hard_4: 9,
+            hard_5: 79,
+            max_4: 10,
+            max_5: 80,
+        }),
+    };
+    let mut result = Warps::default();
+    let (mut pull_4, mut pull_5) = (0, 0);
+    let mut guarantee = GuaranteeState::default();
+    for (index, mut row) in rows.into_iter().enumerate() {
+        pull_4 += 1;
+        pull_5 += 1;
+        // The winning row displays the interval it completed, so annotate before
+        // resetting counters for the next row.
+        row.pull = index + 1;
+        row.pull_4 = pull_4;
+        row.pull_5 = pull_5;
+        if row.rarity == 4 {
+            pull_4 = 0;
+        }
+        // A five-star pull does not reset the four-star counter in this game.
+        if row.rarity == 5 {
+            pull_5 = 0;
+            let item = match kind {
+                GachaType::Departure => None,
+                GachaType::Standard => None,
+                GachaType::Special => Some(PullItem::Character(row.item_id)),
+                GachaType::Lc => Some(PullItem::LightCone(row.item_id)),
+                GachaType::Collab => Some(PullItem::Character(row.item_id)),
+                GachaType::CollabLc => Some(PullItem::LightCone(row.item_id)),
+            };
+            if let Some(item) = item {
+                row.win = Some(
+                    match guarantee.advance(catalog.classify(
+                        PullPool::Hsr(kind),
+                        item,
+                        row.timestamp,
+                    )) {
+                        GuaranteedOutcome::Win => WinType::Win,
+                        GuaranteedOutcome::Loss => WinType::Loss,
+                        GuaranteedOutcome::GuaranteedWin => WinType::Guarantee,
+                    },
+                );
+            }
+        }
+        result.warps.push(row);
+    }
+    // Departure still receives per-row counters and a count, but historically
+    // exposes zero summary counters, caps, and probabilities rather than estimates.
+    if let Some(pity) = pity {
+        result.pull_4 = pull_4;
+        result.pull_5 = pull_5;
+        result.max_pull_4 = pity.max_4;
+        result.max_pull_5 = pity.max_5;
+        (result.probability_4, result.probability_5) = pity.probabilities(pull_4, pull_5);
+    }
+    result.count = result.warps.len();
+    result
+}
+/// Attaches available local and global stats for the selected pool.
+/// Missing local stats leave the set’s existing default; missing global stats
+/// remain absent. Database errors propagate without substituting zero ranks.
+async fn set_stats(
+    set: &mut Warps,
+    kind: GachaType,
+    uid: i32,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    macro_rules! load {
+        ($module:ident, $win:ident) => {
+            if let Some(stats) = database::warps_stats::$module::get_by_uid(uid, pool).await? {
+                let global_stats = database::warps_stats_global::$module::get_by_uid(uid, pool)
+                    .await?
+                    .map(|stats| GlobalStats {
+                        count_percentile: stats.count_percentile,
+                        luck_4_percentile: stats.luck_4_percentile,
+                        luck_5_percentile: stats.luck_5_percentile,
+                    });
+                let value = Stats {
+                    luck_4: stats.luck_4,
+                    luck_5: stats.luck_5,
+                    win_stats: win!(stats, $win),
+                    global_stats,
+                };
+                set.stats = Some(value);
+            }
+        };
+    }
+    macro_rules! win {
+        ($stats:ident, yes) => {
+            Some(WinStats {
+                win_rate: $stats.win_rate,
+                win_streak: $stats.win_streak,
+                loss_streak: $stats.loss_streak,
+            })
+        };
+        ($stats:ident, no) => {
+            None
+        };
+    }
+    match kind {
+        GachaType::CollabLc => load!(collab_lc, yes),
+        GachaType::Collab => load!(collab, yes),
+        GachaType::Lc => load!(lc, yes),
+        GachaType::Special => load!(special, yes),
+        GachaType::Standard => load!(standard, no),
+        GachaType::Departure => {}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod baseline;
+#[cfg(test)]
+mod golden_tests;

@@ -18,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(login);
 }
@@ -49,6 +51,9 @@ pub enum UserLogin {
     )
 )]
 #[post("/api/users/auth/login")]
+/// Authenticates a normalized username/password pair or consumes a one-time UUID token.
+/// Invalid credentials and malformed or unknown tokens return 400; successful login
+/// records the username in the session and storage failures propagate.
 async fn login(
     session: Session,
     user_login: web::Json<UserLogin>,
@@ -70,7 +75,10 @@ async fn login(
             username.clone()
         }
         UserLogin::Token { token } => {
-            let Some(username) = tokens.lock().await.remove(&token.parse()?) else {
+            let Ok(token) = token.parse::<Uuid>() else {
+                return Ok(HttpResponse::BadRequest().finish());
+            };
+            let Some(username) = tokens.lock().await.remove(&token) else {
                 return Ok(HttpResponse::BadRequest().finish());
             };
 
@@ -81,4 +89,39 @@ async fn login(
     session.insert("username", username.to_lowercase())?;
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, App};
+
+    #[actix_web::test]
+    async fn malformed_token_is_an_empty_400_without_database_access() {
+        // The malformed-token path must reject before touching PostgreSQL or
+        // consuming any valid one-time token in the shared store.
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://unused:unused@localhost/unused")
+            .unwrap();
+        let valid_token = Uuid::new_v4();
+        let tokens = web::Data::new(Mutex::new(HashMap::from([(
+            valid_token,
+            "alice".to_string(),
+        )])));
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool))
+                .app_data(tokens.clone())
+                .service(login),
+        )
+        .await;
+        let request = test::TestRequest::post()
+            .uri("/api/users/auth/login")
+            .set_json(serde_json::json!({"token":"not-a-uuid"}))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), actix_web::http::StatusCode::BAD_REQUEST);
+        assert!(test::read_body(response).await.is_empty());
+        assert!(tokens.lock().await.contains_key(&valid_token));
+    }
 }

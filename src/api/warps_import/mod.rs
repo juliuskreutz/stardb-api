@@ -1,6 +1,7 @@
+use crate::gacha::imports::{NormalizedPull, PullItem, PullPool, PullProvenance};
 mod uid;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use actix_session::Session;
 use actix_web::{post, rt, web, HttpResponse, Responder};
@@ -14,20 +15,24 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     api::{
-        banner_helpers::{self, HSR_STANDARD},
+        import_jobs::{
+            classify_import_error, redacted_error, ImportErrorCode, ImportJobId, ImportJobStore,
+            ImportStatus,
+        },
         validate_import_url, ApiResult,
     },
-    database, mihomo, GachaType, Language,
+    database, mihomo, GachaType,
 };
 
 #[derive(OpenApi)]
 #[openapi(
     tags((name = "warps-import")),
     paths(post_warps_import),
-    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, Status))
+    components(schemas(WarpsImportParams, WarpsImport, WarpsImportInfo, ImportStatus, ImportErrorCode))
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
@@ -38,6 +43,7 @@ lazy_static::lazy_static! {
     static ref DATA: web::Data<WarpsImportInfos> = web::Data::new(WarpsImportInfos::default());
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.app_data(DATA.clone())
         .service(post_warps_import)
@@ -64,16 +70,7 @@ struct Entry {
     time: String,
 }
 
-type WarpsImportInfos = Mutex<HashMap<i32, Arc<Mutex<WarpsImportInfo>>>>;
-
-#[derive(Serialize, ToSchema, Clone)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Pending,
-    Calculating,
-    Finished,
-    Error(String),
-}
+type WarpsImportInfos = ImportJobStore<WarpsImportInfo>;
 
 #[derive(Serialize, ToSchema, Clone)]
 struct WarpsImportInfo {
@@ -84,7 +81,7 @@ struct WarpsImportInfo {
     lc: usize,
     collab: usize,
     collab_lc: usize,
-    status: Status,
+    status: ImportStatus,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -97,6 +94,9 @@ struct WarpsImportParams {
 #[derive(Serialize, ToSchema)]
 struct WarpsImport {
     uid: i32,
+    /// Opaque identifier used to poll this import without exposing the UID-keyed job store.
+    #[schema(value_type = String)]
+    job_id: ImportJobId,
 }
 
 #[utoipa::path(
@@ -110,6 +110,9 @@ struct WarpsImport {
     )
 )]
 #[post("/api/warps-import")]
+/// Starts or joins an official HSR import after validating the supplied URL.
+/// An authenticated caller also gains a verified UID connection; failed UID discovery
+/// returns an opaque error job, while background failures update job status.
 async fn post_warps_import(
     session: Session,
     params: web::Json<WarpsImportParams>,
@@ -122,17 +125,34 @@ async fn post_warps_import(
     };
 
     let mut uid = None;
+    let mut import_error = None;
 
     // try to find the users uid. check each until we find one
     for gacha_type in GachaType::iter() {
         let gacha_type_id = gacha_type.id();
         let url = gacha_log_url(gacha_type, &original_url)?;
 
-        let gacha_log: GachaLog =
-            reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0"))
-                .await?
-                .json()
-                .await?;
+        let response =
+            match reqwest::get(format!("{url}&gacha_type={gacha_type_id}&end_id=0")).await {
+                Ok(response) => response,
+                Err(error) => {
+                    import_error = Some(classify_import_error(
+                        &error,
+                        ImportErrorCode::UpstreamUnavailable,
+                    ));
+                    continue;
+                }
+            };
+        let gacha_log = match response.json::<GachaLog>().await {
+            Ok(gacha_log) => gacha_log,
+            Err(error) => {
+                import_error = Some(classify_import_error(
+                    &error,
+                    ImportErrorCode::InvalidResponse,
+                ));
+                continue;
+            }
+        };
 
         if let Some(entry) = gacha_log.data.list.first() {
             uid = Some(entry.uid.parse()?);
@@ -141,42 +161,27 @@ async fn post_warps_import(
     }
 
     let Some(uid) = uid else {
-        let info = Arc::new(Mutex::new(WarpsImportInfo {
-            gacha_type: GachaType::Standard,
-            standard: 0,
-            departure: 0,
-            special: 0,
-            lc: 0,
-            collab: 0,
-            collab_lc: 0,
-            status: Status::Error("No data".to_string()),
-        }));
+        let job = warps_import_infos
+            .create(WarpsImportInfo {
+                gacha_type: GachaType::Standard,
+                standard: 0,
+                departure: 0,
+                special: 0,
+                lc: 0,
+                collab: 0,
+                collab_lc: 0,
+                status: ImportStatus::Error(
+                    import_error.unwrap_or(ImportErrorCode::InvalidResponse),
+                ),
+            })
+            .await;
+        let job_id = job.id;
+        warps_import_infos.complete(job_id).await;
 
-        warps_import_infos.lock().await.insert(0, info.clone());
-
-        return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0 }));
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid: 0, job_id }));
     };
 
-    // Wacky way to update the database in case the uid isn't in there
-    if !database::mihomo::exists(uid, &pool).await?
-        && mihomo::get(uid, Language::En, &pool).await?.is_none()
-    {
-        let region = match uid.to_string().chars().next() {
-            Some('6') => "na",
-            Some('7') => "eu",
-            Some('8') | Some('9') => "asia",
-            _ => "cn",
-        }
-        .to_string();
-
-        let db_mihomo = database::mihomo::DbMihomo {
-            uid,
-            region,
-            ..Default::default()
-        };
-
-        database::mihomo::set(&db_mihomo, &pool).await?;
-    }
+    mihomo::ensure_row(uid, &pool).await?;
 
     if let Ok(Some(username)) = session.get::<String>("username") {
         let connection = database::connections::DbConnection {
@@ -189,63 +194,89 @@ async fn post_warps_import(
         database::connections::set(&connection, &pool).await?;
     }
 
-    if warps_import_infos.lock().await.contains_key(&uid) {
-        return Ok(HttpResponse::Ok().json(WarpsImport { uid }));
+    let job = warps_import_infos
+        .start(
+            uid,
+            WarpsImportInfo {
+                gacha_type: GachaType::Standard,
+                standard: 0,
+                departure: 0,
+                special: 0,
+                lc: 0,
+                collab: 0,
+                collab_lc: 0,
+                status: ImportStatus::Pending,
+            },
+        )
+        .await;
+    let job_id = job.id;
+
+    if !job.is_new {
+        return Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }));
     }
 
-    let info = Arc::new(Mutex::new(WarpsImportInfo {
-        gacha_type: GachaType::Standard,
-        standard: 0,
-        departure: 0,
-        special: 0,
-        lc: 0,
-        collab: 0,
-        collab_lc: 0,
-        status: Status::Pending,
-    }));
+    let info = job.info;
 
-    warps_import_infos.lock().await.insert(uid, info.clone());
+    let jobs = warps_import_infos.clone();
+    jobs.spawn_job(
+        job_id,
+        info.clone(),
+        |info| info.status = ImportStatus::Error(ImportErrorCode::PersistenceFailed),
+        async move {
+            let mut error = Ok(());
 
-    rt::spawn(async move {
-        let mut error = Ok(());
+            for gacha_type in GachaType::iter() {
+                info.lock().await.gacha_type = gacha_type;
 
-        for gacha_type in GachaType::iter() {
-            info.lock().await.gacha_type = gacha_type;
+                if let Err(e) = import_warps(
+                    uid,
+                    &original_url,
+                    params.ignore_timestamps,
+                    gacha_type,
+                    &info,
+                    &pool,
+                )
+                .await
+                {
+                    error = Err(e);
 
-            if let Err(e) = import_warps(
+                    break;
+                }
+            }
+
+            // Pools commit individually, so recalculate once afterwards even when a
+            // later pool failed; stats then cover every pool that was saved.
+            if let Err(e) = crate::gacha::imports::recalculate_uid_in_transaction(
+                crate::gacha::imports::PullGame::Hsr,
                 uid,
-                &original_url,
-                params.ignore_timestamps,
-                gacha_type,
-                &info,
                 &pool,
             )
             .await
             {
-                error = Err(e);
-
-                break;
+                if error.is_ok() {
+                    error = Err(e.into());
+                }
             }
-        }
 
-        if let Err(e) = error {
-            info.lock().await.status = Status::Error(e.to_string());
-        } else if let Err(e) = calculate_stats(uid, &info, &pool).await {
-            info.lock().await.status = Status::Error(e.to_string());
-        } else {
-            info.lock().await.status = Status::Finished;
-        }
+            if let Err(e) = error {
+                let code = classify_import_error(e.as_ref(), ImportErrorCode::PersistenceFailed);
+                let gacha_type = info.lock().await.gacha_type;
+                error!(game = "hsr", uid, pool = %gacha_type, %job_id, error = %redacted_error(e), "gacha import failed");
+                info.lock().await.status = ImportStatus::Error(code);
+            } else {
+                info.lock().await.status = ImportStatus::Finished;
+            }
 
-        rt::spawn(async move {
-            rt::time::sleep(Duration::from_secs(60)).await;
+            warps_import_infos.complete(job_id).await;
+        },
+    );
 
-            warps_import_infos.lock().await.remove(&uid);
-        });
-    });
-
-    Ok(HttpResponse::Ok().json(WarpsImport { uid }))
+    Ok(HttpResponse::Ok().json(WarpsImport { uid, job_id }))
 }
 
+/// Fetches one official HSR pool and atomically writes its pulls; stats are recalculated by the job runner.
+/// Unless timestamps are ignored, the first row at or before existing history stops
+/// pagination; transport, parsing and persistence errors return to the job runner.
 async fn import_warps(
     uid: i32,
     original_url: &Url,
@@ -261,26 +292,10 @@ async fn import_warps(
         .extend_pairs(&[("gacha_type", &gacha_type.id().to_string())])
         .finish();
 
-    let mut set_all = database::warps::SetAll::default();
+    let mut pulls = Vec::new();
 
-    let latest_timestamp = match gacha_type {
-        GachaType::Departure => {
-            database::warps::departure::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Standard => {
-            database::warps::standard::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Special => {
-            database::warps::special::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::Lc => database::warps::lc::get_latest_timestamp_by_uid(uid, pool).await?,
-        GachaType::Collab => {
-            database::warps::collab::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-        GachaType::CollabLc => {
-            database::warps::collab_lc::get_latest_timestamp_by_uid(uid, pool).await?
-        }
-    };
+    let latest_timestamp =
+        database::warps::get_latest_timestamp_by_uid_by_pool(gacha_type, uid, pool).await?;
 
     'outer: loop {
         let mut i = 0;
@@ -303,12 +318,18 @@ async fn import_warps(
             break;
         }
 
-        let tz = FixedOffset::east_opt(3600 * gacha_log.data.region_time_zone).unwrap();
+        let tz = gacha_log
+            .data
+            .region_time_zone
+            .checked_mul(3600)
+            .and_then(FixedOffset::east_opt)
+            .ok_or_else(|| anyhow::anyhow!("invalid timezone"))?;
 
         for entry in gacha_log.data.list {
             let timestamp = NaiveDateTime::parse_from_str(&entry.time, "%Y-%m-%d %H:%M:%S")?
                 .and_local_timezone(tz)
-                .unwrap()
+                .single()
+                .ok_or_else(|| anyhow::anyhow!("invalid local time"))?
                 .to_utc();
 
             if !ignore_timestamps {
@@ -325,27 +346,21 @@ async fn import_warps(
 
             let item: i32 = entry.item_id.parse()?;
 
-            let mut character =
-                (entry.item_type == "Character" || entry.item_type == "角色").then_some(item);
-            let mut light_cone =
-                (entry.item_type == "Light Cone" || entry.item_type == "光錐").then_some(item);
-
-            if character.is_none() && light_cone.is_none() {
-                if item >= 20000 {
-                    light_cone = Some(item);
-                } else if item <= 10000 {
-                    character = Some(item);
-                } else {
-                    return Err(anyhow::anyhow!("{} is weird...", entry.item_type).into());
-                }
-            }
-
-            set_all.id.push(id);
-            set_all.uid.push(uid);
-            set_all.character.push(character);
-            set_all.light_cone.push(light_cone);
-            set_all.timestamp.push(timestamp);
-            set_all.official.push(true);
+            let item = match entry.item_type.as_str() {
+                "Character" | "角色" => PullItem::Character(item),
+                "Light Cone" | "光錐" => PullItem::LightCone(item),
+                _ if item >= 20000 => PullItem::LightCone(item),
+                _ if item <= 10000 => PullItem::Character(item),
+                _ => return Err(anyhow::anyhow!("invalid item type").into()),
+            };
+            pulls.push(NormalizedPull {
+                uid,
+                id,
+                pool: PullPool::Hsr(gacha_type),
+                item,
+                timestamp,
+                provenance: PullProvenance::Official,
+            });
 
             match gacha_type {
                 GachaType::Standard => info.lock().await.standard += 1,
@@ -358,39 +373,16 @@ async fn import_warps(
         }
     }
 
-    match gacha_type {
-        GachaType::Departure => database::warps::departure::set_all(&set_all, pool).await?,
-        GachaType::Standard => database::warps::standard::set_all(&set_all, pool).await?,
-        GachaType::Special => database::warps::special::set_all(&set_all, pool).await?,
-        GachaType::Lc => database::warps::lc::set_all(&set_all, pool).await?,
-        GachaType::Collab => database::warps::collab::set_all(&set_all, pool).await?,
-        GachaType::CollabLc => database::warps::collab_lc::set_all(&set_all, pool).await?,
-    };
+    let batch = crate::gacha::imports::ImportBatch::new(
+        pulls,
+        crate::gacha::imports::PullProvenance::Official,
+    )?;
+    crate::gacha::imports::persist_batch_without_stats(&batch, pool).await?;
 
     Ok(())
 }
 
-async fn calculate_stats(
-    uid: i32,
-    info: &Arc<Mutex<WarpsImportInfo>>,
-    pool: &PgPool,
-) -> anyhow::Result<()> {
-    info.lock().await.status = Status::Calculating;
-
-    info.lock().await.gacha_type = GachaType::Standard;
-    calculate_stats_standard(uid, pool).await?;
-    info.lock().await.gacha_type = GachaType::Special;
-    calculate_stats_special(uid, pool).await?;
-    info.lock().await.gacha_type = GachaType::Lc;
-    calculate_stats_lc(uid, pool).await?;
-    info.lock().await.gacha_type = GachaType::Collab;
-    calculate_stats_collab(uid, pool).await?;
-    info.lock().await.gacha_type = GachaType::CollabLc;
-    calculate_stats_collab_lc(uid, pool).await?;
-
-    Ok(())
-}
-
+/// Builds the HSR official pool URL, copying only supported authentication parameters.
 fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::ParseError> {
     let endpoint = gacha_log_endpoint(gacha_type);
     let query = original_url.query_pairs().filter(|(name, _)| {
@@ -418,477 +410,11 @@ fn gacha_log_url(gacha_type: GachaType, original_url: &Url) -> Result<Url, url::
     Ok(url)
 }
 
+/// Selects the separate collaboration log endpoint for either HSR collab pool.
 fn gacha_log_endpoint(gacha_type: GachaType) -> &'static str {
     match gacha_type {
         // Collab banners have a different endpoint
         GachaType::Collab | GachaType::CollabLc => "getLdGachaLog",
         _ => "getGachaLog",
     }
-}
-
-async fn calculate_stats_standard(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let warps = database::warps::standard::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    for warp in &warps {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match warp.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-            }
-            _ => {}
-        }
-    }
-
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-
-    let stat = database::warps_stats::DbWarpsStat {
-        uid,
-        luck_4,
-        luck_5,
-        // these don't apply to standard warps
-        win_rate: 0.0,
-        win_streak: 0,
-        loss_streak: 0,
-    };
-    database::warps_stats::standard::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_special(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
-
-    let warps = database::warps::special::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for warp in &warps {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match warp.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(warp.character.unwrap(), warp.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
-
-    let stat = database::warps_stats::DbWarpsStat {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::warps_stats::special::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
-
-    let warps = database::warps::lc::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for warp in &warps {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match warp.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
-
-    let stat = database::warps_stats::DbWarpsStat {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::warps_stats::lc::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_collab(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
-
-    let warps = database::warps::collab::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for warp in &warps {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match warp.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(warp.character.unwrap(), warp.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
-
-    let stat = database::warps_stats::DbWarpsStat {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::warps_stats::collab::set(&stat, pool).await?;
-
-    Ok(())
-}
-
-async fn calculate_stats_collab_lc(uid: i32, pool: &PgPool) -> anyhow::Result<()> {
-    let mut banners: HashMap<_, Vec<_>> = HashMap::new();
-
-    for banner in database::banners::get_all(pool).await? {
-        if let Some(character) = banner.character {
-            banners
-                .entry(character)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-
-        if let Some(light_cone) = banner.light_cone {
-            banners
-                .entry(light_cone)
-                .or_default()
-                .push(banner.start..banner.end);
-        }
-    }
-
-    let is_win = banner_helpers::is_win_fn(&banners, HSR_STANDARD);
-
-    let warps = database::warps::collab_lc::get_infos_by_uid(uid, pool).await?;
-
-    let mut pull_4 = 0;
-    let mut sum_4 = 0;
-    let mut count_4 = 0;
-
-    let mut pull_5 = 0;
-    let mut sum_5 = 0;
-    let mut count_5 = 0;
-
-    let mut guarantee = false;
-
-    let mut sum_win = 0;
-    let mut count_win = 0;
-
-    let mut win_streak = 0;
-    let mut max_win_streak = 0;
-
-    let mut loss_streak = 0;
-    let mut max_loss_streak = 0;
-
-    for warp in &warps {
-        pull_4 += 1;
-        pull_5 += 1;
-
-        match warp.rarity.unwrap() {
-            4 => {
-                count_4 += 1;
-                sum_4 += pull_4;
-                pull_4 = 0;
-            }
-            5 => {
-                count_5 += 1;
-                sum_5 += pull_5;
-                pull_5 = 0;
-
-                if guarantee {
-                    guarantee = false;
-                } else {
-                    count_win += 1;
-
-                    if is_win(warp.light_cone.unwrap(), warp.timestamp) {
-                        sum_win += 1;
-
-                        loss_streak = 0;
-
-                        win_streak += 1;
-                        max_win_streak = max_win_streak.max(win_streak);
-
-                        continue;
-                    }
-
-                    win_streak = 0;
-
-                    loss_streak += 1;
-                    max_loss_streak = max_loss_streak.max(loss_streak);
-
-                    guarantee = true;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    let win_streak = max_win_streak;
-    let loss_streak = max_loss_streak;
-
-    let luck_4 = sum_4 as f64 / count_4 as f64;
-    let luck_5 = sum_5 as f64 / count_5 as f64;
-    let win_rate = sum_win as f64 / count_win as f64;
-
-    let stat = database::warps_stats::DbWarpsStat {
-        uid,
-        luck_4,
-        luck_5,
-        win_rate,
-        win_streak,
-        loss_streak,
-    };
-    database::warps_stats::collab_lc::set(&stat, pool).await?;
-
-    Ok(())
 }

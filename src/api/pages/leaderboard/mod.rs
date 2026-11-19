@@ -15,12 +15,14 @@ use crate::{
 #[openapi(paths(get_leaderboard))]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_leaderboard).configure(uid::configure);
 }
@@ -59,10 +61,11 @@ struct LeaderboardParams {
 }
 
 impl From<database::achievement_scores::DbScoreAchievement> for Score {
+    /// Convert nonnullable database ranks and profile metadata to the public score payload.
     fn from(db_score: database::achievement_scores::DbScoreAchievement) -> Self {
         Score {
-            global_rank: db_score.global_rank.unwrap(),
-            regional_rank: db_score.regional_rank.unwrap(),
+            global_rank: db_score.global_rank,
+            regional_rank: db_score.regional_rank,
             uid: db_score.uid,
             region: db_score.region.parse().unwrap(),
             name: db_score.name,
@@ -86,26 +89,25 @@ impl From<database::achievement_scores::DbScoreAchievement> for Score {
     )
 )]
 #[get("/api/pages/leaderboard", guard = "private")]
+/// Build the leaderboard page from ranked score rows and the matching profile count.
 async fn get_leaderboard(
     leaderboard_params: web::Query<LeaderboardParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let count_na =
-        database::achievement_scores::count(Some(&Region::Na.to_string()), None, &pool).await?;
-    let count_eu =
-        database::achievement_scores::count(Some(&Region::Eu.to_string()), None, &pool).await?;
-    let count_asia =
-        database::achievement_scores::count(Some(&Region::Asia.to_string()), None, &pool).await?;
-    let count_cn =
-        database::achievement_scores::count(Some(&Region::Cn.to_string()), None, &pool).await?;
-    let count_query = database::achievement_scores::count(
+    let counts = database::achievement_scores::leaderboard_counts(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
         &pool,
     )
     .await?;
-
-    let count = count_na + count_eu + count_asia + count_cn;
+    let count = counts.total();
+    let database::achievement_scores::LeaderboardCounts {
+        count_na,
+        count_eu,
+        count_asia,
+        count_cn,
+        count_query,
+    } = counts;
 
     let db_scores = database::achievement_scores::get(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),

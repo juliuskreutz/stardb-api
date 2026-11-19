@@ -1,6 +1,8 @@
+//! Refresh leaderboard profiles with independent population passes and bounded per-UID retries.
+
 use std::time::Instant;
 
-use actix_web::rt::{self, Runtime};
+use actix_web::rt;
 use anyhow::Result;
 use chrono::Utc;
 use regex::{Captures, Regex};
@@ -8,84 +10,40 @@ use sqlx::PgPool;
 
 use crate::{database, mihomo, Language};
 
+/// Start independent top-100 and remaining-population refresh loops with delayed retries.
 pub async fn spawn(pool: PgPool) {
-    {
-        let pool = pool.clone();
-
-        std::thread::spawn(move || {
-            let rt = Runtime::new().unwrap();
-
-            let handle = rt.spawn(async move {
-                loop {
-                    let start = Instant::now();
-
-                    if let Err(e) = update_top_100(pool.clone()).await {
-                        error!(
-                            "Scores top 100 update failed with {e} in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    } else {
-                        info!(
-                            "Scores top 100 update succeeded in {}s",
-                            start.elapsed().as_secs_f64()
-                        );
-                    }
-                }
-            });
-
-            rt.block_on(handle).unwrap();
-        });
-    }
-
-    std::thread::spawn(move || {
-        let rt = Runtime::new().unwrap();
-
-        let handle = rt.spawn(async move {
-            loop {
-                let start = Instant::now();
-
-                if let Err(e) = update_lower_100(pool.clone()).await {
-                    error!(
-                        "Scores lower 100 update failed with {e} in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                } else {
-                    info!(
-                        "Scores lower 100 update succeeded in {}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-            }
-        });
-
-        rt.block_on(handle).unwrap();
-    });
+    let top_pool = pool.clone();
+    super::spawn_periodic(
+        "Scores top 100",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(30),
+        move || update_top_100(top_pool.clone()),
+    );
+    super::spawn_periodic(
+        "Scores lower 100",
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(30),
+        move || update_lower_100(pool.clone()),
+    );
 }
 
+/// Fetch the current top 100 UIDs and attempt each profile/score refresh.
 async fn update_top_100(pool: PgPool) -> Result<()> {
-    let uids = database::achievement_scores::get(None, None, Some(100), None, &pool)
-        .await?
-        .into_iter()
-        .map(|s| s.uid)
-        .collect();
+    let uids = database::achievement_scores::get_refresh_uids(100, 0, &pool).await?;
 
     update_scores(uids, &pool).await?;
 
     Ok(())
 }
 
+/// Walk score pages below the top 100 until a page is empty, refreshing each UID.
 async fn update_lower_100(pool: PgPool) -> Result<()> {
     for i in 0.. {
         let start = Instant::now();
 
         let offset = (i + 1) * 100;
 
-        let uids: Vec<_> =
-            database::achievement_scores::get(None, None, Some(100), Some(offset), &pool)
-                .await?
-                .into_iter()
-                .map(|s| s.uid)
-                .collect();
+        let uids = database::achievement_scores::get_refresh_uids(100, offset, &pool).await?;
 
         if uids.is_empty() {
             break;
@@ -124,13 +82,22 @@ struct RecordInfo {
     achievement_count: i32,
 }
 
+/// A persistent failure exhausts this finite schedule, allowing the next UID to run.
+/// Failed UIDs remain eligible on the next outer pass; one corrupt cache cannot block
+/// the rest of the leaderboard indefinitely. The first delay also paces successful UIDs.
+fn retry_delays() -> impl Iterator<Item = std::time::Duration> {
+    [5, 10, 20].into_iter().map(std::time::Duration::from_secs)
+}
+
+/// Pace each UID through the finite retry schedule and continue after persistent failures.
+/// Exhausted attempts are logged; failures do not permanently block later UIDs.
 async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     for uid in uids {
-        loop {
-            rt::time::sleep(std::time::Duration::from_secs(5)).await;
-
-            if update_score(uid, pool).await.is_ok() {
-                break;
+        for (attempt, delay) in retry_delays().enumerate() {
+            rt::time::sleep(delay).await;
+            match update_score(uid, pool).await {
+                Ok(()) => break,
+                Err(e) => warn!("Score uid {uid} attempt {} failed: {e}", attempt + 1),
             }
         }
     }
@@ -138,10 +105,16 @@ async fn update_scores(uids: Vec<i32>, pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Refresh mihomo first, then try Enka when no profile is returned and persist score metadata.
+/// Retain the old tie-breaking timestamp when the achievement count is unchanged.
+/// Database errors propagate; Enka HTTP/decoding failures are logged and treated as skipped refreshes.
 async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let now = Utc::now();
 
-    if let Some(_) = mihomo::update_and_get(uid, Language::En, pool).await? {
+    if mihomo::update_and_get(uid, Language::En, pool)
+        .await?
+        .is_some()
+    {
         return Ok(());
     }
 
@@ -179,13 +152,7 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
     let name = re
         .replace_all(&enka.detail_info.nickname, |_: &Captures| "")
         .to_string();
-    let region = match uid.to_string().chars().next() {
-        Some('6') => "na",
-        Some('7') => "eu",
-        Some('8') | Some('9') => "asia",
-        _ => "cn",
-    }
-    .to_string();
+    let region = mihomo::region_for_uid(uid).to_string();
     let level = enka.detail_info.level;
     let signature = re
         .replace_all(
@@ -231,13 +198,26 @@ async fn update_score(uid: i32, pool: &PgPool) -> Result<()> {
 
     database::mihomo::set(&db_mihomo, pool).await?;
 
-    let db_score_achievement = database::achievement_scores::DbScoreAchievement {
-        uid,
-        timestamp,
-        ..Default::default()
-    };
+    let db_score_achievement =
+        database::achievement_scores::DbScoreAchievementWrite { uid, timestamp };
 
     database::achievement_scores::set(&db_score_achievement, pool).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod retry_tests {
+    #[test]
+    fn retry_policy_is_finite_with_increasing_backoff() {
+        let mut schedule = super::retry_delays();
+        assert_eq!(
+            schedule
+                .by_ref()
+                .map(|delay| delay.as_secs())
+                .collect::<Vec<_>>(),
+            vec![5, 10, 20]
+        );
+        assert!(schedule.next().is_none());
+    }
 }

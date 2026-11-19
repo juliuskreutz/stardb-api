@@ -1,3 +1,6 @@
+//! Localized ZZZ pull history with verified-owner or administrator access to private UIDs.
+
+use crate::gacha::imports::PullItem as StoredItem;
 use actix_session::Session;
 use actix_web::{get, web, HttpResponse, Responder};
 use chrono::{DateTime, Utc};
@@ -5,7 +8,7 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::{
-    api::{ApiResult, LanguageParams},
+    api::{gacha_history_forbidden, ApiResult, LanguageParams},
     database,
 };
 
@@ -37,28 +40,29 @@ struct Signal {
     timestamp: DateTime<Utc>,
 }
 
-impl From<database::zzz::signals::DbSignal> for Signal {
-    fn from(signal: database::zzz::signals::DbSignal) -> Self {
-        let r#type = if signal.character.is_some() {
+impl TryFrom<database::zzz::signals::DbSignal> for Signal {
+    type Error = anyhow::Error;
+    /// Converts a validated pull to display fields, requiring a localized name.
+    /// Missing labels return an error; item IDs and kinds come from the typed identity.
+    fn try_from(signal: database::zzz::signals::DbSignal) -> anyhow::Result<Self> {
+        let r#type = if matches!(signal.item, StoredItem::Character(_)) {
             SignalType::Character
-        } else if signal.w_engine.is_some() {
+        } else if matches!(signal.item, StoredItem::WEngine(_)) {
             SignalType::WEngine
         } else {
             SignalType::Bangboo
         };
 
-        Self {
+        Ok(Self {
             r#type,
             id: signal.id.to_string(),
-            name: signal.name.unwrap(),
-            rarity: signal.rarity.unwrap(),
-            item_id: signal
-                .character
-                .or(signal.w_engine)
-                .or(signal.bangboo)
-                .unwrap(),
+            name: signal
+                .name
+                .ok_or_else(|| anyhow::anyhow!("missing localized pull name"))?,
+            rarity: signal.rarity,
+            item_id: signal.item.id(),
             timestamp: signal.timestamp,
-        }
+        })
     }
 }
 
@@ -70,10 +74,12 @@ enum SignalType {
     Bangboo,
 }
 
+/// Returns the OpenAPI fragment for this module’s routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module’s HTTP routes with the application.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_zzz_signals);
 }
@@ -88,6 +94,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/zzz/signals/{uid}")]
+/// Returns localized ZZZ histories after private-UID authorization.
+/// A verified owner or administrator may read private history; invalid rows
+/// or missing display names fail the response rather than producing partial data.
 async fn get_zzz_signals(
     session: Session,
     uid: web::Path<i32>,
@@ -96,18 +105,20 @@ async fn get_zzz_signals(
 ) -> ApiResult<impl Responder> {
     let uid = *uid;
 
-    let mut forbidden = database::connections::get_by_uid(uid, &pool)
+    let is_private = database::zzz::connections::get_by_uid(uid, &pool)
         .await?
         .iter()
         .any(|c| c.private);
+    let mut forbidden = is_private;
 
     if forbidden {
         if let Ok(Some(username)) = session.get::<String>("username") {
-            if let Ok(connection) =
-                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool).await
-            {
-                forbidden = !connection.verified;
-            }
+            let is_admin = database::admins::exists(&username, &pool).await?;
+            let has_verified_connection =
+                database::zzz::connections::get_by_uid_and_username(uid, &username, &pool)
+                    .await
+                    .is_ok_and(|connection| connection.verified);
+            forbidden = gacha_history_forbidden(is_admin, has_verified_connection);
         }
     }
 
@@ -120,35 +131,35 @@ async fn get_zzz_signals(
     let standard = database::zzz::signals::standard::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
-        .collect();
+        .map(Signal::try_from)
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let character = database::zzz::signals::special::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
-        .collect();
+        .map(Signal::try_from)
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine = database::zzz::signals::w_engine::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
-        .collect();
+        .map(Signal::try_from)
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let bangboo = database::zzz::signals::bangboo::get_by_uid(uid, language, &pool)
         .await?
         .into_iter()
-        .map(Signal::from)
-        .collect();
+        .map(Signal::try_from)
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let exclusive_rescreening =
         database::zzz::signals::exclusive_rescreening::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
-            .map(Signal::from)
-            .collect();
+            .map(Signal::try_from)
+            .collect::<anyhow::Result<Vec<_>>>()?;
     let w_engine_reverberation =
         database::zzz::signals::w_engine_reverberation::get_by_uid(uid, language, &pool)
             .await?
             .into_iter()
-            .map(Signal::from)
-            .collect();
+            .map(Signal::try_from)
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
     let signals = Signals {
         standard,

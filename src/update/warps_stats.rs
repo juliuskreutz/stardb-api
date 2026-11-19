@@ -1,49 +1,30 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+//! Refreshes HSR population percentiles on the shared periodic job driver.
+//! Each pool is updated in batches; a failure leaves completed batches for the next retry.
 
-use actix_web::rt;
+use std::time::{Duration, Instant};
+
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::database;
-use crate::database::warps_stats_global::DbWarpsStatGlobal;
+use crate::{
+    database,
+    database::warps_stats_global::DbWarpsStatGlobal,
+    gacha::global_stats::{calculate_percentiles, PercentileInput, UPDATE_BATCH_SIZE},
+};
 
-const UPDATE_BATCH_SIZE: usize = 1000;
-
+/// Starts the hourly percentile job with a 30-second retry delay on failure.
+/// Scheduling is delegated to the shared driver; this call does not await job completion.
 pub async fn spawn(pool: PgPool) {
-    actix::Arbiter::new().spawn(async move {
-        let mut success = true;
-
-        let mut interval = rt::time::interval(Duration::from_secs(60 * 60));
-
-        loop {
-            if success {
-                interval.tick().await;
-            }
-
-            let start = Instant::now();
-
-            if let Err(e) = update(pool.clone()).await {
-                error!(
-                    "Warps stats update failed with {e} in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-
-                success = false;
-            } else {
-                info!(
-                    "Warps stats update succeeded in {}s",
-                    start.elapsed().as_secs_f64()
-                );
-
-                success = true;
-            }
-        }
-    });
+    super::spawn_periodic(
+        "warps_stats",
+        Duration::from_secs(3600),
+        Duration::from_secs(30),
+        move || update(pool.clone()),
+    );
 }
 
+/// Refreshes supported pools sequentially, stopping at the first failure.
+/// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: PgPool) -> Result<()> {
     standard(&pool).await?;
     special(&pool).await?;
@@ -54,160 +35,32 @@ async fn update(pool: PgPool) -> Result<()> {
     Ok(())
 }
 
+/// Refreshes the standard pool through the shared within-game batch path.
 async fn standard(pool: &PgPool) -> Result<()> {
-    info!("Starting standard warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::standard::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No standard warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("standard", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "standard"
-        );
-        database::warps_stats_global::standard::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Standard warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-    Ok(())
+    refresh(crate::GachaType::Standard, pool).await
 }
 
+/// Refreshes the special pool through the shared within-game batch path.
 async fn special(pool: &PgPool) -> Result<()> {
-    info!("Starting special warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::special::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No special warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("special", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "special"
-        );
-        database::warps_stats_global::special::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Special warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Special, pool).await
 }
 
+/// Refreshes the lc pool through the shared within-game batch path.
 async fn lc(pool: &PgPool) -> Result<()> {
-    info!("Starting lc warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::lc::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No lc warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("lc", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "lc"
-        );
-        database::warps_stats_global::lc::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "LC warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Lc, pool).await
 }
 
+/// Refreshes the collab pool through the shared within-game batch path.
 async fn collab(pool: &PgPool) -> Result<()> {
-    info!("Starting collab warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::collab::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No collab warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("collab", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "collab"
-        );
-        database::warps_stats_global::collab::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Collab warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::Collab, pool).await
 }
 
+/// Refreshes the collab lc pool through the shared within-game batch path.
 async fn collab_lc(pool: &PgPool) -> Result<()> {
-    info!("Starting collab lc warps stats update");
-    let start = Instant::now();
-
-    let warp_stats = database::warps_stats::collab_lc::get_all(pool).await?;
-    if warp_stats.is_empty() {
-        info!("No collab lc warps stats to update");
-        return Ok(());
-    }
-
-    let stats = calculate_stats("collab lc", warp_stats);
-    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
-    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
-        info!(
-            "processing batch {} of {} for banner {}",
-            i + 1,
-            total_batches,
-            "collab lc"
-        );
-        database::warps_stats_global::collab_lc::set_bulk(batch, pool).await?;
-    }
-
-    info!(
-        "Collab LC warps stats updated: {} in {}s",
-        stats.len(),
-        start.elapsed().as_secs_f64()
-    );
-
-    Ok(())
+    refresh(crate::GachaType::CollabLc, pool).await
 }
 
+/// Converts count-joined local stats into population percentiles for bulk persistence.
 fn calculate_stats(
     banner_type: &str,
     stats: Vec<database::warps_stats::DbWarpsStatCount>,
@@ -217,66 +70,56 @@ fn calculate_stats(
         stats.len(),
         banner_type
     );
-    let mut count_map = HashMap::new();
-    let mut luck_4_map = HashMap::new();
-    let mut luck_5_map = HashMap::new();
-    let mut stat_uids = Vec::new();
+    calculate_percentiles(
+        stats
+            .into_iter()
+            .map(|stat| PercentileInput {
+                uid: stat.uid,
+                count: stat.warp_count.unwrap_or(0) as i32,
+                luck_low: stat.luck_4,
+                luck_high: stat.luck_5,
+            })
+            .collect(),
+    )
+    .into_iter()
+    .map(|stat| DbWarpsStatGlobal {
+        uid: stat.uid,
+        count_percentile: stat.count,
+        luck_4_percentile: stat.luck_low,
+        luck_5_percentile: stat.luck_high,
+    })
+    .collect()
+}
 
-    for warp_stat in stats {
-        let uid = warp_stat.uid;
-        let count = warp_stat.warp_count.unwrap_or(0) as i32;
+/// Fetches one pool’s population and writes calculated percentiles in bounded batches.
+/// Eligibility comes from the count query. Writes are separately committed,
+/// so failures may leave earlier batches refreshed until the next retry.
+async fn refresh(kind: crate::GachaType, pool: &PgPool) -> Result<()> {
+    info!("Starting {kind} warps stats update");
+    let start = Instant::now();
 
-        stat_uids.push(uid);
-        count_map.insert(uid, count);
-        luck_4_map.insert(uid, warp_stat.luck_4);
-        luck_5_map.insert(uid, warp_stat.luck_5);
+    let warp_stats = database::warps_stats::get_all_by_pool(kind, pool).await?;
+    if warp_stats.is_empty() {
+        info!("No {kind} warps stats to update");
+        return Ok(());
     }
 
-    let mut sorted_count: Vec<(i32, i32)> = count_map.iter().map(|(&k, &v)| (k, v)).collect();
-    sorted_count.sort_unstable_by(|(_, v1), (_, v2)| v2.cmp(v1));
-
-    let mut sorted_luck_4: Vec<(i32, f64)> = luck_4_map.iter().map(|(&k, &v)| (k, v)).collect();
-    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_4.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
-
-    let mut sorted_luck_5: Vec<(i32, f64)> = luck_5_map.iter().map(|(&k, &v)| (k, v)).collect();
-    // Use total_cmp to get a total order for f64 (handles NaN deterministically)
-    sorted_luck_5.sort_unstable_by(|(_, v1), (_, v2)| v1.total_cmp(v2));
-
-    let count_percentiles: HashMap<_, _> = sorted_count
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let luck_4_percentiles: HashMap<_, _> = sorted_luck_4
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let luck_5_percentiles: HashMap<_, _> = sorted_luck_5
-        .into_iter()
-        .enumerate()
-        .map(|(i, (uid, _))| (uid, i))
-        .collect();
-
-    let mut stats = Vec::new();
-    let len = stat_uids.len() as f64;
-    for uid in &stat_uids {
-        let count_percentile = count_percentiles[uid] as f64 / len;
-        let luck_4_percentile = luck_4_percentiles[uid] as f64 / len;
-        let luck_5_percentile = luck_5_percentiles[uid] as f64 / len;
-
-        let stat = DbWarpsStatGlobal {
-            uid: *uid,
-            count_percentile,
-            luck_4_percentile,
-            luck_5_percentile,
-        };
-
-        stats.push(stat);
+    let stats = calculate_stats(&kind.to_string(), warp_stats);
+    let total_batches = stats.len().div_ceil(UPDATE_BATCH_SIZE);
+    for (i, batch) in stats.chunks(UPDATE_BATCH_SIZE).enumerate() {
+        info!(
+            "processing batch {} of {} for banner {}",
+            i + 1,
+            total_batches,
+            kind.to_string()
+        );
+        database::warps_stats_global::set_bulk_by_pool(kind, batch, pool).await?;
     }
 
-    stats
+    info!(
+        "{kind} warps stats updated: {} in {}s",
+        stats.len(),
+        start.elapsed().as_secs_f64()
+    );
+    Ok(())
 }

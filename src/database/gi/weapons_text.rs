@@ -3,6 +3,7 @@ use sqlx::PgPool;
 
 use crate::Language;
 
+/// Upserts parallel localized ID, language and name arrays in one database statement.
 pub async fn set_all(
     id: &[i32],
     language: &[Language],
@@ -18,11 +19,12 @@ pub async fn set_all(
     Ok(())
 }
 
-pub async fn get_id_by_name(name: &str, pool: &PgPool) -> Result<i32> {
-    Ok(
-        sqlx::query_file!("sql/gi/weapons_text/get_id_by_name.sql", name)
-            .fetch_one(pool)
-            .await?
-            .id,
-    )
+/// Loads names across all languages into a job snapshot; duplicate names retain the lowest ID.
+pub async fn get_name_ids(pool: &PgPool) -> Result<std::collections::HashMap<String, i32>> {
+    Ok(sqlx::query_file!("sql/gi/weapons_text/get_name_ids.sql")
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|row| (row.name, row.id))
+        .collect())
 }

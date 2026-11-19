@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE achievements SET version = $2, difficulty = $3, comment = $4, reference = $5, video = $6, gacha = $7, impossible = $8, timegated = $9, missable = $10 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Bool",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "11a66cb75bbd363c8aac779e5846f8f14947d6313394e0cee5e4e1966bd36070"
+}

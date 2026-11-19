@@ -24,10 +24,12 @@ lazy_static::lazy_static! {
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     let data = CACHE
         .lock()
@@ -54,6 +56,9 @@ pub struct RequestToken {
     )
 )]
 #[post("/api/users/auth/request-token")]
+/// Emails five-minute emergency tokens to users matching the trimmed email exactly.
+/// Returns 400 when no user matches and skips users with an outstanding token; SMTP,
+/// address parsing and database failures propagate without creating that token.
 async fn request_token(
     request_token: web::Json<RequestToken>,
     tokens: web::Data<Mutex<HashMap<Uuid, String>>>,

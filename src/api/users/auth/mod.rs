@@ -11,6 +11,7 @@ use utoipa::OpenApi;
 #[openapi()]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(login::openapi());
@@ -21,6 +22,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.configure(login::configure)
         .configure(logout::configure)

@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Return the OpenAPI description for these routes, including registered child routes.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(id::openapi());
     openapi
 }
 
+/// Register this module's HTTP routes and child route configuration.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_zzz_user_achievements_completed)
         .service(put_zzz_user_achievements_completed)
@@ -37,6 +39,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/zzz/achievements/completed")]
+/// Return the signed-in user's stored list IDs; missing authentication yields a bad request.
 async fn get_zzz_user_achievements_completed(
     session: Session,
     pool: web::Data<PgPool>,
@@ -66,6 +69,7 @@ async fn get_zzz_user_achievements_completed(
     )
 )]
 #[put("/api/users/me/zzz/achievements/completed")]
+/// Add the signed-in user's requested IDs transactionally using the game's alternate-set rules.
 async fn put_zzz_user_achievements_completed(
     session: Session,
     ids: web::Json<Vec<i32>>,
@@ -75,14 +79,7 @@ async fn put_zzz_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::zzz::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        database::zzz::users_achievements_completed::add(&complete, &pool).await?;
-    }
+    database::zzz::users_achievements_completed::add_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -98,6 +95,7 @@ async fn put_zzz_user_achievements_completed(
     )
 )]
 #[delete("/api/users/me/zzz/achievements/completed")]
+/// Remove the requested IDs from the signed-in user's list; absent entries are harmless.
 async fn delete_zzz_user_achievements_completed(
     session: Session,
     ids: web::Json<Vec<i32>>,
@@ -107,14 +105,7 @@ async fn delete_zzz_user_achievements_completed(
         return Ok(HttpResponse::BadRequest().finish());
     };
 
-    let mut complete =
-        database::zzz::users_achievements_completed::DbUserAchievementCompleted { username, id: 0 };
-
-    for id in ids.0 {
-        complete.id = id;
-
-        database::zzz::users_achievements_completed::delete(&complete, &pool).await?;
-    }
+    database::zzz::users_achievements_completed::delete_all(&username, &ids, &pool).await?;
 
     Ok(HttpResponse::Ok().finish())
 }

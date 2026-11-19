@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gi_wishes_beginner (id, uid, character, weapon, timestamp, official)\nSELECT\n    *\nFROM\n    UNNEST($1::bigint[], $2::integer[], $3::integer[], $4::integer[], $5::timestamp[], $6::boolean[])\nON CONFLICT (uid, id) DO UPDATE SET\n    character = EXCLUDED.character,\n    weapon = EXCLUDED.weapon,\n    timestamp = EXCLUDED.timestamp,\n    official = TRUE\nWHERE EXCLUDED.official AND NOT gi_wishes_beginner.official;\n\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "Int4Array",
+        "Int4Array",
+        "TimestampArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3f0cf18858f9cd7c2a7e7f4b72b0c14e4bfc73ba87244923bbb73b7e3d0b2b37"
+}

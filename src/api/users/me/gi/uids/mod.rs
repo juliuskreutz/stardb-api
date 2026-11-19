@@ -1,6 +1,6 @@
 mod uid;
 
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{get, web, HttpResponse, Responder};
 use sqlx::PgPool;
 use utoipa::OpenApi;
@@ -14,12 +14,14 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut openapi = ApiDoc::openapi();
     openapi.merge(uid::openapi());
     openapi
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_user_gi_uids).configure(uid::configure);
 }
@@ -34,11 +36,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     )
 )]
 #[get("/api/users/me/gi/uids")]
-async fn get_user_gi_uids(session: Session, pool: web::Data<PgPool>) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
+/// Lists GI UID connections for the authenticated username.
+async fn get_user_gi_uids(
+    SessionUser(username): SessionUser,
+    pool: web::Data<PgPool>,
+) -> ApiResult<impl Responder> {
     let uids: Vec<_> = database::gi::connections::get_by_username(&username, &pool)
         .await?
         .iter()

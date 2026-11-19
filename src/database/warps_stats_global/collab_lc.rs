@@ -1,8 +1,12 @@
+//! HSR population-percentile persistence and pool-specific routing. This module targets the collab lc pool.
+
 use anyhow::Result;
 use sqlx::PgPool;
 
 use crate::database::warps_stats_global::DbWarpsStatGlobal;
 
+/// Upserts the supplied percentile rows in one pool; an empty slice is a no-op.
+/// Only listed UIDs are changed, and database failures propagate.
 pub async fn set_bulk(stats: &[DbWarpsStatGlobal], pool: &PgPool) -> Result<()> {
     if stats.is_empty() {
         return Ok(());
@@ -26,6 +30,7 @@ pub async fn set_bulk(stats: &[DbWarpsStatGlobal], pool: &PgPool) -> Result<()> 
     Ok(())
 }
 
+/// Returns this UID’s stored percentile row, or None when it has not been ranked.
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbWarpsStatGlobal>> {
     Ok(sqlx::query_file_as!(
         DbWarpsStatGlobal,

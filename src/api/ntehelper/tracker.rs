@@ -1,3 +1,7 @@
+//! NTE tracker routes, ownership checks, and validation of exported pull history.
+//! Mutating routes enforce origin and session checks before accepting client records;
+//! public page annotations never grant mutation authority.
+
 use actix_session::Session;
 use actix_web::{
     delete, get, http::StatusCode, post, put, web, HttpRequest, HttpResponse, Responder,
@@ -49,10 +53,12 @@ const TRACKER_NICKNAME_MAX_CHARS: usize = 24;
 )]
 struct ApiDoc;
 
+/// Returns the tracker route and payload definitions for the combined OpenAPI document.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers tracker claim, public profile, and pull-import routes.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(get_tracker_uids_me)
         .service(post_tracker_uid_claim)
@@ -188,6 +194,7 @@ struct RawTrackerRecord {
     )
 )]
 #[get("/api/ntehelper/tracker/uids/me")]
+/// Lists the authenticated user's attached tracker UIDs and the self-claim cap.
 async fn get_tracker_uids_me(
     request: HttpRequest,
     session: Session,
@@ -223,6 +230,7 @@ async fn get_tracker_uids_me(
     )
 )]
 #[post("/api/ntehelper/tracker/uids/claim")]
+/// Claims a validated UID for the current user, mapping ownership/cap errors to HTTP responses.
 async fn post_tracker_uid_claim(
     request: HttpRequest,
     session: Session,
@@ -247,11 +255,11 @@ async fn post_tracker_uid_claim(
         TRACKER_MAX_SELF_CLAIMS,
         &pool,
     )
-            .await?
-        {
-            Ok(claim) => claim,
-            Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
-        };
+    .await?
+    {
+        Ok(claim) => claim,
+        Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
+    };
 
     Ok(HttpResponse::Ok().json(TrackerUidClaimResponse::from(claim)))
 }
@@ -269,6 +277,7 @@ async fn post_tracker_uid_claim(
     )
 )]
 #[put("/api/ntehelper/tracker/uids/{uid}")]
+/// Updates validated nickname/region fields after origin and session checks.
 async fn put_tracker_uid_claim(
     request: HttpRequest,
     session: Session,
@@ -306,17 +315,13 @@ async fn put_tracker_uid_claim(
 
     let user_id = database::ntehelper_tracker::get_tracker_user_id(&username, &pool).await?;
     let claim = match database::ntehelper_tracker::update_tracker_claim(
-        user_id,
-        uid,
-        nickname,
-        region,
-        &pool,
+        user_id, uid, nickname, region, &pool,
     )
-            .await?
-        {
-            Ok(claim) => claim,
-            Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
-        };
+    .await?
+    {
+        Ok(claim) => claim,
+        Err(error) => return Ok(HttpResponse::Conflict().body(error.to_string())),
+    };
 
     Ok(HttpResponse::Ok().json(TrackerUidClaimResponse::from(claim)))
 }
@@ -333,6 +338,7 @@ async fn put_tracker_uid_claim(
     )
 )]
 #[delete("/api/ntehelper/tracker/uids/{uid}")]
+/// Deletes the authenticated owner's claim and profile, reporting the removed pull count.
 async fn delete_tracker_uid_claim(
     request: HttpRequest,
     session: Session,
@@ -352,9 +358,9 @@ async fn delete_tracker_uid_claim(
 
     let user_id = database::ntehelper_tracker::get_tracker_user_id(&username, &pool).await?;
     match database::ntehelper_tracker::delete_tracker_uid_profile(user_id, uid, &pool).await? {
-        Ok(deleted_pulls) => Ok(HttpResponse::Ok().json(TrackerUidDeleteResponse {
-            deleted_pulls,
-        })),
+        Ok(deleted_pulls) => {
+            Ok(HttpResponse::Ok().json(TrackerUidDeleteResponse { deleted_pulls }))
+        }
         Err(error) => Ok(HttpResponse::Conflict().body(error.to_string())),
     }
 }
@@ -366,6 +372,7 @@ async fn delete_tracker_uid_claim(
     responses((status = 200, description = "Public tracker UID page data", body = TrackerUidPageResponse))
 )]
 #[get("/api/ntehelper/tracker/{uid}")]
+/// Returns a public tracker profile with optional viewer-specific management annotations.
 async fn get_tracker_uid(
     session: Session,
     uid: web::Path<String>,
@@ -400,6 +407,10 @@ async fn get_tracker_uid(
     )
 )]
 #[post("/api/ntehelper/tracker/{uid}/import")]
+/// Authorizes ownership before reading, validating, and atomically merging exported pulls.
+///
+/// The response distinguishes inserted rows, changed duplicates, and unchanged records;
+/// body, record-count, and stored-history limits produce HTTP 413.
 async fn post_tracker_import(
     request: HttpRequest,
     session: Session,
@@ -434,14 +445,13 @@ async fn post_tracker_import(
         Err(error) => return Ok(error.response()),
     };
 
-    let Some(result) =
-        database::ntehelper_tracker::import_tracker_pulls(
-            uid,
-            &pulls,
-            TRACKER_MAX_STORED_RECORDS,
-            &pool,
-        )
-            .await?
+    let Some(result) = database::ntehelper_tracker::import_tracker_pulls(
+        uid,
+        &pulls,
+        TRACKER_MAX_STORED_RECORDS,
+        &pool,
+    )
+    .await?
     else {
         return Ok(HttpResponse::PayloadTooLarge().body("Tracker UID pull limit reached"));
     };
@@ -474,6 +484,7 @@ async fn post_tracker_import(
     )
 )]
 #[delete("/api/ntehelper/tracker/{uid}/pulls")]
+/// Clears an owner's pull history while retaining the UID claim.
 async fn delete_tracker_pulls(
     request: HttpRequest,
     session: Session,
@@ -509,6 +520,9 @@ enum OwnerClaim {
     Forbidden,
 }
 
+/// Classifies a claim for mutation authorization.
+///
+/// Detached claims are treated as missing; another user's attached claim is forbidden.
 async fn owner_claim(uid: i64, user_id: i64, pool: &PgPool) -> ApiResult<OwnerClaim> {
     let Some(claim) = database::ntehelper_tracker::get_tracker_claim(uid, pool).await? else {
         return Ok(OwnerClaim::Missing);
@@ -523,6 +537,10 @@ async fn owner_claim(uid: i64, user_id: i64, pool: &PgPool) -> ApiResult<OwnerCl
     })
 }
 
+/// Builds the public page only when the claim has stored history.
+///
+/// Missing or empty profiles return no claim or pulls. Management UI is enabled only
+/// for a present viewer ID matching a present owner ID.
 async fn tracker_response(
     uid: i64,
     viewer_user_id: Option<i64>,
@@ -542,7 +560,7 @@ async fn tracker_response(
             viewer_can_manage: false,
         });
     }
-    let viewer_can_manage = viewer_user_id == claim.owner_user_id;
+    let viewer_can_manage = viewer_owns_claim(viewer_user_id, claim.owner_user_id);
     let pulls = database::ntehelper_tracker::tracker_pulls_for_uid(uid, pool)
         .await?
         .into_iter()
@@ -556,10 +574,12 @@ async fn tracker_response(
     })
 }
 
+/// Treats missing or malformed session usernames as unauthenticated.
 fn current_username(session: &Session) -> Option<String> {
     session.get::<String>("username").ok().flatten()
 }
 
+/// Trims and parses only decimal UIDs with the configured NTE length and prefix.
 fn validate_tracker_uid(value: &str) -> Option<i64> {
     let trimmed = value.trim();
     if trimmed.len() != TRACKER_UID_LEN
@@ -572,6 +592,7 @@ fn validate_tracker_uid(value: &str) -> Option<i64> {
     trimmed.parse::<i64>().ok()
 }
 
+/// Returns a trimmed, supported region label; matching is case-sensitive.
 fn validate_tracker_region(value: &str) -> Option<&str> {
     match value.trim() {
         "asia" | "europe" | "america" | "china" => Some(value.trim()),
@@ -579,6 +600,7 @@ fn validate_tracker_region(value: &str) -> Option<&str> {
     }
 }
 
+/// Trims a nickname, enforcing the character cap and rejecting control characters.
 fn validate_tracker_nickname(value: &str) -> Option<&str> {
     let trimmed = value.trim();
     if trimmed.chars().count() > TRACKER_NICKNAME_MAX_CHARS {
@@ -591,6 +613,9 @@ fn validate_tracker_nickname(value: &str) -> Option<&str> {
     Some(trimmed)
 }
 
+/// Bounds streamed bytes before decoding JSON.
+///
+/// Malformed chunks/JSON return HTTP 400; crossing the byte cap returns HTTP 413.
 async fn read_import_body(mut payload: web::Payload) -> Result<TrackerImportRequest, HttpResponse> {
     let mut bytes = web::BytesMut::new();
 
@@ -606,6 +631,11 @@ async fn read_import_body(mut payload: web::Payload) -> Result<TrackerImportRequ
         .map_err(|_| HttpResponse::BadRequest().body("Invalid tracker import JSON"))
 }
 
+/// Validates export versions, UID/pool consistency, field shapes, and input limits.
+///
+/// Returns unique record IDs plus the original received count. Later duplicates replace
+/// earlier records; the resulting vector has no guaranteed order because persistence
+/// uses record IDs and explicit timestamps.
 fn normalize_tracker_exports(
     uid: i64,
     body: TrackerImportRequest,
@@ -701,6 +731,7 @@ fn normalize_tracker_exports(
     Ok((records_by_uid.into_values().collect(), received))
 }
 
+/// Maps recognized external pool-group IDs to API labels; unknown pools return `None`.
 fn banner_type_for_pool(pool_group_id: &str) -> Option<&'static str> {
     match pool_group_id {
         "Lottery_LimitedCharacter" => Some("limited-character"),
@@ -710,6 +741,7 @@ fn banner_type_for_pool(pool_group_id: &str) -> Option<&'static str> {
     }
 }
 
+/// Accepts nonempty bounded ASCII identifiers containing letters, digits, underscores, or hyphens.
 fn safe_identifier(
     value: &str,
     max_chars: usize,
@@ -728,6 +760,10 @@ fn safe_identifier(
     Ok(trimmed.to_string())
 }
 
+/// Accepts bounded import tokens, additionally permitting periods and colons.
+///
+/// Despite the name, this is not a free-text validator; whitespace/control characters
+/// and other punctuation are rejected after trimming.
 fn safe_text(
     value: &str,
     max_chars: usize,
@@ -746,6 +782,9 @@ fn safe_text(
     Ok(trimmed.to_string())
 }
 
+/// Checks the fixed `YYYY-MM-DD HH:MM:SS` shape without calendar validation.
+///
+/// Raw timestamps are retained as text; this does not parse a timezone or date.
 fn valid_timestamp(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 19
@@ -769,6 +808,7 @@ struct TrackerImportError {
 }
 
 impl TrackerImportError {
+    /// Creates a validation failure that becomes HTTP 400.
     fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
@@ -776,6 +816,7 @@ impl TrackerImportError {
         }
     }
 
+    /// Creates a configured-limit failure that becomes HTTP 413.
     fn too_large(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::PAYLOAD_TOO_LARGE,
@@ -783,6 +824,7 @@ impl TrackerImportError {
         }
     }
 
+    /// Converts the validation error into its status and plain-text message.
     fn response(self) -> HttpResponse {
         HttpResponse::build(self.status).body(self.message)
     }
@@ -947,7 +989,10 @@ mod tests {
         };
 
         assert_eq!(error.status, StatusCode::BAD_REQUEST);
-        assert_eq!(error.message, "Import UID does not match target tracker UID");
+        assert_eq!(
+            error.message,
+            "Import UID does not match target tracker UID"
+        );
     }
 
     #[test]
@@ -958,6 +1003,27 @@ mod tests {
         ));
 
         assert!(migration.contains("CREATE INDEX ntehelper_tracker_uid_claim_self_owner_idx"));
-        assert!(!migration.contains("CREATE UNIQUE INDEX ntehelper_tracker_uid_claim_self_owner_idx"));
+        assert!(
+            !migration.contains("CREATE UNIQUE INDEX ntehelper_tracker_uid_claim_self_owner_idx")
+        );
+    }
+}
+
+/// Detached claims have no owner; anonymous viewers must not be offered management UI.
+fn viewer_owns_claim(viewer: Option<i64>, owner: Option<i64>) -> bool {
+    viewer.is_some_and(|viewer| owner == Some(viewer))
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::viewer_owns_claim;
+
+    #[test]
+    fn detached_claims_are_never_manageable() {
+        assert!(!viewer_owns_claim(None, None));
+        assert!(!viewer_owns_claim(Some(1), None));
+        assert!(!viewer_owns_claim(None, Some(1)));
+        assert!(!viewer_owns_claim(Some(2), Some(1)));
+        assert!(viewer_owns_claim(Some(1), Some(1)));
     }
 }

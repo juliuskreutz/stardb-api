@@ -1,7 +1,7 @@
-use actix_session::Session;
+use crate::api::users::SessionUser;
 use actix_web::{put, web, HttpResponse, Responder};
 use argon2::Config;
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{OpenApi, ToSchema};
@@ -18,10 +18,12 @@ use crate::{api::ApiResult, database};
 )]
 struct ApiDoc;
 
+/// Returns this module's OpenAPI definition.
 pub fn openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
+/// Registers this module's routes and any shared application data.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(put_password);
 }
@@ -41,15 +43,12 @@ pub struct PasswordUpdate {
     )
 )]
 #[put("/api/users/me/password")]
+/// Replaces the authenticated user's password with a newly salted Argon2 hash.
 async fn put_password(
-    session: Session,
+    SessionUser(username): SessionUser,
     password_update: web::Json<PasswordUpdate>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
-    let Ok(Some(username)) = session.get::<String>("username") else {
-        return Ok(HttpResponse::BadRequest().finish());
-    };
-
     let salt = rand::rng().random::<[u8; 32]>();
 
     let password = argon2::hash_encoded(
