@@ -5,7 +5,10 @@ on: workflow_dispatch
 jobs:
   deploy:
     name: Deploy
-    runs-on: ubuntu-latest
+    # The production VM is a "QEMU Virtual CPU version 2.5+" without AVX.
+    # ubuntu-26.04 runners produced C code with AVX instructions, so pin the
+    # image that built every working release.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Source Code
@@ -23,14 +26,40 @@ jobs:
           version: 1.0
 
       - uses: Swatinem/rust-cache@v2.9.2
+        with:
+          # The default key ignores the runner image; never reuse C objects
+          # compiled for a different CPU baseline.
+          key: ubuntu-24.04-x86-64-baseline
 
       - name: Build
         run: cargo build --locked --release --target x86_64-unknown-linux-musl
         env:
           SQLX_OFFLINE: true
+          # Keep bundled C code (aws-lc, ring, libwebp) on the generic x86-64
+          # baseline regardless of the runner's compiler defaults.
+          CFLAGS_x86_64_unknown_linux_musl: -march=x86-64 -mtune=generic
 
       - name: Prepare
         run: mv target/x86_64-unknown-linux-musl/release/stardb-api .
+
+      - name: Check Binary Starts On The Server CPU
+        # Emulate the server's qemu64 CPU and require the binary to get past
+        # startup (it then fails on the unreachable database). An illegal
+        # instruction stops the deploy before the server is touched.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends qemu-user
+          set +e
+          output=$(API_KEY=ci DATABASE_URL=postgres://ci@127.0.0.1:1/ci \
+            timeout 120 qemu-x86_64 -cpu qemu64 ./stardb-api 2>&1)
+          status=$?
+          set -e
+          echo "$output" | tail -20
+          echo "exit status: $status"
+          if [ "$status" -ge 124 ] || ! grep -q "Starting api!" <<< "$output"; then
+            echo "::error::stardb-api did not start on a qemu64 CPU (status $status); not deploying"
+            exit 1
+          fi
 
       - name: Delete Old File
         uses: appleboy/ssh-action@v1.2.5
