@@ -262,6 +262,8 @@ async fn get_export(
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
+    // Private UIDs follow the tracker rule: only verified owners and admins may export them.
+    let admin = database::admins::exists(&username, &pool).await?;
 
     let hsr = {
         let achievements =
@@ -274,6 +276,15 @@ async fn get_export(
         let mut uids = Vec::new();
 
         for connection in database::connections::get_by_username(&username, &pool).await? {
+            if !connection.verified
+                && !admin
+                && database::connections::get_by_uid(connection.uid, &pool)
+                    .await?
+                    .iter()
+                    .any(|c| c.private)
+            {
+                continue;
+            }
             let uid = connection.uid;
             let verified = connection.verified;
             let private = connection.private;
@@ -343,6 +354,15 @@ async fn get_export(
         let mut uids = Vec::new();
 
         for connection in database::zzz::connections::get_by_username(&username, &pool).await? {
+            if !connection.verified
+                && !admin
+                && database::zzz::connections::get_by_uid(connection.uid, &pool)
+                    .await?
+                    .iter()
+                    .any(|c| c.private)
+            {
+                continue;
+            }
             let uid = connection.uid;
             let verified = connection.verified;
             let private = connection.private;
@@ -418,6 +438,15 @@ async fn get_export(
         let mut uids = Vec::new();
 
         for connection in database::gi::connections::get_by_username(&username, &pool).await? {
+            if !connection.verified
+                && !admin
+                && database::gi::connections::get_by_uid(connection.uid, &pool)
+                    .await?
+                    .iter()
+                    .any(|c| c.private)
+            {
+                continue;
+            }
             let uid = connection.uid;
             let verified = connection.verified;
             let private = connection.private;

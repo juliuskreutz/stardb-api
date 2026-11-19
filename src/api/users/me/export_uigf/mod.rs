@@ -229,10 +229,21 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
     let Ok(Some(username)) = session.get::<String>("username") else {
         return Ok(HttpResponse::BadRequest().finish());
     };
+    // Private UIDs follow the tracker rule: only verified owners and admins may export them.
+    let admin = database::admins::exists(&username, &pool).await?;
 
     // HSR (hkrpg)
     let mut hkrpg = Vec::new();
     for connection in database::connections::get_by_username(&username, &pool).await? {
+        if !connection.verified
+            && !admin
+            && database::connections::get_by_uid(connection.uid, &pool)
+                .await?
+                .iter()
+                .any(|c| c.private)
+        {
+            continue;
+        }
         let uid = connection.uid;
         let offset = get_timezone_offset(uid, "hsr");
 
@@ -260,6 +271,15 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
     // ZZZ (nap)
     let mut nap = Vec::new();
     for connection in database::zzz::connections::get_by_username(&username, &pool).await? {
+        if !connection.verified
+            && !admin
+            && database::zzz::connections::get_by_uid(connection.uid, &pool)
+                .await?
+                .iter()
+                .any(|c| c.private)
+        {
+            continue;
+        }
         let uid = connection.uid;
         let offset = get_timezone_offset(uid, "zzz");
 
@@ -289,6 +309,15 @@ async fn get_export_uigf(session: Session, pool: web::Data<PgPool>) -> ApiResult
     // GI (hk4e)
     let mut hk4e = Vec::new();
     for connection in database::gi::connections::get_by_username(&username, &pool).await? {
+        if !connection.verified
+            && !admin
+            && database::gi::connections::get_by_uid(connection.uid, &pool)
+                .await?
+                .iter()
+                .any(|c| c.private)
+        {
+            continue;
+        }
         let uid = connection.uid;
         let offset = get_timezone_offset(uid, "gi");
 
