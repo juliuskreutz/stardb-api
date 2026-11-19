@@ -69,6 +69,10 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web", "reqwest"] }
 uuid = { version = "1.26.0", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 webp = { version = "0.3.1", default-features = false }
+# Not used directly. sqlx-postgres 0.9 depends on whoami without `std`, which
+# compiles a stub that reports the OS user as "anonymous"; production connects
+# over a Unix socket with peer authentication and needs the real user.
+whoami = { version = "2.1.3", default-features = false, features = ["std"] }
 
 # Keep useful backtraces while reducing local compile/link time and artifact size.
 [profile.dev]
