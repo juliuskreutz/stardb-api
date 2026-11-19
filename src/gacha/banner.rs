@@ -298,6 +298,14 @@ const HSR_STANDARD_CHARACTERS: &[i32] = &[
     1104, // Gepard
     1107, // Clara
     1003, // Himeko
+    // Former limited characters stay featured (wins) on their own banners and
+    // become off-banner results (losses) once they join the permanent pool.
+    1102, // Seele (3.2, April 2025)
+    1205, // Blade (3.2, April 2025)
+    1208, // Fu Xuan (3.2, April 2025)
+    1006, // Silver Wolf (4.2, April 2026; not Silver Wolf LV.999)
+    1221, // Yunli (4.2, April 2026)
+    1302, // Argenti (4.2, April 2026)
 ];
 const HSR_STANDARD_LIGHT_CONES: &[i32] = &[
     23000, // Night on the Milky Way
@@ -328,6 +336,7 @@ const GI_STANDARD_WEAPONS: &[i32] = &[
     12501, // Skyward Pride
     13502, // Skyward Spine
     12502, // Wolf's Gravestone
+    11502, // Skyward Blade
 ];
 const ZZZ_STANDARD_CHARACTERS: &[i32] = &[
     1021, // Nekomata
