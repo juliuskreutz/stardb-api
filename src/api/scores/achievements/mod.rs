@@ -66,6 +66,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .configure(uid::configure);
 }
 
+/// Rows returned when the caller gives no limit.
+const DEFAULT_LIMIT: i64 = 50;
+/// Upper bound per request; without it one call could serialize the whole leaderboard.
+const MAX_LIMIT: i64 = 1_000;
+
+/// Clamp the requested page size to 1..=MAX_LIMIT, defaulting to DEFAULT_LIMIT.
+fn page_limit(limit: Option<i64>) -> i64 {
+    limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
+}
+
 #[utoipa::path(
     tag = "scores/achievements",
     get,
@@ -86,8 +96,8 @@ async fn get_scores_achievements(
     let db_scores = database::achievement_scores::get(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
-        scores_params.limit,
-        scores_params.offset,
+        Some(page_limit(scores_params.limit)),
+        Some(scores_params.offset.unwrap_or(0).max(0)),
         &pool,
     )
     .await?;
@@ -95,4 +105,16 @@ async fn get_scores_achievements(
     let scores: Vec<_> = db_scores.into_iter().map(ScoreAchievement::from).collect();
 
     Ok(HttpResponse::Ok().json(scores))
+}
+
+#[cfg(test)]
+mod page_limit_tests {
+    #[test]
+    fn limits_default_and_clamp() {
+        assert_eq!(super::page_limit(None), 50);
+        assert_eq!(super::page_limit(Some(20)), 20);
+        assert_eq!(super::page_limit(Some(0)), 1);
+        assert_eq!(super::page_limit(Some(-5)), 1);
+        assert_eq!(super::page_limit(Some(1_000_000)), 1_000);
+    }
 }

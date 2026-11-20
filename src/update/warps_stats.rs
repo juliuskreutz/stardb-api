@@ -26,7 +26,7 @@ pub async fn spawn(pool: PgPool) {
 /// Refreshes supported pools sequentially, stopping at the first failure.
 /// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: PgPool) -> Result<()> {
-    let _rebuild = super::GLOBAL_STATS_LOCK.lock().await;
+    let _rebuild = super::HEAVY_REFRESH_LOCK.lock().await;
     standard(&pool).await?;
     special(&pool).await?;
     lc(&pool).await?;

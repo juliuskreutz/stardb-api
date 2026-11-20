@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM achievement_ranks r\n        WHERE NOT EXISTS (\n            SELECT 1 FROM scores_achievement s JOIN mihomo m ON m.uid = s.uid WHERE s.uid = r.uid\n        )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a34b0898ccb8d6b3e59ed41b4035f01aa87795c20504e3a1bcd192c895186311"
+}

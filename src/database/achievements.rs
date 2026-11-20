@@ -28,12 +28,20 @@ pub struct DbAchievement {
 }
 
 /// Add every possible achievement without an alternate set to the user's completed list.
+/// Goes through the shared list writer so completion totals stay current.
 pub async fn select_all(username: &str, pool: &PgPool) -> Result<()> {
-    sqlx::query_file!("sql/achievements/select_all.sql", username)
-        .execute(pool)
-        .await?;
-
-    Ok(())
+    let ids: Vec<i32> =
+        sqlx::query_scalar("SELECT id FROM achievements WHERE set IS NULL AND NOT impossible")
+            .fetch_all(pool)
+            .await?;
+    super::achievement_lists::add_all(
+        super::achievement_lists::Game::Hsr,
+        super::achievement_lists::List::Completed,
+        username,
+        &ids,
+        pool,
+    )
+    .await
 }
 
 /// Upsert catalog rows from aligned parallel slices; each index must describe the same record.

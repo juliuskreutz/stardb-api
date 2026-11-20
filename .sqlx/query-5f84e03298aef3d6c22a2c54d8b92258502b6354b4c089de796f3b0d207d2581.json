@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    COALESCE(percent, 0) percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $2\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $2\nWHERE\n    gi_achievements.id = $1;\n\n",
+  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements.arcade,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(zzz_achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), zzz_achievements_percent.percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    CROSS JOIN (\n        SELECT COUNT(*) AS players\n        FROM achievement_completion_state state\n        JOIN zzz_achievement_completion_totals totals ON totals.completed >= state.minimum_completions\n        WHERE state.game = 'zzz'\n    ) qualifying\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $1\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $1\n    ORDER BY\n        arcade,\n        series,\n        zzz_achievements.priority DESC,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "id"
           }
         }
@@ -20,19 +20,19 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "series"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "primogems",
+        "name": "polychromes",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
-            "name": "primogems"
+            "table": "zzz_achievements",
+            "name": "polychromes"
           }
         }
       },
@@ -42,7 +42,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "hidden"
           }
         }
@@ -53,7 +53,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "version"
           }
         }
@@ -64,7 +64,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "comment"
           }
         }
@@ -75,7 +75,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "reference"
           }
         }
@@ -86,7 +86,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "difficulty"
           }
         }
@@ -97,7 +97,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "video"
           }
         }
@@ -108,7 +108,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "gacha"
           }
         }
@@ -119,7 +119,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "timegated"
           }
         }
@@ -130,7 +130,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "missable"
           }
         }
@@ -141,7 +141,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "impossible"
           }
         }
@@ -152,46 +152,57 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "zzz_achievements",
             "name": "set"
           }
         }
       },
       {
         "ordinal": 14,
-        "name": "name",
-        "type_info": "Text",
+        "name": "arcade",
+        "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements_text",
-            "name": "name"
+            "table": "zzz_achievements",
+            "name": "arcade"
           }
         }
       },
       {
         "ordinal": 15,
-        "name": "description",
+        "name": "name",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements_text",
-            "name": "description"
+            "table": "zzz_achievements_text",
+            "name": "name"
           }
         }
       },
       {
         "ordinal": 16,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements_text",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
         "name": "percent",
         "type_info": "Float8",
         "origin": "Expression"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "series_name",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievement_series_text",
+            "table": "zzz_achievement_series_text",
             "name": "name"
           }
         }
@@ -199,7 +210,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -220,9 +230,10 @@
       true,
       false,
       false,
+      false,
       null,
       false
     ]
   },
-  "hash": "a609082b968bdc1c4a243f5d025ad4b816dcf655fd4cd675312c5491a2f58df2"
+  "hash": "5f84e03298aef3d6c22a2c54d8b92258502b6354b4c089de796f3b0d207d2581"
 }

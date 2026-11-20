@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    COALESCE(percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $2\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $2\nWHERE\n    achievements.id = $1;\n\n",
+  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements.arcade,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(zzz_achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), zzz_achievements_percent.percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    CROSS JOIN (\n        SELECT COUNT(*) AS players\n        FROM achievement_completion_state state\n        JOIN zzz_achievement_completion_totals totals ON totals.completed >= state.minimum_completions\n        WHERE state.game = 'zzz'\n    ) qualifying\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "id"
           }
         }
@@ -20,19 +20,19 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "series"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "jades",
+        "name": "polychromes",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "achievements",
-            "name": "jades"
+            "table": "zzz_achievements",
+            "name": "polychromes"
           }
         }
       },
@@ -42,7 +42,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "hidden"
           }
         }
@@ -53,7 +53,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "version"
           }
         }
@@ -64,7 +64,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "comment"
           }
         }
@@ -75,7 +75,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "reference"
           }
         }
@@ -86,7 +86,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "difficulty"
           }
         }
@@ -97,7 +97,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "video"
           }
         }
@@ -108,7 +108,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "gacha"
           }
         }
@@ -119,7 +119,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "timegated"
           }
         }
@@ -130,7 +130,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "missable"
           }
         }
@@ -141,7 +141,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "impossible"
           }
         }
@@ -152,46 +152,57 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "achievements",
+            "table": "zzz_achievements",
             "name": "set"
           }
         }
       },
       {
         "ordinal": 14,
-        "name": "name",
-        "type_info": "Text",
+        "name": "arcade",
+        "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "achievements_text",
-            "name": "name"
+            "table": "zzz_achievements",
+            "name": "arcade"
           }
         }
       },
       {
         "ordinal": 15,
-        "name": "description",
+        "name": "name",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievements_text",
-            "name": "description"
+            "table": "zzz_achievements_text",
+            "name": "name"
           }
         }
       },
       {
         "ordinal": 16,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "zzz_achievements_text",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
         "name": "percent",
         "type_info": "Float8",
         "origin": "Expression"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "series_name",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "achievement_series_text",
+            "table": "zzz_achievement_series_text",
             "name": "name"
           }
         }
@@ -220,9 +231,10 @@
       true,
       false,
       false,
+      false,
       null,
       false
     ]
   },
-  "hash": "d5f166341053f3c79a61682fcc7f75179e787818f7c48bc2bd0195a2169a22cc"
+  "hash": "82c0f535d27b8bf924632a3cd7fe897952256a8b305b60d1b8e7b0b68d67fad1"
 }

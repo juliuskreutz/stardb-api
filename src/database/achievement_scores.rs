@@ -45,7 +45,11 @@ pub async fn get_refresh_uids(limit: i64, offset: i64, pool: &PgPool) -> Result<
     .await?)
 }
 
-/// Rank the complete score population before applying region/name filters and pagination.
+/// Read one leaderboard page from the precomputed ranks, filtered by region and name.
+///
+/// Without a name query, pages follow global rank through an index. A name query keeps
+/// the closest names first, then rank. Ranks come from [`refresh_ranks`], so players
+/// scored since the last refresh appear on the next one.
 pub async fn get(
     region: Option<&str>,
     query: Option<&str>,
@@ -53,28 +57,48 @@ pub async fn get(
     offset: Option<i64>,
     pool: &PgPool,
 ) -> Result<Vec<DbScoreAchievement>> {
+    let Some(query) = query else {
+        return Ok(sqlx::query_as!(
+            DbScoreAchievement,
+            "
+            SELECT
+                r.global_rank, r.regional_rank, m.uid, m.region, m.name, m.level, m.signature, m.avatar_icon, m.achievement_count, m.updated_at
+            FROM
+                achievement_ranks r
+            JOIN
+                mihomo m ON m.uid = r.uid
+            WHERE
+                ($1::TEXT IS NULL OR r.region = $1)
+            ORDER BY
+                r.global_rank, r.uid
+            LIMIT
+                $2
+            OFFSET
+                $3
+            ",
+            region,
+            limit,
+            offset,
+        )
+        .fetch_all(pool)
+        .await?);
+    };
+
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "
         SELECT
-            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at
+            r.global_rank, r.regional_rank, m.uid, m.region, m.name, m.level, m.signature, m.avatar_icon, m.achievement_count, m.updated_at
         FROM
-            (
-                SELECT
-                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
-                    *
-                FROM
-                    scores_achievement
-                NATURAL JOIN
-                    mihomo
-            ) ranked
+            achievement_ranks r
+        JOIN
+            mihomo m ON m.uid = r.uid
         WHERE
-            ($1::TEXT IS NULL OR region = $1)
+            ($1::TEXT IS NULL OR r.region = $1)
         AND
-            ($2::TEXT IS NULL OR LOWER(name) LIKE '%' || LOWER($2) || '%')
+            LOWER(m.name) LIKE '%' || LOWER($2) || '%'
         ORDER BY
-            (CASE WHEN $2 IS NOT NULL THEN LEVENSHTEIN(name, $2) ELSE global_rank END)
+            LEVENSHTEIN(m.name, $2), r.global_rank, r.uid
         LIMIT
             $3
         OFFSET
@@ -87,6 +111,50 @@ pub async fn get(
     )
     .fetch_all(pool)
     .await?)
+}
+
+/// Recompute every player's global and regional rank and store the ones that changed.
+///
+/// Runs the ranking once for all page views instead of once per request; the caller owns
+/// the transaction. Returns how many rank rows were inserted, updated or removed.
+pub async fn refresh_ranks(connection: &mut sqlx::PgConnection) -> Result<u64> {
+    let upserted = sqlx::query!(
+        "
+        INSERT INTO achievement_ranks (uid, region, global_rank, regional_rank)
+        SELECT
+            uid,
+            region,
+            RANK() OVER (ORDER BY achievement_count DESC, timestamp),
+            RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp)
+        FROM
+            scores_achievement
+            NATURAL JOIN mihomo
+        ON CONFLICT (uid) DO UPDATE SET
+            region = EXCLUDED.region,
+            global_rank = EXCLUDED.global_rank,
+            regional_rank = EXCLUDED.regional_rank
+        WHERE
+            (achievement_ranks.region, achievement_ranks.global_rank, achievement_ranks.regional_rank)
+            IS DISTINCT FROM (EXCLUDED.region, EXCLUDED.global_rank, EXCLUDED.regional_rank)
+        "
+    )
+    .execute(&mut *connection)
+    .await?
+    .rows_affected();
+
+    let removed = sqlx::query!(
+        "
+        DELETE FROM achievement_ranks r
+        WHERE NOT EXISTS (
+            SELECT 1 FROM scores_achievement s JOIN mihomo m ON m.uid = s.uid WHERE s.uid = r.uid
+        )
+        "
+    )
+    .execute(&mut *connection)
+    .await?
+    .rows_affected();
+
+    Ok(upserted + removed)
 }
 
 /// Counts from one mihomo snapshot, including profiles without an achievement score.
@@ -141,26 +209,38 @@ pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> 
     .unwrap())
 }
 
-/// Read one UID with ranks calculated across the whole population; return None when absent.
+/// Read one UID with its current global and regional rank; return None when absent.
+///
+/// Ranks are counted live (one plus the players strictly ahead) rather than read from
+/// [`refresh_ranks`], so a player who was just added sees their rank immediately. Ties on
+/// count and timestamp share a rank, matching RANK().
 pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "
+        WITH me AS (
+            SELECT s.timestamp, m.*
+            FROM scores_achievement s JOIN mihomo m ON m.uid = s.uid
+            WHERE s.uid = $1
+        )
         SELECT
-            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at
-        FROM
             (
-                SELECT
-                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,
-                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,
-                    *
-                FROM
-                    scores_achievement
-                NATURAL JOIN
-                    mihomo
-            ) ranked
-        WHERE
-            uid = $1
+                SELECT COUNT(*) + 1
+                FROM scores_achievement s JOIN mihomo m ON m.uid = s.uid
+                WHERE m.achievement_count > me.achievement_count
+                    OR (m.achievement_count = me.achievement_count AND s.timestamp < me.timestamp)
+            ) AS \"global_rank!\",
+            (
+                SELECT COUNT(*) + 1
+                FROM scores_achievement s JOIN mihomo m ON m.uid = s.uid
+                WHERE m.region = me.region
+                    AND (m.achievement_count > me.achievement_count
+                        OR (m.achievement_count = me.achievement_count AND s.timestamp < me.timestamp))
+            ) AS \"regional_rank!\",
+            me.uid AS \"uid!\", me.region AS \"region!\", me.name AS \"name!\", me.level AS \"level!\",
+            me.signature AS \"signature!\", me.avatar_icon AS \"avatar_icon!\",
+            me.achievement_count AS \"achievement_count!\", me.updated_at AS \"updated_at!\"
+        FROM me
         ",
         uid,
     )
@@ -212,6 +292,10 @@ mod refresh_tests {
         .execute(&pool)
         .await
         .unwrap();
+        // Leaderboard pages read the stored ranks, so refresh them as the job would.
+        let mut transaction = pool.begin().await.unwrap();
+        refresh_ranks(&mut transaction).await.unwrap();
+        transaction.commit().await.unwrap();
         for offset in [0, 100, 800, 900, 1100] {
             let old: Vec<_> = get(None, None, Some(100), Some(offset), &pool)
                 .await
@@ -282,5 +366,88 @@ mod count_tests {
                 .count_query,
             1000
         );
+    }
+}
+
+#[cfg(test)]
+mod rank_tests {
+    use super::*;
+
+    /// The ranking the leaderboard computed per request before ranks were stored.
+    const REFERENCE: &str =
+        "SELECT uid, RANK() OVER (ORDER BY achievement_count DESC, timestamp), \
+        RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) \
+        FROM scores_achievement NATURAL JOIN mihomo ORDER BY uid";
+
+    async fn refresh(pool: &PgPool) {
+        let mut transaction = pool.begin().await.unwrap();
+        refresh_ranks(&mut transaction).await.unwrap();
+        transaction.commit().await.unwrap();
+    }
+
+    /// Stored page ranks and live single-player ranks must both equal the reference.
+    async fn assert_ranks_match(step: &str, pool: &PgPool) {
+        let reference = sqlx::query_as::<_, (i32, i64, i64)>(REFERENCE)
+            .fetch_all(pool)
+            .await
+            .unwrap();
+        let mut page: Vec<(i32, i64, i64)> = get(None, None, Some(1_000), Some(0), pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|s| (s.uid, s.global_rank, s.regional_rank))
+            .collect();
+        page.sort_unstable();
+        assert_eq!(page, reference, "{step}: stored ranks");
+        for &(uid, global, regional) in &reference {
+            let live = get_by_uid(uid, pool).await.unwrap().unwrap();
+            assert_eq!(
+                (live.global_rank, live.regional_rank),
+                (global, regional),
+                "{step}: live rank of {uid}"
+            );
+        }
+        let eu = get(Some("eu"), None, Some(1_000), Some(0), pool)
+            .await
+            .unwrap();
+        assert!(eu.iter().all(|s| s.region == "eu"), "{step}: region filter");
+        assert!(
+            eu.windows(2).all(|w| w[0].global_rank <= w[1].global_rank),
+            "{step}: region page order"
+        );
+    }
+
+    #[sqlx::test]
+    async fn stored_and_live_ranks_match_the_window_ranking(pool: PgPool) {
+        // Ties on count and on count plus timestamp exercise RANK() semantics.
+        sqlx::query(
+            "INSERT INTO mihomo (uid, region, name, level, signature, avatar_icon, achievement_count) VALUES \
+             (1, 'eu', 'a', 70, '', '', 900), (2, 'eu', 'b', 70, '', '', 900), (3, 'na', 'c', 70, '', '', 900), \
+             (4, 'na', 'd', 70, '', '', 800), (5, 'eu', 'e', 70, '', '', 700), (6, 'asia', 'f', 70, '', '', 700)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO scores_achievement (uid, timestamp) VALUES \
+             (1, '2026-01-01'), (2, '2026-01-01'), (3, '2026-01-02'), \
+             (4, '2026-01-01'), (5, '2026-01-03'), (6, '2026-01-01')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        refresh(&pool).await;
+        assert_ranks_match("initial", &pool).await;
+
+        sqlx::query("UPDATE mihomo SET achievement_count = 1000 WHERE uid = 5")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM scores_achievement WHERE uid = 2")
+            .execute(&pool)
+            .await
+            .unwrap();
+        refresh(&pool).await;
+        assert_ranks_match("after a score change and a removal", &pool).await;
     }
 }

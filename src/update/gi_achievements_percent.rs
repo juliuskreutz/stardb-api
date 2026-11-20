@@ -1,11 +1,17 @@
+//! Keeps GI achievement completion percentages correct.
+//!
+//! Completion list writes keep the running totals current (see
+//! `database::achievement_completions`); this job only recounts from scratch when the
+//! game has never been counted, its threshold changed, or the weekly correction is due.
+
 use std::time::Duration;
 
 use anyhow::Result;
 use sqlx::PgPool;
 
-use crate::database;
+use crate::database::{achievement_completions, achievement_lists::Game};
 
-/// Schedule completion-percent refreshes hourly, retrying failed updates after thirty seconds.
+/// Check hourly whether a full recount is due; retry failed recounts after thirty seconds.
 pub async fn spawn(pool: PgPool) {
     super::spawn_periodic(
         "gi_achievements_percent",
@@ -15,9 +21,15 @@ pub async fn spawn(pool: PgPool) {
     );
 }
 
-/// Rebuild this game's persisted achievement percentages and propagate database errors.
+/// Recount this game's completion totals when due, as one transaction.
 async fn update(pool: PgPool) -> Result<()> {
-    database::gi::achievements_percent::update(&pool).await?;
-
+    if !achievement_completions::recount_due(Game::Gi, &pool).await? {
+        return Ok(());
+    }
+    let _refresh = super::HEAVY_REFRESH_LOCK.lock().await;
+    let mut transaction = pool.begin().await?;
+    achievement_completions::recount(Game::Gi, &mut transaction).await?;
+    transaction.commit().await?;
+    info!("GI achievement completions recounted");
     Ok(())
 }

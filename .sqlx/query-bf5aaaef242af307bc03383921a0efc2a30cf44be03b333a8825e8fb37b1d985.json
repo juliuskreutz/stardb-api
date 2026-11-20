@@ -1,19 +1,29 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            global_rank AS \"global_rank!\", regional_rank AS \"regional_rank!\", uid, region, name, level, signature, avatar_icon, achievement_count, updated_at\n        FROM\n            (\n                SELECT\n                    RANK() OVER (ORDER BY achievement_count DESC, timestamp) global_rank,\n                    RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp) regional_rank,\n                    *\n                FROM\n                    scores_achievement\n                NATURAL JOIN\n                    mihomo\n            ) ranked\n        WHERE\n            uid = $1\n        ",
+  "query": "\n        SELECT\n            r.global_rank, r.regional_rank, m.uid, m.region, m.name, m.level, m.signature, m.avatar_icon, m.achievement_count, m.updated_at\n        FROM\n            achievement_ranks r\n        JOIN\n            mihomo m ON m.uid = r.uid\n        WHERE\n            ($1::TEXT IS NULL OR r.region = $1)\n        AND\n            LOWER(m.name) LIKE '%' || LOWER($2) || '%'\n        ORDER BY\n            LEVENSHTEIN(m.name, $2), r.global_rank, r.uid\n        LIMIT\n            $3\n        OFFSET\n            $4\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "global_rank!",
+        "name": "global_rank",
         "type_info": "Int8",
-        "origin": "Expression"
+        "origin": {
+          "Table": {
+            "table": "achievement_ranks",
+            "name": "global_rank"
+          }
+        }
       },
       {
         "ordinal": 1,
-        "name": "regional_rank!",
+        "name": "regional_rank",
         "type_info": "Int8",
-        "origin": "Expression"
+        "origin": {
+          "Table": {
+            "table": "achievement_ranks",
+            "name": "regional_rank"
+          }
+        }
       },
       {
         "ordinal": 2,
@@ -21,7 +31,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "scores_achievement",
+            "table": "mihomo",
             "name": "uid"
           }
         }
@@ -106,12 +116,15 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
       ]
     },
     "nullable": [
-      null,
-      null,
+      false,
+      false,
       false,
       false,
       false,
@@ -122,5 +135,5 @@
       false
     ]
   },
-  "hash": "0abe3a980cbcacb1eadebb73b2cd652b448ffce6bf84ccd143bc1cea4fc322f2"
+  "hash": "bf5aaaef242af307bc03383921a0efc2a30cf44be03b333a8825e8fb37b1d985"
 }

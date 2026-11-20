@@ -6,7 +6,6 @@ pub mod achievement_scores;
 pub mod achievement_series;
 pub mod achievement_series_text;
 pub mod achievements;
-pub mod achievements_percent;
 pub mod achievements_text;
 pub mod admins;
 pub mod banners;
@@ -29,4 +28,5 @@ pub mod warps_stats;
 pub mod warps_stats_global;
 pub mod zzz;
 
+pub mod achievement_completions;
 pub mod achievement_lists;

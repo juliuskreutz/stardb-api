@@ -1,5 +1,6 @@
 //! Background refresh entry points and a shared driver with completion-based retry delays.
 
+pub mod achievement_ranks;
 pub mod achievements_percent;
 pub mod dimbreath;
 pub mod gi_achievements_percent;
@@ -10,9 +11,10 @@ pub mod warps_stats;
 pub mod wishes_stats;
 pub mod zzz_achievements_percent;
 
-/// Held for a whole HSR, GI or ZZZ global stats rebuild so the three never run at once
-/// and their database work (including the one-time pull count backfill) cannot overlap.
-pub(crate) static GLOBAL_STATS_LOCK: std::sync::LazyLock<futures::lock::Mutex<()>> =
+/// Held by every heavy background refresh (global gacha stats, achievement completion
+/// recounts, leaderboard ranks) so at most one runs at a time and their database work,
+/// including one-time backfills, never overlaps.
+pub(crate) static HEAVY_REFRESH_LOCK: std::sync::LazyLock<futures::lock::Mutex<()>> =
     std::sync::LazyLock::new(|| futures::lock::Mutex::new(()));
 
 /// Run immediately, then wait after each completion. Failures always back off.

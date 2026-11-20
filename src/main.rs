@@ -348,6 +348,9 @@ async fn async_main() -> anyhow::Result<()> {
     if app_config.enable_update_scores {
         update::scores::spawn(pool.clone()).await;
     }
+    if app_config.enable_update_achievement_ranks {
+        update::achievement_ranks::spawn(pool.clone()).await;
+    }
     if app_config.enable_update_warps_stats {
         update::warps_stats::spawn(pool.clone()).await;
     }
