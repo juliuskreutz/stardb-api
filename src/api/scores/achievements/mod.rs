@@ -75,6 +75,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     ),
     responses(
         (status = 200, description = "[ScoreAchievement]", body = Vec<ScoreAchievement>),
+        (status = 400, description = "limit outside 1..=1000 or negative offset"),
     )
 )]
 #[get("/api/scores/achievements")]
@@ -83,11 +84,16 @@ async fn get_scores_achievements(
     scores_params: web::Query<ScoresParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    let (limit, offset) =
+        match crate::api::paging::leaderboard_page(scores_params.limit, scores_params.offset) {
+            Ok(page) => page,
+            Err(message) => return Ok(HttpResponse::BadRequest().body(message)),
+        };
     let db_scores = database::achievement_scores::get(
         scores_params.region.map(|r| r.to_string()).as_deref(),
         scores_params.query.as_deref(),
-        scores_params.limit,
-        scores_params.offset,
+        Some(limit),
+        Some(offset),
         &pool,
     )
     .await?;

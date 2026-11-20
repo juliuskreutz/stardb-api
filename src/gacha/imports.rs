@@ -280,15 +280,27 @@ pub(crate) async fn persist_batch_without_stats(
 }
 
 /// Recalculates one UID's stats for a game in its own transaction.
+///
+/// Callers run this after pulls were already committed, so on failure the stored pull
+/// counts are cleared for the hourly backfill to recount instead of staying stale.
 pub(crate) async fn recalculate_uid_in_transaction(
     game: PullGame,
     uid: i32,
     pool: &PgPool,
 ) -> anyhow::Result<()> {
-    let mut transaction = pool.begin().await?;
-    recalculate_uid(game, uid, &mut transaction).await?;
-    transaction.commit().await?;
-    Ok(())
+    let result = async {
+        let mut transaction = pool.begin().await?;
+        recalculate_uid(game, uid, &mut transaction).await?;
+        transaction.commit().await?;
+        anyhow::Ok(())
+    }
+    .await;
+    if result.is_err() {
+        if let Err(e) = database::stats_pull_counts::invalidate(game, uid, pool).await {
+            error!(uid, error = %e, "failed to clear stale pull counts");
+        }
+    }
+    result
 }
 
 async fn recalculate_uid(

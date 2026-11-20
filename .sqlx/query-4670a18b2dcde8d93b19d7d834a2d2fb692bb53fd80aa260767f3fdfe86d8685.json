@@ -68,6 +68,17 @@
             "name": "loss_streak"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "pull_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_w_engine_reverberation",
+            "name": "pull_count"
+          }
+        }
       }
     ],
     "parameters": {
@@ -81,7 +92,8 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "4670a18b2dcde8d93b19d7d834a2d2fb692bb53fd80aa260767f3fdfe86d8685"

@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Ranked population: players with at least 100 wishes in this pool. The count is\n-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.\nSELECT uid, luck_4, luck_5, pull_count::bigint AS wish_count\nFROM gi_wishes_stats_standard\nWHERE pull_count >= 100;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_standard",
+            "name": "uid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_standard",
+            "name": "luck_4"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_standard",
+            "name": "luck_5"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "wish_count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "51966176e1b3589513208577670a652157d24db79da23e694289d9debce4f894"
+}

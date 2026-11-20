@@ -35,6 +35,17 @@
             "name": "luck_5"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "pull_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "gi_wishes_stats_standard",
+            "name": "pull_count"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,7 +56,8 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "9e79ca10f459210416ce3f4159e33ace4d490aa7f9cf0f2601fbc1b2c7949b5c"

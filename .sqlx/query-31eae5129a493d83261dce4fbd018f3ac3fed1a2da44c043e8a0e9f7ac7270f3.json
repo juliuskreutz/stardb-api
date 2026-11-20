@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO achievement_ranks (uid, region, global_rank, regional_rank)\n        SELECT\n            uid,\n            region,\n            RANK() OVER (ORDER BY achievement_count DESC, timestamp),\n            RANK() OVER (PARTITION BY region ORDER BY achievement_count DESC, timestamp)\n        FROM\n            scores_achievement\n            NATURAL JOIN mihomo\n        ON CONFLICT (uid) DO UPDATE SET\n            region = EXCLUDED.region,\n            global_rank = EXCLUDED.global_rank,\n            regional_rank = EXCLUDED.regional_rank\n        WHERE\n            (achievement_ranks.region, achievement_ranks.global_rank, achievement_ranks.regional_rank)\n            IS DISTINCT FROM (EXCLUDED.region, EXCLUDED.global_rank, EXCLUDED.regional_rank)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "31eae5129a493d83261dce4fbd018f3ac3fed1a2da44c043e8a0e9f7ac7270f3"
+}

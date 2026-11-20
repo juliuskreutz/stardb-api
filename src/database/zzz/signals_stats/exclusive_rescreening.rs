@@ -13,6 +13,8 @@ pub struct DbSignalsStatExclusiveRescreening {
     pub win_rate: f64,
     pub win_streak: i32,
     pub loss_streak: i32,
+    /// Rows in this pool when the stats were last calculated; NULL until backfilled.
+    pub pull_count: Option<i32>,
 }
 
 /// Upserts one stat row on a caller-owned executor.
@@ -28,6 +30,7 @@ where
         stat.win_rate,
         stat.win_streak,
         stat.loss_streak,
+        stat.pull_count,
     )
     .execute(executor)
     .await?;

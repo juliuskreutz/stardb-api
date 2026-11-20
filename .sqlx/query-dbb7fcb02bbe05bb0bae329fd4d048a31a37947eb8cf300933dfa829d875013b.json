@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Ranked population: players with at least 100 pulls in this pool. The count is\n-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.\nSELECT uid, luck_4, luck_5, pull_count::bigint AS warp_count\nFROM warps_stats_standard\nWHERE pull_count >= 100;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "uid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_4",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "luck_4"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_5",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "luck_5"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "warp_count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "dbb7fcb02bbe05bb0bae329fd4d048a31a37947eb8cf300933dfa829d875013b"
+}

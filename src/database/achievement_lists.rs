@@ -32,11 +32,20 @@ pub enum List {
 }
 impl Game {
     /// Return the fixed table prefix for this game; user input never forms an SQL identifier.
-    fn prefix(self) -> &'static str {
+    pub(crate) fn prefix(self) -> &'static str {
         match self {
             Self::Hsr => "",
             Self::Gi => "gi_",
             Self::Zzz => "zzz_",
+        }
+    }
+
+    /// Short stable name used as a key in shared bookkeeping tables.
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Hsr => "hsr",
+            Self::Gi => "gi",
+            Self::Zzz => "zzz",
         }
     }
 }
@@ -107,16 +116,7 @@ pub async fn apply(
     replace: bool,
     conn: &mut PgConnection,
 ) -> Result<()> {
-    // Lock the user rather than existing list rows: an empty list still needs mutual
-    // exclusion, and competing imports must not interleave alternate eviction/insertion.
-    // The caller's transaction retains this lock through its final commit or rollback.
-    // An advisory lock avoids locking the users row, which would block unrelated
-    // profile writes; a hashtext collision only serializes two users' list updates.
-    sqlx::query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
-        .bind(ACHIEVEMENT_LIST_LOCK)
-        .bind(username)
-        .execute(&mut *conn)
-        .await?;
+    lock_user(username, conn).await?;
     // Only closed game/list enums supply identifiers; request data remains bound.
     let catalog = format!("{}achievements", game.prefix());
     let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
@@ -129,19 +129,58 @@ pub async fn apply(
     // Validate the entire requested list before either replacement or alternate eviction.
     // Missing IDs are errors even when another member of the same set would supersede them.
     let selected = select_ids(ids, &rows, matches!(list, List::Completed))?;
+    let mut removed: Vec<i32> = Vec::new();
     if replace {
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DELETE FROM {table} WHERE username = $1"
+        removed = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+            "DELETE FROM {table} WHERE username = $1 RETURNING id"
         )))
+        .bind(username)
+        .fetch_all(&mut *conn)
+        .await?;
+    }
+    removed.extend(sqlx::query_scalar::<_, i32>(sqlx::AssertSqlSafe(format!("DELETE FROM {table} u USING {catalog} a WHERE u.username = $1 AND u.id = a.id AND a.\"set\" IN (SELECT \"set\" FROM {catalog} WHERE id = ANY($2)) AND NOT (u.id = ANY($2)) RETURNING u.id")))
+        .bind(username).bind(&selected).fetch_all(&mut *conn).await?);
+    let added: Vec<i32> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("INSERT INTO {table}(username, id) SELECT $1, UNNEST($2::int[]) ON CONFLICT(username, id) DO NOTHING RETURNING id")))
+        .bind(username).bind(&selected).fetch_all(&mut *conn).await?;
+    if matches!(list, List::Completed) {
+        // A replacement deletes rows that are then re-inserted; only the net change counts.
+        let (added, removed) = net_change(added, removed);
+        super::achievement_completions::record_change(game, username, &added, &removed, conn)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Serialize list changes per user within the caller's transaction.
+///
+/// Lock the user rather than existing list rows: an empty list still needs mutual
+/// exclusion, and competing imports must not interleave alternate eviction/insertion.
+/// The caller's transaction retains this lock through its final commit or rollback.
+/// An advisory lock avoids locking the users row, which would block unrelated
+/// profile writes; a hashtext collision only serializes two users' list updates.
+async fn lock_user(username: &str, conn: &mut PgConnection) -> Result<()> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1, hashtext($2))")
+        .bind(ACHIEVEMENT_LIST_LOCK)
         .bind(username)
         .execute(&mut *conn)
         .await?;
-    }
-    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} u USING {catalog} a WHERE u.username = $1 AND u.id = a.id AND a.\"set\" IN (SELECT \"set\" FROM {catalog} WHERE id = ANY($2)) AND NOT (u.id = ANY($2))")))
-        .bind(username).bind(&selected).execute(&mut *conn).await?;
-    sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO {table}(username, id) SELECT $1, UNNEST($2::int[]) ON CONFLICT(username, id) DO NOTHING")))
-        .bind(username).bind(&selected).execute(&mut *conn).await?;
     Ok(())
+}
+
+/// Reduce deleted and inserted ids to the ids that actually left or joined the list.
+fn net_change(added: Vec<i32>, removed: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
+    let added_set: HashSet<i32> = added.iter().copied().collect();
+    let removed_set: HashSet<i32> = removed.iter().copied().collect();
+    (
+        added
+            .into_iter()
+            .filter(|id| !removed_set.contains(id))
+            .collect(),
+        removed
+            .into_iter()
+            .filter(|id| !added_set.contains(id))
+            .collect(),
+    )
 }
 
 /// Commit one batch atomically, including alternate eviction; unknown IDs leave the list unchanged.
@@ -157,7 +196,7 @@ pub async fn add_all(
     tx.commit().await?;
     Ok(())
 }
-/// Delete only the supplied IDs in one statement; absent IDs are harmless.
+/// Delete only the supplied IDs atomically; absent IDs are harmless.
 pub async fn delete_all(
     game: Game,
     list: List,
@@ -165,15 +204,22 @@ pub async fn delete_all(
     ids: &[i32],
     pool: &PgPool,
 ) -> Result<()> {
+    let mut tx = pool.begin().await?;
+    lock_user(username, &mut tx).await?;
     // Only closed game/list enums supply identifiers; request data remains bound.
     let table = format!("{}users_achievements_{}", game.prefix(), list.suffix());
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DELETE FROM {table} WHERE username = $1 AND id = ANY($2)"
+    let removed: Vec<i32> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "DELETE FROM {table} WHERE username = $1 AND id = ANY($2) RETURNING id"
     )))
     .bind(username)
     .bind(ids)
-    .execute(pool)
+    .fetch_all(&mut *tx)
     .await?;
+    if matches!(list, List::Completed) {
+        super::achievement_completions::record_change(game, username, &[], &removed, &mut tx)
+            .await?;
+    }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -232,6 +278,12 @@ mod database_tests {
             .await
             .unwrap();
         sqlx::query("INSERT INTO users VALUES ('achievement_test')")
+            .execute(&mut conn)
+            .await
+            .unwrap();
+        // An empty game state means completion totals are not counted yet, so these list
+        // tests skip that bookkeeping; achievement_completions tests cover it.
+        sqlx::query("CREATE TEMP TABLE achievement_completion_state(game text PRIMARY KEY, minimum_completions int NOT NULL, recomputed_at timestamptz NOT NULL)")
             .execute(&mut conn)
             .await
             .unwrap();

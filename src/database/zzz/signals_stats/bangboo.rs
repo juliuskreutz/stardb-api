@@ -9,6 +9,8 @@ pub struct DbSignalsStatBangboo {
     pub uid: i32,
     pub luck_a: f64,
     pub luck_s: f64,
+    /// Rows in this pool when the stats were last calculated; NULL until backfilled.
+    pub pull_count: Option<i32>,
 }
 
 /// Upserts one UID’s calculated stats through the supplied executor.
@@ -22,6 +24,7 @@ where
         stat.uid,
         stat.luck_a,
         stat.luck_s,
+        stat.pull_count,
     )
     .execute(executor)
     .await?;

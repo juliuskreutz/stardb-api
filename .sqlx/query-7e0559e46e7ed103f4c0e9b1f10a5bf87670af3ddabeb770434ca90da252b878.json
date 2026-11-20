@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Every stats row with its stored signal count; the updater applies eligibility.\n-- The count is stored at recalculation (and backfilled for older rows), so no\n-- pull table is scanned.\nSELECT uid AS \"uid!\", luck_a AS \"luck_a!\", luck_s AS \"luck_s!\", pull_count::bigint AS \"signal_count?\"\nFROM zzz_signals_stats_w_engine;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uid!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_w_engine",
+            "name": "uid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "luck_a!",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_w_engine",
+            "name": "luck_a"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "luck_s!",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_w_engine",
+            "name": "luck_s"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "signal_count?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "7e0559e46e7ed103f4c0e9b1f10a5bf87670af3ddabeb770434ca90da252b878"
+}

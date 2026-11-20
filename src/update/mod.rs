@@ -1,5 +1,6 @@
 //! Background refresh entry points and a shared driver with completion-based retry delays.
 
+pub mod achievement_ranks;
 pub mod achievements_percent;
 pub mod dimbreath;
 pub mod gi_achievements_percent;
@@ -9,6 +10,12 @@ pub mod star_rail_res;
 pub mod warps_stats;
 pub mod wishes_stats;
 pub mod zzz_achievements_percent;
+
+/// Held by every heavy background refresh (global gacha stats, achievement completion
+/// recounts) so at most one runs at a time and their database work, including one-time
+/// backfills, never overlaps. The short leaderboard rank refresh does not take it.
+pub(crate) static HEAVY_REFRESH_LOCK: std::sync::LazyLock<futures::lock::Mutex<()>> =
+    std::sync::LazyLock::new(|| futures::lock::Mutex::new(()));
 
 /// Run immediately, then wait after each completion. Failures always back off.
 /// Delays start when the job finishes, so slow jobs never accumulate missed ticks or

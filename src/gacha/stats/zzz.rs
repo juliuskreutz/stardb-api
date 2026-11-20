@@ -46,6 +46,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     let (luck_a, luck_s) = (scan.low, scan.high);
     let stat = database::zzz::signals_stats::standard::DbSignalsStatStandard {
         uid,
+        pull_count: Some(i32::try_from(signals.len())?),
         luck_a,
         luck_s,
     };
@@ -81,6 +82,7 @@ async fn calculate_stats_special(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::zzz::signals_stats::special::DbSignalsStatSpecial {
         uid,
+        pull_count: Some(i32::try_from(signals.len())?),
         luck_a,
         luck_s,
         win_rate,
@@ -119,6 +121,7 @@ async fn calculate_stats_w_engine(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::zzz::signals_stats::w_engine::DbSignalsStatWEngine {
         uid,
+        pull_count: Some(i32::try_from(signals.len())?),
         luck_a,
         luck_s,
         win_rate,
@@ -139,6 +142,7 @@ async fn calculate_stats_bangboo(uid: i32, connection: &mut PgConnection) -> any
     let (luck_a, luck_s) = (scan.low, scan.high);
     let stat = database::zzz::signals_stats::bangboo::DbSignalsStatBangboo {
         uid,
+        pull_count: Some(i32::try_from(signals.len())?),
         luck_a,
         luck_s,
     };
@@ -176,6 +180,7 @@ async fn calculate_stats_exclusive_rescreening(
     let stat =
         database::zzz::signals_stats::exclusive_rescreening::DbSignalsStatExclusiveRescreening {
             uid,
+            pull_count: Some(i32::try_from(signals.len())?),
             luck_a,
             luck_s,
             win_rate,
@@ -217,6 +222,7 @@ async fn calculate_stats_w_engine_reverberation(
     let stat =
         database::zzz::signals_stats::w_engine_reverberation::DbSignalsStatWEngineReverberation {
             uid,
+            pull_count: Some(i32::try_from(signals.len())?),
             luck_a,
             luck_s,
             win_rate,

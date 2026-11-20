@@ -56,7 +56,11 @@ struct Score {
 struct LeaderboardParams {
     region: Option<Region>,
     query: Option<String>,
+    /// Rows to return, from 1 to 1000; 100 when omitted. Values outside that range are rejected with 400.
+    #[param(minimum = 1, maximum = 1000, default = 100)]
     limit: Option<i64>,
+    /// Rows to skip; 0 when omitted. Negative values are rejected with 400.
+    #[param(minimum = 0, default = 0)]
     offset: Option<i64>,
 }
 
@@ -86,6 +90,7 @@ impl From<database::achievement_scores::DbScoreAchievement> for Score {
     security(("api_key" = [])),
     responses(
         (status = 200, description = "Leaderboard"),
+        (status = 400, description = "limit outside 1..=1000 or negative offset"),
     )
 )]
 #[get("/api/pages/leaderboard", guard = "private")]
@@ -94,6 +99,13 @@ async fn get_leaderboard(
     leaderboard_params: web::Query<LeaderboardParams>,
     pool: web::Data<PgPool>,
 ) -> ApiResult<impl Responder> {
+    let (limit, offset) = match crate::api::paging::leaderboard_page(
+        leaderboard_params.limit,
+        leaderboard_params.offset,
+    ) {
+        Ok(page) => page,
+        Err(message) => return Ok(HttpResponse::BadRequest().body(message)),
+    };
     let counts = database::achievement_scores::leaderboard_counts(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
@@ -112,8 +124,8 @@ async fn get_leaderboard(
     let db_scores = database::achievement_scores::get(
         leaderboard_params.region.map(|r| r.to_string()).as_deref(),
         leaderboard_params.query.as_deref(),
-        leaderboard_params.limit,
-        leaderboard_params.offset,
+        Some(limit),
+        Some(offset),
         &pool,
     )
     .await?;

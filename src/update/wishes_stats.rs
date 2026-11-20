@@ -26,6 +26,7 @@ pub async fn spawn(pool: PgPool) {
 /// Refreshes supported pools sequentially, stopping at the first failure.
 /// Previously written batches remain committed for the next idempotent retry.
 async fn update(pool: &PgPool) -> Result<()> {
+    let _rebuild = super::HEAVY_REFRESH_LOCK.lock().await;
     info!("Starting standard");
     standard(pool).await?;
     info!("Starting character");
@@ -147,9 +148,11 @@ mod tests {
             .unwrap();
         }
 
-        let source = database::gi::wishes_stats::standard::get_all(&pool)
-            .await
-            .unwrap();
+        // The updater entry point backfills the counts these test rows were inserted without.
+        let source =
+            database::gi::wishes_stats::get_all_by_pool(crate::GiGachaType::Standard, &pool)
+                .await
+                .unwrap();
         assert_eq!(
             source
                 .iter()

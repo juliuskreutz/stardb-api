@@ -15,11 +15,13 @@ SELECT
     achievements.set,
     achievements_text.name,
     achievements_text.description,
-    COALESCE(percent, 0) percent,
+    -- Live share of qualifying players; the stored percent until the first recount.
+    COALESCE(achievements_percent.completions::float8 / NULLIF(qualifying.qualifying_players, 0), achievements_percent.percent, 0) percent,
     achievement_series_text.name series_name
 FROM
     achievements
     LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id
+    LEFT JOIN achievement_completion_state qualifying ON qualifying.game = 'hsr'
     JOIN achievements_text ON achievements.id = achievements_text.id
         AND achievements_text.language = $2
     JOIN achievement_series ON series = achievement_series.id

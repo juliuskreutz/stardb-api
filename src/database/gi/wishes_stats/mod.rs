@@ -14,9 +14,13 @@ pub struct DbWishesStatCount {
 }
 
 macro_rules! count_registry { ($( $variant:ident => $module:ident ),* $(,)?) => {
-/// Reads local stats joined with per-pool pull counts for population ranking.
-/// SQL limits the population to UIDs with at least 100 pulls. Result order is unspecified.
+/// Reads local stats with their stored pull counts for population ranking, after
+/// backfilling counts that predate the column. SQL limits the population to UIDs with
+/// at least 100 pulls. Result order is unspecified.
 /// A pool without local-stat storage is rejected rather than silently returning no rows.
-pub(crate) async fn get_all_by_pool(kind: crate::GiGachaType, pool:&sqlx::PgPool)->anyhow::Result<Vec<DbWishesStatCount>> {match kind {$(crate::GiGachaType::$variant => $module::get_all(pool).await,)*_ => anyhow::bail!("pool has no calculated stats"),}}
+pub(crate) async fn get_all_by_pool(kind: crate::GiGachaType, pool:&sqlx::PgPool)->anyhow::Result<Vec<DbWishesStatCount>> {match kind {$(crate::GiGachaType::$variant => {
+    crate::database::stats_pull_counts::backfill(concat!("gi_wishes_stats_", stringify!($module)), concat!("gi_wishes_", stringify!($module)), pool).await?;
+    $module::get_all(pool).await
+},)*_ => anyhow::bail!("pool has no calculated stats"),}}
 };}
 count_registry! {Standard => standard,Character => character,Weapon => weapon,Chronicled => chronicled}

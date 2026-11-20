@@ -55,5 +55,14 @@ async fn post_delete_unofficial_signals(
     database::zzz::signals::exclusive_rescreening::delete_unofficial(uid, &pool).await?;
     database::zzz::signals::w_engine_reverberation::delete_unofficial(uid, &pool).await?;
 
+    // Keep the stored stats, including the pull count used for ranking, in step
+    // with the deleted pulls.
+    crate::gacha::imports::recalculate_uid_in_transaction(
+        crate::gacha::imports::PullGame::Zzz,
+        uid,
+        &pool,
+    )
+    .await?;
+
     Ok(HttpResponse::Ok().finish())
 }

@@ -27,6 +27,9 @@ pub struct AppConfig {
     pub enable_update_scores: bool,
 
     #[serde(default = "default_true")]
+    pub enable_update_achievement_ranks: bool,
+
+    #[serde(default = "default_true")]
     pub enable_update_achievement_trackers: bool,
 
     #[serde(default = "default_true")]

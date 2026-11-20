@@ -35,6 +35,17 @@
             "name": "luck_s"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "pull_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "zzz_signals_stats_standard",
+            "name": "pull_count"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,7 +56,8 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "8cc7f689fa912cb25c51a2f8f66e522887eebae686a9fdfaed60bb14a9bdcf97"

@@ -14,7 +14,11 @@ struct ApiDoc;
 pub struct ScoresParams {
     pub region: Option<Region>,
     pub query: Option<String>,
+    /// Rows to return, from 1 to 1000; 100 when omitted. Values outside that range are rejected with 400.
+    #[param(minimum = 1, maximum = 1000, default = 100)]
     pub limit: Option<i64>,
+    /// Rows to skip; 0 when omitted. Negative values are rejected with 400.
+    #[param(minimum = 0, default = 0)]
     pub offset: Option<i64>,
 }
 

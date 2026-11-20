@@ -55,5 +55,14 @@ async fn post_delete_all_warps(
     database::warps::collab::delete_all(uid, &pool).await?;
     database::warps::collab_lc::delete_all(uid, &pool).await?;
 
+    // Keep the stored stats, including the pull count used for ranking, in step
+    // with the deleted pulls.
+    crate::gacha::imports::recalculate_uid_in_transaction(
+        crate::gacha::imports::PullGame::Hsr,
+        uid,
+        &pool,
+    )
+    .await?;
+
     Ok(HttpResponse::Ok().finish())
 }
