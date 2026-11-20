@@ -1,10 +1,5 @@
-WITH signal_counts AS (
-    SELECT uid, COUNT(*) AS signal_count
-    FROM zzz_signals_special
-    GROUP BY uid
-)
--- The preserved side is NOT NULL even if the planner reverses the LEFT JOIN.
--- Pin SQLx nullability; only a missing history count is optional.
-SELECT stats.uid AS "uid!", stats.luck_a AS "luck_a!", stats.luck_s AS "luck_s!", counts.signal_count AS "signal_count?"
-FROM zzz_signals_stats_special AS stats
-LEFT JOIN signal_counts AS counts USING (uid);
+-- Every stats row with its stored signal count; the updater applies eligibility.
+-- The count is stored at recalculation (and backfilled for older rows), so no
+-- pull table is scanned.
+SELECT uid AS "uid!", luck_a AS "luck_a!", luck_s AS "luck_s!", pull_count::bigint AS "signal_count?"
+FROM zzz_signals_stats_special;

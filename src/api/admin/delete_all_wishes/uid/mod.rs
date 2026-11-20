@@ -54,5 +54,14 @@ async fn post_delete_all_wishes(
     database::gi::wishes::weapon::delete_all(uid, &pool).await?;
     database::gi::wishes::chronicled::delete_all(uid, &pool).await?;
 
+    // Keep the stored stats, including the pull count used for ranking, in step
+    // with the deleted pulls.
+    crate::gacha::imports::recalculate_uid_in_transaction(
+        crate::gacha::imports::PullGame::Gi,
+        uid,
+        &pool,
+    )
+    .await?;
+
     Ok(HttpResponse::Ok().finish())
 }

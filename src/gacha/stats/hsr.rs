@@ -45,6 +45,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     let (luck_4, luck_5) = (scan.low, scan.high);
     let stat = database::warps_stats::DbWarpsStat {
         uid,
+        pull_count: Some(i32::try_from(warps.len())?),
         luck_4,
         luck_5,
         // these don't apply to standard warps
@@ -78,6 +79,7 @@ async fn calculate_stats_special(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::warps_stats::DbWarpsStat {
         uid,
+        pull_count: Some(i32::try_from(warps.len())?),
         luck_4,
         luck_5,
         win_rate,
@@ -110,6 +112,7 @@ async fn calculate_stats_lc(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::warps_stats::DbWarpsStat {
         uid,
+        pull_count: Some(i32::try_from(warps.len())?),
         luck_4,
         luck_5,
         win_rate,
@@ -142,6 +145,7 @@ async fn calculate_stats_collab(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::warps_stats::DbWarpsStat {
         uid,
+        pull_count: Some(i32::try_from(warps.len())?),
         luck_4,
         luck_5,
         win_rate,
@@ -174,6 +178,7 @@ async fn calculate_stats_collab_lc(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::warps_stats::DbWarpsStat {
         uid,
+        pull_count: Some(i32::try_from(warps.len())?),
         luck_4,
         luck_5,
         win_rate,

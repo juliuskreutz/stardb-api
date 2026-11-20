@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH warp_counts AS (\n    SELECT uid, COUNT(*) AS warp_count\n    FROM warps_standard\n    GROUP BY uid\n)\nSELECT\n    stats.uid,\n    stats.luck_4,\n    stats.luck_5,\n    COALESCE(wc.warp_count, 0) AS warp_count\nFROM warps_stats_standard stats\n         LEFT JOIN warp_counts wc ON stats.uid = wc.uid\nWHERE wc.warp_count >= 100;",
+  "query": "-- Ranked population: players with at least 100 wishes in this pool. The count is\n-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.\nSELECT uid, luck_4, luck_5, pull_count::bigint AS wish_count\nFROM gi_wishes_stats_standard\nWHERE pull_count >= 100;\n",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "warps_stats_standard",
+            "table": "gi_wishes_stats_standard",
             "name": "uid"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Float8",
         "origin": {
           "Table": {
-            "table": "warps_stats_standard",
+            "table": "gi_wishes_stats_standard",
             "name": "luck_4"
           }
         }
@@ -31,14 +31,14 @@
         "type_info": "Float8",
         "origin": {
           "Table": {
-            "table": "warps_stats_standard",
+            "table": "gi_wishes_stats_standard",
             "name": "luck_5"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "warp_count",
+        "name": "wish_count",
         "type_info": "Int8",
         "origin": "Expression"
       }
@@ -53,5 +53,5 @@
       null
     ]
   },
-  "hash": "64667d0af479f5959588f16be53bb8c9c0707f3373c1071e92c20dd455c16500"
+  "hash": "51966176e1b3589513208577670a652157d24db79da23e694289d9debce4f894"
 }

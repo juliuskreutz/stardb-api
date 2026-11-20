@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH wish_counts AS (\n    SELECT uid, COUNT(*) AS wish_count\n    FROM gi_wishes_weapon\n    GROUP BY uid\n)\nSELECT stats.uid, stats.luck_4, stats.luck_5, counts.wish_count\nFROM gi_wishes_stats_weapon AS stats\nJOIN wish_counts AS counts USING (uid)\nWHERE counts.wish_count >= 100;\n",
+  "query": "-- Ranked population: players with at least 100 wishes in this pool. The count is\n-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.\nSELECT uid, luck_4, luck_5, pull_count::bigint AS wish_count\nFROM gi_wishes_stats_weapon\nWHERE pull_count >= 100;\n",
   "describe": {
     "columns": [
       {
@@ -53,5 +53,5 @@
       null
     ]
   },
-  "hash": "73ba7b1594d4b37b695c45169cf120188bebbad0bfe66d410e603538efcd1273"
+  "hash": "3a493aed5e0a87d620c53d5d63a42c74fdbbb3352b52fd5c5e2012d2d52d4a66"
 }

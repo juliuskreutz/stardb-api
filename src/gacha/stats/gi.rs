@@ -44,6 +44,7 @@ async fn calculate_stats_standard(uid: i32, connection: &mut PgConnection) -> an
     let (luck_4, luck_5) = (scan.low, scan.high);
     let stat = database::gi::wishes_stats::standard::DbWishesStatStandard {
         uid,
+        pull_count: Some(i32::try_from(wishes.len())?),
         luck_4,
         luck_5,
     };
@@ -79,6 +80,7 @@ async fn calculate_stats_character(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::gi::wishes_stats::character::DbWishesStatCharacter {
         uid,
+        pull_count: Some(i32::try_from(wishes.len())?),
         luck_4,
         luck_5,
         win_rate,
@@ -111,6 +113,7 @@ async fn calculate_stats_weapon(
     let (win_rate, win_streak, loss_streak) = (scan.win_rate, scan.win_streak, scan.loss_streak);
     let stat = database::gi::wishes_stats::weapon::DbWishesStatWeapon {
         uid,
+        pull_count: Some(i32::try_from(wishes.len())?),
         luck_4,
         luck_5,
         win_rate,
@@ -131,6 +134,7 @@ async fn calculate_stats_chronicled(uid: i32, connection: &mut PgConnection) -> 
     let (luck_4, luck_5) = (scan.low, scan.high);
     let stat = database::gi::wishes_stats::chronicled::DbWishesStatChronicled {
         uid,
+        pull_count: Some(i32::try_from(wishes.len())?),
         luck_4,
         luck_5,
     };

@@ -76,7 +76,8 @@ mod bulk_write_tests {
                     rows[0].luck_s,
                     rows[0].signal_count
                 ),
-                (1, 8.0, 70.0, None)
+                // A stats row without pulls is backfilled with a stored count of 0.
+                (1, 8.0, 70.0, Some(0))
             );
         }
         // Run every production SQL file so uncommon/collab pools cannot miss the guard.

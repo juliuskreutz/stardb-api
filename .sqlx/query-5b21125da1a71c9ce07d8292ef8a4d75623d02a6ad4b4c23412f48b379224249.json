@@ -35,6 +35,17 @@
             "name": "luck_5"
           }
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "pull_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_standard",
+            "name": "pull_count"
+          }
+        }
       }
     ],
     "parameters": {
@@ -45,7 +56,8 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "5b21125da1a71c9ce07d8292ef8a4d75623d02a6ad4b4c23412f48b379224249"

@@ -1,13 +1,5 @@
-WITH warp_counts AS (
-    SELECT uid, COUNT(*) AS warp_count
-    FROM warps_special
-    GROUP BY uid
-)
-SELECT
-    stats.uid,
-    stats.luck_4,
-    stats.luck_5,
-    COALESCE(wc.warp_count, 0) AS warp_count
-FROM warps_stats_special stats
-         LEFT JOIN warp_counts wc ON stats.uid = wc.uid
-WHERE wc.warp_count >= 100;
+-- Ranked population: players with at least 100 pulls in this pool. The count is
+-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.
+SELECT uid, luck_4, luck_5, pull_count::bigint AS warp_count
+FROM warps_stats_special
+WHERE pull_count >= 100;

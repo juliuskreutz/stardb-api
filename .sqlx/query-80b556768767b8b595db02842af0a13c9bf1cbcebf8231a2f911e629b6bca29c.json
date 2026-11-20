@@ -68,6 +68,17 @@
             "name": "loss_streak"
           }
         }
+      },
+      {
+        "ordinal": 6,
+        "name": "pull_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "warps_stats_collab",
+            "name": "pull_count"
+          }
+        }
       }
     ],
     "parameters": {
@@ -81,7 +92,8 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
   "hash": "80b556768767b8b595db02842af0a13c9bf1cbcebf8231a2f911e629b6bca29c"

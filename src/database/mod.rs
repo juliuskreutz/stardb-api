@@ -20,6 +20,7 @@ pub mod mihomo;
 pub mod ntehelper;
 pub mod ntehelper_tracker;
 pub mod sessions;
+pub mod stats_pull_counts;
 pub mod users;
 pub mod users_achievements_completed;
 pub mod users_achievements_favorites;

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "WITH warp_counts AS (\n    SELECT uid, COUNT(*) AS warp_count\n    FROM warps_collab_lc\n    GROUP BY uid\n)\nSELECT\n    stats.uid,\n    stats.luck_4,\n    stats.luck_5,\n    COALESCE(wc.warp_count, 0) AS warp_count\nFROM warps_stats_collab_lc stats\n         LEFT JOIN warp_counts wc ON stats.uid = wc.uid\nWHERE wc.warp_count >= 100;",
+  "query": "-- Ranked population: players with at least 100 pulls in this pool. The count is\n-- stored at recalculation (and backfilled for older rows), so no pull table is scanned.\nSELECT uid, luck_4, luck_5, pull_count::bigint AS warp_count\nFROM warps_stats_special\nWHERE pull_count >= 100;\n",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "warps_stats_collab_lc",
+            "table": "warps_stats_special",
             "name": "uid"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Float8",
         "origin": {
           "Table": {
-            "table": "warps_stats_collab_lc",
+            "table": "warps_stats_special",
             "name": "luck_4"
           }
         }
@@ -31,7 +31,7 @@
         "type_info": "Float8",
         "origin": {
           "Table": {
-            "table": "warps_stats_collab_lc",
+            "table": "warps_stats_special",
             "name": "luck_5"
           }
         }
@@ -53,5 +53,5 @@
       null
     ]
   },
-  "hash": "f211936f8606d359584d30c2f666311e3742d6d44aa246f9d6d67f87def56dde"
+  "hash": "01709a07314e03dc917a8df1dc73fa87ee9e29404e07ffa7c1889058ff47081a"
 }

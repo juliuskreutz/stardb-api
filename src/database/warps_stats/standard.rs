@@ -9,6 +9,8 @@ pub struct DbWarpsStatStandard {
     pub uid: i32,
     pub luck_4: f64,
     pub luck_5: f64,
+    /// Rows in this pool when the stats were last calculated; NULL until backfilled.
+    pub pull_count: Option<i32>,
 }
 
 impl From<DbWarpsStatStandard> for DbWarpsStat {
@@ -21,6 +23,7 @@ impl From<DbWarpsStatStandard> for DbWarpsStat {
             win_rate: 0.0,
             win_streak: 0,
             loss_streak: 0,
+            pull_count: s.pull_count,
         }
     }
 }
@@ -36,6 +39,7 @@ where
         stat.uid,
         stat.luck_4,
         stat.luck_5,
+        stat.pull_count,
     )
     .execute(executor)
     .await?;

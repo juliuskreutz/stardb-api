@@ -10,6 +10,11 @@ pub mod warps_stats;
 pub mod wishes_stats;
 pub mod zzz_achievements_percent;
 
+/// Held for a whole HSR, GI or ZZZ global stats rebuild so the three never run at once
+/// and their database work (including the one-time pull count backfill) cannot overlap.
+pub(crate) static GLOBAL_STATS_LOCK: std::sync::LazyLock<futures::lock::Mutex<()>> =
+    std::sync::LazyLock::new(|| futures::lock::Mutex::new(()));
+
 /// Run immediately, then wait after each completion. Failures always back off.
 /// Delays start when the job finishes, so slow jobs never accumulate missed ticks or
 /// launch overlapping refreshes. A transient failure uses the shorter retry delay

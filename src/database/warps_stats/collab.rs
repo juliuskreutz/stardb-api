@@ -19,6 +19,7 @@ where
         stat.win_rate,
         stat.win_streak,
         stat.loss_streak,
+        stat.pull_count,
     )
     .execute(executor)
     .await?;
