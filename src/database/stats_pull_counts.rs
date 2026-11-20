@@ -1,11 +1,14 @@
 //! Backfill for the per-pool `pull_count` stored with each player's stats.
 //!
 //! Recalculation writes the count from the rows it already reads, so the hourly
-//! updaters never scan pull tables. Rows written before the column existed hold
-//! NULL; this fills them from each player's indexed pull rows, a chunk at a time.
+//! updaters never scan pull tables. Rows written before the column existed, and rows
+//! whose recalculation failed after their pulls changed ([`invalidate`]), hold NULL;
+//! this fills them from each player's indexed pull rows, a chunk at a time.
 
 use anyhow::Result;
 use sqlx::PgPool;
+
+use crate::gacha::imports::PullGame;
 
 /// Players counted per statement, keeping each backfill statement short.
 const CHUNK: i64 = 1_000;
@@ -14,7 +17,9 @@ const CHUNK: i64 = 1_000;
 ///
 /// Only NULL counts are written, so a concurrent recalculation that already stored a
 /// fresh count is never overwritten. Players without pulls get 0. Both table names
-/// come from the closed stats registries, never from request data.
+/// come from the closed stats registries, never from request data. NULL rows are found
+/// through each table's `pull_count IS NULL` partial index, so every chunk and the
+/// steady-state check read only the rows still missing.
 pub(crate) async fn backfill(stats_table: &str, pull_table: &str, pool: &PgPool) -> Result<u64> {
     let mut filled = 0;
     loop {
@@ -32,6 +37,46 @@ pub(crate) async fn backfill(stats_table: &str, pull_table: &str, pool: &PgPool)
         }
         filled += rows;
     }
+}
+
+/// Clears one UID's stored pull counts for a game so the next backfill recounts them.
+///
+/// For when pulls may have changed but recalculation failed: the stale counts would
+/// otherwise keep ranking the player on pulls they no longer have.
+pub(crate) async fn invalidate(game: PullGame, uid: i32, pool: &PgPool) -> Result<()> {
+    let tables: &[&str] = match game {
+        PullGame::Hsr => &[
+            "warps_stats_standard",
+            "warps_stats_special",
+            "warps_stats_lc",
+            "warps_stats_collab",
+            "warps_stats_collab_lc",
+        ],
+        PullGame::Gi => &[
+            "gi_wishes_stats_standard",
+            "gi_wishes_stats_character",
+            "gi_wishes_stats_weapon",
+            "gi_wishes_stats_chronicled",
+        ],
+        PullGame::Zzz => &[
+            "zzz_signals_stats_standard",
+            "zzz_signals_stats_special",
+            "zzz_signals_stats_w_engine",
+            "zzz_signals_stats_bangboo",
+            "zzz_signals_stats_exclusive_rescreening",
+            "zzz_signals_stats_w_engine_reverberation",
+        ],
+    };
+    for table in tables {
+        // Fixed table names from the list above; the uid stays bound.
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE {table} SET pull_count = NULL WHERE uid = $1"
+        )))
+        .bind(uid)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

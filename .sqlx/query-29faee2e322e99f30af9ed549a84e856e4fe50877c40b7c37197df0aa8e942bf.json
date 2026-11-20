@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), achievements_percent.percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    CROSS JOIN (\n        SELECT COUNT(*) AS players\n        FROM achievement_completion_state state\n        JOIN achievement_completion_totals totals ON totals.completed >= state.minimum_completions\n        WHERE state.game = 'hsr'\n    ) qualifying\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $2\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $2\nWHERE\n    achievements.id = $1;\n\n",
+  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(achievements_percent.completions::float8 / NULLIF(qualifying.qualifying_players, 0), achievements_percent.percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    LEFT JOIN achievement_completion_state qualifying ON qualifying.game = 'hsr'\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $1\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $1\n    ORDER BY\n        achievement_series.priority DESC,\n        series,\n        achievements.priority DESC,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -199,7 +199,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -224,5 +223,5 @@
       false
     ]
   },
-  "hash": "204c636662f72c4d0f1ffd94c0eaf2472f60ba05b3ac2c674c1b961587b861b0"
+  "hash": "29faee2e322e99f30af9ed549a84e856e4fe50877c40b7c37197df0aa8e942bf"
 }

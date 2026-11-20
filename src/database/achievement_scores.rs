@@ -116,7 +116,10 @@ pub async fn get(
 /// Recompute every player's global and regional rank and store the ones that changed.
 ///
 /// Runs the ranking once for all page views instead of once per request; the caller owns
-/// the transaction. Returns how many rank rows were inserted, updated or removed.
+/// the transaction. Rows are updated in place rather than truncated so readers keep the
+/// previous ranking until commit instead of waiting for the rebuild; only changed ranks
+/// are rewritten, and autovacuum reclaims those dead rows. Returns how many rank rows
+/// were inserted, updated or removed.
 pub async fn refresh_ranks(connection: &mut sqlx::PgConnection) -> Result<u64> {
     let upserted = sqlx::query!(
         "
@@ -209,12 +212,39 @@ pub async fn count(region: Option<&str>, query: Option<&str>, pool: &PgPool) -> 
     .unwrap())
 }
 
+/// Read one UID with the rank shown on leaderboard pages; return None when absent.
+///
+/// Reads the stored rank from [`refresh_ranks`] by primary key, so profile and leaderboard
+/// pages agree. A player scored since the last refresh falls back to [`get_live_by_uid`].
+pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
+    let stored = sqlx::query_as!(
+        DbScoreAchievement,
+        "
+        SELECT
+            r.global_rank, r.regional_rank, m.uid, m.region, m.name, m.level, m.signature, m.avatar_icon, m.achievement_count, m.updated_at
+        FROM
+            achievement_ranks r
+        JOIN
+            mihomo m ON m.uid = r.uid
+        WHERE
+            r.uid = $1
+        ",
+        uid,
+    )
+    .fetch_optional(pool)
+    .await?;
+    match stored {
+        Some(score) => Ok(Some(score)),
+        None => get_live_by_uid(uid, pool).await,
+    }
+}
+
 /// Read one UID with its current global and regional rank; return None when absent.
 ///
-/// Ranks are counted live (one plus the players strictly ahead) rather than read from
-/// [`refresh_ranks`], so a player who was just added sees their rank immediately. Ties on
-/// count and timestamp share a rank, matching RANK().
-pub async fn get_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
+/// Ranks are counted live (one plus the players strictly ahead), scanning the score
+/// population, so use it only where a just-refreshed score must show its new rank. Ties
+/// on count and timestamp share a rank, matching RANK().
+pub async fn get_live_by_uid(uid: i32, pool: &PgPool) -> Result<Option<DbScoreAchievement>> {
     Ok(sqlx::query_as!(
         DbScoreAchievement,
         "
@@ -312,9 +342,10 @@ mod refresh_tests {
             .unwrap();
         assert_eq!(get_refresh_uids(2, 0, &pool).await.unwrap(), vec![1, 2]);
         assert_eq!(get_refresh_uids(1, 2, &pool).await.unwrap(), vec![3]);
+        // Counted live: the stored ranks only change on the next refresh.
         for uid in [1, 2, 3] {
             assert_eq!(
-                get_by_uid(uid, &pool).await.unwrap().unwrap().global_rank,
+                get_live_by_uid(uid, &pool).await.unwrap().unwrap().global_rank,
                 1
             );
         }
@@ -400,7 +431,13 @@ mod rank_tests {
         page.sort_unstable();
         assert_eq!(page, reference, "{step}: stored ranks");
         for &(uid, global, regional) in &reference {
-            let live = get_by_uid(uid, pool).await.unwrap().unwrap();
+            let stored = get_by_uid(uid, pool).await.unwrap().unwrap();
+            assert_eq!(
+                (stored.global_rank, stored.regional_rank),
+                (global, regional),
+                "{step}: stored rank of {uid}"
+            );
+            let live = get_live_by_uid(uid, pool).await.unwrap().unwrap();
             assert_eq!(
                 (live.global_rank, live.regional_rank),
                 (global, regional),

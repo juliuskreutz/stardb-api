@@ -16,17 +16,12 @@ SELECT
     gi_achievements_text.name,
     gi_achievements_text.description,
     -- Live share of qualifying players; the stored percent until the first recount.
-    COALESCE(gi_achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), gi_achievements_percent.percent, 0) percent,
+    COALESCE(gi_achievements_percent.completions::float8 / NULLIF(qualifying.qualifying_players, 0), gi_achievements_percent.percent, 0) percent,
     gi_achievement_series_text.name series_name
 FROM
     gi_achievements
     LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id
-    CROSS JOIN (
-        SELECT COUNT(*) AS players
-        FROM achievement_completion_state state
-        JOIN gi_achievement_completion_totals totals ON totals.completed >= state.minimum_completions
-        WHERE state.game = 'gi'
-    ) qualifying
+    LEFT JOIN achievement_completion_state qualifying ON qualifying.game = 'gi'
     JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id
         AND gi_achievements_text.language = $2
     JOIN gi_achievement_series ON series = gi_achievement_series.id

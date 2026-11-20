@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    gi_achievements.id,\n    gi_achievements.series,\n    gi_achievements.primogems,\n    gi_achievements.hidden,\n    gi_achievements.version,\n    gi_achievements.comment,\n    gi_achievements.reference,\n    gi_achievements.difficulty,\n    gi_achievements.video,\n    gi_achievements.gacha,\n    gi_achievements.timegated,\n    gi_achievements.missable,\n    gi_achievements.impossible,\n    gi_achievements.set,\n    gi_achievements_text.name,\n    gi_achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(gi_achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), gi_achievements_percent.percent, 0) percent,\n    gi_achievement_series_text.name series_name\nFROM\n    gi_achievements\n    LEFT JOIN gi_achievements_percent ON gi_achievements.id = gi_achievements_percent.id\n    CROSS JOIN (\n        SELECT COUNT(*) AS players\n        FROM achievement_completion_state state\n        JOIN gi_achievement_completion_totals totals ON totals.completed >= state.minimum_completions\n        WHERE state.game = 'gi'\n    ) qualifying\n    JOIN gi_achievements_text ON gi_achievements.id = gi_achievements_text.id\n        AND gi_achievements_text.language = $2\n    JOIN gi_achievement_series ON series = gi_achievement_series.id\n    JOIN gi_achievement_series_text ON series = gi_achievement_series_text.id\n        AND gi_achievement_series_text.language = $2\nWHERE\n    gi_achievements.id = $1;\n\n",
+  "query": "SELECT\n    achievements.id,\n    achievements.series,\n    achievements.jades,\n    achievements.hidden,\n    achievements.version,\n    achievements.comment,\n    achievements.reference,\n    achievements.difficulty,\n    achievements.video,\n    achievements.gacha,\n    achievements.timegated,\n    achievements.missable,\n    achievements.impossible,\n    achievements.set,\n    achievements_text.name,\n    achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(achievements_percent.completions::float8 / NULLIF(qualifying.qualifying_players, 0), achievements_percent.percent, 0) percent,\n    achievement_series_text.name series_name\nFROM\n    achievements\n    LEFT JOIN achievements_percent ON achievements.id = achievements_percent.id\n    LEFT JOIN achievement_completion_state qualifying ON qualifying.game = 'hsr'\n    JOIN achievements_text ON achievements.id = achievements_text.id\n        AND achievements_text.language = $2\n    JOIN achievement_series ON series = achievement_series.id\n    JOIN achievement_series_text ON series = achievement_series_text.id\n        AND achievement_series_text.language = $2\nWHERE\n    achievements.id = $1;\n\n",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "id"
           }
         }
@@ -20,19 +20,19 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "series"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "primogems",
+        "name": "jades",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
-            "name": "primogems"
+            "table": "achievements",
+            "name": "jades"
           }
         }
       },
@@ -42,7 +42,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "hidden"
           }
         }
@@ -53,7 +53,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "version"
           }
         }
@@ -64,7 +64,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "comment"
           }
         }
@@ -75,7 +75,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "reference"
           }
         }
@@ -86,7 +86,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "difficulty"
           }
         }
@@ -97,7 +97,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "video"
           }
         }
@@ -108,7 +108,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "gacha"
           }
         }
@@ -119,7 +119,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "timegated"
           }
         }
@@ -130,7 +130,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "missable"
           }
         }
@@ -141,7 +141,7 @@
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "impossible"
           }
         }
@@ -152,7 +152,7 @@
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "gi_achievements",
+            "table": "achievements",
             "name": "set"
           }
         }
@@ -163,7 +163,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements_text",
+            "table": "achievements_text",
             "name": "name"
           }
         }
@@ -174,7 +174,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievements_text",
+            "table": "achievements_text",
             "name": "description"
           }
         }
@@ -191,7 +191,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "gi_achievement_series_text",
+            "table": "achievement_series_text",
             "name": "name"
           }
         }
@@ -224,5 +224,5 @@
       false
     ]
   },
-  "hash": "f9c4f2accb62da86451641742218b179ad8c749c9df230ea4bc6854f0403fb7a"
+  "hash": "7cf860775f2d3005019a151042a1922361d4675d76d27ca108878e5df3dac96a"
 }

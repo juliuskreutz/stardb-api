@@ -65,7 +65,8 @@ async fn put_score_achievement(
 ) -> ApiResult<impl Responder> {
     let _ = mihomo::update_and_get(*uid, language_param.lang, &pool).await?;
 
-    let Some(score) = database::achievement_scores::get_by_uid(*uid, &pool).await? else {
+    // The stored rank predates this refresh; count it live so the caller sees the new rank.
+    let Some(score) = database::achievement_scores::get_live_by_uid(*uid, &pool).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
     let score: ScoreAchievement = score.into();

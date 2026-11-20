@@ -4,10 +4,11 @@
 //! of re-aggregating every completion each hour, list writes update two totals in their
 //! own transaction: how many qualifying players completed each achievement
 //! (`*achievements_percent.completions`) and how many achievements each player completed
-//! (`*achievement_completion_totals`). Readers divide the two. A full recount runs when a
-//! game has never been counted, when its threshold changed, and weekly, correcting drift
-//! from writes that bypass the lists (account deletion, catalog removals) or that land
-//! while a recount is reading.
+//! (`*achievement_completion_totals`), plus the number of qualifying players
+//! (`achievement_completion_state.qualifying_players`). Readers divide the counters. Account
+//! deletion is subtracted by a trigger on `users`. A full recount runs when a game has never
+//! been counted, when its threshold changed, and weekly, correcting drift from writes that
+//! bypass the lists (catalog removals, manual edits).
 
 use std::collections::{HashMap, HashSet};
 
@@ -42,6 +43,12 @@ pub(crate) async fn record_change(
     if added.is_empty() && removed.is_empty() {
         return Ok(());
     }
+    // Shared with other writers, exclusive with a recount: a recount either sees this
+    // change in its snapshot or finishes before the change is applied on top of it.
+    sqlx::query("SELECT pg_advisory_xact_lock_shared(hashtext('achievement_completions'), hashtext($1))")
+        .bind(game.key())
+        .execute(&mut *connection)
+        .await?;
     let counted: bool = sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM achievement_completion_state WHERE game = $1)",
     )
@@ -65,6 +72,21 @@ pub(crate) async fn record_change(
     let old_total = new_total + removed.len() - added.len();
     let minimum = qualifying_minimum(game) as usize;
     let mut deltas: HashMap<i32, i64> = HashMap::new();
+    let qualifying_change: i64 = match (old_total >= minimum, new_total >= minimum) {
+        (false, true) => 1,
+        (true, false) => -1,
+        _ => 0,
+    };
+    if qualifying_change != 0 {
+        sqlx::query(
+            "UPDATE achievement_completion_state \
+             SET qualifying_players = GREATEST(qualifying_players + $2, 0) WHERE game = $1",
+        )
+        .bind(game.key())
+        .bind(qualifying_change)
+        .execute(&mut *connection)
+        .await?;
+    }
     match (old_total >= minimum, new_total >= minimum) {
         (true, true) => {
             for &id in added {
@@ -149,12 +171,16 @@ pub(crate) async fn recount_due(game: Game, pool: &PgPool) -> Result<bool> {
 
 /// Recount a game's totals from its completion lists and mark it counted.
 ///
-/// The aggregation reads into temporary tables first, so live rows are only locked for
-/// the short swap at the end and list writes are never held up by the scan. The caller
-/// owns the transaction.
+/// Completion list writes for this game wait until the recount commits, so none are
+/// overwritten by its snapshot; the caller owns the transaction.
 pub(crate) async fn recount(game: Game, connection: &mut PgConnection) -> Result<()> {
     let prefix = game.prefix();
     let minimum = qualifying_minimum(game);
+    // Exclusive counterpart of the shared lock in `record_change`.
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('achievement_completions'), hashtext($1))")
+        .bind(game.key())
+        .execute(&mut *connection)
+        .await?;
     // Earlier recounts in the same transaction leave their temporary tables until commit.
     sqlx::query("DROP TABLE IF EXISTS pg_temp.recount_totals, pg_temp.recount_counts")
         .execute(&mut *connection)
@@ -206,13 +232,14 @@ pub(crate) async fn recount(game: Game, connection: &mut PgConnection) -> Result
     .execute(&mut *connection)
     .await?;
     sqlx::query(
-        "INSERT INTO achievement_completion_state (game, minimum_completions, recomputed_at) \
-         VALUES ($1, $2, now()) \
+        "INSERT INTO achievement_completion_state (game, minimum_completions, recomputed_at, qualifying_players) \
+         VALUES ($1, $2, now(), $3) \
          ON CONFLICT (game) DO UPDATE SET minimum_completions = EXCLUDED.minimum_completions, \
-             recomputed_at = EXCLUDED.recomputed_at",
+             recomputed_at = EXCLUDED.recomputed_at, qualifying_players = EXCLUDED.qualifying_players",
     )
     .bind(game.key())
     .bind(minimum)
+    .bind(qualifying)
     .execute(&mut *connection)
     .await?;
     Ok(())
@@ -227,8 +254,8 @@ mod tests {
     use super::{recount, Game};
     use crate::database::achievement_lists::{add_all, apply, delete_all, List};
 
-    /// Non-zero completion counters and per-player totals, as stored.
-    type Totals = (BTreeMap<i32, i64>, BTreeMap<String, i32>);
+    /// Non-zero completion counters, per-player totals and qualifying players, as stored.
+    type Totals = (BTreeMap<i32, i64>, BTreeMap<String, i32>, i64);
 
     async fn stored(game: Game, pool: &PgPool) -> Totals {
         let prefix = game.prefix();
@@ -245,7 +272,18 @@ mod tests {
         .fetch_all(pool)
         .await
         .unwrap();
-        (counts.into_iter().collect(), totals.into_iter().collect())
+        let qualifying: i64 = sqlx::query_scalar(
+            "SELECT COALESCE((SELECT qualifying_players FROM achievement_completion_state WHERE game = $1), 0)",
+        )
+        .bind(game.key())
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        (
+            counts.into_iter().collect(),
+            totals.into_iter().collect(),
+            qualifying,
+        )
     }
 
     async fn recount_now(game: Game, pool: &PgPool) {
@@ -344,6 +382,18 @@ mod tests {
             .await
             .unwrap();
         assert_matches_recount("gi adds and a player leaving", &pool).await;
+
+        // Deleting an account subtracts its completions through the users trigger.
+        sqlx::query("DELETE FROM users WHERE username = 'alice'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_matches_recount("deleting a qualifying account", &pool).await;
+        sqlx::query("DELETE FROM users WHERE username = 'bob'")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_matches_recount("deleting an account in both games", &pool).await;
 
         // Favorites never touch completion totals.
         let before = stored(Game::Hsr, &pool).await;

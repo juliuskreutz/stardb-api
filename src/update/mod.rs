@@ -12,8 +12,8 @@ pub mod wishes_stats;
 pub mod zzz_achievements_percent;
 
 /// Held by every heavy background refresh (global gacha stats, achievement completion
-/// recounts, leaderboard ranks) so at most one runs at a time and their database work,
-/// including one-time backfills, never overlaps.
+/// recounts) so at most one runs at a time and their database work, including one-time
+/// backfills, never overlaps. The short leaderboard rank refresh does not take it.
 pub(crate) static HEAVY_REFRESH_LOCK: std::sync::LazyLock<futures::lock::Mutex<()>> =
     std::sync::LazyLock::new(|| futures::lock::Mutex::new(()));
 

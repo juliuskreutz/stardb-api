@@ -18,8 +18,10 @@ pub async fn spawn(pool: PgPool) {
 }
 
 /// Recompute ranks in one transaction so pages never see a half-updated ranking.
+///
+/// Deliberately skips `HEAVY_REFRESH_LOCK`: the gacha stats rebuilds hold it for their
+/// whole run, which would leave the leaderboard stale far longer than five minutes.
 async fn update(pool: PgPool) -> Result<()> {
-    let _refresh = super::HEAVY_REFRESH_LOCK.lock().await;
     let mut transaction = pool.begin().await?;
     let changed = database::achievement_scores::refresh_ranks(&mut transaction).await?;
     transaction.commit().await?;

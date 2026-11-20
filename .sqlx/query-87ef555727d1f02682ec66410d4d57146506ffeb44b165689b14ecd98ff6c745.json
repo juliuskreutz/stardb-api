@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements.arcade,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(zzz_achievements_percent.completions::float8 / NULLIF(qualifying.players, 0), zzz_achievements_percent.percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    CROSS JOIN (\n        SELECT COUNT(*) AS players\n        FROM achievement_completion_state state\n        JOIN zzz_achievement_completion_totals totals ON totals.completed >= state.minimum_completions\n        WHERE state.game = 'zzz'\n    ) qualifying\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $2\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $2\nWHERE\n    zzz_achievements.id = $1;\n\n",
+  "query": "SELECT\n    zzz_achievements.id,\n    zzz_achievements.series,\n    zzz_achievements.polychromes,\n    zzz_achievements.hidden,\n    zzz_achievements.version,\n    zzz_achievements.comment,\n    zzz_achievements.reference,\n    zzz_achievements.difficulty,\n    zzz_achievements.video,\n    zzz_achievements.gacha,\n    zzz_achievements.timegated,\n    zzz_achievements.missable,\n    zzz_achievements.impossible,\n    zzz_achievements.set,\n    zzz_achievements.arcade,\n    zzz_achievements_text.name,\n    zzz_achievements_text.description,\n    -- Live share of qualifying players; the stored percent until the first recount.\n    COALESCE(zzz_achievements_percent.completions::float8 / NULLIF(qualifying.qualifying_players, 0), zzz_achievements_percent.percent, 0) percent,\n    zzz_achievement_series_text.name series_name\nFROM\n    zzz_achievements\n    LEFT JOIN zzz_achievements_percent ON zzz_achievements.id = zzz_achievements_percent.id\n    LEFT JOIN achievement_completion_state qualifying ON qualifying.game = 'zzz'\n    JOIN zzz_achievements_text ON zzz_achievements.id = zzz_achievements_text.id\n        AND zzz_achievements_text.language = $1\n    JOIN zzz_achievement_series ON series = zzz_achievement_series.id\n    JOIN zzz_achievement_series_text ON series = zzz_achievement_series_text.id\n        AND zzz_achievement_series_text.language = $1\n    ORDER BY\n        arcade,\n        series,\n        zzz_achievements.priority DESC,\n        id;\n\n",
   "describe": {
     "columns": [
       {
@@ -210,7 +210,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
         "Text"
       ]
     },
@@ -236,5 +235,5 @@
       false
     ]
   },
-  "hash": "82c0f535d27b8bf924632a3cd7fe897952256a8b305b60d1b8e7b0b68d67fad1"
+  "hash": "87ef555727d1f02682ec66410d4d57146506ffeb44b165689b14ecd98ff6c745"
 }

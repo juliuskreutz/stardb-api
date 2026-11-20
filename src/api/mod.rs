@@ -17,6 +17,7 @@ mod light_cones;
 mod mihomo;
 mod ntehelper;
 mod pages;
+mod paging;
 mod pom_warps_import;
 mod scores;
 mod select_all;
